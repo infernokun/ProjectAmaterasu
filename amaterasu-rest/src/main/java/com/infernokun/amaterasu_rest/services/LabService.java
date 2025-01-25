@@ -5,6 +5,7 @@ import com.infernokun.amaterasu_rest.repositories.LabRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,7 +26,14 @@ public class LabService {
         return labRepository.findById(id);
     }
 
-    public Lab saveLab(Lab lab) {
+    public Lab createLab(Lab lab) {
+        // Format the current date-time for a cleaner string (e.g., "2025-01-25T01:51:23")
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+
+        // Construct the dockerFile name with cleaned-up name and timestamp
+        lab.setDockerFile(lab.getName().toLowerCase().replace(" ", "-") + "_" + timestamp + ".yml");
+
+        // Save the lab with the updated dockerFile name
         return labRepository.save(lab);
     }
 

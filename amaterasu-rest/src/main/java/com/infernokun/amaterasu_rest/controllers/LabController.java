@@ -27,7 +27,7 @@ public class LabController {
 
     @PostMapping
     public Lab createLab(@RequestBody Lab lab) {
-        return labService.saveLab(lab);
+        return labService.createLab(lab);
     }
 
     @DeleteMapping("/{id}")
