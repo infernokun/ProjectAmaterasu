@@ -1,0 +1,8 @@
+@mixin make-background-colors($theme) {
+    @each $color in $theme {
+        $color-name: nth($color, 1);
+        $color-hex: nth($color, 2);
+
+        .bg-#{$color-name} { background-color: $color-hex !important };
+    }
+}

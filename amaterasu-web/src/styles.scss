@@ -1,0 +1,23 @@
+// Import the prebuilt Angular Material theme
+@import '@angular/material/prebuilt-themes/deeppurple-amber.css'; // You can choose any pre-built theme here
+
+// Define dark mode variables
+:root {
+  --background-color: #121212; // Dark background color
+  --text-color: #fff; // Light text color
+  // Define more variables as needed
+}
+
+// Apply dark mode styles
+body {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  // Add more body styles as needed
+}
+
+// Toggle dark mode class
+.dark-mode {
+  --background-color: #121212; // Dark background color
+  --text-color: #fff; // Light text color
+  // Define more variables for dark mode as needed
+}

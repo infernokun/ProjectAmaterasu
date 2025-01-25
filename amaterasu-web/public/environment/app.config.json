@@ -1,0 +1,8 @@
+{
+  "production": false,
+  "host": "https://127.0.0.1:4200",
+  "baseUrl": "https://127.0.0.1:4200",
+  "restUrl": "https://127.0.0.1:8080/amaterasu-rest",
+  "baseEndPoint": "amaterasu",
+  "websocketUrl": "wss://127.0.0.1:8080/infernoctf-rest"
+}

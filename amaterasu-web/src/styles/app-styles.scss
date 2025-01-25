@@ -1,0 +1,12 @@
+$theme: dark;
+
+@import 'common/config.scss';
+@import 'theme-value';
+@import 'global-layout';
+
+:root {
+    --background-color: #121212;
+    --text-color: #fff;
+}
+
+/* Add more styles for specific elements as needed */

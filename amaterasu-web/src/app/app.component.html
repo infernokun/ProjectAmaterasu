@@ -1,0 +1,59 @@
+<header class="header-footer {{ bannerDisplayStyle }}">
+  <b>{{ header }}</b>
+</header>
+<mat-toolbar class="main-toolbar">
+  <div class="display-flex flex-row">
+    <article class="margin-left-half flex-fill display-flex">
+      <div class="image-box interactive-text" routerLink="/">
+        <svg width="45" height="45" xmlns="http://www.w3.org/2000/svg">
+          <image xlink:href="assets/icon.svg" width="45" height="45" x="0" y="0" />
+        </svg>
+      </div>
+      <div class="display-flex flex-column justify-content-start">
+        <div class="display-flex flex-row align-items-baseline">
+          <span class="text-2x interactive-text" routerLink="/">{{ title }}&nbsp;</span>
+          <span class="text-sm" style="line-height: 16px">v{{ appVersion }}</span>
+        </div>
+        <div class="text-sm" style="line-height: 16px">
+          A tool by
+          <a href="">Me..</a>
+        </div>
+      </div>
+    </article>
+  </div>
+  <div>
+    <article>
+      <div>
+        <a routerLink="/">Home</a>
+        <a routerLink="/home">Challenges</a>
+      </div>
+    </article>
+  </div>
+  <div class="display-flex flex-row width-100-percent justify-content-end">
+    <article class="margin-right-2x display-flex flex-column justify-content-center">
+      <div>Some User</div>
+    </article>
+    <button class="menuButton" mat-icon-button [matMenuTriggerFor]="theMenu">
+      <mat-icon>menu</mat-icon>
+    </button>
+    <mat-menu #theMenu="matMenu">
+      <div class="toolbar-menu-options-wrapper">
+        <button mat-menu-item>Profile</button>
+        <button mat-menu-item (click)="logoutButton()">Logout</button>
+      </div>
+    </mat-menu>
+  </div>
+</mat-toolbar>
+<div class="main-content" id="router-container">
+  <router-outlet></router-outlet>
+</div>
+<footer class="header-footer {{ bannerDisplayStyle }}">
+  <b>{{ footer }}</b>
+</footer>
+
+<ng-template #loading>
+  <div class="spinner-border" role="status">
+    <span class="visually-hidden">Loading...</span>
+    <mat-spinner></mat-spinner>
+  </div>
+</ng-template>

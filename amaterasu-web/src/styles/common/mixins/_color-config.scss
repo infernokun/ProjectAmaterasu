@@ -1,0 +1,63 @@
+@function color($key, $theme) {
+    @return map-get($theme, $key);
+}
+
+@function returnThemeVariable($value) {
+    @if $value == "light" {
+        @return $light;
+    }
+    @else {
+        @return $dark;
+    }
+}
+
+@function color-level($color-name, $level, $theme) {
+    $color: map-get($theme, $color-name);
+    $color-base: if($level < 0, black, white);
+
+    @return mix($color-base, $color, abs($level) * $color-interval);
+}
+    
+@function make-color-variables($theme) {
+    $color-values: ();
+    
+    @each $color-value in $theme {
+        $color-name: nth($color-value, 1);
+        $imin: $color-shades;
+        $imax: $color-tints;
+    
+        @if $color-name == 'neutral' {
+            $imin: $neutral-shades;
+            $imax: $neutral-tints;
+        }
+    
+        @for $i from $imin through $imax {
+            $color-level: if($i < 0, shade, tint);
+            $color-value-name: '';
+            $color-value-level: '';
+            $interval-count: 0;
+            $interval-count: #{abs($i)*convertString($color-interval)};
+
+            @if $interval-count == '100' {
+                $color-value-name: #{$color-name}-#{$color-level}-95;
+                $color-value-level: color-level($color-name, 9.5, $theme);
+            } @else {
+                $color-value-name: #{$color-name}-#{$color-level}-#{$interval-count};
+                $color-value-level: color-level($color-name, $i, $theme);
+            }
+    
+            @if $i == 0 {
+                $color-value-name: #{$color-name};
+            }
+    
+    
+            $color-value-name-hex: ($color-value-name: $color-value-level);
+            $color-values: map-merge($color-values, $color-value-name-hex);
+        }
+    }
+
+    @return $color-values;
+}
+    
+$light: make-color-variables($light-palette);
+$dark: make-color-variables($dark-palette);

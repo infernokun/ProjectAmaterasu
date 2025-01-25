@@ -1,0 +1,8 @@
+server:
+  servlet:
+    contextPath: /${URL_PREFIX}
+spring:
+  application:
+    name: amaterasu-rest
+  profiles:
+    active: local

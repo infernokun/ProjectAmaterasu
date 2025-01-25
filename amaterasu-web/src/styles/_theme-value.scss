@@ -1,0 +1,13 @@
+@function themeColor($key) {
+    @return map-get(returnThemeVariable($theme), $key);
+  }
+  
+  @mixin themifyAppColor($prop, $class, $color) {
+    @each $theme, $map in $themes {
+      $className: ".theme-" + #{$theme} + " ." + #{$prop};
+      #{$className} {
+        #{$class}: color($color, returnThemeVariable($theme)) !important;
+      }
+    }
+  }
+  
