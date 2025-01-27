@@ -26,9 +26,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+
 server:
   forward-headers-strategy: native
   port: 8080
@@ -60,3 +59,11 @@ ssl:
   keystore:
     urI: ${KEYSTORE}
     password: ${KEYSTORE_PASSWORD}
+  truststore:
+    uri: ${TRUSTSTORE}
+    password: ${TRUSTSTORE_PASSWORD}
+
+logging:
+  level:
+    org.hibernate: WARN
+    org.hibernate.orm.connections.pooling: ERROR
