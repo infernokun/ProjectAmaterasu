@@ -1,7 +1,10 @@
 import { Component } from '@angular/core';
+import { User } from './models/user.model';
+import { UserService } from './services/user/user.service';
+import { Observable } from 'rxjs';
 
 declare var require: any;
-//const { version: appVersion } = require('../../package.json');
+const { version: appVersion } = require('../../package.json');
 
 @Component({
   selector: 'app-root',
@@ -17,8 +20,19 @@ export class AppComponent {
   appVersion: any;
   bannerDisplayStyle: string = 'green-white';
 
-  constructor() {
-    //this.appVersion = appVersion;
+  protected users: User[] = [];
+  loggedInUser$: Observable<User | undefined> | undefined;
+
+  constructor(private userService: UserService) {
+    this.appVersion = appVersion;
+
+    this.userService.getAllUsers().subscribe((users) => {
+      if (users.length > 0) {
+        this.userService.setLoggedInUser(users[0]); 
+      }
+    });
+
+    this.loggedInUser$ = this.userService.getLoggedInUser();
   }
 
   logoutButton() {

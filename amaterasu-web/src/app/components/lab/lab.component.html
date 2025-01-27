@@ -1,1 +1,59 @@
-<p>lab works!</p>
+<div class="lab-container">
+    <div class="lab-card" *ngFor="let lab of labs$ | async">
+        <div class="lab-header">
+            <h2>{{ lab.name }}</h2>
+            <span class="lab-status" [class.active]="lab.status === 'ACTIVE'"
+                [class.inactive]="lab.status !== 'ACTIVE'">
+                {{ lab.status }}
+            </span>
+        </div>
+        <div class="lab-body">
+            <p class="lab-description">{{ lab.description }}</p>
+            <ul class="lab-details">
+                <li><strong>Created By:</strong> {{ lab.createdBy }}</li>
+                <li><strong>Version:</strong> {{ lab.version }}</li>
+                <li><strong>Capacity:</strong> {{ lab.capacity }}</li>
+            </ul>
+        </div>
+        <div class="lab-footer">
+            <p><strong>Created:</strong> {{ lab.createdDate ? formatDate(lab.createdDate) : 'N/A' }}</p>
+            <p><strong>Last Modified:</strong> {{ lab.lastModifiedDate ? formatDate(lab.lastModifiedDate) : 'N/A' }}</p>
+        </div>
+        <div class="lab-actions">
+            <!-- Show Spinner while loading -->
+            <mat-spinner *ngIf="isLoading$ | async; else buttonContent"></mat-spinner>
+
+            <!-- Button content when not loading -->
+            <ng-template #buttonContent>
+                <!-- Querying Button -->
+                <button mat-button class="button querying" *ngIf="isLabLoading(lab.id)">
+                    Querying
+                </button>
+
+                <!-- Start Button -->
+                <button mat-button class="button start" (click)="startLab(lab.id, loggedInUser)"
+                    *ngIf="!isLabLoading(lab.id) && !isInTrackedLabs(lab.id)">
+                    Start
+                </button>
+
+                <!-- Already Started Button -->
+                <button mat-button class="button active"
+                    *ngIf="!isLabLoading(lab.id) && isInTrackedLabs(lab.id) && getLabStatus(lab.id) === 'ACTIVE'">
+                    Already Started
+                </button>
+
+                <!-- Offline Button -->
+                <button mat-button class="button offline"
+                    *ngIf="!isLabLoading(lab.id) && isInTrackedLabs(lab.id) && getLabStatus(lab.id) === 'OFFLINE'">
+                    Offline
+                </button>
+
+                <!-- Stopped Button -->
+                <button mat-button class="button stopped"
+                    *ngIf="!isLabLoading(lab.id) && isInTrackedLabs(lab.id) && getLabStatus(lab.id) === 'STOPPED'">
+                    Stopped
+                </button>
+            </ng-template>
+        </div>
+    </div>
+</div>

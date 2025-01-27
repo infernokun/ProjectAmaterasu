@@ -20,7 +20,7 @@ management:
 
 spring:
   datasource:
-    url: jdbc:postgresql://10.0.0.55:5432/amaterasu
+    url: jdbc:postgresql://${DB_IP}:5432/amaterasu
     username: ${DB_USER}
     password: ${DB_PASS}
   jpa:

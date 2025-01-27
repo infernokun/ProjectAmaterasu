@@ -31,7 +31,9 @@
   </div>
   <div class="display-flex flex-row width-100-percent justify-content-end">
     <article class="margin-right-2x display-flex flex-column justify-content-center">
-      <div>Some User</div>
+      <div *ngIf="loggedInUser$ | async as user">
+        {{ user.username }}
+      </div>
     </article>
     <button class="menuButton" mat-icon-button [matMenuTriggerFor]="theMenu">
       <mat-icon>menu</mat-icon>
