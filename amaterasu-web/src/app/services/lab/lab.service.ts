@@ -30,4 +30,22 @@ export class LabService extends BaseService {
       userId
     });
   }
+
+  stopLab(labId: string, userId?: string): Observable<ApiResponse<any>> {
+    return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/stop', {
+      labId,
+      userId
+    });
+  }
+
+  deleteLab(labId: string, userId?: string): Observable<ApiResponse<any>> {
+    return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/delete', {
+      labId,
+      userId
+    });
+  }
+
+  viewLogs(labId: string): Observable<ApiResponse<any>> {
+    return this.get<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/logs/' + labId);
+  }
 }

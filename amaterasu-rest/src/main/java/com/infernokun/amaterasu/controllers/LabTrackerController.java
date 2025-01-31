@@ -61,8 +61,8 @@ public class LabTrackerController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<LabTracker>> updateLabTracker(@PathVariable String id, @RequestBody LabTracker labTracker) {
-        LabTracker updatedLabTracker = labTrackerService.updateLabTracker(id, labTracker);
+    public ResponseEntity<ApiResponse<LabTracker>> updateLabTracker(@RequestBody LabTracker labTracker) {
+        LabTracker updatedLabTracker = labTrackerService.updateLabTracker(labTracker);
 
         return ResponseEntity.status(updatedLabTracker != null ? HttpStatus.OK : HttpStatus.NOT_FOUND).body(ApiResponse.<LabTracker>builder()
                 .code(updatedLabTracker != null ? HttpStatus.OK.value() :HttpStatus.NOT_FOUND.value() )

@@ -15,6 +15,7 @@ public class AmaterasuConfig {
     private String applicationName;
     private String defaultAdminUsername;
     private String defaultAdminPassword;
+    private String uploadDir;
     private String chatService;
     private String chatSocket;
     private String apiKey;

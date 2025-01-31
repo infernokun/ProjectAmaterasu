@@ -1,13 +1,14 @@
 package com.infernokun.amaterasu.controllers;
 
 import com.infernokun.amaterasu.models.ApiResponse;
-import com.infernokun.amaterasu.models.entities.Team; // Assuming you have a Team entity
-import com.infernokun.amaterasu.services.TeamService; // Assuming you have a TeamService
+import com.infernokun.amaterasu.models.entities.Team;
+import com.infernokun.amaterasu.services.TeamService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/team")
@@ -27,6 +28,17 @@ public class TeamController {
                 .message("Teams retrieved successfully.")
                 .data(teams)
                 .build());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<Team>> getTeamById(@PathVariable String id) {
+        Optional<Team> foundTeamOptional = teamService.findTeamById(id);
+        return ResponseEntity.status(foundTeamOptional.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.<Team>builder()
+                        .code(foundTeamOptional.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
+                        .message(foundTeamOptional.isPresent() ? "Found a team." : "Failed to find a team.")
+                        .data(foundTeamOptional.orElse(null))
+                        .build());
     }
 
     @PostMapping
@@ -68,9 +80,9 @@ public class TeamController {
         }
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Team>> updateTeam(@PathVariable String id, @RequestBody Team team) {
-        Team updatedTeam = teamService.updateTeam(id, team);
+    @PutMapping()
+    public ResponseEntity<ApiResponse<Team>> updateTeam(@RequestBody Team team) {
+        Team updatedTeam = teamService.updateTeam(team);
         if (updatedTeam != null) {
             return ResponseEntity.ok(ApiResponse.<Team>builder()
                     .code(HttpStatus.OK.value())

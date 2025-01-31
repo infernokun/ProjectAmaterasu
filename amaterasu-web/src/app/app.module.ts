@@ -10,6 +10,8 @@ import { HomeComponent } from './components/home/home.component';
 import { EnvironmentService } from './services/environment/environment.service';
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { LabComponent } from './components/lab/lab.component';
+import { CommonModule } from '@angular/common';
+import { AuditLogComponent } from './components/audit-log/audit-log.component';
 
 export function init_app(environmentService: EnvironmentService) {
   return () => environmentService.load().then(() => {
@@ -21,7 +23,8 @@ export function init_app(environmentService: EnvironmentService) {
   declarations: [
     AppComponent,
     HomeComponent,
-    LabComponent
+    LabComponent,
+    AuditLogComponent
   ],
   imports: [
     BrowserModule,
@@ -29,7 +32,8 @@ export function init_app(environmentService: EnvironmentService) {
     BrowserAnimationsModule,
     ReactiveFormsModule,
     FormsModule,
-    MaterialModule
+    MaterialModule,
+    CommonModule
   ],
   providers: [
     {

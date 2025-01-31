@@ -51,7 +51,7 @@ amaterasu:
   applicationName: Amaterasu
   defaultAdminUsername: admin
   defaultAdminPassword: password
-  uploadDir: "uploads/dockerfiles"
+  uploadDir: "${DOCKER_COMPOSE_PATH}"
   chatService: ""
   chatSocket: ""
 

@@ -1,8 +1,11 @@
 package com.infernokun.amaterasu.models.entities;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -14,4 +17,6 @@ import lombok.*;
 public class Team extends StoredObject {
     private String name;
     private String description;
+    private List<String> teamActiveLabs = new ArrayList<>();
+    private List<String> teamDeletedLabs = new ArrayList<>();
 }

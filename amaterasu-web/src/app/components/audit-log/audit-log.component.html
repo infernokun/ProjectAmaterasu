@@ -1,0 +1,58 @@
+<div class="table-container-2">
+  <div class="text-lg">Table is filterable/sortable.</div>
+  <mat-form-field class="filter-form-field">
+    <mat-label>Filter On...</mat-label>
+    <input matInput (keyup)="applyFilter($event)" placeholder="Start typing..." #input />
+  </mat-form-field>
+
+  <mat-table matSort #auditLogSort="matSort" [dataSource]="auditLogDataSource" matSortActive="updatedAt"
+    matSortDirection="desc">
+    <!-- Column Definitions -->
+    <ng-container matColumnDef="id">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>id</th>
+      <td mat-cell *matCellDef="let element">{{ element.id ? element.id : 'N/A' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="createdBy">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Created By</th>
+      <td mat-cell *matCellDef="let element">{{ element.createdBy ? element.createdBy : 'N/A' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="createdAt">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Created At</th>
+      <td mat-cell *matCellDef="let element">{{ element.createdAt ? (element.createdAt | date : "yyyy-MM-dd HH:mm")
+        : 'N/A' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="updatedAt">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Updated At</th>
+      <td mat-cell *matCellDef="let element">{{ element.updatedAt ? (element.updatedAt | date :
+        "yyyy-MM-dd HH:mm") : 'N/A' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="labStarted">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Lab Started</th>
+      <td mat-cell *matCellDef="let element">{{ element.labStarted ? element.labStarted.name : 'N/A' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="labStatus">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Lab Status</th>
+      <td mat-cell *matCellDef="let element">{{ element.labStatus ? element.labStatus : 'N/A' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="labOwner">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Lab Owner</th>
+      <td mat-cell *matCellDef="let element">{{ element.labOwner.name ? element.labOwner.name : 'N/A' }}</td>
+    </ng-container>
+
+    <mat-header-row *matHeaderRowDef="outputColumns" sticky></mat-header-row>
+    <mat-row *matRowDef="let row; columns: outputColumns" class="mat-row"></mat-row>
+  </mat-table>
+
+  <section class="display-flex flex-row padding-half align-items-start">
+    <article class="flex-fill"></article>
+    <article>
+      <mat-paginator pageSize="10" [pageSizeOptions]="[10, 25, 50, 100, 200]" showFirstLastButtons></mat-paginator>
+    </article>
+  </section>
+</div>

@@ -3,7 +3,7 @@ package com.infernokun.amaterasu.models;
 import lombok.Data;
 
 @Data
-public class LabStartRequest {
+public class LabRequest {
     private String labId;
     private String userId;
 }

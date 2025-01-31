@@ -1,7 +1,7 @@
 package com.infernokun.amaterasu.controllers;
 
 import com.infernokun.amaterasu.models.ApiResponse;
-import com.infernokun.amaterasu.models.LabStartRequest;
+import com.infernokun.amaterasu.models.LabRequest;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.services.LabService;
@@ -94,15 +94,35 @@ public class LabController {
     }
 
     @PostMapping("/start")
-    public ResponseEntity<ApiResponse<LabTracker>> startLab(@RequestBody LabStartRequest labStartRequest) {
+    public ResponseEntity<ApiResponse<LabTracker>> startLab(@RequestBody LabRequest labRequest) {
         try {
-            Optional<LabTracker> startedLab = labService.startLab(labStartRequest.getLabId(), labStartRequest.getUserId());
+            Optional<LabTracker> startedLabOptional = labService.startLab(labRequest.getLabId(), labRequest.getUserId());
 
-            return ResponseEntity.status(startedLab.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+            return ResponseEntity.status(startedLabOptional.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.<LabTracker>builder()
-                            .code(startedLab.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
-                            .message(startedLab.isPresent() ? "Lab started successfully." : "Failed to start the lab.")
-                            .data(startedLab.orElse(null))
+                            .code(startedLabOptional.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
+                            .message(startedLabOptional.isPresent() ? "Lab started successfully." : "Failed to start the lab.")
+                            .data(startedLabOptional.orElse(null))
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.<LabTracker>builder()
+                    .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                    .message("An error occurred: " + e.getMessage())
+                    .data(null)
+                    .build());
+        }
+    }
+
+    @PostMapping("/stop")
+    public ResponseEntity<ApiResponse<LabTracker>> stopLab(@RequestBody LabRequest labRequest) {
+        try {
+            Optional<LabTracker> stoppedLab = labService.stopLab(labRequest.getLabId(), labRequest.getUserId());
+
+            return ResponseEntity.status(stoppedLab.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.<LabTracker>builder()
+                            .code(stoppedLab.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
+                            .message(stoppedLab.isPresent() ? "Lab stopped successfully." : "Failed to stop the lab.")
+                            .data(stoppedLab.orElse(null))
                             .build());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.<LabTracker>builder()

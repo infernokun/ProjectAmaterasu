@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.services;
 
 import com.infernokun.amaterasu.models.entities.Team; // Assuming you have a Team entity
 import com.infernokun.amaterasu.repositories.TeamRepository; // Assuming you have a TeamRepository
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,10 @@ public class TeamService {
     // Retrieve all teams
     public List<Team> findAllTeams() {
         return teamRepository.findAll();
+    }
+
+    public Optional<Team> findTeamById(String id) {
+        return this.teamRepository.findById(id);
     }
 
     // Create a new team
@@ -44,15 +49,11 @@ public class TeamService {
     }
 
     // Update an existing team
-    public Team updateTeam(String id, Team team) {
-        Optional<Team> existingTeamOpt = teamRepository.findById(id);
-        if (existingTeamOpt.isPresent()) {
-            Team existingTeam = existingTeamOpt.get();
-            // Update fields as necessary
-            existingTeam.setName(team.getName()); // Assuming Team has a name field
-            // Add other fields to update as needed
-            return teamRepository.save(existingTeam); // Save the updated team
+    public Team updateTeam(Team team) {
+        Optional<Team> existingTeamOptional =  this.teamRepository.findById(team.getId());
+        if (existingTeamOptional.isPresent()) {
+            return teamRepository.save(team);
         }
-        return null; // Team not found
+        return null;
     }
 }

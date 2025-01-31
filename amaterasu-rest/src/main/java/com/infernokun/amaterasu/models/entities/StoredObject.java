@@ -16,20 +16,28 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @MappedSuperclass
+/*
+String id;
+String createdBy;
+String updateBy;
+LocalDataTime createdAt;
+LocalDateTime updatedAt
+ */
 public abstract class StoredObject {
     @Id
     @UuidGenerator
     private String id;
 
     private String createdBy = "SYSTEM";
+    private String updatedBy = "SYSTEM";
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     @JsonSerialize(using = LocalDateTimeSerializer.class)
-    private LocalDateTime createdDate = LocalDateTime.now();
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     @JsonSerialize(using = LocalDateTimeSerializer.class)
-    private LocalDateTime lastModifiedDate = LocalDateTime.now();
+    private LocalDateTime updatedAt = LocalDateTime.now();
 }

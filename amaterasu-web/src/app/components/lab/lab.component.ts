@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { LabService } from '../../services/lab/lab.service';
 import { Lab } from '../../models/lab.model';
 import { UserService } from '../../services/user/user.service';
@@ -7,6 +7,8 @@ import { User } from '../../models/user.model';
 import { ApiResponse } from '../../models/api-response.model';
 import { LabTrackerService } from '../../services/lab-tracker/lab-tracker.service';
 import { LabTracker } from '../../models/lab-tracker.model';
+import { TeamService } from '../../services/team/team.service';
+import { Team } from '../../models/team.model';
 
 @Component({
   selector: 'app-lab',
@@ -17,73 +19,101 @@ export class LabComponent implements OnInit {
   labs: Lab[] = [];
   loggedInUser: User | undefined;
   trackedLabs: LabTracker[] = [];
+  team: Team | undefined;
 
   private isLoadingSubject = new BehaviorSubject<boolean>(false);
   isLoading$ = this.isLoadingSubject.asObservable();
-
-  private memoizedTrackedLabs: LabTracker[] | undefined;
   private loadingLabs = new Set<string>();
 
-  // BehaviorSubjects to hold the data
+  private memoizedTrackedLabs: LabTracker[] = [];
+
   private labsSubject = new BehaviorSubject<Lab[]>([]);
   private loggedInUserSubject = new BehaviorSubject<User | undefined>(undefined);
   private trackedLabsSubject = new BehaviorSubject<LabTracker[]>([]);
+  private userTeamSubject = new BehaviorSubject<Team | undefined>(undefined);
 
-  // Observables for data
-  labs$: Observable<Lab[]> = this.labsSubject.asObservable();
+  labsObservable$: Observable<Lab[]> = this.labsSubject.asObservable();
   loggedInUserObservable$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
   trackedLabsObservable$: Observable<LabTracker[]> = this.trackedLabsSubject.asObservable();
+  userTeamObservable$: Observable<Team | undefined> = this.userTeamSubject.asObservable();
+
+  isHovered = false;
 
   constructor(
     private labService: LabService,
     private userService: UserService,
-    private labTrackerService: LabTrackerService
+    private teamService: TeamService,
+    private labTrackerService: LabTrackerService,
+    private cdRef: ChangeDetectorRef
   ) {
-    this.trackedLabsSubject.subscribe((updatedTrackedLabs) => {
-      if (!this.memoizedTrackedLabs) return;
-      // Merge the arrays and remove duplicates based on labStarted.id
-      this.memoizedTrackedLabs = [
-        ...this.memoizedTrackedLabs!,
-        ...updatedTrackedLabs.filter(
-          (newLab) =>
-            !this.memoizedTrackedLabs!.some(
-              (existingLab) => existingLab.labStarted?.id === newLab.labStarted?.id
-            )
-        ),
-      ];
+    this.userTeamSubject.subscribe((team) => {
+      if (!team) return;
+      this.team = team;
     });
   }
 
   ngOnInit(): void {
-    this.labs$ = this.labService.getAllLabs();
-    this.loggedInUserObservable$ = this.userService.getLoggedInUser();
-
     combineLatest([
-      this.labs$,
-      this.loggedInUserObservable$
+      this.labService.getAllLabs(),
+      this.userService.getLoggedInUser(),
+      this.labTrackerService.getAllLabTrackers()
     ]).pipe(
-      switchMap(([labs, user]) => {
+      switchMap(([labs, user, labsTracked]) => {
         this.labs = labs.map(lab => new Lab(lab));
         this.labsSubject.next(this.labs);
 
         this.loggedInUser = user;
         this.loggedInUserSubject.next(this.loggedInUser);
 
-        console.log("labs", this.labs);
-        console.log("loggedInUser", this.loggedInUser);
+        this.trackedLabs = labsTracked.map((tracker) => new LabTracker(tracker));
+        this.trackedLabsSubject.next(this.trackedLabs);
 
         // Return the trackedLabs after both labs and loggedInUser are available
-        return this.labTrackerService.getAllLabTrackers();
+        return this.teamService.getTeamById(this.loggedInUser!.team!.id!);
       }),
       finalize(() => {
         this.isLoadingSubject.next(false); // Loading ends
       })
-    ).subscribe((labTrackers) => {
-      this.trackedLabs = labTrackers.map(labTracker => new LabTracker(labTracker));
-      this.trackedLabsSubject.next(this.trackedLabs);
+    ).subscribe((team) => {
+      this.team = team;
+      this.memoizedTrackedLabs = this.trackedLabs.filter(tracker =>
+        this.team?.teamActiveLabs?.includes(tracker.labStarted?.id ?? '')
+      );
 
-      this.filterTrackedLabs();
+      this.userTeamSubject.next(this.team);
+
+      //this.filterTrackedLabs();
     });
+    /*
+    combineLatest([
+      this.labService.getAllLabs(),
+      this.userService.getLoggedInUser(),
+      this.labTrackerService.getAllLabTrackers()
+    ])
+      .pipe(
+        finalize(() => this.isLoadingSubject.next(false))
+      )
+      .subscribe(([labs, user, labsTracked]) => {
+        this.labs = labs;
+        this.labsSubject.next(this.labs);
+
+        this.loggedInUser = user;
+        this.loggedInUserSubject.next(this.loggedInUser);
+
+        this.trackedLabs = labsTracked.map((tracker) => new LabTracker(tracker));
+        this.trackedLabsSubject.next(this.trackedLabs);
+
+        if (this.loggedInUser?.team?.id) {
+          this.teamService.getTeamById(this.loggedInUser.team.id).subscribe(team => {
+            this.team = team;
+            this.memoizedTrackedLabs = this.trackedLabs.filter(tracker =>
+              this.team?.teamActiveLabs?.includes(tracker.labStarted?.id ?? '')
+            );
+
+            this.userTeamSubject.next(this.team);
+          });
+        }
+      });*/
   }
 
   filterTrackedLabs(): void {
@@ -94,11 +124,38 @@ export class LabComponent implements OnInit {
 
     // Filter the trackedLabs by the user's team
     const allTrackedLabsByUser: LabTracker[] = this.trackedLabsSubject.value.filter((tracker: LabTracker) => {
-      return tracker.labOwner?.id === this.loggedInUser?.team?.id;
+      return tracker.labOwner?.id === this.loggedInUser?.team?.id; //this.team!.teamActiveLabs?.includes(tracker.labStarted?.id!);
+    });
+
+    /*
+        let allTrackedLabsByUser1: LabTracker[] = this.trackedLabsSubject.value.filter((tracker: LabTracker) => {
+          return this.team!.teamActiveLabs?.includes(tracker.labStarted?.id!);
+        });
+
+        let allTrackedLabsByUser2: LabTracker[] = [];
+
+        this.trackedLabs.forEach((tracker: LabTracker) => {
+          allTrackedLabsByUser2.push(tracker);
+          if (this.team!.teamActiveLabs?.includes(tracker.labStarted?.id!)) {
+            console.log("confirmed");
+          }
+        });*/
+
+    console.log(this.team!.teamActiveLabs, this.trackedLabs);
+
+    let teamLabsInTracker: LabTracker[] = [];
+
+    this.trackedLabs.forEach((tracker: LabTracker) => {
+      this.team!.teamActiveLabs?.forEach((labId: string) => {
+        console.log(`Comparing labId: ${labId} with tracker ID: ${tracker.labStarted?.id}`);
+        if (labId === tracker.labStarted?.id) {
+          teamLabsInTracker.push(tracker);
+        }
+      });
     });
 
     // Find the labs in view that are being tracked by the user
-    const foundLabs = allTrackedLabsByUser
+    const foundLabs = this.trackedLabs
       .map((tracker: LabTracker) => {
         return this.labsSubject.value.filter((lab: Lab) => {
           return lab.id === tracker.labStarted?.id;
@@ -113,20 +170,13 @@ export class LabComponent implements OnInit {
   }
 
   isInTrackedLabs(labId?: string): boolean {
-    // Get the filtered tracked labs for the user
-    const allTrackedLabsByUser: LabTracker[] | undefined = this.memoizedTrackedLabs;
-
-    if (!allTrackedLabsByUser) {
-      return false;
-    }
-
-    // Check if any of the tracked labs match the provided labId
-    return allTrackedLabsByUser.some((tracker) => tracker.labStarted?.id === labId);
+    //return this.memoizedTrackedLabs.some(tracker => tracker.labStarted?.id === labId);
+    return this.team?.teamActiveLabs?.includes(labId!)!;
   }
 
   getLabStatus(labId?: string): string | undefined {
-    const trackedLab = this.memoizedTrackedLabs?.find(tracker => tracker.labStarted?.id === labId);
-    return trackedLab?.labStatus;
+    const teamLabTracked = this.team?.teamActiveLabs?.find(lab => lab === labId);
+    return this.trackedLabs.find(tracker => tracker.labStarted?.id === teamLabTracked)?.labStatus;
   }
 
   startLab(labId?: string, user?: User): void {
@@ -143,21 +193,84 @@ export class LabComponent implements OnInit {
 
         const newTrackedLab: LabTracker = new LabTracker(response.data);
 
-        console.log(`Lab ${response.data.id} started successfully`);
+        console.log(response.message);
 
-        this.trackedLabs.push(newTrackedLab);
+        const index = this.trackedLabs.findIndex((tracker) =>
+          tracker.labStarted?.id === newTrackedLab.labStarted?.id &&
+          tracker.labOwner?.name === newTrackedLab.labOwner?.name
+        );
+
+        if (index !== -1) {
+          console.log("existing lab tracker found", index);
+          this.trackedLabs[index] = newTrackedLab;
+        } else {
+          console.log("index", "new lab tracker created");
+          this.trackedLabs.push(newTrackedLab);
+          this.team?.teamActiveLabs?.push(newTrackedLab.labStarted?.id!);
+        }
+
+        //this.memoizedTrackedLabs = this.trackedLabs;
+        this.userTeamSubject.next(this.team);
         this.trackedLabsSubject.next(this.trackedLabs);
-
-        console.log(response);
       },
       error: (err) => {
         console.error(`Failed to start lab ${labId}:`, err);
+        this.loadingLabs.delete(labId);
       },
       complete: () => {
         // Remove the labId from the loadingLabs set
         this.loadingLabs.delete(labId);
       },
     });
+  }
+
+  stopLab(labId?: string, user?: User): void {
+    if (!labId) return;
+
+    console.log(`Stopping lab ${labId} for user ${user?.username} under ${user?.team?.name} team`);
+    console.log("trackedBefore", this.trackedLabs);
+
+    this.loadingLabs.add(labId);
+
+    this.labService.stopLab(labId, user?.id).subscribe({
+      next: (response: ApiResponse<LabTracker | undefined>) => {
+        if (!response.data) return;
+
+        const stoppedLab = new LabTracker(response.data);
+
+        console.log(`Lab ${response.data.id} stopped successfully`);
+
+        const index = this.trackedLabs.findIndex((tracker) =>
+          tracker.labStarted?.id === stoppedLab.labStarted?.id &&
+          tracker.labOwner?.name === stoppedLab.labOwner?.name
+        );
+
+        this.trackedLabs[index] = stoppedLab;
+        //this.memoizedTrackedLabs = this.trackedLabs;
+
+        this.trackedLabsSubject.next(this.trackedLabs);
+
+        console.log("trackedAfter", this.trackedLabs);
+
+
+        console.log(response);
+      },
+      error: (err) => {
+        console.error(`Failed to stop lab ${labId}:`, err);
+        this.loadingLabs.delete(labId!);
+      },
+      complete: () => {
+        this.loadingLabs.delete(labId!);
+      },
+    });
+  }
+
+  deleteLab(labId?: string, user?: User): void {
+
+  }
+
+  viewLogs(labId?: string): void {
+
   }
 
   isLabLoading(labId?: string): boolean {
@@ -182,5 +295,13 @@ export class LabComponent implements OnInit {
         return count === 2 ? ' @' : match; // Replace only the 2nd comma
       })()
     );
+  }
+
+  onMouseEnter() {
+    this.isHovered = true;
+  }
+
+  onMouseLeave() {
+    this.isHovered = false;
   }
 }
