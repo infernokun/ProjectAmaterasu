@@ -10,11 +10,13 @@ import com.infernokun.amaterasu.repositories.LabRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 import java.net.URISyntaxException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -105,7 +107,9 @@ public class LabService {
         }).orElseThrow(() -> new IllegalArgumentException("Lab with ID " + updatedLabData.getId() + " not found."));
     }
 
-    public Optional<LabTracker> startLab(String labId, String userId) throws URISyntaxException {
+    public Optional<LabTracker> startLab(String labId, String userId, String labTrackerId) throws URISyntaxException {
+        LOGGER.info("lab id {} user id {}, lab tracker id {}", labId, userId, labTrackerId);
+
         Optional<Lab> startedLab = this.findLabById(labId);
         Optional<User> startedBy = this.userService.findUserById(userId);
 
@@ -117,27 +121,21 @@ public class LabService {
 
             //dockerService.startDockerContainer("hello-world", amaterasuConfig.getDockerHost());
 
-            Optional<String> existingLabTrackerIdOptional = userTeam.getTeamActiveLabs().stream()
-                    .filter(labTracker -> labTracker.equals(labId))
-                    .findFirst();
+            Optional<LabTracker> existingLabTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
 
-            if (existingLabTrackerIdOptional.isPresent()) {
-                Optional <LabTracker> existingLabTrackerOptional = labTrackerService
-                        .findLabTrackerByLabStartedAndLabOwnerAndStatusNotDeleted(lab, userTeam);
+            if (existingLabTrackerOptional.isPresent()) {
+                LabTracker existingLabTracker = existingLabTrackerOptional.get();
 
-                if (existingLabTrackerOptional.isPresent()) {
-                    LabTracker existingLabTracker = existingLabTrackerOptional.get();
+                existingLabTracker.setLabStatus(LabStatus.ACTIVE);
+                existingLabTracker.setUpdatedAt(LocalDateTime.now());
+                existingLabTracker.setUpdatedBy(user.getId());
 
-                    existingLabTracker.setLabStatus(LabStatus.ACTIVE);
-                    existingLabTracker.setUpdatedAt(LocalDateTime.now());
-                    existingLabTracker.setUpdatedBy(user.getId());
+                labTrackerService.updateLabTracker(existingLabTracker);
 
-                    labTrackerService.updateLabTracker(existingLabTracker);
+                String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy @ hh:mma"));
+                LOGGER.info("{} started again by {} at {}, status is {}", lab.getName(), user.getUsername(), formattedDate, LabStatus.ACTIVE);
+                return Optional.of(existingLabTracker);
 
-                    String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy @ hh:mma"));
-                    LOGGER.info("{} started again by {} at {}, status is {}", lab.getName(), user.getUsername(), formattedDate, LabStatus.ACTIVE);
-                    return Optional.of(existingLabTracker);
-                }
             }
 
             LOGGER.info("Creating new labtracker..");
@@ -151,7 +149,7 @@ public class LabService {
 
             LabTracker newLabtracker = labTrackerService.createLabTracker(labTracker);
 
-            userTeam.getTeamActiveLabs().add(newLabtracker.getLabStarted().getId());
+            userTeam.getTeamActiveLabs().add(newLabtracker.getId());
             teamService.updateTeam(userTeam);
 
             String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy @ hh:mma"));
@@ -161,7 +159,7 @@ public class LabService {
         return Optional.empty();
     }
 
-    public Optional<LabTracker> stopLab(String labId, String userId) {
+    public Optional<LabTracker> stopLab(String labId, String userId, String labTrackerId) {
         Optional<Lab> stoppedLab = this.findLabById(labId);
         Optional<User> stoppedBy = this.userService.findUserById(userId);
 
@@ -170,27 +168,21 @@ public class LabService {
             User user = stoppedBy.get();
             Team userTeam = user.getTeam();
 
-            Optional<String> existingLabTrackerIdOptional = userTeam.getTeamActiveLabs().stream()
-                    .filter(labTrackerId -> labTrackerId.equals(labId))
-                    .findFirst();
+            Optional<LabTracker> existingLabTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
 
             //dockerService.startDockerContainer("hello-world");
 
-            if (existingLabTrackerIdOptional.isPresent()) {
-                Optional<LabTracker> existingLabTrackerOptional = labTrackerService
-                        .findLabTrackerByLabStartedAndLabOwnerAndStatusNotDeleted(lab, userTeam);
+            if (existingLabTrackerOptional.isPresent()) {
+                LabTracker existingLabTracker = existingLabTrackerOptional.get();
 
-                if (existingLabTrackerOptional.isPresent()) {
-                    LabTracker existingLabTracker = existingLabTrackerOptional.get();
+                existingLabTracker.setLabStatus(LabStatus.STOPPED);
+                existingLabTracker.setUpdatedAt(LocalDateTime.now());
+                existingLabTracker.setUpdatedBy(user.getId());
+                this.labTrackerService.updateLabTracker(existingLabTracker);
 
-                    existingLabTracker.setLabStatus(LabStatus.STOPPED);
-                    existingLabTracker.setUpdatedAt(LocalDateTime.now());
-                    this.labTrackerService.updateLabTracker(existingLabTracker);
-
-                    String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy @ hh:mma"));
-                    LOGGER.info("{} stopped by {} at {}, status is {}", lab.getName(), user.getUsername(), formattedDate, existingLabTracker.getLabStatus());
-                    return Optional.of(existingLabTracker);
-                }
+                String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy @ hh:mma"));
+                LOGGER.info("{} stopped by {} at {}, status is {}", lab.getName(), user.getUsername(), formattedDate, existingLabTracker.getLabStatus());
+                return Optional.of(existingLabTracker);
             }
         }
         return Optional.empty();
@@ -206,9 +198,9 @@ public class LabService {
             Team userTeam = user.getTeam();
 
 
-            if (userTeam.getTeamActiveLabs().contains(labId)) {
-                userTeam.getTeamDeletedLabs().add(labId);
-                userTeam.getTeamActiveLabs().remove(labId);
+            if (userTeam.getTeamActiveLabs().contains(labTrackerId)) {
+                userTeam.getTeamDeletedLabs().add(labTrackerId);
+                userTeam.getTeamActiveLabs().remove(labTrackerId);
 
                 Optional<LabTracker> labTrackerOptional = labTrackerService
                         .findLabTrackerById(labTrackerId);
@@ -225,5 +217,20 @@ public class LabService {
             }
         }
         return Optional.empty();
+    }
+
+    public void clear(String teamId) {
+        Optional<Team> team = teamService.findTeamById(teamId);
+
+        if (team.isPresent()) {
+            Team theTeam = team.get();
+
+            theTeam.setTeamActiveLabs(new ArrayList<>());
+            theTeam.setTeamDeletedLabs(new ArrayList<>());
+
+            teamService.updateTeam(theTeam);
+
+            labTrackerService.deleteAll();
+        }
     }
 }

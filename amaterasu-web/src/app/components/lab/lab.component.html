@@ -1,3 +1,5 @@
+<button mat-button class="button" (click)="clear()">Clear</button>
+
 <div class="lab-container">
   <div class="lab-card" *ngFor="let lab of labsObservable$ | async" (mouseenter)="onMouseEnter()"
     (mouseleave)="onMouseLeave()">
@@ -19,6 +21,7 @@
         <li><strong>Folder:</strong> {{ lab.id }}</li>
         <li><strong>Loc:</strong> {{ lab.dockerFile }}</li>
         <li><strong>Status:</strong> {{ getLabStatus(lab.id) }}</li>
+        <li><strong>isTracked:</strong> {{ isInTrackedLabs(lab.id) }}</li>
       </ul>
     </div>
     <div class="lab-footer">

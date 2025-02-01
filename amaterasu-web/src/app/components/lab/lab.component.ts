@@ -78,117 +78,102 @@ export class LabComponent implements OnInit {
     ).subscribe((team) => {
       this.team = team;
       this.memoizedTrackedLabs = this.trackedLabs.filter(tracker =>
-        this.team?.teamActiveLabs?.includes(tracker.labStarted?.id ?? '')
+        this.team?.teamActiveLabs?.includes(tracker.id ?? '')
       );
       console.log("Starter tracked labs", this.trackedLabs);
       this.userTeamSubject.next(this.team);
-
-      //this.filterTrackedLabs();
     });
-  }
-
-  filterTrackedLabs(): void {
-    // Ensure both labs and trackedLabs are populated before filtering
-    if (!this.loggedInUser || this.trackedLabsSubject.value.length === 0) {
-      return;
-    }
-
-    // Filter the trackedLabs by the user's team
-    const allTrackedLabsByUser: LabTracker[] = this.trackedLabsSubject.value.filter((tracker: LabTracker) => {
-      return tracker.labOwner?.id === this.loggedInUser?.team?.id;
-    });
-
-    let teamLabsInTracker: LabTracker[] = [];
-
-    this.trackedLabs.forEach((tracker: LabTracker) => {
-      this.team!.teamActiveLabs?.forEach((labId: string) => {
-        if (labId === tracker.labStarted?.id) {
-          teamLabsInTracker.push(tracker);
-        }
-      });
-    });
-
-    // Find the labs in view that are being tracked by the user
-    const foundLabs = this.trackedLabs
-      .map((tracker: LabTracker) => {
-        return this.labsSubject.value.filter((lab: Lab) => {
-          return lab.id === tracker.labStarted?.id;
-        });
-      })
-      .flat();
-
-    // Memoize the result to avoid recalculating multiple times
-    this.memoizedTrackedLabs = allTrackedLabsByUser.filter((tracker) =>
-      foundLabs.some((lab) => lab.id === tracker.labStarted?.id)
-    );
   }
 
   isInTrackedLabs(labId?: string): boolean {
-    //return this.memoizedTrackedLabs.some(tracker => tracker.labStarted?.id === labId);
-    return this.team?.teamActiveLabs?.includes(labId!)!;
+    if (!labId) return false; // Early return if labId is not provided
+
+    const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
+
+    // Check if the labId exists in trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
+    return this.trackedLabs.some(tracker =>
+      teamLabTrackerIds.includes(tracker.id!) &&
+      tracker.labStatus !== LabStatus.DELETED &&
+      tracker.labStarted?.id === labId
+    );
   }
 
   getLabStatus(labId?: string): string | undefined {
-    const teamLabTrackerId: string | undefined = this.team?.teamActiveLabs?.find(lab => lab === labId);
+    if (!labId) return; // Early return if labId is not provided
 
-    const filteredTrackedLabs: LabTracker[] = this.trackedLabs
-      .filter(tracker => tracker.labStarted?.id === teamLabTrackerId)
-      .filter(tracker => tracker.labStatus !== LabStatus.DELETED);
+    // Get all tracked labs that are active for the team
+    const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
 
-    return teamLabTrackerId && filteredTrackedLabs.length > 0
-      ? filteredTrackedLabs.find(tracker => tracker.labStarted?.id === teamLabTrackerId)?.labStatus
-      : LabStatus.NONE;
+    // Filter trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
+    const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
+      tracker => teamLabTrackerIds.includes(tracker.id!) &&
+        tracker.labStatus !== LabStatus.DELETED
+    );
+
+    // Find the specific lab tracker
+    const labTracker = filteredTrackedLabs.find(tracker => tracker.labStarted?.id === labId);
+
+    // Return the lab status or a default value
+    return labTracker?.labStatus ?? LabStatus.NONE;
   }
 
-  /*getLabStatus(labId?: string): string | undefined {
-    const teamLabTracked = this.team?.teamActiveLabs?.find(lab => lab === labId);
-    return this.trackedLabs.find(tracker => tracker.labStarted?.id === teamLabTracked)?.labStatus;
-  }*/
-
   startLab(labId?: string, user?: User): void {
-    if (!labId) return;
+    if (!labId) return; // Early return if labId is not provided
+
+    const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
+
+    // Filter and sort trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
+    const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
+      tracker => teamLabTrackerIds.includes(tracker.id!) &&
+        tracker.labStatus !== LabStatus.DELETED && tracker.labStarted?.id === labId
+    );
+
+    const latestLabTracker: LabTracker | undefined = filteredTrackedLabs.sort((a, b) =>
+      (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
+    )[0];
 
     // Add the labId to the loadingLabs set
     this.loadingLabs.add(labId);
 
-    this.labService.startLab(labId, user?.id).subscribe({
+    this.labService.startLab(labId, user?.id, latestLabTracker?.id || "").subscribe({
       next: (response: ApiResponse<LabTracker | undefined>) => {
-        const { data } = response;
-        if (!data) return;
+        if (!response.data) return;
 
-        const newTrackedLab = new LabTracker(data);
-        const existingLabTracker = this.trackedLabs.find(tracker =>
+        const newTrackedLab = new LabTracker(response.data);
+        /*const existingLabTracker = filteredTrackedLabs.find(tracker =>
           tracker.labStarted?.id === newTrackedLab.labStarted?.id &&
           tracker.labOwner?.name === newTrackedLab.labOwner?.name
-        );
+        );*/
 
-        if (existingLabTracker) {
-          const index = this.trackedLabs.indexOf(existingLabTracker);
+        if (latestLabTracker) {
+          const index = this.trackedLabs.indexOf(latestLabTracker);
           // Handle existing lab tracker
-          if (existingLabTracker.labStatus === LabStatus.DELETED) {
+          if (latestLabTracker.labStatus === LabStatus.DELETED) {
             this.trackedLabs.splice(index, 1);
             this.trackedLabs.push(newTrackedLab);
-
-            console.log("Found a lab tracker, but its DELETED", this.trackedLabs, this.team?.teamActiveLabs);
-          } else if (existingLabTracker.labStatus === LabStatus.STOPPED) {
+            console.log("Found a lab tracker, but it was DELETED", this.trackedLabs);
+          } else if (latestLabTracker.labStatus === LabStatus.STOPPED) {
             this.trackedLabs[index] = newTrackedLab;
-
-            console.log("Found a lab tracker, but its STOPPED")
-
+            console.log("Found a lab tracker, but it was STOPPED at index", index);
           }
         } else {
           // Create a new lab tracker
           this.trackedLabs.push(newTrackedLab);
-
+          console.log("Created a new lab tracker:", newTrackedLab);
         }
 
-        this.team?.teamActiveLabs?.push(newTrackedLab.labStarted?.id!);
+        // Update team active labs without mutating the original array
+        this.team = {
+          ...this.team,
+          teamActiveLabs: [...(this.team?.teamActiveLabs ?? []), newTrackedLab.id!]
+        };
 
         // Emit updated subjects
         this.userTeamSubject.next({ ...this.team });
-        this.trackedLabsSubject.next({ ...this.trackedLabs });
+        this.trackedLabsSubject.next([...this.trackedLabs]);
 
-        console.log("Started", this.trackedLabs);
+        console.log("Started lab:", this.trackedLabs);
+        console.log("Started lab:", this.trackedLabs);
       },
       error: (err) => {
         console.error(`Failed to start lab ${labId}:`, err);
@@ -201,81 +186,98 @@ export class LabComponent implements OnInit {
   }
 
   stopLab(labId?: string, user?: User): void {
-    if (!labId) return;
+    if (!labId) return; // Early return if labId is not provided
+
+    const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
+    console.log("Team active labs:", teamLabTrackerIds);
+
+    // Filter trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
+    const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
+      tracker => teamLabTrackerIds.includes(tracker.id!) &&
+        tracker.labStatus !== LabStatus.DELETED && tracker.labStarted?.id === labId
+    );
+
+
+    // Sort the matching labs by updatedAt in descending order to get the latest one
+    const latestLabTracker: LabTracker | undefined = filteredTrackedLabs.sort((a, b) =>
+      (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
+    )[0];
+
+    if (!latestLabTracker) {
+      console.warn(`No active lab found for labId: ${labId}`);
+      return;
+    }
 
     this.loadingLabs.add(labId);
 
-    this.labService.stopLab(labId, user?.id).subscribe({
-      next: (response: ApiResponse<LabTracker | undefined>) => {
-        if (!response.data) return;
+    this.labService.stopLab(labId, user?.id, latestLabTracker.id).subscribe({
+      next: ({ data }: ApiResponse<LabTracker | undefined>) => {
+        if (!data) return;
 
-        const stoppedLabTracker = new LabTracker(response.data);
+        const stoppedLabTracker = new LabTracker(data);
+        const index = this.trackedLabs.findIndex(tracker => tracker.id === stoppedLabTracker.id);
 
-        const index = this.trackedLabs.findIndex((tracker) =>
-          tracker.id === stoppedLabTracker.id
-        );
-
-        this.trackedLabs[index] = stoppedLabTracker;
-        //this.memoizedTrackedLabs = this.trackedLabs;
-
-        this.trackedLabsSubject.next(this.trackedLabs);
-
+        if (index !== -1) {
+          this.trackedLabs[index] = stoppedLabTracker;
+          this.trackedLabsSubject.next(this.trackedLabs);
+          console.log("Updated tracked labs after stopping:", this.trackedLabs);
+        } else {
+          console.warn(`Lab tracker not found in trackedLabs: ${stoppedLabTracker.id}`);
+        }
       },
       error: (err) => {
         console.error(`Failed to stop lab ${labId}:`, err);
-        this.loadingLabs.delete(labId!);
+        this.loadingLabs.delete(labId);
       },
       complete: () => {
-        this.loadingLabs.delete(labId!);
+        this.loadingLabs.delete(labId);
       },
     });
   }
 
   deleteLab(labId?: string): void {
+    if (!labId) return; // Early return if labId is not provided
+
     // Find all labs that match the labId and are stopped
     const matchingLabs = this.trackedLabs.filter(tracker =>
-      tracker.labStarted?.id === labId && tracker.labStatus == LabStatus.STOPPED
+      tracker.labStatus === LabStatus.STOPPED && tracker.labStarted?.id === labId
     );
 
     // Sort the matching labs by updatedAt in descending order to get the latest one
-    const latestLabTracker = matchingLabs.sort((a: LabTracker, b: LabTracker) =>
-      b.updatedAt!.getTime() - a.updatedAt!.getTime()
+    const latestLabTracker = matchingLabs.sort((a, b) =>
+      (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
     )[0];
 
+    if (!latestLabTracker) {
+      console.warn(`No stopped lab found for labId: ${labId}`);
+      return;
+    }
 
+    this.labService.deleteLab(labId, this.loggedInUser?.id, latestLabTracker.id)
+      .subscribe({
+        next: ({ data }: ApiResponse<LabTracker | undefined>) => {
+          if (!data) return;
 
-    if (!labId) return;
+          const deletedLabTracker = new LabTracker(data);
+          console.log("Deleted lab", deletedLabTracker);
 
-    this.labService.deleteLab(labId, this.loggedInUser?.id, latestLabTracker.id).subscribe({
-      next: (response: ApiResponse<LabTracker | undefined>) => {
-        if (!response.data) return;
-
-        const deletedLabTracker = new LabTracker(response.data);
-
-        console.log("Deleted lab", deletedLabTracker);
-
-        const index = this.trackedLabs.findIndex((tracker) =>
-          tracker.id === deletedLabTracker.id
-        );
-
-        //console.log("ahh ha!!", index, this.trackedLabs[index].id, "should be deleted", deletedLab.id);
-
-        this.trackedLabs[index] = deletedLabTracker;
-
-        //console.log("ahh ha!!", this.trackedLabs[index].labStatus, "should be is not like", deletedLab.labStatus);
-
-        this.trackedLabsSubject.next(this.trackedLabs);
-
-        console.log("Deleted... here we are", this.trackedLabs);
-      },
-      error: (err) => {
-        console.error(`Failed to delete lab ${labId}:`, err);
-        this.loadingLabs.delete(labId!);
-      },
-      complete: () => {
-        this.loadingLabs.delete(labId!);
-      },
-    });
+          const index = this.trackedLabs.findIndex(tracker => tracker.id === deletedLabTracker.id);
+          if (index !== -1) {
+            this.trackedLabs[index] = deletedLabTracker;
+            this.trackedLabsSubject.next(this.trackedLabs);
+            console.log("Updated tracked labs after deletion", this.trackedLabs);
+          } else {
+            console.warn(`Lab tracker not found in trackedLabs: ${deletedLabTracker.id}`);
+          }
+        },
+        error: (err) => {
+          console.error(`Failed to delete lab ${labId}:`, err);
+          this.loadingLabs.delete(labId);
+        },
+        complete: () => {
+          this.loadingLabs.delete(labId);
+        },
+      });
   }
 
   viewLogs(labId?: string): void {
@@ -291,17 +293,17 @@ export class LabComponent implements OnInit {
     if (!date) return '';
     const options: Intl.DateTimeFormatOptions = {
       year: 'numeric',
-      month: 'short', // 'short' gives you abbreviated month names
+      month: 'short',
       day: '2-digit',
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true // Use 12-hour format
+      hour12: true
     };
 
     return date.toLocaleString('en-US', options).replace(/,/g, (
       (count = 0) => (match: any) => {
         count++;
-        return count === 2 ? ' @' : match; // Replace only the 2nd comma
+        return count === 2 ? ' @' : match;
       })()
     );
   }
@@ -312,5 +314,21 @@ export class LabComponent implements OnInit {
 
   onMouseLeave() {
     this.isHovered = false;
+  }
+
+  clear() {
+    if (!this.loggedInUser?.team?.id) {
+      console.error("Team ID is missing");
+      return;
+    }
+
+    this.labService.clear(this.loggedInUser.team.id).subscribe({
+      next: () => {
+        window.location.reload();
+      },
+      error: (err) => {
+        console.error("Failed to clear labs:", err);
+      }
+    });
   }
 }

@@ -101,7 +101,7 @@ public class LabController {
     @PostMapping("/start")
     public ResponseEntity<ApiResponse<LabTracker>> startLab(@RequestBody LabRequest labRequest) {
         try {
-            Optional<LabTracker> startedLabOptional = labService.startLab(labRequest.getLabId(), labRequest.getUserId());
+            Optional<LabTracker> startedLabOptional = labService.startLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
 
             return ResponseEntity.status(startedLabOptional.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.<LabTracker>builder()
@@ -121,7 +121,7 @@ public class LabController {
     @PostMapping("/stop")
     public ResponseEntity<ApiResponse<LabTracker>> stopLab(@RequestBody LabRequest labRequest) {
         try {
-            Optional<LabTracker> stoppedLab = labService.stopLab(labRequest.getLabId(), labRequest.getUserId());
+            Optional<LabTracker> stoppedLab = labService.stopLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
 
             return ResponseEntity.status(stoppedLab.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.<LabTracker>builder()
@@ -158,5 +158,8 @@ public class LabController {
                     .build());
         }
     }
-
+    @PostMapping("dev")
+    public void clear(@RequestBody LabRequest labRequest) {
+        this.labService.clear(labRequest.getTeamId());
+    }
 }

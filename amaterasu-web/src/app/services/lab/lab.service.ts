@@ -25,17 +25,19 @@ export class LabService extends BaseService {
       );
   }
 
-  startLab(labId: string, userId?: string): Observable<ApiResponse<any>> {
+  startLab(labId: string, userId?: string, labTrackerId?: string): Observable<ApiResponse<any>> {
     return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/start', {
       labId,
-      userId
+      userId,
+      labTrackerId
     });
   }
 
-  stopLab(labId: string, userId?: string): Observable<ApiResponse<any>> {
+  stopLab(labId: string, userId?: string, labTrackerId?: string): Observable<ApiResponse<any>> {
     return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/stop', {
       labId,
-      userId
+      userId,
+      labTrackerId
     });
   }
 
@@ -49,5 +51,11 @@ export class LabService extends BaseService {
 
   viewLogs(labId: string): Observable<ApiResponse<any>> {
     return this.get<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/logs/' + labId);
+  }
+
+  clear(teamId: string): Observable<ApiResponse<any>> {
+    return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/dev', {
+      teamId
+    });
   }
 }

@@ -62,4 +62,8 @@ public class LabTrackerService {
         }
         return null; // Lab tracker not found
     }
+
+    public void deleteAll() {
+        this.labTrackerRepository.deleteAll();
+    }
 }
