@@ -1,8 +1,8 @@
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { LabService } from '../../services/lab/lab.service';
 import { Lab } from '../../models/lab.model';
 import { UserService } from '../../services/user/user.service';
-import { Observable, BehaviorSubject, switchMap, combineLatest, finalize } from 'rxjs';
+import { Observable, BehaviorSubject, switchMap, combineLatest, finalize, of } from 'rxjs';
 import { User } from '../../models/user.model';
 import { ApiResponse } from '../../models/api-response.model';
 import { LabTrackerService } from '../../services/lab-tracker/lab-tracker.service';
@@ -26,8 +26,6 @@ export class LabComponent implements OnInit {
   isLoading$ = this.isLoadingSubject.asObservable();
   private loadingLabs = new Set<string>();
 
-  private memoizedTrackedLabs: LabTracker[] = [];
-
   private labsSubject = new BehaviorSubject<Lab[]>([]);
   private loggedInUserSubject = new BehaviorSubject<User | undefined>(undefined);
   private trackedLabsSubject = new BehaviorSubject<LabTracker[]>([]);
@@ -44,13 +42,9 @@ export class LabComponent implements OnInit {
     private labService: LabService,
     private userService: UserService,
     private teamService: TeamService,
-    private labTrackerService: LabTrackerService,
-    private cdRef: ChangeDetectorRef
+    private labTrackerService: LabTrackerService
   ) {
-    this.userTeamSubject.subscribe((team) => {
-      if (!team) return;
-      this.team = team;
-    });
+
   }
 
   ngOnInit(): void {
@@ -66,24 +60,32 @@ export class LabComponent implements OnInit {
         this.loggedInUser = user;
         this.loggedInUserSubject.next(this.loggedInUser);
 
-        this.trackedLabs = labsTracked.map((tracker) => new LabTracker(tracker));
+        this.trackedLabs = labsTracked.map(tracker => new LabTracker(tracker));
         this.trackedLabsSubject.next(this.trackedLabs);
 
-        // Return the trackedLabs after both labs and loggedInUser are available
-        return this.teamService.getTeamById(this.loggedInUser!.team!.id!);
+        // Ensure loggedInUser and its team are defined before proceeding
+        const teamId = this.loggedInUser?.team?.id;
+        if (!teamId) {
+          console.warn("Logged in user does not have a team.");
+          return of(null); // Return an observable with null if no team
+        }
+
+        return this.teamService.getTeamById(teamId);
       }),
       finalize(() => {
         this.isLoadingSubject.next(false); // Loading ends
       })
     ).subscribe((team) => {
-      this.team = team;
-      this.memoizedTrackedLabs = this.trackedLabs.filter(tracker =>
-        this.team?.teamActiveLabs?.includes(tracker.id ?? '')
-      );
-      console.log("Starter tracked labs", this.trackedLabs);
-      this.userTeamSubject.next(this.team);
+      if (team) {
+        this.team = team;
+        console.log("Starter tracked labs:", this.trackedLabs);
+        this.userTeamSubject.next(this.team);
+      } else {
+        console.warn("No team data available.");
+      }
     });
   }
+
 
   isInTrackedLabs(labId?: string): boolean {
     if (!labId) return false; // Early return if labId is not provided
@@ -140,10 +142,6 @@ export class LabComponent implements OnInit {
         if (!response.data) return;
 
         const newTrackedLab = new LabTracker(response.data);
-        /*const existingLabTracker = filteredTrackedLabs.find(tracker =>
-          tracker.labStarted?.id === newTrackedLab.labStarted?.id &&
-          tracker.labOwner?.name === newTrackedLab.labOwner?.name
-        );*/
 
         if (latestLabTracker) {
           const index = this.trackedLabs.indexOf(latestLabTracker);
