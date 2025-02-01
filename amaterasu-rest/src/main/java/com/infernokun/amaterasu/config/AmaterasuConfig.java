@@ -16,6 +16,9 @@ public class AmaterasuConfig {
     private String defaultAdminUsername;
     private String defaultAdminPassword;
     private String uploadDir;
+    private String dockerHost;
+    private String dockerUser;
+    private String dockerPass;
     private String chatService;
     private String chatSocket;
     private String apiKey;

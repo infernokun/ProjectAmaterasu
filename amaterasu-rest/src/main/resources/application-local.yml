@@ -52,6 +52,9 @@ amaterasu:
   defaultAdminUsername: admin
   defaultAdminPassword: password
   uploadDir: "${DOCKER_COMPOSE_PATH}"
+  dockerHost: "${DB_IP}"
+  dockerUser: "${DB_USER}"
+  dockerPass: "${DB_PASS}"
   chatService: ""
   chatSocket: ""
 

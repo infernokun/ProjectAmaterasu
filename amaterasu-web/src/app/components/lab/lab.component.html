@@ -16,6 +16,9 @@
         <li><strong>Created By:</strong> {{ lab.createdBy }}</li>
         <li><strong>Version:</strong> {{ lab.version }}</li>
         <li><strong>Capacity:</strong> {{ lab.capacity }}</li>
+        <li><strong>Folder:</strong> {{ lab.id }}</li>
+        <li><strong>Loc:</strong> {{ lab.dockerFile }}</li>
+        <li><strong>Status:</strong> {{ getLabStatus(lab.id) }}</li>
       </ul>
     </div>
     <div class="lab-footer">
@@ -38,8 +41,8 @@
         <!-- Start Button -->
         <div class="button-container">
           <button mat-button class="button start" (click)="startLab(lab.id, loggedInUser)"
-            *ngIf="!isLabLoading(lab.id) && (!isInTrackedLabs(lab.id) || getLabStatus(lab.id) === 'STOPPED')">
-            Start {{isInTrackedLabs(lab.id)}}
+            *ngIf="!isLabLoading(lab.id) && (!isInTrackedLabs(lab.id) || (getLabStatus(lab.id) === 'STOPPED' || getLabStatus(lab.id) === 'DELETED' || getLabStatus(lab.id) === 'NONE'))">
+            Start
           </button>
         </div>
 
@@ -48,9 +51,6 @@
           === 'ACTIVE')">
           <button mat-button class="button stop" (click)="stopLab(lab.id, loggedInUser)">
             Stop
-          </button>
-          <button mat-button class="button stop" (click)="deleteLab(lab.id, loggedInUser)">
-            Delete
           </button>
           <button mat-button class="button active" (click)="viewLogs(lab.id)">
             Logs
@@ -70,6 +70,11 @@
           <button mat-button class="button stopped"
             *ngIf="!isLabLoading(lab.id) && (isInTrackedLabs(lab.id) && getLabStatus(lab.id) === 'STOPPED')">
             Stopped
+          </button>
+
+          <button mat-button class="button stop" *ngIf="!isLabLoading(lab.id) && getLabStatus(lab.id) === 'STOPPED'"
+            (click)="deleteLab(lab.id)">
+            Delete
           </button>
         </div>
       </ng-template>

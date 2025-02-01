@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { BaseService } from '../base/base.service';
 import { map, Observable } from 'rxjs';
 import { ApiResponse } from '../../models/api-response.model';
+import { LabTracker } from '../../models/lab-tracker.model';
 
 @Injectable({
   providedIn: 'root'
@@ -38,10 +39,11 @@ export class LabService extends BaseService {
     });
   }
 
-  deleteLab(labId: string, userId?: string): Observable<ApiResponse<any>> {
-    return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/delete', {
+  deleteLab(labId: string, userId?: string, labTrackerId?: string): Observable<ApiResponse<any>> {
+    return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/delete-lab-from-team', {
       labId,
-      userId
+      userId,
+      labTrackerId
     });
   }
 

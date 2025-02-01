@@ -2,9 +2,7 @@ package com.infernokun.amaterasu.models.entities;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.infernokun.amaterasu.models.enums.LabStatus;
-import jakarta.persistence.Entity;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
@@ -13,16 +11,8 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-/*
-String id;
-String createdBy;
-String updateBy;
-LocalDataTime createdAt;
-LocalDateTime updatedAt
-Lab labStarted;
-LabStats labStarted;
-Team labOwner;
- */
+@Table(name = "lab_tracker")
+        //, uniqueConstraints = {@UniqueConstraint(columnNames = {"lab_id", "team_id"})})
 public class LabTracker extends StoredObject {
     @ManyToOne
     @JoinColumn(name = "lab_id")

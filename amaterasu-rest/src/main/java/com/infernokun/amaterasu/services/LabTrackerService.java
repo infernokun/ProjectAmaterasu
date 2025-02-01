@@ -3,6 +3,7 @@ package com.infernokun.amaterasu.services;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker; // Assuming you have a LabTracker entity
 import com.infernokun.amaterasu.models.entities.Team;
+import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.repositories.LabTrackerRepository; // Assuming you have a LabTrackerRepository
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,8 +29,9 @@ public class LabTrackerService {
     public Optional<LabTracker> findLabTrackerById(String id) {
         return this.labTrackerRepository.findById(id);
     }
-    public Optional<LabTracker> findLabTrackerByLabStartedAndLabOwner(Lab labStarted, Team labOwner) {
-        return this.labTrackerRepository.findLabTrackerByLabStartedAndLabOwner(labStarted, labOwner);
+
+    public Optional<LabTracker> findLabTrackerByLabStartedAndLabOwnerAndStatusNotDeleted(Lab labStarted, Team labOwner) {
+        return this.labTrackerRepository.findLabTrackerByLabStartedAndLabOwnerAndLabStatusNot(labStarted, labOwner, LabStatus.DELETED);
     }
 
     // Create a new lab tracker

@@ -6,6 +6,7 @@ public enum LabStatus {
     HIDDEN,
     ONLINE,
     OFFLINE,
+    DELETED,
     STOPPED,
     RETIRED
 }

@@ -5,6 +5,8 @@ import com.infernokun.amaterasu.models.LabRequest;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.services.LabService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,9 @@ public class LabController {
     private String uploadDir;
 
     private final LabService labService;
+
+    private final Logger LOGGER = LoggerFactory.getLogger(LabController.class);
+
 
     public LabController(LabService labService) {
         this.labService = labService;
@@ -132,4 +137,26 @@ public class LabController {
                     .build());
         }
     }
+
+    @PostMapping("delete-lab-from-team")
+    public ResponseEntity<ApiResponse<LabTracker>> deleteLabFromTeam(@RequestBody LabRequest labRequest) {
+        try {
+            LOGGER.info("Deleting lab with details {}, {}, and {}", labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
+            Optional<LabTracker> deletedLab = labService.deleteLabFromTeam(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
+
+            return ResponseEntity.status(deletedLab.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.<LabTracker>builder()
+                            .code(deletedLab.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
+                            .message(deletedLab.isPresent() ? "Lab deleted successfully." : "Failed to delete the lab.")
+                            .data(deletedLab.orElse(null))
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.<LabTracker>builder()
+                    .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                    .message("An error occurred: " + e.getMessage())
+                    .data(null)
+                    .build());
+        }
+    }
+
 }
