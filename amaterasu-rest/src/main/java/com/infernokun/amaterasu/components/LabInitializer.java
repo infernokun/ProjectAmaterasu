@@ -20,17 +20,21 @@ import java.util.List;
 @Component
 public class LabInitializer {
 
-    @Autowired
-    private LabService labService;
+    private final LabService labService;
 
-    @Autowired
-    private AmaterasuConfig amaterasuConfig;
+    private final AmaterasuConfig amaterasuConfig;
 
     private final Logger LOGGER = LoggerFactory.getLogger(LabInitializer.class);
     private final JSch jSch = new JSch();
 
+    public LabInitializer(LabService labService, AmaterasuConfig amaterasuConfig) {
+        this.labService = labService;
+        this.amaterasuConfig = amaterasuConfig;
+    }
+
     @PostConstruct
     public void init() {
+        /*
         List<Lab> labs = labService.findAllLabs();
 
         if (!labs.isEmpty()) {
@@ -74,7 +78,7 @@ public class LabInitializer {
                     LOGGER.error("Error setting up lab: {}", lab.getId(), e);
                 }
             });
-        }
+        }*/
     }
 
 

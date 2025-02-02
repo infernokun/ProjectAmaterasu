@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { LabService } from '../../services/lab/lab.service';
 import { Lab } from '../../models/lab.model';
 import { UserService } from '../../services/user/user.service';
-import { Observable, BehaviorSubject, switchMap, combineLatest, finalize, of } from 'rxjs';
+import { Observable, BehaviorSubject, switchMap, combineLatest, finalize, of, catchError, map } from 'rxjs';
 import { User } from '../../models/user.model';
 import { ApiResponse } from '../../models/api-response.model';
 import { LabTrackerService } from '../../services/lab-tracker/lab-tracker.service';
@@ -39,13 +39,8 @@ export class LabComponent implements OnInit {
   isHovered = false;
 
   constructor(
-    private labService: LabService,
-    private userService: UserService,
-    private teamService: TeamService,
-    private labTrackerService: LabTrackerService
-  ) {
-
-  }
+    private labService: LabService, private userService: UserService,
+    private teamService: TeamService, private labTrackerService: LabTrackerService) { }
 
   ngOnInit(): void {
     combineLatest([
@@ -54,7 +49,9 @@ export class LabComponent implements OnInit {
       this.labTrackerService.getAllLabTrackers()
     ]).pipe(
       switchMap(([labs, user, labsTracked]) => {
-        this.labs = labs.map(lab => new Lab(lab));
+        this.labs = labs
+          .map(lab => new Lab(lab))
+          .sort((a, b) => a.name!.localeCompare(b.name!));
         this.labsSubject.next(this.labs);
 
         this.loggedInUser = user;
@@ -85,7 +82,6 @@ export class LabComponent implements OnInit {
       }
     });
   }
-
 
   isInTrackedLabs(labId?: string): boolean {
     if (!labId) return false; // Early return if labId is not provided
@@ -119,6 +115,10 @@ export class LabComponent implements OnInit {
     return labTracker?.labStatus ?? LabStatus.NONE;
   }
 
+  isLabLoading(labId?: string): boolean {
+    return this.loadingLabs.has(labId!);
+  }
+
   startLab(labId?: string, user?: User): void {
     if (!labId) return; // Early return if labId is not provided
 
@@ -150,7 +150,7 @@ export class LabComponent implements OnInit {
             this.trackedLabs.splice(index, 1);
             this.trackedLabs.push(newTrackedLab);
             console.log("Found a lab tracker, but it was DELETED", this.trackedLabs);
-          } else if (latestLabTracker.labStatus === LabStatus.STOPPED) {
+          } else if (latestLabTracker.labStatus === LabStatus.STOPPED || latestLabTracker.labStatus === LabStatus.FAILED) {
             this.trackedLabs[index] = newTrackedLab;
             console.log("Found a lab tracker, but it was STOPPED at index", index);
           }
@@ -238,7 +238,7 @@ export class LabComponent implements OnInit {
 
     // Find all labs that match the labId and are stopped
     const matchingLabs = this.trackedLabs.filter(tracker =>
-      tracker.labStatus === LabStatus.STOPPED && tracker.labStarted?.id === labId
+      (tracker.labStatus === LabStatus.STOPPED || tracker.labStatus === LabStatus.FAILED) && tracker.labStarted?.id === labId
     );
 
     // Sort the matching labs by updatedAt in descending order to get the latest one
@@ -282,11 +282,6 @@ export class LabComponent implements OnInit {
 
   }
 
-  isLabLoading(labId?: string): boolean {
-    return this.loadingLabs.has(labId!);
-  }
-
-  // Method to format the date
   formatDate(date: Date): string {
     if (!date) return '';
     const options: Intl.DateTimeFormatOptions = {
@@ -304,6 +299,26 @@ export class LabComponent implements OnInit {
         return count === 2 ? ' @' : match;
       })()
     );
+  }
+
+  dockerComposeUpload(event: Event, labId: string): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) {
+      return;
+    }
+    const file = input.files[0];
+    console.log('Uploaded file:', file);
+
+    const reader = new FileReader();
+    reader.onload = (e: any) => {
+      const content = e.target.result;
+      console.log('File content:', content);
+      // Now, post the content to the backend
+      this.labService.uploadDockerComposeFile(labId, content).subscribe((res: ApiResponse<string>) => {
+        console.log('Upload response:', res);
+      })
+    };
+    reader.readAsText(file);
   }
 
   onMouseEnter() {

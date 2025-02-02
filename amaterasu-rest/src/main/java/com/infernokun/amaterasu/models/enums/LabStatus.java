@@ -8,5 +8,6 @@ public enum LabStatus {
     OFFLINE,
     DELETED,
     STOPPED,
-    RETIRED
+    RETIRED,
+    FAILED
 }

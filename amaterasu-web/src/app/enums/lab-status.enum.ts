@@ -8,4 +8,5 @@ export enum LabStatus {
   DELETED = 'DELETED',
   STOPPED = 'STOPPED',
   RETIRED = 'RETIRED',
+  FAILED = 'FAILED',
 }

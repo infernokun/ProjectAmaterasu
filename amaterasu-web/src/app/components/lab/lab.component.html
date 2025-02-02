@@ -2,7 +2,7 @@
 
 <div class="lab-container">
   <div class="lab-card" *ngFor="let lab of labsObservable$ | async" (mouseenter)="onMouseEnter()"
-    (mouseleave)="onMouseLeave()">
+    (mouseleave)="onMouseLeave()" [hidden]="!lab.ready">
     <div class="lab-header">
       <h2 (mouseenter)="onMouseEnter()">
         {{ lab.name }}
@@ -18,11 +18,19 @@
         <li><strong>Created By:</strong> {{ lab.createdBy }}</li>
         <li><strong>Version:</strong> {{ lab.version }}</li>
         <li><strong>Capacity:</strong> {{ lab.capacity }}</li>
-        <li><strong>Folder:</strong> {{ lab.id }}</li>
-        <li><strong>Loc:</strong> {{ lab.dockerFile }}</li>
+        <li><strong>Type:</strong> {{ lab.labType }}</li>
+        <li><strong>Loc:</strong> {{ lab.id }}/{{ lab.dockerFile }}</li>
         <li><strong>Status:</strong> {{ getLabStatus(lab.id) }}</li>
+        <li><strong>Ready:</strong> {{ lab.ready }}</li>
         <li><strong>isTracked:</strong> {{ isInTrackedLabs(lab.id) }}</li>
       </ul>
+
+      <!-- YAML Upload Box -->
+      <div class="upload-box" *ngIf="lab.labType === 'DOCKER_COMPOSE'">
+        <label for="dockerComposeUpload">Upload Docker Compose YAML File:</label>
+        <input type="file" id="dockerComposeUpload" accept=".yml,.yaml"
+          (change)="dockerComposeUpload($event, lab.id!)" />
+      </div>
     </div>
     <div class="lab-footer">
       <p><strong>Created:</strong> {{ lab.createdAt ? formatDate(lab.createdAt) : 'N/A' }}</p>
@@ -43,8 +51,11 @@
 
         <!-- Start Button -->
         <div class="button-container">
-          <button mat-button class="button start" (click)="startLab(lab.id, loggedInUser)"
-            *ngIf="!isLabLoading(lab.id) && (!isInTrackedLabs(lab.id) || (getLabStatus(lab.id) === 'STOPPED' || getLabStatus(lab.id) === 'DELETED' || getLabStatus(lab.id) === 'NONE'))">
+          <button mat-button class="button start" (click)="startLab(lab.id, loggedInUser)" *ngIf="!isLabLoading(lab.id) && (!isInTrackedLabs(lab.id) ||
+             (getLabStatus(lab.id) === 'STOPPED' ||
+             getLabStatus(lab.id) === 'DELETED' ||
+             getLabStatus(lab.id) === 'NONE') ||
+             getLabStatus(lab.id) === 'FAILED')">
             Start
           </button>
         </div>
@@ -68,7 +79,28 @@
           </button>
         </div>
 
+        <!-- Failed Button -->
+        <div class="button-container">
+          <button mat-button class="button failed"
+            *ngIf="!isLabLoading(lab.id) && (isInTrackedLabs(lab.id) && getLabStatus(lab.id) === 'FAILED')">
+            Failed
+          </button>
+        </div>
+
         <!-- Stopped Button -->
+        <div class="button-container">
+          <button mat-button class="button stopped"
+            *ngIf="!isLabLoading(lab.id) && (isInTrackedLabs(lab.id) && getLabStatus(lab.id) === 'STOPPED')">
+            Stopped
+          </button>
+
+          <button mat-button class="button stop" *ngIf="!isLabLoading(lab.id) && getLabStatus(lab.id) === 'STOPPED'"
+            (click)="deleteLab(lab.id)">
+            Delete
+          </button>
+        </div>
+
+        <!-- View Compose Button -->
         <div class="button-container">
           <button mat-button class="button stopped"
             *ngIf="!isLabLoading(lab.id) && (isInTrackedLabs(lab.id) && getLabStatus(lab.id) === 'STOPPED')">

@@ -49,6 +49,16 @@ export class LabService extends BaseService {
     });
   }
 
+  uploadDockerComposeFile(labId: string, content: string): Observable<ApiResponse<string>> {
+    return this.post<ApiResponse<string>>(this.environmentService.settings?.restUrl + '/labs/upload/' + labId, {
+      content
+    });
+  }
+
+  getLabReadiness(labId: string): Observable<ApiResponse<boolean>> {
+    return this.get<ApiResponse<boolean>>(this.environmentService.settings?.restUrl + '/labs/check/' + labId);
+  }
+
   viewLogs(labId: string): Observable<ApiResponse<any>> {
     return this.get<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/logs/' + labId);
   }

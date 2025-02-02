@@ -26,7 +26,6 @@ public class LabController {
 
     private final Logger LOGGER = LoggerFactory.getLogger(LabController.class);
 
-
     public LabController(LabService labService) {
         this.labService = labService;
     }
@@ -34,49 +33,71 @@ public class LabController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<Lab>>> getAllLabs() {
         List<Lab> labs = labService.findAllLabs();
-        return ResponseEntity.ok(ApiResponse.<List<Lab>>builder()
-                .code(HttpStatus.OK.value())
-                .message("Labs retrieved successfully.")
-                .data(labs)
-                .build());
+        return ResponseEntity.ok(
+                ApiResponse.<List<Lab>>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Labs retrieved successfully.")
+                        .data(labs)
+                        .build()
+        );
+    }
+
+    @GetMapping("/check/{labId}")
+    public ResponseEntity<ApiResponse<Boolean>> checkLabReadiness(@PathVariable String labId) {
+        boolean isLabReady = labService.checkDockerComposeValidity(labId);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Boolean>builder()
+                        .code(HttpStatus.OK.value())
+                        .message(String.format("Lab id %s is ready!", labId))
+                        .data(isLabReady)
+                        .build()
+        );
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<Lab>> createLab(@RequestBody Lab lab) {
         Lab createdLab = labService.createLab(lab);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.<Lab>builder()
-                .code(HttpStatus.CREATED.value())
-                .message("Lab created successfully.")
-                .data(createdLab)
-                .build());
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                ApiResponse.<Lab>builder()
+                        .code(HttpStatus.CREATED.value())
+                        .message("Lab created successfully.")
+                        .data(createdLab)
+                        .build()
+        );
     }
 
     @PostMapping("/many")
     public ResponseEntity<ApiResponse<List<Lab>>> createManyLabs(@RequestBody List<Lab> labs) {
         List<Lab> createdLabs = labService.createManyLabs(labs);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.<List<Lab>>builder()
-                .code(HttpStatus.CREATED.value())
-                .message("Labs created successfully.")
-                .data(createdLabs)
-                .build());
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                ApiResponse.<List<Lab>>builder()
+                        .code(HttpStatus.CREATED.value())
+                        .message("Labs created successfully.")
+                        .data(createdLabs)
+                        .build()
+        );
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteLab(@PathVariable String id) {
         boolean isDeleted = labService.deleteLab(id);
-
         if (isDeleted) {
-            return ResponseEntity.ok(ApiResponse.<Void>builder()
-                    .code(HttpStatus.OK.value())
-                    .message("Lab deleted successfully.")
-                    .data(null) // No additional data for delete operation
-                    .build());
+            return ResponseEntity.ok(
+                    ApiResponse.<Void>builder()
+                            .code(HttpStatus.OK.value())
+                            .message("Lab deleted successfully.")
+                            .data(null)
+                            .build()
+            );
         } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.<Void>builder()
-                    .code(HttpStatus.NOT_FOUND.value())
-                    .message("Lab not found or a conflict occurred.")
-                    .data(null)
-                    .build());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    ApiResponse.<Void>builder()
+                            .code(HttpStatus.NOT_FOUND.value())
+                            .message("Lab not found or a conflict occurred.")
+                            .data(null)
+                            .build()
+            );
         }
     }
 
@@ -84,82 +105,81 @@ public class LabController {
     public ResponseEntity<ApiResponse<Lab>> updateLab(@RequestBody Lab lab) {
         Lab updatedLab = labService.updateLab(lab);
         if (updatedLab != null) {
-            return ResponseEntity.ok(ApiResponse.<Lab>builder()
-                    .code(HttpStatus.OK.value())
-                    .message("Lab updated successfully.")
-                    .data(updatedLab)
-                    .build());
+            return ResponseEntity.ok(
+                    ApiResponse.<Lab>builder()
+                            .code(HttpStatus.OK.value())
+                            .message("Lab updated successfully.")
+                            .data(updatedLab)
+                            .build()
+            );
         } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.<Lab>builder()
-                    .code(HttpStatus.NOT_FOUND.value())
-                    .message("Lab not found.")
-                    .data(null)
-                    .build());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    ApiResponse.<Lab>builder()
+                            .code(HttpStatus.NOT_FOUND.value())
+                            .message("Lab not found.")
+                            .data(null)
+                            .build()
+            );
         }
+    }
+
+    @PostMapping("/upload/{labId}")
+    public ResponseEntity<ApiResponse<String>> uploadLabFile(@PathVariable String labId, @RequestBody String content) {
+        // Exceptions thrown from here will be handled by the global exception handler.
+        String response = labService.uploadLabFile(labId, content);
+        return ResponseEntity.ok(
+                ApiResponse.<String>builder()
+                        .code(HttpStatus.OK.value())
+                        .message(String.format("Lab id %s successfully uploaded!", labId))
+                        .data(response)
+                        .build()
+        );
     }
 
     @PostMapping("/start")
     public ResponseEntity<ApiResponse<LabTracker>> startLab(@RequestBody LabRequest labRequest) {
-        try {
-            Optional<LabTracker> startedLabOptional = labService.startLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
-
-            return ResponseEntity.status(startedLabOptional.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.<LabTracker>builder()
-                            .code(startedLabOptional.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
-                            .message(startedLabOptional.isPresent() ? "Lab started successfully." : "Failed to start the lab.")
-                            .data(startedLabOptional.orElse(null))
-                            .build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.<LabTracker>builder()
-                    .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                    .message("An error occurred: " + e.getMessage())
-                    .data(null)
-                    .build());
-        }
+        Optional<LabTracker> startedLabOptional =
+                labService.startLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
+        return ResponseEntity.status(startedLabOptional.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.<LabTracker>builder()
+                        .code(startedLabOptional.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
+                        .message(startedLabOptional.isPresent() ? "Lab started successfully." : "Failed to start the lab.")
+                        .data(startedLabOptional.orElse(null))
+                        .build());
     }
 
     @PostMapping("/stop")
     public ResponseEntity<ApiResponse<LabTracker>> stopLab(@RequestBody LabRequest labRequest) {
-        try {
-            Optional<LabTracker> stoppedLab = labService.stopLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
-
-            return ResponseEntity.status(stoppedLab.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.<LabTracker>builder()
-                            .code(stoppedLab.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
-                            .message(stoppedLab.isPresent() ? "Lab stopped successfully." : "Failed to stop the lab.")
-                            .data(stoppedLab.orElse(null))
-                            .build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.<LabTracker>builder()
-                    .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                    .message("An error occurred: " + e.getMessage())
-                    .data(null)
-                    .build());
-        }
+        Optional<LabTracker> stoppedLab =
+                labService.stopLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
+        return ResponseEntity.status(stoppedLab.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.<LabTracker>builder()
+                        .code(stoppedLab.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
+                        .message(stoppedLab.isPresent() ? "Lab stopped successfully." : "Failed to stop the lab.")
+                        .data(stoppedLab.orElse(null))
+                        .build());
     }
 
     @PostMapping("delete-lab-from-team")
     public ResponseEntity<ApiResponse<LabTracker>> deleteLabFromTeam(@RequestBody LabRequest labRequest) {
-        try {
-            LOGGER.info("Deleting lab with details {}, {}, and {}", labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
-            Optional<LabTracker> deletedLab = labService.deleteLabFromTeam(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
+        LOGGER.info("Deleting lab with details {}, {}, and {}",
+                labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
 
-            return ResponseEntity.status(deletedLab.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.<LabTracker>builder()
-                            .code(deletedLab.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
-                            .message(deletedLab.isPresent() ? "Lab deleted successfully." : "Failed to delete the lab.")
-                            .data(deletedLab.orElse(null))
-                            .build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.<LabTracker>builder()
-                    .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                    .message("An error occurred: " + e.getMessage())
-                    .data(null)
-                    .build());
-        }
+        Optional<LabTracker> deletedLab =
+                labService.deleteLabFromTeam(labRequest.getLabId(),
+                        labRequest.getUserId(),
+                        labRequest.getLabTrackerId());
+
+        return ResponseEntity.status(deletedLab.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.<LabTracker>builder()
+                        .code(deletedLab.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
+                        .message(deletedLab.isPresent() ? "Lab deleted successfully." : "Failed to delete the lab.")
+                        .data(deletedLab.orElse(null))
+                        .build());
     }
+
     @PostMapping("dev")
     public void clear(@RequestBody LabRequest labRequest) {
-        this.labService.clear(labRequest.getTeamId());
+        labService.clear(labRequest.getTeamId());
     }
 }
