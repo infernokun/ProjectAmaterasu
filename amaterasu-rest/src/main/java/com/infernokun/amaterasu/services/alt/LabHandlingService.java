@@ -1,7 +1,9 @@
 package com.infernokun.amaterasu.services.alt;
 
 import com.infernokun.amaterasu.config.AmaterasuConfig;
+import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.entities.Lab;
+import com.infernokun.amaterasu.models.entities.LabTracker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -16,29 +18,29 @@ public class LabHandlingService {
         this.dockerService = dockerService;
     }
 
-    public boolean startLab(Lab lab, AmaterasuConfig amaterasuConfig) {
+    public LabActionResult startLab(Lab lab, LabTracker labTracker, AmaterasuConfig amaterasuConfig) {
         switch (lab.getLabType()) {
             case DOCKER_CONTAINER ->  {
-                return false;
+                return new LabActionResult();
             }
             case DOCKER_COMPOSE -> {
-                return dockerService.startDockerCompose(lab, amaterasuConfig);
+                return dockerService.startDockerCompose(lab, labTracker, amaterasuConfig);
             }
             case VIRTUAL_MACHINE -> {
                 String vm;
-                return false;
+                return new LabActionResult();
             }
             case KUBERNETES -> {
                 boolean kubernetes;
-                return false;
+                return new LabActionResult();
             }
             case NONE -> {
                 float none;
-                return false;
+                return new LabActionResult();
             }
             default -> {
                 int uhh;
-                return false;
+                return new LabActionResult();
             }
         }
     }

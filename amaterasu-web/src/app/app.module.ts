@@ -12,6 +12,8 @@ import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { LabComponent } from './components/lab/lab.component';
 import { CommonModule } from '@angular/common';
 import { AuditLogComponent } from './components/audit-log/audit-log.component';
+import { DialogComponent } from './components/common/dialog/dialog.component';
+import { BashColoringPipe } from './pipes/bash-coloring.pipe';
 
 export function init_app(environmentService: EnvironmentService) {
   return () => environmentService.load().then(() => {
@@ -24,7 +26,9 @@ export function init_app(environmentService: EnvironmentService) {
     AppComponent,
     HomeComponent,
     LabComponent,
-    AuditLogComponent
+    AuditLogComponent,
+    DialogComponent,
+    BashColoringPipe
   ],
   imports: [
     BrowserModule,

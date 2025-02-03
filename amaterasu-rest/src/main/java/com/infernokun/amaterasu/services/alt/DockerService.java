@@ -7,20 +7,16 @@ import com.github.dockerjava.core.*;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import com.github.dockerjava.transport.DockerHttpClient;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
+import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.entities.Lab;
-import com.jcraft.jsch.ChannelExec;
+import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
@@ -72,13 +68,27 @@ public class DockerService {
         dockerClient.stopContainerCmd(containerId).exec();
     }
 
-    public boolean startDockerCompose(Lab lab, AmaterasuConfig amaterasuConfig) {
-        String catDockerCompose = String.format("cd %s/%s && docker-compose -f %s up -d ",
-                amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile());
+    public LabActionResult startDockerCompose(Lab lab, LabTracker labTracker, AmaterasuConfig amaterasuConfig) {
+        String dockerComposeUpCmd = String.format("cd %s/%s && docker-compose -p %s -f %s up -d",
+                amaterasuConfig.getUploadDir(), lab.getId(), labTracker.getId() , lab.getDockerFile());
 
-        RemoteCommandResponse output = remoteCommandService.handleRemoteCommand(catDockerCompose, amaterasuConfig);
+        RemoteCommandResponse output = remoteCommandService.handleRemoteCommand(dockerComposeUpCmd, amaterasuConfig);
 
         LOGGER.info("Output: \n{}", output.getBoth());
+
+        if (output.getBoth() != null) {
+            return LabActionResult.builder()
+                    .labTracker(labTracker)
+                    .isSuccessful(false)
+                    .output(output.getBoth())
+                    .build();
+        } else {
+            return LabActionResult.builder()
+                    .labTracker(labTracker)
+                    .isSuccessful(false)
+                    .output(output.getBoth())
+                    .build();
+        }
 
         /*String command = String.format("cd /home/%s/app/amaterasu/%s && docker-compose up -d",
                 amaterasuConfig.getDockerUser(), lab.getId());*
@@ -87,7 +97,7 @@ public class DockerService {
 
         String output = result.getError() + " " + result.getOutput();
         LOGGER.info("Output: {}", output);*/
-        return false;
+
     }
 
     public boolean stopDockerCompose(Lab lab, AmaterasuConfig amaterasuConfig) {
@@ -102,15 +112,7 @@ public class DockerService {
             String command = String.format("cd /home/%s/app/amaterasu/%s && docker-compose down",
                     amaterasuConfig.getDockerUser(), lab.getId());
 
-            CommandResult result = executeRemoteCommand(session, command);
-
-            if (result.isSuccess()) {
-                LOGGER.info("Docker Compose stopped successfully: {}", result.getOutput());
-                return true;
-            } else {
-                LOGGER.error("Failed to stop Docker Compose: {}", result.getError());
-                return false;
-            }
+            RemoteCommandResponse output = remoteCommandService.handleRemoteCommand(command, amaterasuConfig);
         } catch (Exception e) {
             LOGGER.error("Exception while stopping Docker Compose: ", e);
             return false;
@@ -119,57 +121,11 @@ public class DockerService {
                 session.disconnect();
             }
         }
+        return false;
     }
 
     public List<Container> listContainers() {
         return dockerClient.listContainersCmd().exec();
     }
 
-    private CommandResult executeRemoteCommand(Session session, String command) throws JSchException, IOException {
-        ChannelExec channel = (ChannelExec) session.openChannel("exec");
-        channel.setCommand(command);
-        InputStream inputStream = channel.getInputStream();
-        InputStream errorStream = channel.getErrStream();
-
-        channel.connect();
-
-        String output = readStream(inputStream);
-        String errorOutput = readStream(errorStream);
-
-        channel.disconnect();
-
-        return new CommandResult(output, errorOutput);
-    }
-
-    private String readStream(InputStream stream) throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-        StringBuilder output = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            output.append(line).append("\n");
-        }
-        return output.toString().trim();
-    }
-
-    private static class CommandResult {
-        private final String output;
-        private final String error;
-
-        public CommandResult(String output, String error) {
-            this.output = output;
-            this.error = error;
-        }
-
-        public String getOutput() {
-            return output;
-        }
-
-        public String getError() {
-            return error;
-        }
-
-        public boolean isSuccess() {
-            return error.isEmpty();
-        }
-    }
 }

@@ -1,6 +1,7 @@
 package com.infernokun.amaterasu.controllers;
 
 import com.infernokun.amaterasu.models.ApiResponse;
+import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.LabRequest;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
@@ -137,11 +138,11 @@ public class LabController {
     }
 
     @PostMapping("/start")
-    public ResponseEntity<ApiResponse<LabTracker>> startLab(@RequestBody LabRequest labRequest) {
-        Optional<LabTracker> startedLabOptional =
+    public ResponseEntity<ApiResponse<LabActionResult>> startLab(@RequestBody LabRequest labRequest) {
+        Optional<LabActionResult> startedLabOptional =
                 labService.startLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
         return ResponseEntity.status(startedLabOptional.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.<LabTracker>builder()
+                .body(ApiResponse.<LabActionResult>builder()
                         .code(startedLabOptional.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
                         .message(startedLabOptional.isPresent() ? "Lab started successfully." : "Failed to start the lab.")
                         .data(startedLabOptional.orElse(null))

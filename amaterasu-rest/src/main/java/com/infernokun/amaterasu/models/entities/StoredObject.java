@@ -7,6 +7,7 @@ import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
@@ -16,13 +17,6 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @MappedSuperclass
-/*
-String id;
-String createdBy;
-String updateBy;
-LocalDataTime createdAt;
-LocalDateTime updatedAt
- */
 public abstract class StoredObject {
     @Id
     @UuidGenerator
@@ -40,4 +34,7 @@ public abstract class StoredObject {
     @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     @JsonSerialize(using = LocalDateTimeSerializer.class)
     private LocalDateTime updatedAt = LocalDateTime.now();
+
+    @Version
+    private Integer versioning;
 }

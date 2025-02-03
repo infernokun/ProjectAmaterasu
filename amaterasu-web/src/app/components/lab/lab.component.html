@@ -42,77 +42,61 @@
 
       <!-- Button content when not loading -->
       <ng-template #buttonContent>
-        <!-- Querying Button -->
         <div class="button-container">
+          <!-- Querying Button -->
           <button mat-button class="button querying" *ngIf="isLabLoading(lab.id)">
             Querying
           </button>
-        </div>
 
-        <!-- Start Button -->
-        <div class="button-container">
+          <!-- Start Button (for specific conditions) -->
           <button mat-button class="button start" (click)="startLab(lab.id, loggedInUser)" *ngIf="!isLabLoading(lab.id) && (!isInTrackedLabs(lab.id) ||
-             (getLabStatus(lab.id) === 'STOPPED' ||
-             getLabStatus(lab.id) === 'DELETED' ||
-             getLabStatus(lab.id) === 'NONE') ||
-             getLabStatus(lab.id) === 'FAILED')">
+            (getLabStatus(lab.id) === 'STOPPED' ||
+            getLabStatus(lab.id) === 'DELETED' ||
+            getLabStatus(lab.id) === 'NONE') ||
+            getLabStatus(lab.id) === 'FAILED')">
             Start
           </button>
-        </div>
 
-        <!-- Already Started Button -->
-        <div class="button-container" *ngIf="!isLabLoading(lab.id) && (isInTrackedLabs(lab.id) && getLabStatus(lab.id)
-          === 'ACTIVE')">
-          <button mat-button class="button stop" (click)="stopLab(lab.id, loggedInUser)">
+          <!-- Settings Button (for Docker Compose type labs) -->
+          <button mat-button class="button start" (click)="getSettings(lab.id, loggedInUser)"
+            *ngIf="!isLabLoading(lab.id) && lab.labType === 'DOCKER_COMPOSE'">
+            Settings
+          </button>
+
+          <!-- Already Started Buttons (Active Lab) -->
+          <button mat-button class="button stop" (click)="stopLab(lab.id, loggedInUser)"
+            *ngIf="!isLabLoading(lab.id) && (isInTrackedLabs(lab.id) && getLabStatus(lab.id) === 'ACTIVE')">
             Stop
           </button>
-          <button mat-button class="button active" (click)="viewLogs(lab.id)">
+          <button mat-button class="button active" (click)="viewLogs(lab.id)"
+            *ngIf="!isLabLoading(lab.id) && (isInTrackedLabs(lab.id) && getLabStatus(lab.id) === 'ACTIVE')">
             Logs
           </button>
-        </div>
 
-        <!-- Offline Button -->
-        <div class="button-container">
+          <!-- Offline Button -->
           <button mat-button class="button offline"
             *ngIf="!isLabLoading(lab.id) && (isInTrackedLabs(lab.id) && getLabStatus(lab.id) === 'OFFLINE')">
             Offline
           </button>
-        </div>
 
-        <!-- Failed Button -->
-        <div class="button-container">
+          <!-- Failed Button -->
           <button mat-button class="button failed"
             *ngIf="!isLabLoading(lab.id) && (isInTrackedLabs(lab.id) && getLabStatus(lab.id) === 'FAILED')">
             Failed
           </button>
-        </div>
 
-        <!-- Stopped Button -->
-        <div class="button-container">
+          <!-- Stopped Button (with delete option) -->
           <button mat-button class="button stopped"
             *ngIf="!isLabLoading(lab.id) && (isInTrackedLabs(lab.id) && getLabStatus(lab.id) === 'STOPPED')">
             Stopped
           </button>
-
-          <button mat-button class="button stop" *ngIf="!isLabLoading(lab.id) && getLabStatus(lab.id) === 'STOPPED'"
-            (click)="deleteLab(lab.id)">
-            Delete
-          </button>
-        </div>
-
-        <!-- View Compose Button -->
-        <div class="button-container">
-          <button mat-button class="button stopped"
-            *ngIf="!isLabLoading(lab.id) && (isInTrackedLabs(lab.id) && getLabStatus(lab.id) === 'STOPPED')">
-            Stopped
-          </button>
-
-          <button mat-button class="button stop" *ngIf="!isLabLoading(lab.id) && getLabStatus(lab.id) === 'STOPPED'"
-            (click)="deleteLab(lab.id)">
+          <button mat-button class="button stop" (click)="deleteLab(lab.id)"
+            *ngIf="!isLabLoading(lab.id) && getLabStatus(lab.id) === 'STOPPED'">
             Delete
           </button>
         </div>
       </ng-template>
+
     </div>
   </div>
 </div>

@@ -10,6 +10,9 @@ import { LabTracker } from '../../models/lab-tracker.model';
 import { TeamService } from '../../services/team/team.service';
 import { Team } from '../../models/team.model';
 import { LabStatus } from '../../enums/lab-status.enum';
+import { LabActionResult } from '../../models/lab-action-result.model';
+import { MatDialog } from '@angular/material/dialog';
+import { DialogComponent } from '../common/dialog/dialog.component';
 
 @Component({
   selector: 'app-lab',
@@ -40,7 +43,8 @@ export class LabComponent implements OnInit {
 
   constructor(
     private labService: LabService, private userService: UserService,
-    private teamService: TeamService, private labTrackerService: LabTrackerService) { }
+    private teamService: TeamService, private labTrackerService: LabTrackerService,
+    private dialog: MatDialog) { }
 
   ngOnInit(): void {
     combineLatest([
@@ -138,10 +142,10 @@ export class LabComponent implements OnInit {
     this.loadingLabs.add(labId);
 
     this.labService.startLab(labId, user?.id, latestLabTracker?.id || "").subscribe({
-      next: (response: ApiResponse<LabTracker | undefined>) => {
+      next: (response: ApiResponse<LabActionResult | undefined>) => {
         if (!response.data) return;
 
-        const newTrackedLab = new LabTracker(response.data);
+        const newTrackedLab = new LabTracker(response.data.labTracker);
 
         if (latestLabTracker) {
           const index = this.trackedLabs.indexOf(latestLabTracker);
@@ -170,8 +174,17 @@ export class LabComponent implements OnInit {
         this.userTeamSubject.next({ ...this.team });
         this.trackedLabsSubject.next([...this.trackedLabs]);
 
-        console.log("Started lab:", this.trackedLabs);
-        console.log("Started lab:", this.trackedLabs);
+        if (response.data.output) {
+          this.dialog.open(DialogComponent, {
+            data: {
+              output: response.data.output,
+              applyColor: true
+            },
+            width: '400px'
+          });
+        }
+
+        console.log("Started lab:", response);
       },
       error: (err) => {
         console.error(`Failed to start lab ${labId}:`, err);
@@ -276,6 +289,9 @@ export class LabComponent implements OnInit {
           this.loadingLabs.delete(labId);
         },
       });
+  }
+
+  getSettings(labId?: string, user?: User): void {
   }
 
   viewLogs(labId?: string): void {

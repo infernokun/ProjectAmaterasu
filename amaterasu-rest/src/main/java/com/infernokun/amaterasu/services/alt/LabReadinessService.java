@@ -28,8 +28,6 @@ public class LabReadinessService {
 
             String response = remoteCommandResponse.getBoth();
 
-            LOGGER.info(response);
-
             return !response.contains("did not find expected key") && !response.contains("not allowed") &&
                     !response.contains("No such file or directory");
         } catch (RemoteCommandException e) {
