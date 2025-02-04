@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -237,6 +238,25 @@ public class LabService {
         switch (lab.getLabType()) {
             case DOCKER_COMPOSE -> {
                 return labReadinessService.checkDockerComposeReadiness(lab, amaterasuConfig);
+            }
+            case DOCKER_CONTAINER -> {
+                throw new LabReadinessException("coming one day...");
+            }
+            default -> throw new LabReadinessException("Lab type not implemented...");
+        }
+    }
+
+    public Map<String, Object> getLabSettings(String labId) {
+        Optional<Lab> labOptional = findLabById(labId);
+
+        if (labOptional.isEmpty()) {
+            throw new LabReadinessException("Lab not found");
+        }
+        Lab lab = labOptional.get();
+
+        switch (lab.getLabType()) {
+            case DOCKER_COMPOSE -> {
+                return labReadinessService.getDockerComposeFile(lab, amaterasuConfig);
             }
             case DOCKER_CONTAINER -> {
                 throw new LabReadinessException("coming one day...");

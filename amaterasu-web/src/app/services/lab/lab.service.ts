@@ -63,6 +63,10 @@ export class LabService extends BaseService {
     return this.get<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/logs/' + labId);
   }
 
+  getSettings(labId: string): Observable<ApiResponse<any>> {
+    return this.get<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/settings/' + labId);
+  }
+
   clear(teamId: string): Observable<ApiResponse<any>> {
     return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/dev', {
       teamId

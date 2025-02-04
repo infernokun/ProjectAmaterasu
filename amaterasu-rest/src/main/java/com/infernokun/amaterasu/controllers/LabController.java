@@ -14,13 +14,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/labs")
 public class LabController {
 
-    @Value("${amaterasu.uploadDir}")  // Path from application.yml
+    @Value("${amaterasu.uploadDir}")
     private String uploadDir;
 
     private final LabService labService;
@@ -52,6 +53,19 @@ public class LabController {
                         .code(HttpStatus.OK.value())
                         .message(String.format("Lab id %s is ready!", labId))
                         .data(isLabReady)
+                        .build()
+        );
+    }
+
+    @GetMapping("/settings/{labId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getLabSettings(@PathVariable String labId) {
+        Map<String, Object> response = labService.getLabSettings(labId);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Map<String, Object>>builder()
+                        .code(HttpStatus.OK.value())
+                        .message(String.format("Lab id %s successfully uploaded!", labId))
+                        .data(response)
                         .build()
         );
     }
@@ -126,8 +140,8 @@ public class LabController {
 
     @PostMapping("/upload/{labId}")
     public ResponseEntity<ApiResponse<String>> uploadLabFile(@PathVariable String labId, @RequestBody String content) {
-        // Exceptions thrown from here will be handled by the global exception handler.
         String response = labService.uploadLabFile(labId, content);
+
         return ResponseEntity.ok(
                 ApiResponse.<String>builder()
                         .code(HttpStatus.OK.value())
@@ -141,6 +155,7 @@ public class LabController {
     public ResponseEntity<ApiResponse<LabActionResult>> startLab(@RequestBody LabRequest labRequest) {
         Optional<LabActionResult> startedLabOptional =
                 labService.startLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
+
         return ResponseEntity.status(startedLabOptional.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.<LabActionResult>builder()
                         .code(startedLabOptional.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())

@@ -1,9 +1,3 @@
-:host {
-  display: block;
-  width: 100%;
-  max-width: 500px; // Limits the dialog width
-}
-
 ::ng-deep .mat-dialog-container {
   background-color: #1e1e2e; // Dark theme
   color: #ffffff;
@@ -23,9 +17,22 @@ mat-dialog-content {
   font-size: 1.1rem;
   line-height: 1.5;
   color: #c9d1d9;
-  max-height: 300px;
-  overflow-y: auto; // Ensures scrolling if content is long
-  padding-bottom: 12px;
+  overflow-y: auto;   // Ensures scrolling if content is long
+  display: flex;      // Flexbox layout for better control
+  flex-direction: column; // Align content vertically
+  padding-bottom: 0;  // Removed extra padding at the bottom
+}
+
+app-code-block {
+  flex: 1;                  // Makes the code block take up available space
+  overflow: auto;           // Allows scrolling if content is too long
+  font-family: monospace;   // Ensures code block uses a monospace font
+  background-color: #2d2d2d; // Dark background for the code block      // Code text color (contrast with dark background)
+  border-radius: 8px;
+  padding: 1em;
+  white-space: pre-wrap;    // Ensures lines wrap properly
+  word-wrap: break-word;    // Handles long words without breaking the layout
+  height: 100%;             // Ensures the code block fills available vertical space
 }
 
 mat-dialog-actions {

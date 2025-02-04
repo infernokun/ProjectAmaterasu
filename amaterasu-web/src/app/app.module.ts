@@ -14,6 +14,9 @@ import { CommonModule } from '@angular/common';
 import { AuditLogComponent } from './components/audit-log/audit-log.component';
 import { DialogComponent } from './components/common/dialog/dialog.component';
 import { BashColoringPipe } from './pipes/bash-coloring.pipe';
+import { CodeBlockComponent } from './components/common/code-block/code-block.component';
+
+import { CodeEditorModule, provideCodeEditor } from '@ngstack/code-editor';
 
 export function init_app(environmentService: EnvironmentService) {
   return () => environmentService.load().then(() => {
@@ -28,6 +31,7 @@ export function init_app(environmentService: EnvironmentService) {
     LabComponent,
     AuditLogComponent,
     DialogComponent,
+    CodeBlockComponent,
     BashColoringPipe
   ],
   imports: [
@@ -37,7 +41,8 @@ export function init_app(environmentService: EnvironmentService) {
     ReactiveFormsModule,
     FormsModule,
     MaterialModule,
-    CommonModule
+    CommonModule,
+    CodeEditorModule
   ],
   providers: [
     {
@@ -46,7 +51,10 @@ export function init_app(environmentService: EnvironmentService) {
       deps: [EnvironmentService],
       multi: true,
     },
-    provideHttpClient(withInterceptorsFromDi())
+    provideHttpClient(withInterceptorsFromDi()),
+    provideCodeEditor({
+      editorVersion: '0.44.0'
+    })
   ],
   bootstrap: [AppComponent]
 })

@@ -41,6 +41,8 @@ export class LabComponent implements OnInit {
 
   isHovered = false;
 
+  dockerComposeData: any;
+
   constructor(
     private labService: LabService, private userService: UserService,
     private teamService: TeamService, private labTrackerService: LabTrackerService,
@@ -292,7 +294,29 @@ export class LabComponent implements OnInit {
   }
 
   getSettings(labId?: string, user?: User): void {
+    this.labService.getSettings(labId!).subscribe((res: ApiResponse<any>) => {
+      console.log('API Response:', res); // Debugging
+      if (!res.data || !res.data.yml) {
+        console.error('No YAML data found in response!');
+        return;
+      }
+
+      this.dockerComposeData = res.data;
+      console.log('Opening Dialog with YAML:', res.data.yml);
+
+      this.dialog.open(DialogComponent, {
+        data: {
+          isCode: true,
+          content: res.data.yml, // YAML Data
+          fileType: 'yaml',
+          isReadOnly: false
+        },
+        width: '50rem',
+        height: '50rem'
+      });
+    });
   }
+
 
   viewLogs(labId?: string): void {
 

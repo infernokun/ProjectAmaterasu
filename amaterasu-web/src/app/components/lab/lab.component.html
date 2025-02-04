@@ -1,5 +1,4 @@
 <button mat-button class="button" (click)="clear()">Clear</button>
-
 <div class="lab-container">
   <div class="lab-card" *ngFor="let lab of labsObservable$ | async" (mouseenter)="onMouseEnter()"
     (mouseleave)="onMouseLeave()" [hidden]="!lab.ready">

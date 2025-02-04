@@ -32,13 +32,7 @@
             "input": "public"
           }
         ],
-        "styles": [
-          "src/styles.scss",
-          "node_modules/material-icons/iconfont/material-icons.scss",
-          "src/styles/material-styles.scss",
-          "src/styles/app-styles.scss",
-          "src/styles/common/dist/css/common-styles.min.css"
-        ],
+        "styles": ["src/styles.scss"],
         "stylePreprocessorOptions": {
           "includePaths": ["node_modules/@angular/material/"]
         },

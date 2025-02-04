@@ -9,6 +9,7 @@ import com.infernokun.amaterasu.models.enums.LabType;
 import com.infernokun.amaterasu.repositories.LabFileChangeLogRepository;
 import com.infernokun.amaterasu.repositories.LabRepository;
 import com.infernokun.amaterasu.services.LabService;
+import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -43,6 +44,7 @@ public class LabFileChangeLogService {
     }
 
     @Scheduled(cron = "0 * * * * *")
+    @Transactional
     public void updateLabFileStatuses() {
         AtomicInteger count = new AtomicInteger();
 

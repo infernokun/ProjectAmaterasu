@@ -1,5 +1,7 @@
 import { Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { CodeModel } from '@ngstack/code-editor';
+
 
 @Component({
   selector: 'app-dialog',
@@ -7,15 +9,33 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
   styleUrls: ['./dialog.component.scss'],
 })
 export class DialogComponent {
-  output: string;
-  applyColor: boolean;
+  output: CodeModel;
+  isCode: boolean = false;
+  isReadOnly: boolean = false;
+  fileType: string = '';
 
   constructor(
-    @Inject(MAT_DIALOG_DATA) public data: { output: string, applyColor: boolean },
+    @Inject(MAT_DIALOG_DATA) public data: { isCode: boolean, content: string, fileType: string, isReadOnly: boolean },
     private dialogRef: MatDialogRef<DialogComponent>
   ) {
-    this.output = data.output;
-    this.applyColor = data.applyColor;
+    console.log('Received Dialog Data:', data); // Debugging
+    this.fileType = data.fileType;
+
+    this.output = {
+      language: data.fileType,
+      uri: 'main.' + data.fileType,
+      value: data.content,
+    };
+    this.isCode = data.isCode;
+    this.isReadOnly = data.isReadOnly;
+  }
+
+  onCodeChange(newCode: string) {
+    console.log('Updated Code:', newCode);
+  }
+
+  onVersionSelected(version: number) {
+    console.log('Selected Version:', version);
   }
 
   close() {

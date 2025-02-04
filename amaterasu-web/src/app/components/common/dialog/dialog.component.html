@@ -1,7 +1,14 @@
 <h2 mat-dialog-title>Lab Output</h2>
 <mat-dialog-content>
-  <p>{{ data.output | bashColoring: applyColor }}</p>
+
+  <app-code-block *ngIf="true" id="code-editor" type="fileType" [codeModel]="output" [readonly]="isReadOnly"
+    [versions]="[1, 2, 3]" (onChange)="onCodeChange($event)" (onVersionChange)="onVersionSelected($event)">
+  </app-code-block>
+
+  <p *ngIf="!isCode">{{ output }}</p>
+
 </mat-dialog-content>
+
 <mat-dialog-actions>
   <button mat-button (click)="close()">Close</button>
 </mat-dialog-actions>
