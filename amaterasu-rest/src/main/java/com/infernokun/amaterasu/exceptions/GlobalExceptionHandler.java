@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
-
     @ExceptionHandler(FileUploadException.class)
     public ResponseEntity<ApiResponse<String>> handleFileUploadException(
             FileUploadException ex) {
@@ -39,6 +38,17 @@ public class GlobalExceptionHandler {
                 .data(false)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiResponse<String>> handleResourceNotFoundException(
+            ResourceNotFoundException ex) {
+        ApiResponse<String> response = ApiResponse.<String>builder()
+                .code(HttpStatus.NOT_FOUND.value())
+                .message("Resource not found: " + ex.getMessage())
+                .data(null)
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(Exception.class)

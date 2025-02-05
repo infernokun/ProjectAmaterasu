@@ -16,7 +16,6 @@ public class LabTrackerService {
 
     private final LabTrackerRepository labTrackerRepository;
 
-    @Autowired
     public LabTrackerService(LabTrackerRepository labTrackerRepository) {
         this.labTrackerRepository = labTrackerRepository;
     }

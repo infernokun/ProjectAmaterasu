@@ -9,7 +9,7 @@
           <image xlink:href="assets/icon.svg" width="45" height="45" x="0" y="0" />
         </svg>
       </div>
-      <div class="display-flex flex-column justify-content-start">
+      <div class="display-flex flex-column justify-content-start tool-info">
         <div class="display-flex flex-row align-items-baseline">
           <span class="text-2x interactive-text" routerLink="/">{{ title }}&nbsp;</span>
           <span class="text-sm" style="line-height: 16px">v{{ appVersion }}</span>
@@ -21,16 +21,14 @@
       </div>
     </article>
   </div>
-  <div>
-    <article>
-      <div>
-        <a routerLink="/">Home</a>
-        <a routerLink="/log">Log</a>
-        <a routerLink="/team-log">Team Log</a>
-        <a routerLink="/code">Code</a>
-      </div>
-    </article>
-  </div>
+  <!-- Navigation Links - Inline -->
+  <nav class="nav-links">
+    <a routerLink="/" class="nav-link">Home</a>
+    <a routerLink="/log" class="nav-link">Log</a>
+    <a routerLink="/team-log" class="nav-link">Team Log</a>
+    <a routerLink="/code" class="nav-link">Code</a>
+    <a routerLink="/remote-server" class="nav-link">Remote Server</a>
+  </nav>
   <div class="display-flex flex-row width-100-percent justify-content-end">
     <article class="margin-right-2x display-flex flex-column justify-content-center">
       <div *ngIf="loggedInUser$ | async as user">

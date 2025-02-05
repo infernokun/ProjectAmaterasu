@@ -17,6 +17,8 @@ import { BashColoringPipe } from './pipes/bash-coloring.pipe';
 import { CodeBlockComponent } from './components/common/code-block/code-block.component';
 
 import { CodeEditorModule, provideCodeEditor } from '@ngstack/code-editor';
+import { RemoteServerComponent } from './components/remote-server/remote-server.component';
+import { DurationPipe } from './pipes/duration.pipe';
 
 export function init_app(environmentService: EnvironmentService) {
   return () => environmentService.load().then(() => {
@@ -32,7 +34,9 @@ export function init_app(environmentService: EnvironmentService) {
     AuditLogComponent,
     DialogComponent,
     CodeBlockComponent,
-    BashColoringPipe
+    BashColoringPipe,
+    RemoteServerComponent,
+    DurationPipe
   ],
   imports: [
     BrowserModule,

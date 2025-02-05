@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.services.alt;
+package com.infernokun.amaterasu.services.alt.cron;
 
 import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.RemoteCommandException;
@@ -9,6 +9,7 @@ import com.infernokun.amaterasu.models.enums.LabType;
 import com.infernokun.amaterasu.repositories.LabFileChangeLogRepository;
 import com.infernokun.amaterasu.repositories.LabRepository;
 import com.infernokun.amaterasu.services.LabService;
+import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

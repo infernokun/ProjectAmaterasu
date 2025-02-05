@@ -22,6 +22,6 @@ public class AmaterasuRestApplication implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) throws Exception {
-		System.out.println("Docker Containers: " + amaterasuRestTemplate.getDockerContainers());
+		//System.out.println("Docker Containers: " + amaterasuRestTemplate.getDockerContainers());
 	}
 }
