@@ -58,3 +58,43 @@ button {
     }
   }
 }
+
+.bg-alert {
+  background-color: #ffebee; /* Light red background */
+  padding: 16px;
+  border: 1px solid #d32f2f; /* Red border */
+  border-radius: 8px;
+}
+
+.dialog-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #d32f2f; /* Red title */
+  text-align: center;
+}
+
+.dialog-content {
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px;
+}
+
+.margin-left {
+  margin-left: 10px;
+}
+
+.transparent-button {
+  background-color: transparent;
+  color: #555;
+}
+
+.mat-accent {
+  background-color: #1976d2 !important;
+  color: white !important;
+}

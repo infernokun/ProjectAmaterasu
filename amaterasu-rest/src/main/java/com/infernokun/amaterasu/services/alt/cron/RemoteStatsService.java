@@ -68,9 +68,6 @@ public class RemoteStatsService {
                 try {
                     String jsonOutput = remoteCommandService.handleRemoteCommand(scriptRemotePath, amaterasuConfig).getBoth();
 
-                    LOGGER.info("JSON Output from remote script for server {}: {}",
-                            remoteServer.getId(), jsonOutput);
-
                     RemoteServerStats statsFromJson = objectMapper.readValue(jsonOutput, RemoteServerStats.class);
                     statsFromJson.setStatus(LabStatus.ACTIVE);
 

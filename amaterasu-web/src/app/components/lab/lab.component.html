@@ -1,7 +1,10 @@
 <button mat-button class="button" (click)="clear()">Clear</button>
+<button mat-fab mat-success (click)="addLab()" matTooltip="New Lab">
+  <mat-icon fontIcon="add"></mat-icon>
+</button>
 <div class="lab-container">
   <div class="lab-card" *ngFor="let lab of labsObservable$ | async" (mouseenter)="onMouseEnter()"
-    (mouseleave)="onMouseLeave()" [hidden]="!lab.ready">
+    (mouseleave)="onMouseLeave()">
     <div class="lab-header">
       <h2 (mouseenter)="onMouseEnter()">
         {{ lab.name }}

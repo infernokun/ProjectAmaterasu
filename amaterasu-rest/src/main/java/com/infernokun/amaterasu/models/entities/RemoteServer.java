@@ -13,7 +13,7 @@ import lombok.*;
 public class RemoteServer extends StoredObject {
     private String name;
     private String ipAddress;
-    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @OneToOne
     @JoinColumn(name = "stats_id", referencedColumnName = "id")
     private RemoteServerStats remoteServerStats;
 }

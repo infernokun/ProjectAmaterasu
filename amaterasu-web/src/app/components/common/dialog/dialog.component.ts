@@ -15,7 +15,7 @@ export class DialogComponent {
   fileType: string = '';
 
   constructor(
-    @Inject(MAT_DIALOG_DATA) public data: { isCode: boolean, content: string, fileType: string, isReadOnly: boolean },
+    @Inject(MAT_DIALOG_DATA) public data: { title: string, isCode: boolean, content: string, fileType: string, isReadOnly: boolean },
     private dialogRef: MatDialogRef<DialogComponent>
   ) {
     console.log('Received Dialog Data:', data); // Debugging

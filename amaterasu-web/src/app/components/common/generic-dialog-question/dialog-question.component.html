@@ -1,0 +1,67 @@
+<div *ngIf="question.type === 'number'" class="row width-100-percent form-field-container">
+  <mat-form-field floatLabel="always">
+    <mat-label>{{ question.label }}</mat-label>
+    <input [formControl]="formControl" matInput numberInput>
+  </mat-form-field>
+</div>
+
+<div *ngIf="question.type === 'text'" class="row width-100-percent form-field-container">
+  <mat-form-field floatLabel="always">
+    <mat-label>{{ question.label }}</mat-label>
+    <input [formControl]="formControl" matInput maxlength="{{ question.size }}">
+  </mat-form-field>
+  <p class="character-count"
+    [ngClass]="formControl.value.length === question.size ? 'character-count-max' : 'character-count-min'">{{
+    formControl.value.length }}/{{ question.size }}</p>
+</div>
+
+<div *ngIf="question.type === 'textarea'">
+  <mat-form-field floatLabel="always">
+    <mat-label>{{ question.label }}</mat-label>
+    <textarea rows="3" [formControl]="formControl" matInput maxlength="{{ question.size }}"></textarea>
+  </mat-form-field>
+  <p class="character-count"
+    [ngClass]="formControl.value.length === question.size ? 'character-count-max' : 'character-count-min'">{{
+    formControl.value.length }}/{{ question.size }}</p>
+</div>
+
+<div *ngIf="question.type === 'dropdown'" class="row width-100-percent">
+  <mat-form-field floatLabel="always">
+    <mat-label>{{ question.label }}</mat-label>
+    <mat-select [formControl]="formControl" #dropdownMenu>
+      <mat-option *ngFor="let ent of question.options" class="option" [value]="ent.value">
+        {{ ent.key }}
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+</div>
+
+<div *ngIf="question.type === 'popup'" class="row width-100-percent">
+  <mat-form-field floatLabel="always">
+    <mat-label>{{ question.label }}</mat-label>
+    <input matInput [formControl]="formControl" (click)="handleAction()" readonly />
+  </mat-form-field>
+</div>
+
+<div *ngIf="question.type === 'checkbox'" class="row width-100-percent">
+  <mat-label>{{ question.label }}</mat-label>
+  <mat-radio-group [formControl]="formControl">
+    <mat-radio-button *ngFor="let option of question.options" [value]="option.value" (click)="handleAction()">
+      {{ option.key }}
+    </mat-radio-button>
+  </mat-radio-group>
+</div>
+
+<div *ngIf="question.type === 'uploadbox' && showUploadBox" class="row width-100-percent">
+  <mat-label>{{ question.label }}</mat-label>
+  <input type="file" (change)="onFileSelected($event)" style="display: block; margin-top: 8px;" accept=".yml,.yaml" />
+  <p *ngIf="formControl.value" class="file-name">{{ formControl.value.file.name }}</p>
+  <button mat-button *ngIf="question.key === 'dockerFile'"
+    (click)="validateYaml(formControl.value.content)">Validate</button>
+</div>
+
+<div *ngFor="let kv of question.dependentQuestions | keyvalue">
+  <div *ngIf="formControl.value && kv.key!==undefined && formControl.value === kv.key">
+    <app-dialog-question [question]="kv.value"></app-dialog-question>
+  </div>
+</div>

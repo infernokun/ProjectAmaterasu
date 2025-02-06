@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { LabService } from '../../services/lab/lab.service';
-import { Lab } from '../../models/lab.model';
+import { Lab, LabFormData } from '../../models/lab.model';
 import { UserService } from '../../services/user/user.service';
 import { Observable, BehaviorSubject, switchMap, combineLatest, finalize, of, catchError, map } from 'rxjs';
 import { User } from '../../models/user.model';
@@ -13,6 +13,7 @@ import { LabStatus } from '../../enums/lab-status.enum';
 import { LabActionResult } from '../../models/lab-action-result.model';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogComponent } from '../common/dialog/dialog.component';
+import { EditDialogService } from '../../services/edit-dialog/edit-dialog.service';
 
 @Component({
   selector: 'app-lab',
@@ -40,13 +41,13 @@ export class LabComponent implements OnInit {
   userTeamObservable$: Observable<Team | undefined> = this.userTeamSubject.asObservable();
 
   isHovered = false;
-
+  busy = false;
   dockerComposeData: any;
 
   constructor(
     private labService: LabService, private userService: UserService,
     private teamService: TeamService, private labTrackerService: LabTrackerService,
-    private dialog: MatDialog) { }
+    private dialog: MatDialog, private editDialogService: EditDialogService) { }
 
   ngOnInit(): void {
     combineLatest([
@@ -123,6 +124,21 @@ export class LabComponent implements OnInit {
 
   isLabLoading(labId?: string): boolean {
     return this.loadingLabs.has(labId!);
+  }
+
+  addLab() {
+    const labFormData = new LabFormData();
+
+    this.editDialogService.openDialog<Lab>(labFormData, (lab: Lab) => {
+      this.busy = true;
+
+      console.log(labFormData);
+      this.labService.createNewLab(lab).subscribe((labResp: ApiResponse<Lab>) => {
+        this.busy = false;
+      });
+    }).subscribe((res: any) => {
+
+    });
   }
 
   startLab(labId?: string, user?: User): void {
@@ -306,6 +322,7 @@ export class LabComponent implements OnInit {
 
       this.dialog.open(DialogComponent, {
         data: {
+          title: 'Lab Output',
           isCode: true,
           content: res.data.yml, // YAML Data
           fileType: 'yaml',

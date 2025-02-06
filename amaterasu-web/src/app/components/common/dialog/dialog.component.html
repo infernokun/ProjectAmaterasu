@@ -1,14 +1,22 @@
-<h2 mat-dialog-title>Lab Output</h2>
-<mat-dialog-content>
+<div class="bg-alert padding-1x border border-radius">
+  <h1 class="enable-crlf dialog-title" mat-dialog-title>{{ data.title }}</h1>
+</div>
 
+<div class="text-lg">
+  <div *ngIf="!isCode" mat-dialog-content class="enable-crlf">
+    {{ data.content }}
+  </div>
+</div>
+
+<mat-dialog-content class="dialog-content">
   <app-code-block *ngIf="true" id="code-editor" type="fileType" [codeModel]="output" [readonly]="isReadOnly"
     [versions]="[1, 2, 3]" (onChange)="onCodeChange($event)" (onVersionChange)="onVersionSelected($event)">
   </app-code-block>
 
   <p *ngIf="!isCode">{{ output }}</p>
-
 </mat-dialog-content>
 
-<mat-dialog-actions>
-  <button mat-button (click)="close()">Close</button>
+<mat-dialog-actions align="end" class="dialog-actions">
+  <button mat-button class="mat-raised-button transparent-button" (click)="close()">Close</button>
+  <button mat-button class="mat-raised-button mat-accent margin-left" (click)="close()">OK</button>
 </mat-dialog-actions>
