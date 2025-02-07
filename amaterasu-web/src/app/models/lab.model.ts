@@ -46,13 +46,13 @@ export class LabFormData extends SimpleFormData {
       }),
       new TextQuestion({
         label: 'Name',
-        key: 'Name',
+        key: 'name',
       }),
       new TextQuestion({
         label: 'Description',
         key: 'description',
       }),
-      new NumberQuestion({
+      new TextQuestion({
         label: "Version",
         key: "version"
       }),

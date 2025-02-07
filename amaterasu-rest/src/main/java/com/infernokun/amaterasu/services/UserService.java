@@ -1,7 +1,8 @@
 package com.infernokun.amaterasu.services;
 
 import com.infernokun.amaterasu.models.entities.User;
-import com.infernokun.amaterasu.repositories.UserRepository; // Assuming you have a UserRepository
+import com.infernokun.amaterasu.repositories.UserRepository;
+import com.infernokun.amaterasu.services.base.BaseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -9,8 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-public class UserService {
-
+public class UserService extends BaseService {
     private final UserRepository userRepository;
 
     @Autowired

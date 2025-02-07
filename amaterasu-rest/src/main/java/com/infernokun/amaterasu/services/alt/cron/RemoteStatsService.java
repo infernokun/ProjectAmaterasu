@@ -9,26 +9,24 @@ import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.repositories.RemoteServerStatsRepository;
 import com.infernokun.amaterasu.services.RemoteServerService;
 import com.infernokun.amaterasu.services.alt.RemoteCommandService;
+import com.infernokun.amaterasu.services.base.BaseService;
 import jakarta.transaction.Transactional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.Base64;
 
 @Service
-public class RemoteStatsService {
+public class RemoteStatsService extends BaseService {
     private final AmaterasuConfig amaterasuConfig;
     private final RemoteCommandService remoteCommandService;
     private final RemoteServerStatsRepository remoteServerStatsRepository;
     private final RemoteServerService remoteServerService;
     private final ObjectMapper objectMapper;
-    private final Logger LOGGER = LoggerFactory.getLogger(RemoteStatsService.class);
 
     private static final String SCRIPT_FILENAME = "get_server_stats.sh";
 
-    public RemoteStatsService(AmaterasuConfig amaterasuConfig, RemoteCommandService remoteCommandService, RemoteServerStatsRepository remoteServerStatsRepository, ObjectMapper objectMapper, RemoteServerService remoteServerService) {
+    public RemoteStatsService(AmaterasuConfig amaterasuConfig, RemoteCommandService remoteCommandService, RemoteServerStatsRepository remoteServerStatsRepository, RemoteServerService remoteServerService) {
         this.amaterasuConfig = amaterasuConfig;
         this.remoteCommandService = remoteCommandService;
         this.remoteServerStatsRepository = remoteServerStatsRepository;
@@ -59,9 +57,9 @@ public class RemoteStatsService {
             if (!"true".equals(result.trim())) {
                 LOGGER.info("Script not found on remote system. Uploading script to {}", scriptRemotePath);
                 String scriptContent = Base64.getEncoder().encodeToString(buildStatsScriptContent().getBytes());
-                String output = remoteCommandService.handleRemoteCommand(
+                remoteCommandService.handleRemoteCommand(
                         String.format("echo %s | base64 -d > %s && chmod +x %s", scriptContent, scriptRemotePath, scriptRemotePath),
-                        amaterasuConfig).getBoth();
+                        amaterasuConfig);
             }
 
             remoteServerService.getAllServers().forEach(remoteServer -> {

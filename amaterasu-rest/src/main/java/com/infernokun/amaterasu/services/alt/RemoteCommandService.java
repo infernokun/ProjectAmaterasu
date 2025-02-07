@@ -3,12 +3,11 @@ package com.infernokun.amaterasu.services.alt;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.RemoteCommandException;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
+import com.infernokun.amaterasu.services.base.BaseService;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -17,10 +16,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 
 @Service
-public class RemoteCommandService {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(RemoteCommandService.class);
-
+public class RemoteCommandService extends BaseService {
 
     public RemoteCommandResponse handleRemoteCommand(String cmd, AmaterasuConfig amaterasuConfig) {
         Session session = null;
@@ -34,12 +30,7 @@ public class RemoteCommandService {
 
             CommandResult result = executeRemoteCommand(session, cmd);
 
-            /*if (result.getError() != null && !result.getError().isEmpty()) {
-                throw new RemoteCommandException("Error while executing command: " +
-                        result.getError());
-            }*/
-
-            return new RemoteCommandResponse(result.getOutput(), result.getError());
+            return new RemoteCommandResponse(result.output(), result.error());
         } catch (Exception e) {
             throw new RemoteCommandException("Exception while running command: " + e.getMessage(), e);
         } finally {
@@ -79,23 +70,7 @@ public class RemoteCommandService {
         return output.toString().trim();
     }
 
-    private static class CommandResult {
-        private final String output;
-        private final String error;
-
-        public CommandResult(String output, String error) {
-            this.output = output;
-            this.error = error;
-        }
-
-        public String getOutput() {
-            return output;
-        }
-
-        public String getError() {
-            return error;
-        }
-
+    private record CommandResult(String output, String error) {
         public boolean isSuccess() {
             return error.isEmpty();
         }

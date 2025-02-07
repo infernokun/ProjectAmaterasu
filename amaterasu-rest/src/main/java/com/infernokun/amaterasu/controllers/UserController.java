@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.controllers;
 
+import com.infernokun.amaterasu.controllers.base.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.services.UserService;
@@ -11,8 +12,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/user")
-public class UserController {
-
+public class UserController extends BaseController {
     private final UserService userService;
 
     public UserController(UserService userService) {

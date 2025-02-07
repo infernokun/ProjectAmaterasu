@@ -1,10 +1,9 @@
 package com.infernokun.amaterasu.controllers;
 
+import com.infernokun.amaterasu.controllers.base.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.services.RemoteServerService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,9 +13,8 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/remote-server")
-public class RemoteServerController {
+public class RemoteServerController extends BaseController {
     private final RemoteServerService remoteServerService;
-    private final Logger LOGGER = LoggerFactory.getLogger(RemoteServerController.class);
 
     public RemoteServerController(RemoteServerService remoteServerService) {
         this.remoteServerService = remoteServerService;

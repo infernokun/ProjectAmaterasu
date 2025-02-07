@@ -1,14 +1,13 @@
 package com.infernokun.amaterasu.controllers;
 
+import com.infernokun.amaterasu.controllers.base.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.LabRequest;
+import com.infernokun.amaterasu.models.dto.LabDTO;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.services.LabService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,14 +18,8 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/labs")
-public class LabController {
-
-    @Value("${amaterasu.uploadDir}")
-    private String uploadDir;
-
+public class LabController extends BaseController {
     private final LabService labService;
-
-    private final Logger LOGGER = LoggerFactory.getLogger(LabController.class);
 
     public LabController(LabService labService) {
         this.labService = labService;
@@ -71,8 +64,10 @@ public class LabController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<Lab>> createLab(@RequestBody Lab lab) {
-        Lab createdLab = labService.createLab(lab);
+    public ResponseEntity<ApiResponse<Lab>> createLab(@RequestBody LabDTO labDTO) {
+        if (labDTO == null) throw new RuntimeException("labDTO is null");
+
+        Lab createdLab = labService.createLab(labDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse.<Lab>builder()
                         .code(HttpStatus.CREATED.value())

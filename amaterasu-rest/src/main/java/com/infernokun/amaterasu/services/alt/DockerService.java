@@ -11,10 +11,8 @@ import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
-import com.jcraft.jsch.JSch;
+import com.infernokun.amaterasu.services.base.BaseService;
 import com.jcraft.jsch.Session;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -23,12 +21,10 @@ import java.time.Duration;
 import java.util.List;
 
 @Service
-public class DockerService {
+public class DockerService extends BaseService {
     private DockerClientConfig dockerClientConfig;
     private DockerClient dockerClient;
     private final RemoteCommandService remoteCommandService;
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(DockerService.class);
 
     public DockerService(RemoteCommandService remoteCommandService) {
         this.remoteCommandService = remoteCommandService;
@@ -76,19 +72,11 @@ public class DockerService {
 
         LOGGER.info("Output: \n{}", output.getBoth());
 
-        if (output.getBoth() != null) {
-            return LabActionResult.builder()
-                    .labTracker(labTracker)
-                    .isSuccessful(false)
-                    .output(output.getBoth())
-                    .build();
-        } else {
-            return LabActionResult.builder()
-                    .labTracker(labTracker)
-                    .isSuccessful(false)
-                    .output(output.getBoth())
-                    .build();
-        }
+        return LabActionResult.builder()
+                .labTracker(labTracker)
+                .isSuccessful(false)
+                .output(output.getBoth())
+                .build();
 
         /*String command = String.format("cd /home/%s/app/amaterasu/%s && docker-compose up -d",
                 amaterasuConfig.getDockerUser(), lab.getId());*
@@ -103,11 +91,6 @@ public class DockerService {
     public boolean stopDockerCompose(Lab lab, AmaterasuConfig amaterasuConfig) {
         Session session = null;
         try {
-            JSch jSch = new JSch();
-            session = jSch.getSession(amaterasuConfig.getDockerUser(), amaterasuConfig.getDockerHost(), 22);
-            session.setPassword(amaterasuConfig.getDockerPass());
-            session.setConfig("StrictHostKeyChecking", "no");
-            session.connect();
 
             String command = String.format("cd /home/%s/app/amaterasu/%s && docker-compose down",
                     amaterasuConfig.getDockerUser(), lab.getId());
@@ -116,10 +99,6 @@ public class DockerService {
         } catch (Exception e) {
             LOGGER.error("Exception while stopping Docker Compose: ", e);
             return false;
-        } finally {
-            if (session != null && session.isConnected()) {
-                session.disconnect();
-            }
         }
         return false;
     }

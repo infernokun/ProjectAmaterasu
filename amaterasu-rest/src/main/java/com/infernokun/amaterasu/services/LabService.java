@@ -4,14 +4,14 @@ import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.FileUploadException;
 import com.infernokun.amaterasu.exceptions.LabReadinessException;
 import com.infernokun.amaterasu.models.LabActionResult;
+import com.infernokun.amaterasu.models.dto.LabDTO;
 import com.infernokun.amaterasu.models.entities.*;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.repositories.LabRepository;
 import com.infernokun.amaterasu.services.alt.LabFileUploadService;
 import com.infernokun.amaterasu.services.alt.LabHandlingService;
 import com.infernokun.amaterasu.services.alt.LabReadinessService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.infernokun.amaterasu.services.base.BaseService;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
-public class LabService {
+public class LabService extends BaseService {
     private final LabRepository labRepository;
 
     private final UserService userService;
@@ -34,8 +34,6 @@ public class LabService {
     private final LabReadinessService labReadinessService;
 
     private final AmaterasuConfig amaterasuConfig;
-
-    private final Logger LOGGER = LoggerFactory.getLogger(LabService.class);
 
     public LabService(
             LabRepository labRepository, UserService userService,
@@ -72,6 +70,47 @@ public class LabService {
         // Save the lab with the updated dockerFile name
         return labRepository.save(lab);
     }
+
+    public Lab createLab(LabDTO labDTO) {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+
+        Lab newLab = null;
+
+        switch (labDTO.getLabType()) {
+            case DOCKER_COMPOSE -> {
+                newLab = Lab.builder()
+                        .name(labDTO.getName())
+                        .labType(labDTO.getLabType())
+                        .createdBy(labDTO.getCreatedBy())
+                        .ready(false)
+                        .dockerFile(labDTO.getName().toLowerCase().replace(" ", "-") + "_" + timestamp + ".yml")
+                        .description(labDTO.getDescription())
+                        .version(labDTO.getVersion())
+                        .capacity(labDTO.getCapacity())
+                        .build();
+                Lab savedLab = labRepository.save(newLab);
+                uploadLabFile(savedLab.getId(), labDTO.getDockerFile());
+                return savedLab;
+            }
+            case KUBERNETES -> {
+                LOGGER.info("Kube! Coming one day....");
+                return newLab;
+            }
+            case VIRTUAL_MACHINE -> {
+                LOGGER.info("VM! Coming one day....");
+                return newLab;
+            }
+            case DOCKER_CONTAINER -> {
+                LOGGER.info("Docker Container! Coming one day....");
+                return newLab;
+            }
+            default -> {
+                LOGGER.info("Coming one day....");
+                return newLab;
+            }
+        }
+    }
+
 
     public List<Lab> createManyLabs(List<Lab> labs) {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));

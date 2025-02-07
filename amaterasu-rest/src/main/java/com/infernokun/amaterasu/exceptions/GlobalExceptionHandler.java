@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
     @ExceptionHandler(FileUploadException.class)
     public ResponseEntity<ApiResponse<String>> handleFileUploadException(
             FileUploadException ex) {

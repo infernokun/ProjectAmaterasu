@@ -1,8 +1,8 @@
 package com.infernokun.amaterasu.services;
 
-import com.infernokun.amaterasu.models.entities.Team; // Assuming you have a Team entity
-import com.infernokun.amaterasu.repositories.TeamRepository; // Assuming you have a TeamRepository
-import jakarta.transaction.Transactional;
+import com.infernokun.amaterasu.models.entities.Team;
+import com.infernokun.amaterasu.repositories.TeamRepository;
+import com.infernokun.amaterasu.services.base.BaseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -10,8 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-public class TeamService {
-
+public class TeamService extends BaseService {
     private final TeamRepository teamRepository;
 
     @Autowired

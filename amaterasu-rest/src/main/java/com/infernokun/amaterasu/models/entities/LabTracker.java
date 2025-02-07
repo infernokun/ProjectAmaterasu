@@ -1,6 +1,5 @@
 package com.infernokun.amaterasu.models.entities;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import jakarta.persistence.*;
 import lombok.*;

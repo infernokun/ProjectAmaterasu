@@ -4,14 +4,11 @@ import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.infernokun.amaterasu.services.base.BaseService;
 import org.springframework.stereotype.Service;
 
 @Service
-public class LabHandlingService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(LabHandlingService.class);
-
+public class LabHandlingService extends BaseService {
     private final DockerService dockerService;
 
     public LabHandlingService(DockerService dockerService) {
@@ -27,19 +24,19 @@ public class LabHandlingService {
                 return dockerService.startDockerCompose(lab, labTracker, amaterasuConfig);
             }
             case VIRTUAL_MACHINE -> {
-                String vm;
+                String type = "vm";
                 return new LabActionResult();
             }
             case KUBERNETES -> {
-                boolean kubernetes;
+                String type = "kubernetes";
                 return new LabActionResult();
             }
             case NONE -> {
-                float none;
+                String type = "none";
                 return new LabActionResult();
             }
             default -> {
-                int uhh;
+                String type = "uhh";
                 return new LabActionResult();
             }
         }
@@ -54,19 +51,20 @@ public class LabHandlingService {
                 return dockerService.stopDockerCompose(lab, amaterasuConfig);
             }
             case VIRTUAL_MACHINE -> {
-                String vm;
+                String type = "vm";
                 return false;
             }
             case KUBERNETES -> {
-                boolean kubernetes;
+                String type = "kubernetes";
                 return false;
+
             }
             case NONE -> {
-                float none;
+                String type = "none";
                 return false;
             }
             default -> {
-                int uhh;
+                String type = "uhh";
                 return false;
             }
         }

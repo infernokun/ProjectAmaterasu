@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.controllers;
 
+import com.infernokun.amaterasu.controllers.base.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.services.TeamService;
@@ -12,8 +13,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/team")
-public class TeamController {
-
+public class TeamController extends BaseController {
     private final TeamService teamService;
 
     public TeamController(TeamService teamService) {

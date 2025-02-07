@@ -1,6 +1,5 @@
 package com.infernokun.amaterasu.models.entities;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -17,6 +16,8 @@ import java.util.List;
 public class Team extends StoredObject {
     private String name;
     private String description;
+    @Builder.Default
     private List<String> teamActiveLabs = new ArrayList<>();
+    @Builder.Default
     private List<String> teamDeletedLabs = new ArrayList<>();
 }

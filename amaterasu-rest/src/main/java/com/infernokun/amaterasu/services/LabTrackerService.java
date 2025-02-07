@@ -1,19 +1,18 @@
 package com.infernokun.amaterasu.services;
 
 import com.infernokun.amaterasu.models.entities.Lab;
-import com.infernokun.amaterasu.models.entities.LabTracker; // Assuming you have a LabTracker entity
+import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.enums.LabStatus;
-import com.infernokun.amaterasu.repositories.LabTrackerRepository; // Assuming you have a LabTrackerRepository
-import org.springframework.beans.factory.annotation.Autowired;
+import com.infernokun.amaterasu.repositories.LabTrackerRepository;
+import com.infernokun.amaterasu.services.base.BaseService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
-public class LabTrackerService {
-
+public class LabTrackerService extends BaseService {
     private final LabTrackerRepository labTrackerRepository;
 
     public LabTrackerService(LabTrackerRepository labTrackerRepository) {

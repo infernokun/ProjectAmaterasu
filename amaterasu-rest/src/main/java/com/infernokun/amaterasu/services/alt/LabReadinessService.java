@@ -1,14 +1,11 @@
 package com.infernokun.amaterasu.services.alt;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.LabReadinessException;
 import com.infernokun.amaterasu.exceptions.RemoteCommandException;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.entities.Lab;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.infernokun.amaterasu.services.base.BaseService;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
 
@@ -16,10 +13,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service
-public class LabReadinessService {
+public class LabReadinessService extends BaseService {
     private final RemoteCommandService remoteCommandService;
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(LabReadinessService.class);
 
     public LabReadinessService(RemoteCommandService remoteCommandService) {
         this.remoteCommandService = remoteCommandService;
@@ -50,7 +45,6 @@ public class LabReadinessService {
             String yamlContent = remoteCommandResponse.getBoth();
 
             Yaml yaml = new Yaml();
-            ObjectMapper objectMapper = new ObjectMapper();
 
             // Parse YAML into a Map
             Map<String, Object> yamlMap = yaml.load(yamlContent);

@@ -14,6 +14,7 @@ import { LabActionResult } from '../../models/lab-action-result.model';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogComponent } from '../common/dialog/dialog.component';
 import { EditDialogService } from '../../services/edit-dialog/edit-dialog.service';
+import { LabDTO } from '../../models/dto/lab.dto.model';
 
 @Component({
   selector: 'app-lab',
@@ -129,12 +130,22 @@ export class LabComponent implements OnInit {
   addLab() {
     const labFormData = new LabFormData();
 
-    this.editDialogService.openDialog<Lab>(labFormData, (lab: Lab) => {
+    this.editDialogService.openDialog<Lab>(labFormData, (labDTO: LabDTO) => {
+      if (!labDTO) return;
       this.busy = true;
 
-      console.log(labFormData);
-      this.labService.createNewLab(lab).subscribe((labResp: ApiResponse<Lab>) => {
+      labDTO = new LabDTO(labDTO);
+
+      labDTO.createdBy = this.loggedInUser?.username;
+
+      console.log('labFromData', labFormData);
+      console.log('labDTO', labDTO);
+      this.labService.createNewLab(labDTO).subscribe((labResp: ApiResponse<Lab>) => {
         this.busy = false;
+
+        console.log('labResp', labResp);
+        if (!labResp.data) return;
+        this.labs.push(new Lab(labResp.data));
       });
     }).subscribe((res: any) => {
 

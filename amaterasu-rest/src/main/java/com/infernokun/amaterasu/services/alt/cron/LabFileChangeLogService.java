@@ -10,9 +10,8 @@ import com.infernokun.amaterasu.repositories.LabFileChangeLogRepository;
 import com.infernokun.amaterasu.repositories.LabRepository;
 import com.infernokun.amaterasu.services.LabService;
 import com.infernokun.amaterasu.services.alt.RemoteCommandService;
+import com.infernokun.amaterasu.services.base.BaseService;
 import jakarta.transaction.Transactional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -27,14 +26,12 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
-public class LabFileChangeLogService {
+public class LabFileChangeLogService extends BaseService {
     private final LabFileChangeLogRepository labFileChangeLogRepository;
     private final LabRepository labRepository;
     private final AmaterasuConfig amaterasuConfig;
     private final RemoteCommandService remoteCommandService;
     private final LabService labService;
-
-    private final Logger LOGGER = LoggerFactory.getLogger(LabFileChangeLogService.class);
 
     public LabFileChangeLogService(LabFileChangeLogRepository labFileChangeLogRepository, LabRepository labRepository, AmaterasuConfig amaterasuConfig, RemoteCommandService remoteCommandService, LabService labService) {
         this.labFileChangeLogRepository = labFileChangeLogRepository;

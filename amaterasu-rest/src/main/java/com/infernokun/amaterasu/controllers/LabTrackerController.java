@@ -1,8 +1,9 @@
 package com.infernokun.amaterasu.controllers;
 
+import com.infernokun.amaterasu.controllers.base.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
-import com.infernokun.amaterasu.models.entities.LabTracker; // Assuming you have a LabTracker entity
-import com.infernokun.amaterasu.services.LabTrackerService; // Assuming you have a LabTrackerService
+import com.infernokun.amaterasu.models.entities.LabTracker;
+import com.infernokun.amaterasu.services.LabTrackerService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,8 +12,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/lab-tracker")
-public class LabTrackerController {
-
+public class LabTrackerController extends BaseController {
     private final LabTrackerService labTrackerService;
 
     public LabTrackerController(LabTrackerService labTrackerService) {
