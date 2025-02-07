@@ -27,15 +27,36 @@ public class LabController extends BaseController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Lab>>> getAllLabs() {
-        List<Lab> labs = labService.findAllLabs();
         return ResponseEntity.ok(
                 ApiResponse.<List<Lab>>builder()
                         .code(HttpStatus.OK.value())
                         .message("Labs retrieved successfully.")
-                        .data(labs)
+                        .data(labService.findAllLabs())
                         .build()
         );
     }
+
+    @GetMapping("{labId}")
+    public ResponseEntity<ApiResponse<Lab>> getLabById(@PathVariable String labId) {
+        return ResponseEntity.ok(
+                ApiResponse.<Lab>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Lab retrieved successfully.")
+                        .data(labService.findLabById(labId))
+                        .build()
+        );
+    }
+
+    /*@GetMapping("/settings/{teamId}/{labId}")
+    public ResponseEntity<ApiResponse<Lab>> getLabById(@PathVariable String labId) {
+        return ResponseEntity.ok(
+                ApiResponse.<Lab>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Lab retrieved successfully.")
+                        .data(labService.findLabById(labId))
+                        .build()
+        );
+    }*/
 
     @GetMapping("/check/{labId}")
     public ResponseEntity<ApiResponse<Boolean>> checkLabReadiness(@PathVariable String labId) {
@@ -51,8 +72,8 @@ public class LabController extends BaseController {
     }
 
     @GetMapping("/settings/{labId}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getLabSettings(@PathVariable String labId) {
-        Map<String, Object> response = labService.getLabSettings(labId);
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getLabFile(@PathVariable String labId) {
+        Map<String, Object> response = labService.getLabFile(labId);
 
         return ResponseEntity.ok(
                 ApiResponse.<Map<String, Object>>builder()

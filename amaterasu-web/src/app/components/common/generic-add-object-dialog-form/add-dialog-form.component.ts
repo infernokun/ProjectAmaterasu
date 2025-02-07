@@ -106,11 +106,4 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit {
     // console.log(this.data);
     this.data.result.set(input, val);
   }
-
-  formatTitle(title: string): string {
-    if (title == 'subIndicator') {
-      return 'Sub-Indicator';
-    }
-    return title.charAt(0).toUpperCase() + title.substring(1, title.length);
-  }
 }

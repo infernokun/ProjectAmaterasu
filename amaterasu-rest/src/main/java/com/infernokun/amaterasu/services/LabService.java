@@ -3,6 +3,7 @@ package com.infernokun.amaterasu.services;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.FileUploadException;
 import com.infernokun.amaterasu.exceptions.LabReadinessException;
+import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.dto.LabDTO;
 import com.infernokun.amaterasu.models.entities.*;
@@ -55,8 +56,9 @@ public class LabService extends BaseService {
         return labRepository.findAll();
     }
 
-    public Optional<Lab> findLabById(String id) {
-        return labRepository.findById(id);
+    public Lab findLabById(String id) {
+        return labRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Lab not found"));
     }
 
     public Lab createLab(Lab lab) {
@@ -111,7 +113,6 @@ public class LabService extends BaseService {
         }
     }
 
-
     public List<Lab> createManyLabs(List<Lab> labs) {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
 
@@ -142,12 +143,7 @@ public class LabService extends BaseService {
     }
 
     public String uploadLabFile(String labId, String content) {
-        Optional<Lab> labOptional = findLabById(labId);
-
-        if (labOptional.isEmpty()) {
-            throw new FileUploadException("Lab not found");
-        }
-        Lab lab = labOptional.get();
+        Lab lab = findLabById(labId);
 
         switch (lab.getLabType()) {
             case DOCKER_COMPOSE -> {
@@ -163,7 +159,7 @@ public class LabService extends BaseService {
     public Optional<LabActionResult> startLab(String labId, String userId, String labTrackerId) {
         LOGGER.info("lab id {} user id {}, lab tracker id {}", labId, userId, labTrackerId);
 
-        Lab lab = this.findLabById(labId).orElseThrow(() -> new IllegalArgumentException("Lab not found"));
+        Lab lab = this.findLabById(labId);
         User user = this.userService.findUserById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
         Team userTeam = user.getTeam();
         LOGGER.info("Starting lab...");
@@ -199,7 +195,7 @@ public class LabService extends BaseService {
     public Optional<LabTracker> stopLab(String labId, String userId, String labTrackerId) {
         LOGGER.info("Stopping lab with id {} by user id {} and lab tracker id {}", labId, userId, labTrackerId);
 
-        Lab lab = this.findLabById(labId).orElseThrow(() -> new IllegalArgumentException("Lab not found"));
+        Lab lab = this.findLabById(labId);
         User user = this.userService.findUserById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
         Team userTeam = user.getTeam();
 
@@ -236,14 +232,12 @@ public class LabService extends BaseService {
     }
 
     public Optional<LabTracker> deleteLabFromTeam(String labId, String userId, String labTrackerId) {
-        Optional<Lab> stoppedLab = this.findLabById(labId);
+        Lab stoppedLab = this.findLabById(labId);
         Optional<User> stoppedBy = this.userService.findUserById(userId);
 
-        if (stoppedLab.isPresent() && stoppedBy.isPresent()) {
-            Lab lab = stoppedLab.get();
+        if (stoppedBy.isPresent()) {
             User user = stoppedBy.get();
             Team userTeam = user.getTeam();
-
 
             if (userTeam.getTeamActiveLabs().contains(labTrackerId)) {
                 userTeam.getTeamDeletedLabs().add(labTrackerId);
@@ -267,12 +261,7 @@ public class LabService extends BaseService {
     }
 
     public boolean checkDockerComposeValidity(String labId) {
-        Optional<Lab> labOptional = findLabById(labId);
-
-        if (labOptional.isEmpty()) {
-            throw new LabReadinessException("Lab not found");
-        }
-        Lab lab = labOptional.get();
+        Lab lab = findLabById(labId);
 
         switch (lab.getLabType()) {
             case DOCKER_COMPOSE -> {
@@ -285,13 +274,8 @@ public class LabService extends BaseService {
         }
     }
 
-    public Map<String, Object> getLabSettings(String labId) {
-        Optional<Lab> labOptional = findLabById(labId);
-
-        if (labOptional.isEmpty()) {
-            throw new LabReadinessException("Lab not found");
-        }
-        Lab lab = labOptional.get();
+    public Map<String, Object> getLabFile(String labId) {
+        Lab lab = findLabById(labId);
 
         switch (lab.getLabType()) {
             case DOCKER_COMPOSE -> {

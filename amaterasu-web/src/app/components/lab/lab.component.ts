@@ -206,10 +206,15 @@ export class LabComponent implements OnInit {
         if (response.data.output) {
           this.dialog.open(DialogComponent, {
             data: {
-              output: response.data.output,
-              applyColor: true
+              title: 'Lab Start',
+              content: response.data.output,
+              isCode: true,
+              isReadOnly: true,
+              fileType: 'bash'
             },
-            width: '400px'
+            width: '75rem',
+            height: '50rem',
+            disableClose: true
           });
         }
 
@@ -411,5 +416,9 @@ export class LabComponent implements OnInit {
         console.error("Failed to clear labs:", err);
       }
     });
+  }
+
+  formatLabName(name: string): string {
+    return name.toLowerCase().replace(/\s+/g, '-');
   }
 }

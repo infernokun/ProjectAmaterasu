@@ -68,14 +68,17 @@ public class DockerService extends BaseService {
         String dockerComposeUpCmd = String.format("cd %s/%s && docker-compose -p %s -f %s up -d",
                 amaterasuConfig.getUploadDir(), lab.getId(), labTracker.getId() , lab.getDockerFile());
 
-        RemoteCommandResponse output = remoteCommandService.handleRemoteCommand(dockerComposeUpCmd, amaterasuConfig);
+        RemoteCommandResponse upOutput = remoteCommandService.handleRemoteCommand(dockerComposeUpCmd, amaterasuConfig);
 
-        LOGGER.info("Output: \n{}", output.getBoth());
+        String dockerComposeDownCmd = String.format("cd %s/%s && docker-compose -p %s -f %s down\n",
+                amaterasuConfig.getUploadDir(), lab.getId(), labTracker.getId() , lab.getDockerFile());
+
+        RemoteCommandResponse downOutput = remoteCommandService.handleRemoteCommand(dockerComposeDownCmd, amaterasuConfig);
 
         return LabActionResult.builder()
                 .labTracker(labTracker)
                 .isSuccessful(false)
-                .output(output.getBoth())
+                .output(upOutput.getBoth() + "\n" + downOutput.getBoth())
                 .build();
 
         /*String command = String.format("cd /home/%s/app/amaterasu/%s && docker-compose up -d",

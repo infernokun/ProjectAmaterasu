@@ -11,7 +11,8 @@
         <span class="lab-id" *ngIf="isHovered">{{ lab.id }}</span>
       </h2>
       <span class="lab-status" [class.active]="lab.status === 'ACTIVE'" [class.inactive]="lab.status !== 'ACTIVE'">
-        {{ lab.status }}
+        <a [routerLink]="['/lab/settings', formatLabName(lab.name!)]" [queryParams]="{ id: lab.id }">{{ lab.status
+          }}</a>
       </span>
     </div>
     <div class="lab-body">
@@ -51,7 +52,8 @@
           </button>
 
           <!-- Start Button (for specific conditions) -->
-          <button mat-button class="button start" (click)="startLab(lab.id, loggedInUser)" *ngIf="!isLabLoading(lab.id) && (!isInTrackedLabs(lab.id) ||
+          <button mat-button class="button start" (click)="startLab(lab.id, loggedInUser)" [disabled]="!lab.ready"
+            *ngIf="!isLabLoading(lab.id) && (!isInTrackedLabs(lab.id) ||
             (getLabStatus(lab.id) === 'STOPPED' ||
             getLabStatus(lab.id) === 'DELETED' ||
             getLabStatus(lab.id) === 'NONE') ||

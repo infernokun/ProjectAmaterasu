@@ -1,6 +1,6 @@
 <div class="container">
   <h2 mat-dialog-title class="dialog-title" *skeleton="!data || !data.questions || !(data.questions.length > 0)">
-    {{ formatTitle(data.typeName) }}
+    {{ data.typeName }}
   </h2>
   <br />
   <div class="questions-container"

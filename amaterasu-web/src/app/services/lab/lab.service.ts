@@ -18,8 +18,6 @@ const httpOptions = {
 })
 export class LabService extends BaseService {
 
-
-
   constructor(
     protected httpClient: HttpClient,
     private environmentService: EnvironmentService) {
@@ -30,6 +28,13 @@ export class LabService extends BaseService {
     return this.get<ApiResponse<Lab[]>>(this.environmentService.settings?.restUrl + '/labs')
       .pipe(
         map((response: ApiResponse<Lab[]>) => response.data.map((lab) => new Lab(lab)))
+      );
+  }
+
+  getLabById(labId: string): Observable<Lab> {
+    return this.get<ApiResponse<Lab>>(this.environmentService.settings?.restUrl + '/labs/' + labId)
+      .pipe(
+        map((response: ApiResponse<Lab>) => new Lab(response.data))
       );
   }
 
@@ -64,9 +69,9 @@ export class LabService extends BaseService {
   }
 
   uploadDockerComposeFile(labId: string, content: string): Observable<ApiResponse<string>> {
-    return this.post<ApiResponse<string>>(this.environmentService.settings?.restUrl + '/labs/upload/' + labId, {
+    return this.post<ApiResponse<string>>(this.environmentService.settings?.restUrl + '/labs/upload/' + labId,
       content
-    });
+    );
   }
 
   getLabReadiness(labId: string): Observable<ApiResponse<boolean>> {

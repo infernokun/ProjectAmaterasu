@@ -23,6 +23,7 @@ import { DialogQuestionComponent } from './components/common/generic-dialog-ques
 import { AddDialogFormComponent } from './components/common/generic-add-object-dialog-form/add-dialog-form.component';
 import { SkeletonRectComponent } from './components/common/skeleton-rect/skeleton-rect.component';
 import { SkeletonDirective } from './directives/skeleton.directive';
+import { LabSettingsComponent } from './components/lab-settings/lab-settings.component';
 
 export function init_app(environmentService: EnvironmentService) {
   return () => environmentService.load().then(() => {
@@ -44,7 +45,8 @@ export function init_app(environmentService: EnvironmentService) {
     DialogQuestionComponent,
     AddDialogFormComponent,
     SkeletonRectComponent,
-    SkeletonDirective
+    SkeletonDirective,
+    LabSettingsComponent
   ],
   imports: [
     BrowserModule,
