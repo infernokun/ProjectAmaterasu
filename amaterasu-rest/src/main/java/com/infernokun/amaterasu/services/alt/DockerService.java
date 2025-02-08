@@ -65,7 +65,7 @@ public class DockerService extends BaseService {
     }
 
     public LabActionResult startDockerCompose(Lab lab, LabTracker labTracker, AmaterasuConfig amaterasuConfig) {
-        String dockerComposeUpCmd = String.format("cd %s/%s && docker-compose -p %s -f %s up -d",
+        /*String dockerComposeUpCmd = String.format("cd %s/%s && docker-compose -p %s -f %s up -d",
                 amaterasuConfig.getUploadDir(), lab.getId(), labTracker.getId() , lab.getDockerFile());
 
         RemoteCommandResponse upOutput = remoteCommandService.handleRemoteCommand(dockerComposeUpCmd, amaterasuConfig);
@@ -73,12 +73,26 @@ public class DockerService extends BaseService {
         String dockerComposeDownCmd = String.format("cd %s/%s && docker-compose -p %s -f %s down\n",
                 amaterasuConfig.getUploadDir(), lab.getId(), labTracker.getId() , lab.getDockerFile());
 
-        RemoteCommandResponse downOutput = remoteCommandService.handleRemoteCommand(dockerComposeDownCmd, amaterasuConfig);
+        RemoteCommandResponse downOutput = remoteCommandService.handleRemoteCommand(dockerComposeDownCmd, amaterasuConfig);*/
+
+        String dindContainerName = labTracker.getId();
+
+        String startDockerInDockerCmd = String.format(
+                "docker run --privileged --name %s -d docker:dind && docker exec %s sh -c 'mkdir -p " +
+                        "/app/amaterasu/'",
+                dindContainerName, dindContainerName);
+
+        // Copy files into the DinD container
+        String startComposeCmd = String.format("docker cp %s/%s/ %s:/app/amaterasu/ && docker exec %s sh -c 'cd /app/amaterasu/%s && docker-compose -p %s -f %s up -d'",
+                amaterasuConfig.getUploadDir(), lab.getId(), dindContainerName, dindContainerName, lab.getId(), dindContainerName, lab.getDockerFile());
+
+        RemoteCommandResponse dockerInDockerOutput = remoteCommandService.handleRemoteCommand(startDockerInDockerCmd, amaterasuConfig);
+        RemoteCommandResponse composeOutput = remoteCommandService.handleRemoteCommand(startComposeCmd, amaterasuConfig);
 
         return LabActionResult.builder()
                 .labTracker(labTracker)
                 .isSuccessful(false)
-                .output(upOutput.getBoth() + "\n" + downOutput.getBoth())
+                .output(startDockerInDockerCmd + "\n" + dockerInDockerOutput.getBoth() + "\n" + startComposeCmd + "\n" + composeOutput.getBoth())
                 .build();
 
         /*String command = String.format("cd /home/%s/app/amaterasu/%s && docker-compose up -d",

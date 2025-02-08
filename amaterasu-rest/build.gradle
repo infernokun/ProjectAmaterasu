@@ -31,6 +31,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'com.github.docker-java:docker-java:3.4.1'
 	implementation 'com.github.docker-java:docker-java-transport-httpclient5:3.4.1'
+	implementation 'io.fabric8:kubernetes-client:7.1.0'
 	implementation 'com.github.mwiede:jsch:0.2.23'
 	implementation 'ch.qos.logback:logback-classic'
 	compileOnly 'org.projectlombok:lombok'
