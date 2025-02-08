@@ -47,7 +47,7 @@ public class RemoteCommandService extends BaseService {
             InputStream inputStream = channel.getInputStream();
             InputStream errorStream = channel.getErrStream();
 
-            channel.connect();
+            channel.connect(60000);
 
             String output = readStream(inputStream);
             String errorOutput = readStream(errorStream);

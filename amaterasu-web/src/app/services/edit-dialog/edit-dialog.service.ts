@@ -3,7 +3,7 @@ import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { SimpleFormData } from '../../models/simple-form-data.model';
 import { map, Observable } from 'rxjs';
 import { StoredObject } from '../../models/stored-object.model';
-import { AddDialogFormComponent } from '../../components/common/generic-add-object-dialog-form/add-dialog-form.component';
+import { AddDialogFormComponent } from '../../components/common/add-dialog-form/add-dialog-form.component';
 
 @Injectable({
   providedIn: 'root'

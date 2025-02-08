@@ -78,9 +78,11 @@ public class DockerService extends BaseService {
         String dindContainerName = labTracker.getId();
 
         String startDockerInDockerCmd = String.format(
-                "docker run --privileged --name %s -d docker:dind && docker exec %s sh -c 'mkdir -p " +
-                        "/app/amaterasu/'",
-                dindContainerName, dindContainerName);
+                "docker run --privileged --cap-add=SYS_ADMIN --security-opt apparmor=unconfined" +
+                        " -v /var/run/docker.sock:/var/run/docker.sock -v /lib/modules:/lib/modules:ro" +
+                        " --name %s -d docker:dind && until docker exec %s docker info; do sleep 1; done && " +
+                        "docker exec %s sh -c 'mkdir -p /app/amaterasu/'",
+                dindContainerName, dindContainerName, dindContainerName);
 
         // Copy files into the DinD container
         String startComposeCmd = String.format("docker cp %s/%s/ %s:/app/amaterasu/ && docker exec %s sh -c 'cd /app/amaterasu/%s && docker-compose -p %s -f %s up -d'",

@@ -19,11 +19,12 @@ import { CodeBlockComponent } from './components/common/code-block/code-block.co
 import { CodeEditorModule, provideCodeEditor } from '@ngstack/code-editor';
 import { RemoteServerComponent } from './components/remote-server/remote-server.component';
 import { DurationPipe } from './pipes/duration.pipe';
-import { DialogQuestionComponent } from './components/common/generic-dialog-question/dialog-question.component';
-import { AddDialogFormComponent } from './components/common/generic-add-object-dialog-form/add-dialog-form.component';
+import { DialogQuestionComponent } from './components/common/dialog-question/dialog-question.component';
+import { AddDialogFormComponent } from './components/common/add-dialog-form/add-dialog-form.component';
 import { SkeletonRectComponent } from './components/common/skeleton-rect/skeleton-rect.component';
 import { SkeletonDirective } from './directives/skeleton.directive';
 import { LabSettingsComponent } from './components/lab-settings/lab-settings.component';
+import { DragnDropDirective } from './directives/dragndrop.directive';
 
 export function init_app(environmentService: EnvironmentService) {
   return () => environmentService.load().then(() => {
@@ -46,7 +47,8 @@ export function init_app(environmentService: EnvironmentService) {
     AddDialogFormComponent,
     SkeletonRectComponent,
     SkeletonDirective,
-    LabSettingsComponent
+    LabSettingsComponent,
+    DragnDropDirective
   ],
   imports: [
     BrowserModule,

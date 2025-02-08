@@ -59,11 +59,17 @@ public class LabFileChangeLogService extends BaseService {
                             .upToDate(false)
                             .build());
 
+            if (labFileChangeLog.getId() == null) {
+                lab.setUpdatedAt(LocalDateTime.now().minusYears(10));
+                labFileChangeLog = this.labFileChangeLogRepository.save(labFileChangeLog);
+            }
+
             LocalDateTime remoteTimestamp = fetchRemoteFileTimestamp(lab);
 
             // Update only if remote file is newer
-            if (labFileChangeLog.getUpdatedAt() == null || remoteTimestamp.isAfter(labFileChangeLog.getUpdatedAt())) {
-                LOGGER.info("{} is not ready: Remote time is {}. Changelog time is {}.",
+            if (labFileChangeLog.getUpdatedAt() == null ||
+                    remoteTimestamp.isAfter(labFileChangeLog.getUpdatedAt())) {
+                LOGGER.info("{} needs to be checked and is not ready: Remote time is {}. Changelog time is {}.",
                         lab.getName(),
                         formatTimestamp(remoteTimestamp),
                         formatTimestamp(labFileChangeLog.getUpdatedAt()));

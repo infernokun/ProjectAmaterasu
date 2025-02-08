@@ -38,6 +38,8 @@ export class DialogQuestionComponent implements OnInit {
     'link',
   ];
 
+  file: File | undefined;
+
   constructor(private dialog: MatDialog) { }
 
   ngOnInit(): void {
@@ -95,27 +97,41 @@ export class DialogQuestionComponent implements OnInit {
     console.log(this.question)
   }
 
-  onFileSelected(event: Event): void {
+  onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
-      const file: File = input.files[0];
-
-      const reader = new FileReader();
-
-      reader.onload = (e: ProgressEvent<FileReader>) => {
-        const fileContent = e.target?.result as string;
-        this.formControl.setValue({
-          file: file,
-          content: fileContent,
-        });
-      };
-      reader.readAsText(file);
+      this.addFile(input.files[0]);
     }
   }
 
-  validateYaml(content: string) {
-    if (!content) return;
+  onFileDropped(file: File) {
+    this.addFile(file);
+  }
 
-    console.log(content)
+  addFile(file: File) {
+    this.file = file;
+    this.readFileContent(file);
+  }
+
+  readFileContent(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const fileContent = e.target?.result as string;
+      this.formControl.setValue({
+        file: this.file,
+        content: fileContent,
+      });
+    };
+    reader.readAsText(file);
+  }
+
+  removeFile() {
+    this.file = undefined;
+    this.formControl.setValue({ file: undefined, content: undefined });
+  }
+
+  validateYaml() {
+    // Your validation logic here
+    console.log('Validating YAML file:', this.file);
   }
 }

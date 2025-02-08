@@ -8,6 +8,7 @@ import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.dto.LabDTO;
 import com.infernokun.amaterasu.models.entities.*;
 import com.infernokun.amaterasu.models.enums.LabStatus;
+import com.infernokun.amaterasu.repositories.LabFileChangeLogRepository;
 import com.infernokun.amaterasu.repositories.LabRepository;
 import com.infernokun.amaterasu.services.alt.LabFileUploadService;
 import com.infernokun.amaterasu.services.alt.LabHandlingService;
@@ -33,6 +34,7 @@ public class LabService extends BaseService {
     private final LabHandlingService labHandlingService;
     private final LabFileUploadService labFileUploadService;
     private final LabReadinessService labReadinessService;
+    private final LabFileChangeLogRepository labFileChangeLogRepository;
 
     private final AmaterasuConfig amaterasuConfig;
 
@@ -40,7 +42,7 @@ public class LabService extends BaseService {
             LabRepository labRepository, UserService userService,
             TeamService teamService, LabTrackerService labTrackerService,
             LabHandlingService labHandlingService, LabFileUploadService labFileUploadService,
-            LabReadinessService labReadinessService,
+            LabReadinessService labReadinessService, LabFileChangeLogRepository labFileChangeLogRepository,
             AmaterasuConfig amaterasuConfig) {
         this.labRepository = labRepository;
         this.userService = userService;
@@ -49,6 +51,7 @@ public class LabService extends BaseService {
         this.labHandlingService = labHandlingService;
         this.labFileUploadService = labFileUploadService;
         this.labReadinessService = labReadinessService;
+        this.labFileChangeLogRepository = labFileChangeLogRepository;
         this.amaterasuConfig = amaterasuConfig;
     }
 
@@ -80,6 +83,7 @@ public class LabService extends BaseService {
 
         switch (labDTO.getLabType()) {
             case DOCKER_COMPOSE -> {
+
                 newLab = Lab.builder()
                         .name(labDTO.getName())
                         .labType(labDTO.getLabType())
@@ -92,6 +96,10 @@ public class LabService extends BaseService {
                         .build();
                 Lab savedLab = labRepository.save(newLab);
                 uploadLabFile(savedLab.getId(), labDTO.getDockerFile());
+
+                LabFileChangeLog labFileChangeLog = new LabFileChangeLog(savedLab, false);
+                labFileChangeLog.setUpdatedAt(LocalDateTime.now().minusYears(10));
+                labFileChangeLogRepository.save(labFileChangeLog);
                 return savedLab;
             }
             case KUBERNETES -> {
@@ -164,32 +172,31 @@ public class LabService extends BaseService {
         Team userTeam = user.getTeam();
         LOGGER.info("Starting lab...");
 
-        Optional<LabTracker> labTrackerOptional = Optional.ofNullable(
+        LabTracker labTracker =
                 labTrackerService.findLabTrackerById(labTrackerId).orElseGet(() ->
                         LabTracker.builder()
                                 .labStarted(lab)
                                 .labOwner(userTeam)
                                 .build()
-                )
-        );
+                );
         String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy @ hh:mma"));
 
-        if (labTrackerOptional.isPresent()) {
-            LabTracker labTracker = labTrackerOptional.get();
-            LabActionResult labActionResult = labHandlingService.startLab(lab, labTracker, amaterasuConfig);
-
-            labTracker.setUpdatedAt(LocalDateTime.now());
-            labTracker.setUpdatedBy(user.getId());
-
-            labTracker.setLabStatus(labActionResult.isSuccessful() ? LabStatus.ACTIVE : LabStatus.FAILED);
-            if (!userTeam.getTeamActiveLabs().contains(labTracker.getId())) {
-                userTeam.getTeamDeletedLabs().add(labTracker.getId());
-                teamService.updateTeam(userTeam);
-            }
-            labTrackerService.updateLabTracker(labTracker);
-            return Optional.of(labActionResult);
+        if (labTracker.getId() == null) {
+            labTracker = labTrackerService.createLabTracker(labTracker);
         }
-        return Optional.empty();
+
+        LabActionResult labActionResult = labHandlingService.startLab(lab, labTracker, amaterasuConfig);
+
+        labTracker.setUpdatedAt(LocalDateTime.now());
+        labTracker.setUpdatedBy(user.getId());
+
+        labTracker.setLabStatus(labActionResult.isSuccessful() ? LabStatus.ACTIVE : LabStatus.FAILED);
+        if (!userTeam.getTeamActiveLabs().contains(labTracker.getId())) {
+            userTeam.getTeamDeletedLabs().add(labTracker.getId());
+            teamService.updateTeam(userTeam);
+        }
+        labTrackerService.updateLabTracker(labTracker);
+        return Optional.of(labActionResult);
     }
 
     public Optional<LabTracker> stopLab(String labId, String userId, String labTrackerId) {

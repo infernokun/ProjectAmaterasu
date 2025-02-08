@@ -10,7 +10,7 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MessageService } from '../../../services/message/message.service';
 import { SimpleFormData } from '../../../models/simple-form-data.model';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { DialogQuestionComponent } from '../generic-dialog-question/dialog-question.component';
+import { DialogQuestionComponent } from '../dialog-question/dialog-question.component';
 
 @Component({
   selector: 'app-add-dialog-form',

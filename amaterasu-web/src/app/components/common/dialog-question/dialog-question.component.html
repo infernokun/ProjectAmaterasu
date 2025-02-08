@@ -53,11 +53,24 @@
 </div>
 
 <div *ngIf="question.type === 'uploadbox' && showUploadBox" class="row width-100-percent">
-  <mat-label>{{ question.label }}</mat-label>
-  <input type="file" (change)="onFileSelected($event)" style="display: block; margin-top: 8px;" accept=".yml,.yaml" />
-  <p *ngIf="formControl.value" class="file-name">{{ formControl.value.file.name }}</p>
-  <button mat-button *ngIf="question.key === 'dockerFile'"
-    (click)="validateYaml(formControl.value.content)">Validate</button>
+  <div class="dropzone" appDragDrop (fileDropped)="onFileDropped($event)">
+    <mat-label>{{ question.label }}</mat-label>
+
+    <div class="dropzone-content" *ngIf="!file">
+      <input type="file" #fileInput id="file-input" (change)="onFileSelected($event)"
+        accept=".yml,.yaml" />
+      <img src="assets/upload-file.svg" alt="Upload Icon">
+      <h3 class="file-text">Drag and drop file here</h3>
+      <h3 class="file-text">or</h3>
+      <label id="file-label" for="file-input">Browse for file</label>
+    </div>
+
+    <div *ngIf="file" class="file-item">
+      <p class="file-name">{{ file.name }}</p>
+      <button mat-button (click)="removeFile()">Remove</button>
+    </div>
+  </div>
+  <button mat-button *ngIf="question.key === 'dockerFile'" (click)="validateYaml()">Validate</button>
 </div>
 
 <div *ngFor="let kv of question.dependentQuestions | keyvalue">
