@@ -16,6 +16,8 @@ import { DialogComponent } from '../common/dialog/dialog.component';
 import { EditDialogService } from '../../services/edit-dialog/edit-dialog.service';
 import { LabDTO } from '../../models/dto/lab.dto.model';
 
+import * as yaml from 'js-yaml';
+
 @Component({
   selector: 'app-lab',
   templateUrl: './lab.component.html',
@@ -68,6 +70,8 @@ export class LabComponent implements OnInit {
         this.trackedLabs = labsTracked.map(tracker => new LabTracker(tracker));
         this.trackedLabsSubject.next(this.trackedLabs);
 
+        console.log("Initial tracked labs:", this.trackedLabs);
+
         // Ensure loggedInUser and its team are defined before proceeding
         const teamId = this.loggedInUser?.team?.id;
         if (!teamId) {
@@ -83,7 +87,6 @@ export class LabComponent implements OnInit {
     ).subscribe((team) => {
       if (team) {
         this.team = team;
-        console.log("Starter tracked labs:", this.trackedLabs);
         this.userTeamSubject.next(this.team);
       } else {
         console.warn("No team data available.");
@@ -105,13 +108,14 @@ export class LabComponent implements OnInit {
   }
 
   getLabStatus(labId?: string): string | undefined {
-    if (!labId) return; // Early return if labId is not provided
+    if (!labId) return LabStatus.NONE; // Early return if labId is not provided
+    if (this.trackedLabsSubject.value.length === 0) return LabStatus.NONE;
 
     // Get all tracked labs that are active for the team
     const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
 
     // Filter trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
-    const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
+    const filteredTrackedLabs: LabTracker[] = this.trackedLabsSubject.value.filter(
       tracker => teamLabTrackerIds.includes(tracker.id!) &&
         tracker.labStatus !== LabStatus.DELETED
     );
@@ -155,6 +159,8 @@ export class LabComponent implements OnInit {
   startLab(labId?: string, user?: User): void {
     if (!labId) return; // Early return if labId is not provided
 
+    this.loadingLabs.add(labId);
+
     const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
 
     // Filter and sort trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
@@ -167,8 +173,6 @@ export class LabComponent implements OnInit {
       (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
     )[0];
 
-    // Add the labId to the loadingLabs set
-    this.loadingLabs.add(labId);
 
     this.labService.startLab(labId, user?.id, latestLabTracker?.id || "").subscribe({
       next: (response: ApiResponse<LabActionResult | undefined>) => {
@@ -233,6 +237,8 @@ export class LabComponent implements OnInit {
   stopLab(labId?: string, user?: User): void {
     if (!labId) return; // Early return if labId is not provided
 
+    this.loadingLabs.add(labId);
+
     const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
     console.log("Team active labs:", teamLabTrackerIds);
 
@@ -242,8 +248,6 @@ export class LabComponent implements OnInit {
         tracker.labStatus !== LabStatus.DELETED && tracker.labStarted?.id === labId
     );
 
-
-    // Sort the matching labs by updatedAt in descending order to get the latest one
     const latestLabTracker: LabTracker | undefined = filteredTrackedLabs.sort((a, b) =>
       (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
     )[0];
@@ -253,22 +257,49 @@ export class LabComponent implements OnInit {
       return;
     }
 
-    this.loadingLabs.add(labId);
-
     this.labService.stopLab(labId, user?.id, latestLabTracker.id).subscribe({
-      next: ({ data }: ApiResponse<LabTracker | undefined>) => {
-        if (!data) return;
+      next: (response: ApiResponse<LabActionResult | undefined>) => {
+        if (!response.data) return;
 
-        const stoppedLabTracker = new LabTracker(data);
+        const stoppedLabTracker = new LabTracker(response.data.labTracker);
         const index = this.trackedLabs.findIndex(tracker => tracker.id === stoppedLabTracker.id);
 
-        if (index !== -1) {
-          this.trackedLabs[index] = stoppedLabTracker;
-          this.trackedLabsSubject.next(this.trackedLabs);
-          console.log("Updated tracked labs after stopping:", this.trackedLabs);
+        if (latestLabTracker) {
+          const index = this.trackedLabs.indexOf(latestLabTracker);
+          // Handle existing lab tracker
+          if (latestLabTracker.labStatus === LabStatus.DELETED) {
+            this.trackedLabs.splice(index, 1);
+            this.trackedLabs.push(stoppedLabTracker);
+            console.log("Found a lab tracker, but it was DELETED", this.trackedLabs);
+          } else if (latestLabTracker.labStatus === LabStatus.ACTIVE || latestLabTracker.labStatus === LabStatus.FAILED) {
+            this.trackedLabs[index] = stoppedLabTracker;
+            console.log("Found a lab tracker, but it was STOPPED at index", index);
+          }
         } else {
-          console.warn(`Lab tracker not found in trackedLabs: ${stoppedLabTracker.id}`);
+          // Create a new lab tracker
+          this.trackedLabs.push(stoppedLabTracker);
+          console.log("Created a new lab tracker:", stoppedLabTracker);
         }
+
+        this.trackedLabsSubject.next([...this.trackedLabs]);
+
+        if (response.data.output) {
+          this.dialog.open(DialogComponent, {
+            data: {
+              title: 'Lab Start',
+              content: response.data.output,
+              isCode: true,
+              isReadOnly: true,
+              fileType: 'bash'
+            },
+            width: '75rem',
+            height: '50rem',
+            disableClose: true
+          });
+        }
+
+        console.log("Stopped lab:", response);
+
       },
       error: (err) => {
         console.error(`Failed to stop lab ${labId}:`, err);
@@ -327,20 +358,18 @@ export class LabComponent implements OnInit {
 
   getSettings(labId?: string, user?: User): void {
     this.labService.getSettings(labId!).subscribe((res: ApiResponse<any>) => {
-      console.log('API Response:', res); // Debugging
       if (!res.data || !res.data.yml) {
         console.error('No YAML data found in response!');
         return;
       }
-
       this.dockerComposeData = res.data;
-      console.log('Opening Dialog with YAML:', res.data.yml);
 
+      console.log('yml', yaml.load(this.dockerComposeData.yml));
       this.dialog.open(DialogComponent, {
         data: {
           title: 'Lab Output',
           isCode: true,
-          content: res.data.yml, // YAML Data
+          content: this.dockerComposeData.yml,
           fileType: 'yaml',
           isReadOnly: false
         },
@@ -349,7 +378,6 @@ export class LabComponent implements OnInit {
       });
     });
   }
-
 
   viewLogs(labId?: string): void {
 

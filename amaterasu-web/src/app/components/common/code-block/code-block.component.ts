@@ -14,11 +14,9 @@ export class CodeBlockComponent implements OnInit {
   @Input() versions: number[] = [];
   @Output() onChange = new EventEmitter<string>();
   @Output() onVersionChange = new EventEmitter<number>();
-
-  isCopied = false;
-
   @Input() codeModel: CodeModel | undefined;
 
+  isCopied = false;
   theme = 'vs-dark';
 
   options = {
@@ -31,8 +29,7 @@ export class CodeBlockComponent implements OnInit {
   constructor(private cdr: ChangeDetectorRef) { }
 
   ngOnChanges() {
-    console.log('Code Block Value:', this.codeModel!.value); // Debugging
-    this.cdr.detectChanges(); // Force UI update
+    this.cdr.detectChanges();
   }
 
   ngOnInit() {

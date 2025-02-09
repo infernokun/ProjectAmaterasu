@@ -11,7 +11,7 @@ import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.repositories.LabFileChangeLogRepository;
 import com.infernokun.amaterasu.repositories.LabRepository;
 import com.infernokun.amaterasu.services.alt.LabFileUploadService;
-import com.infernokun.amaterasu.services.alt.LabHandlingService;
+import com.infernokun.amaterasu.services.alt.LabActionService;
 import com.infernokun.amaterasu.services.alt.LabReadinessService;
 import com.infernokun.amaterasu.services.base.BaseService;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -31,7 +31,7 @@ public class LabService extends BaseService {
     private final UserService userService;
     private final TeamService teamService;
     private final LabTrackerService labTrackerService;
-    private final LabHandlingService labHandlingService;
+    private final LabActionService labActionService;
     private final LabFileUploadService labFileUploadService;
     private final LabReadinessService labReadinessService;
     private final LabFileChangeLogRepository labFileChangeLogRepository;
@@ -41,14 +41,14 @@ public class LabService extends BaseService {
     public LabService(
             LabRepository labRepository, UserService userService,
             TeamService teamService, LabTrackerService labTrackerService,
-            LabHandlingService labHandlingService, LabFileUploadService labFileUploadService,
+            LabActionService labActionService, LabFileUploadService labFileUploadService,
             LabReadinessService labReadinessService, LabFileChangeLogRepository labFileChangeLogRepository,
             AmaterasuConfig amaterasuConfig) {
         this.labRepository = labRepository;
         this.userService = userService;
         this.teamService = teamService;
         this.labTrackerService = labTrackerService;
-        this.labHandlingService = labHandlingService;
+        this.labActionService = labActionService;
         this.labFileUploadService = labFileUploadService;
         this.labReadinessService = labReadinessService;
         this.labFileChangeLogRepository = labFileChangeLogRepository;
@@ -185,36 +185,42 @@ public class LabService extends BaseService {
             labTracker = labTrackerService.createLabTracker(labTracker);
         }
 
-        LabActionResult labActionResult = labHandlingService.startLab(lab, labTracker, amaterasuConfig);
+        LabActionResult labActionResult = labActionService.startLab(lab, labTracker, amaterasuConfig);
 
         labTracker.setUpdatedAt(LocalDateTime.now());
         labTracker.setUpdatedBy(user.getId());
-
         labTracker.setLabStatus(labActionResult.isSuccessful() ? LabStatus.ACTIVE : LabStatus.FAILED);
+
         if (!userTeam.getTeamActiveLabs().contains(labTracker.getId())) {
-            userTeam.getTeamDeletedLabs().add(labTracker.getId());
+            userTeam.getTeamActiveLabs().add(labTracker.getId());
             teamService.updateTeam(userTeam);
         }
         labTrackerService.updateLabTracker(labTracker);
         return Optional.of(labActionResult);
     }
 
-    public Optional<LabTracker> stopLab(String labId, String userId, String labTrackerId) {
+    public Optional<LabActionResult> stopLab(String labId, String userId, String labTrackerId) {
         LOGGER.info("Stopping lab with id {} by user id {} and lab tracker id {}", labId, userId, labTrackerId);
 
         Lab lab = this.findLabById(labId);
         User user = this.userService.findUserById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
         Team userTeam = user.getTeam();
+        LOGGER.info("Stopping lab...");
+
+        String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy @ hh:mma"));
 
         Optional<LabTracker> existingLabTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
-        LocalDateTime now = LocalDateTime.now();
-        String formattedDate = now.format(DateTimeFormatter.ofPattern("MMM dd, yyyy @ hh:mma"));
-
-        boolean successfulStop = labHandlingService.stopLab(lab, amaterasuConfig);
-
         if (existingLabTrackerOptional.isPresent()) {
             LabTracker existingLabTracker = existingLabTrackerOptional.get();
-            return handleLabStop(lab, user, existingLabTracker, successfulStop, now, formattedDate);
+            LabActionResult labActionResult = labActionService.stopLab(lab, existingLabTracker, amaterasuConfig);
+
+            existingLabTracker.setUpdatedAt(LocalDateTime.now());
+            existingLabTracker.setUpdatedBy(user.getId());
+            existingLabTracker.setLabStatus(labActionResult.isSuccessful() ? LabStatus.STOPPED : LabStatus.ACTIVE);
+
+            labTrackerService.updateLabTracker(existingLabTracker);
+
+            return Optional.of(labActionResult);
         }
 
         LOGGER.warn("No existing lab tracker found for lab tracker id {}", labTrackerId);

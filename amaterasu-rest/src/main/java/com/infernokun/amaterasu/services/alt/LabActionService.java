@@ -8,10 +8,10 @@ import com.infernokun.amaterasu.services.base.BaseService;
 import org.springframework.stereotype.Service;
 
 @Service
-public class LabHandlingService extends BaseService {
+public class LabActionService extends BaseService {
     private final DockerService dockerService;
 
-    public LabHandlingService(DockerService dockerService) {
+    public LabActionService(DockerService dockerService) {
         this.dockerService = dockerService;
     }
 
@@ -42,30 +42,30 @@ public class LabHandlingService extends BaseService {
         }
     }
 
-    public boolean stopLab(Lab lab, AmaterasuConfig amaterasuConfig) {
+    public LabActionResult stopLab(Lab lab, LabTracker labTracker,  AmaterasuConfig amaterasuConfig) {
         switch (lab.getLabType()) {
             case DOCKER_CONTAINER ->  {
-                return false;
+                return new LabActionResult();
             }
             case DOCKER_COMPOSE -> {
-                return dockerService.stopDockerCompose(lab, amaterasuConfig);
+                return dockerService.stopDockerCompose(lab, labTracker, amaterasuConfig);
             }
             case VIRTUAL_MACHINE -> {
                 String type = "vm";
-                return false;
+                return new LabActionResult();
             }
             case KUBERNETES -> {
                 String type = "kubernetes";
-                return false;
+                return new LabActionResult();
 
             }
             case NONE -> {
                 String type = "none";
-                return false;
+                return new LabActionResult();
             }
             default -> {
                 String type = "uhh";
-                return false;
+                return new LabActionResult();
             }
         }
     }

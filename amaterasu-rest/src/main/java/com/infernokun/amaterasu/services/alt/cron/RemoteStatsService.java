@@ -10,9 +10,11 @@ import com.infernokun.amaterasu.repositories.RemoteServerStatsRepository;
 import com.infernokun.amaterasu.services.RemoteServerService;
 import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import com.infernokun.amaterasu.services.base.BaseService;
-import jakarta.transaction.Transactional;
+import org.hibernate.StaleObjectStateException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Base64;
 
@@ -83,7 +85,6 @@ public class RemoteStatsService extends BaseService {
                                     } catch (JsonProcessingException e) {
                                         throw new RuntimeException(e);
                                     }
-
                                 }, () -> {
                                     // Else (shouldn't happen in principle), treat as new.
                                     RemoteServerStats savedStats = remoteServerStatsRepository.save(statsFromJson);
@@ -107,6 +108,9 @@ public class RemoteStatsService extends BaseService {
 
         } catch (RemoteCommandException e) {
             LOGGER.error("Error executing remote command: {}", e.getMessage());
+        } catch (ObjectOptimisticLockingFailureException | StaleObjectStateException e) {
+            LOGGER.warn("Optimistic locking failure for server {}: ",  e.getMessage());
+            // Optionally, you can retry the operation or handle it differently
         } catch (Exception e) {
             LOGGER.error("Error retrieving or processing remote server stats: {}", e.getMessage(), e);
         }

@@ -14,11 +14,17 @@ import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.services.base.BaseService;
 import com.jcraft.jsch.Session;
 import org.springframework.stereotype.Service;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Constructor;
+import org.yaml.snakeyaml.representer.Representer;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class DockerService extends BaseService {
@@ -75,12 +81,11 @@ public class DockerService extends BaseService {
 
         RemoteCommandResponse downOutput = remoteCommandService.handleRemoteCommand(dockerComposeDownCmd, amaterasuConfig);*/
 
-        String dindContainerName = labTracker.getId();
+        /*String dindContainerName = labTracker.getId();
 
         String startDockerInDockerCmd = String.format(
-                "docker run --privileged --cap-add=SYS_ADMIN --security-opt apparmor=unconfined" +
-                        " -v /var/run/docker.sock:/var/run/docker.sock -v /lib/modules:/lib/modules:ro" +
-                        " --name %s -d docker:dind && until docker exec %s docker info; do sleep 1; done && " +
+                "docker run --privileged --cap-add=SYS_ADMIN --security-opt apparmor=unconfined -v /lib/modules:/lib/modules:ro" +
+                        " --name %s -p 0:2376 -d docker:dind && until docker exec %s docker info; do sleep 1; done && " +
                         "docker exec %s sh -c 'mkdir -p /app/amaterasu/'",
                 dindContainerName, dindContainerName, dindContainerName);
 
@@ -89,12 +94,26 @@ public class DockerService extends BaseService {
                 amaterasuConfig.getUploadDir(), lab.getId(), dindContainerName, dindContainerName, lab.getId(), dindContainerName, lab.getDockerFile());
 
         RemoteCommandResponse dockerInDockerOutput = remoteCommandService.handleRemoteCommand(startDockerInDockerCmd, amaterasuConfig);
-        RemoteCommandResponse composeOutput = remoteCommandService.handleRemoteCommand(startComposeCmd, amaterasuConfig);
+        RemoteCommandResponse composeOutput = remoteCommandService.handleRemoteCommand(startComposeCmd, amaterasuConfig);*/
+
+        String catOriginalDockerComposeCmd = String.format("cat %s/%s/%s " , amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile());
+        RemoteCommandResponse catOriginalDockerComposeOutput = remoteCommandService.handleRemoteCommand(catOriginalDockerComposeCmd, amaterasuConfig);
+
+        String composeYAML = catOriginalDockerComposeOutput.getBoth();
+        String modifiedYAML = modifyDockerComposeYAML(composeYAML, labTracker.getId(), amaterasuConfig);
+
+        String createLabTrackerBasedFileCmd = String.format("DIR=%s/tracker-compose && mkdir -p $DIR && echo \"%s\" > $DIR/%s",
+                amaterasuConfig.getUploadDir(), modifiedYAML, labTracker.getId() + "_" + lab.getDockerFile());
+        RemoteCommandResponse createLabTrackerBasedFileOutput = remoteCommandService.handleRemoteCommand(createLabTrackerBasedFileCmd, amaterasuConfig);
+
+        String startTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s up -d",
+                amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + lab.getDockerFile());
+        RemoteCommandResponse startTrackerComposeOutput = remoteCommandService.handleRemoteCommand(startTrackerComposeCmd, amaterasuConfig);
 
         return LabActionResult.builder()
                 .labTracker(labTracker)
-                .isSuccessful(false)
-                .output(startDockerInDockerCmd + "\n" + dockerInDockerOutput.getBoth() + "\n" + startComposeCmd + "\n" + composeOutput.getBoth())
+                .isSuccessful(true)
+                .output(startTrackerComposeOutput.getBoth())
                 .build();
 
         /*String command = String.format("cd /home/%s/app/amaterasu/%s && docker-compose up -d",
@@ -104,22 +123,86 @@ public class DockerService extends BaseService {
 
         String output = result.getError() + " " + result.getOutput();
         LOGGER.info("Output: {}", output);*/
-
     }
 
-    public boolean stopDockerCompose(Lab lab, AmaterasuConfig amaterasuConfig) {
-        Session session = null;
-        try {
+    public LabActionResult stopDockerCompose(Lab lab, LabTracker labTracker, AmaterasuConfig amaterasuConfig) {
 
-            String command = String.format("cd /home/%s/app/amaterasu/%s && docker-compose down",
-                    amaterasuConfig.getDockerUser(), lab.getId());
+        String stopTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s down",
+                amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + lab.getDockerFile());
+        RemoteCommandResponse stopTrackerComposeOutput = remoteCommandService.handleRemoteCommand(stopTrackerComposeCmd, amaterasuConfig);
 
-            RemoteCommandResponse output = remoteCommandService.handleRemoteCommand(command, amaterasuConfig);
-        } catch (Exception e) {
-            LOGGER.error("Exception while stopping Docker Compose: ", e);
-            return false;
+        return LabActionResult.builder()
+                .labTracker(labTracker)
+                .isSuccessful(true)
+                .output(stopTrackerComposeCmd + "\n" + stopTrackerComposeOutput.getBoth())
+                .build();
+    }
+
+    public static String modifyDockerComposeYAML(String yaml, String labTrackerId, AmaterasuConfig amaterasuConfig) {
+        Yaml yamlParser = new Yaml();
+        Map<String, Object> data = yamlParser.load(yaml);
+
+        Map<String, Object> services = getMap(data, "services");
+        if (services != null) {
+            services.forEach((serviceName, serviceConfig) -> {
+                Map<String, Object> serviceMap = getMap(serviceConfig);
+                if (serviceMap != null) {
+                    if (serviceMap.containsKey("volumes")) {
+                        List<String> volumes = (List<String>) serviceMap.get("volumes");
+                        volumes.replaceAll(originalVolume -> modifyVolume(originalVolume, labTrackerId, serviceName, amaterasuConfig));
+                    }
+
+                    serviceMap.remove("ports");
+                }
+            });
         }
-        return false;
+
+        /* Ensure volumes section is updated
+        Map<String, Object> volumes = getMap(data, "volumes");
+        if (volumes == null) {
+            volumes = new LinkedHashMap<>();
+            data.put("volumes", volumes);
+        }*/
+
+        if (services != null && getMap(data, "volumes") != null) {
+            Map<String, Object> finalVolumes = getMap(data, "volumes");;
+            services.keySet().forEach(serviceName -> finalVolumes.put(serviceName + "_" + labTrackerId, null));
+        }
+
+        return new Yaml().dump(data);
+    }
+
+    private static Map<String, Object> getMap(Object obj) {
+        return (obj instanceof Map) ? (Map<String, Object>) obj : null;
+    }
+
+    private static Map<String, Object> getMap(Map<String, Object> parent, String key) {
+        return (parent != null && parent.get(key) instanceof Map) ? (Map<String, Object>) parent.get(key) : null;
+    }
+
+    public static String modifyVolume(String originalVolume, String labTrackerId, String serviceName, AmaterasuConfig amaterasuConfig) {
+        String[] parts = originalVolume.split(":");
+        String sourcePath = parts[0];
+        String modifiedVolumePath;
+
+        // If it starts with ./, replace it with <serviceName>_<labTrackerId>
+        if (sourcePath.startsWith("./") || sourcePath.startsWith("/")) {
+            modifiedVolumePath = amaterasuConfig.getUploadDir() + "/tracker-volume/"+ labTrackerId + "/" + serviceName + sourcePath.substring(1);
+        } else {
+            // Otherwise, treat it as a named volume
+            modifiedVolumePath = serviceName + "_" + labTrackerId;
+        }
+
+        // Preserve the target path if available
+        if (parts.length > 1) {
+            String targetPath = parts[1];
+            if (parts.length == 3) {
+                return modifiedVolumePath + ":" + targetPath + ":" + parts[2]; // Preserve read-only flag
+            }
+            return modifiedVolumePath + ":" + targetPath;
+        }
+
+        return modifiedVolumePath;
     }
 
     public List<Container> listContainers() {

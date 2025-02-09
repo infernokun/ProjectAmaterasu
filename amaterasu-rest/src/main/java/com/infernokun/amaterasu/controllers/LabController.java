@@ -181,14 +181,14 @@ public class LabController extends BaseController {
     }
 
     @PostMapping("/stop")
-    public ResponseEntity<ApiResponse<LabTracker>> stopLab(@RequestBody LabRequest labRequest) {
-        Optional<LabTracker> stoppedLab =
+    public ResponseEntity<ApiResponse<LabActionResult>> stopLab(@RequestBody LabRequest labRequest) {
+        Optional<LabActionResult> stoppedLabOptional =
                 labService.stopLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
-        return ResponseEntity.status(stoppedLab.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.<LabTracker>builder()
-                        .code(stoppedLab.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
-                        .message(stoppedLab.isPresent() ? "Lab stopped successfully." : "Failed to stop the lab.")
-                        .data(stoppedLab.orElse(null))
+        return ResponseEntity.status(stoppedLabOptional.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.<LabActionResult>builder()
+                        .code(stoppedLabOptional.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
+                        .message(stoppedLabOptional.isPresent() ? "Lab stopped successfully." : "Failed to stop the lab.")
+                        .data(stoppedLabOptional.orElse(null))
                         .build());
     }
 

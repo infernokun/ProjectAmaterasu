@@ -26,7 +26,7 @@ public class RemoteCommandService extends BaseService {
                     amaterasuConfig.getDockerHost(), 22);
             session.setPassword(amaterasuConfig.getDockerPass());
             session.setConfig("StrictHostKeyChecking", "no");
-            session.connect();
+            session.connect(60000);
 
             CommandResult result = executeRemoteCommand(session, cmd);
 

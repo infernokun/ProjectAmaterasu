@@ -9,5 +9,7 @@ public enum LabStatus {
     DELETED,
     STOPPED,
     RETIRED,
-    FAILED
+    FAILED,
+    ACTIVE_FAILED,
+    FAILED_ACTIVE
 }
