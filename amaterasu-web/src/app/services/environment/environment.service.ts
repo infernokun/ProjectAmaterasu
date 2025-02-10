@@ -15,7 +15,7 @@ export interface EnvironmentSettings {
 export class EnvironmentService {
   constructor(private http: HttpClient) { }
 
-  configUrl = 'environment/app.config.json';
+  configUrl = 'assets/environment/app.config.json';
   private configSettings: EnvironmentSettings | undefined = undefined;
 
   get settings() {

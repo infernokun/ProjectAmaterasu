@@ -1,21 +1,17 @@
 # syntax=docker/dockerfile:1.4.2
 # Stage 1: Compile
-FROM node:lts-bullseye AS compile-stage
+FROM node:14-bullseye AS compile-stage
 
 WORKDIR /app/
 
-# Install pnpm globally
-RUN npm install -g pnpm
-
 COPY --link *.json /app/
-COPY --link pnpm-lock.yaml /app/
 COPY --link src/ /app/src
 
 RUN --mount=type=cache,target=/root/.npm/_cacache \
     --mount=type=secret,id=npmrc,dst=/root/.npmrc \
     set -eux \
-    && pnpm install --frozen-lockfile \
-    && pnpm run build:app
+    && npm ci --nodedir=$(dirname $(which npm))/../include/node/ \
+    && npm run build:app --nodedir=$(dirname $(which npm))/../include/node/
 
 # Stage 2: Build runtime image
 FROM nginx:alpine AS runtime-stage

@@ -1,8 +1,6 @@
 {
   "name": "amaterasu-web",
   "version": "0.0.0",
-  "port": 4300,
-  "proxy": null,
   "scripts": {
     "ng": "ng",
     "start": "nx serve --host 0.0.0.0 --ssl --port=4300",
