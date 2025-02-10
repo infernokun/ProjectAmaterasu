@@ -1,12 +1,22 @@
 {
   "name": "amaterasu-web",
   "version": "0.0.0",
+  "port": 4300,
+  "proxy": null,
   "scripts": {
     "ng": "ng",
     "start": "nx serve --host 0.0.0.0 --ssl --port=4300",
     "build": "nx build",
     "watch": "nx build --watch --configuration development",
+    "name": "echo ${npm_package_name}",
     "test": "nx test",
+    "build:app": "NODE_OPTIONS=--max_old_space_size=8192 pnpm build --configuration=production",
+    "build:prod": "pnpm build --configuration production",
+    "docker:build-compile": "export PROJECT=$(echo ${npm_package_name} | cut -d \"/\" -f2) && docker buildx build --target compile-stage --build-arg BUILDKIT_INLINE_CACHE=1 --build-arg PROXY=$(jq -r .proxy package.json) -t infernokun/${npm_package_name}:compile .",
+    "docker:build-runtime": "export PROJECT=$(echo ${npm_package_name} | cut -d \"/\" -f2) && docker buildx build --target runtime-stage --build-arg BUILDKIT_INLINE_CACHE=1 --build-arg PROXY=$(jq -r .proxy package.json) --build-arg PORT=$(jq -r .port package.json) -t infernokun/${npm_package_name}:latest .",
+    "docker:push": "docker push infernokun/${npm_package_name}:latest",
+    "docker:build": "npm run docker:build-compile -s && npm run docker:build-runtime -s && npm run docker:push -s",
+    "@angular/forms": "^18.2.13",
     "component": "nx generate @nrwl/angular:component src/app/components/x/x --style=scss",
     "service": "nx generate @nrwl/angular:service services/x"
   },

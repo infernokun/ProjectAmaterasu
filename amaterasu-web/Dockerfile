@@ -1,0 +1,45 @@
+# syntax=docker/dockerfile:1.4.2
+# Stage 1: Compile
+FROM node:14-bullseye AS compile-stage
+
+WORKDIR /app/
+
+COPY --link *.json /app/
+COPY --link src/ /app/src
+
+RUN --mount=type=cache,target=/root/.npm/_cacache \
+    --mount=type=secret,id=npmrc,dst=/root/.npmrc \
+    set -eux \
+    && npm install --nodedir=$(dirname $(which npm))/../include/node/ \
+    && npm run build:app --nodedir=$(dirname $(which npm))/../include/node/
+
+# Stage 2: Build runtime image
+FROM nginx:alpine AS runtime-stage
+
+LABEL maintainer="infernokun@infernokun.com" \
+  description="NGINX Angular Docker image" \
+  source="https://github.com/infernokun/ProjectAmaterasu" \
+  run="docker run -p 443:443 -d <docker image>"
+
+VOLUME ["/data/certs"]
+VOLUME ["/data/nginx"]
+
+# user ID 101 is nginx
+COPY --link --chown=101:101 nginx/nginx.conf /etc/nginx/nginx.conf
+RUN set -eux \
+  && /usr/sbin/update-ca-certificates \
+  && ln -fs /etc/ssl/certs/ca-bundle.crt /etc/ssl/certs/ca-certificates.crt \
+  && chown 101:101 -R /var/cache/nginx \
+  && chown 101:101 -R /var/log/nginx \
+  && chown 101:101 -R /etc/nginx \
+  && chown 101:101 -R /usr/share/nginx \
+  && touch /var/run/nginx.pid \
+  && chown 101:101 -R /var/run/nginx.pid \
+  && rm /etc/nginx/conf.d/default.conf
+
+COPY --link --chown=101:101 --from=compile-stage /app/dist/app/browser /usr/share/nginx/html/
+EXPOSE 443
+HEALTHCHECK --start-period=5s CMD curl --fail https://localhost/ || exit 1
+
+# Start Nginx server
+CMD ["nginx", "-g", "daemon off;"]
