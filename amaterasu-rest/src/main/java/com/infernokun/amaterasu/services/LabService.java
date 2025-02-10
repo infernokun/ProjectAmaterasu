@@ -61,7 +61,7 @@ public class LabService extends BaseService {
 
     public Lab findLabById(String id) {
         return labRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Lab not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Lab " + id + " not found"));
     }
 
     public Lab createLab(Lab lab) {

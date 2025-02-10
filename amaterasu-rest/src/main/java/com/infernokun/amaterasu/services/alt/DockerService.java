@@ -1,5 +1,8 @@
 package com.infernokun.amaterasu.services.alt;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.model.Container;
@@ -7,24 +10,19 @@ import com.github.dockerjava.core.*;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import com.github.dockerjava.transport.DockerHttpClient;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
+import com.infernokun.amaterasu.models.DockerServiceInfo;
 import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.services.base.BaseService;
-import com.jcraft.jsch.Session;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.constructor.Constructor;
-import org.yaml.snakeyaml.representer.Representer;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class DockerService extends BaseService {
@@ -71,31 +69,6 @@ public class DockerService extends BaseService {
     }
 
     public LabActionResult startDockerCompose(Lab lab, LabTracker labTracker, AmaterasuConfig amaterasuConfig) {
-        /*String dockerComposeUpCmd = String.format("cd %s/%s && docker-compose -p %s -f %s up -d",
-                amaterasuConfig.getUploadDir(), lab.getId(), labTracker.getId() , lab.getDockerFile());
-
-        RemoteCommandResponse upOutput = remoteCommandService.handleRemoteCommand(dockerComposeUpCmd, amaterasuConfig);
-
-        String dockerComposeDownCmd = String.format("cd %s/%s && docker-compose -p %s -f %s down\n",
-                amaterasuConfig.getUploadDir(), lab.getId(), labTracker.getId() , lab.getDockerFile());
-
-        RemoteCommandResponse downOutput = remoteCommandService.handleRemoteCommand(dockerComposeDownCmd, amaterasuConfig);*/
-
-        /*String dindContainerName = labTracker.getId();
-
-        String startDockerInDockerCmd = String.format(
-                "docker run --privileged --cap-add=SYS_ADMIN --security-opt apparmor=unconfined -v /lib/modules:/lib/modules:ro" +
-                        " --name %s -p 0:2376 -d docker:dind && until docker exec %s docker info; do sleep 1; done && " +
-                        "docker exec %s sh -c 'mkdir -p /app/amaterasu/'",
-                dindContainerName, dindContainerName, dindContainerName);
-
-        // Copy files into the DinD container
-        String startComposeCmd = String.format("docker cp %s/%s/ %s:/app/amaterasu/ && docker exec %s sh -c 'cd /app/amaterasu/%s && docker-compose -p %s -f %s up -d'",
-                amaterasuConfig.getUploadDir(), lab.getId(), dindContainerName, dindContainerName, lab.getId(), dindContainerName, lab.getDockerFile());
-
-        RemoteCommandResponse dockerInDockerOutput = remoteCommandService.handleRemoteCommand(startDockerInDockerCmd, amaterasuConfig);
-        RemoteCommandResponse composeOutput = remoteCommandService.handleRemoteCommand(startComposeCmd, amaterasuConfig);*/
-
         String catOriginalDockerComposeCmd = String.format("cat %s/%s/%s " , amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile());
         RemoteCommandResponse catOriginalDockerComposeOutput = remoteCommandService.handleRemoteCommand(catOriginalDockerComposeCmd, amaterasuConfig);
 
@@ -106,23 +79,25 @@ public class DockerService extends BaseService {
                 amaterasuConfig.getUploadDir(), modifiedYAML, labTracker.getId() + "_" + lab.getDockerFile());
         RemoteCommandResponse createLabTrackerBasedFileOutput = remoteCommandService.handleRemoteCommand(createLabTrackerBasedFileCmd, amaterasuConfig);
 
-        String startTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s up -d",
+        String startTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s up -d ",
                 amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + lab.getDockerFile());
         RemoteCommandResponse startTrackerComposeOutput = remoteCommandService.handleRemoteCommand(startTrackerComposeCmd, amaterasuConfig);
+
+        //String checkTrackerProcessCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s ps -a",
+        //       amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + lab.getDockerFile());
+        //RemoteCommandResponse checkTrackerProcessOutput = remoteCommandService.handleRemoteCommand(checkTrackerProcessCmd, amaterasuConfig);
+
+        String checkTrackerProcessCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s ps -q | xargs docker inspect",
+                amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + lab.getDockerFile());
+        RemoteCommandResponse checkTrackerProcessOutput = remoteCommandService.handleRemoteCommand(checkTrackerProcessCmd, amaterasuConfig);
+
+        labTracker.setServices(parseDockerInspectOutput(checkTrackerProcessOutput.getBoth().trim()));
 
         return LabActionResult.builder()
                 .labTracker(labTracker)
                 .isSuccessful(true)
-                .output(startTrackerComposeOutput.getBoth())
+                .output(labTracker.getServices().toString())
                 .build();
-
-        /*String command = String.format("cd /home/%s/app/amaterasu/%s && docker-compose up -d",
-                amaterasuConfig.getDockerUser(), lab.getId());*
-
-        CommandResult result = executeRemoteCommand(session, command);
-
-        String output = result.getError() + " " + result.getOutput();
-        LOGGER.info("Output: {}", output);*/
     }
 
     public LabActionResult stopDockerCompose(Lab lab, LabTracker labTracker, AmaterasuConfig amaterasuConfig) {
@@ -205,6 +180,52 @@ public class DockerService extends BaseService {
         return modifiedVolumePath;
     }
 
+    public static List<DockerServiceInfo> parseDockerInspectOutput(String jsonOutput) {
+        List<DockerServiceInfo> containerInfos = new ArrayList<>();
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        try {
+            // Parse the JSON output
+            JsonNode rootNode = objectMapper.readTree(jsonOutput);
+
+            for (JsonNode containerNode : rootNode) {
+                DockerServiceInfo info = new DockerServiceInfo();
+
+                // Extract Name (remove leading "/")
+                info.setName(containerNode.get("Name").asText().substring(1));
+                // Extract State
+                info.setState(containerNode.get("State").get("Status").asText());
+
+                // Extract IP addresses
+                containerNode.get("NetworkSettings").get("Networks").fields().forEachRemaining(
+                        entry -> {
+                            String ip = entry.getValue().get("IPAddress").asText();
+
+                            if (!Objects.equals(ip, "")) {
+                                info.getIpAddresses().add(entry.getValue().get("IPAddress").asText());
+                            }
+                        });
+
+                containerNode.get("NetworkSettings").get("Networks").fields().forEachRemaining(
+                        entry -> info.getNetworks().add(entry.getKey()));
+
+                // Extract Internal Ports
+                containerNode.get("Config").get("ExposedPorts").fieldNames().forEachRemaining(info.getPorts()::add);
+
+                // Extract Mounts
+                containerNode.get("Mounts").forEach(mountNode -> {
+                    info.getVolumes().put("hostVolume", mountNode.get("Source").asText());
+                    info.getVolumes().put("containerVolume", mountNode.get("Destination").asText());
+                });
+
+                containerInfos.add(info);
+            }
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+
+        return containerInfos;
+    }
     public List<Container> listContainers() {
         return dockerClient.listContainersCmd().exec();
     }

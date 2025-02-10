@@ -1,11 +1,12 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { LabService } from '../../services/lab/lab.service';
-import { combineLatest } from 'rxjs';
+import { BehaviorSubject, combineLatest } from 'rxjs';
 import { Lab } from '../../models/lab.model';
 import { UserService } from '../../services/user/user.service';
 import { Team } from '../../models/team.model';
+import { LabTrackerService } from '../../services/lab-tracker/lab-tracker.service';
+import { LabTracker } from '../../models/lab-tracker.model';
 
 @Component({
   selector: 'app-lab-settings',
@@ -15,10 +16,11 @@ import { Team } from '../../models/team.model';
 export class LabSettingsComponent implements OnInit {
   labId: string = '';
   labName: string = '';
-
   admin = false;
 
-  constructor(private route: ActivatedRoute, private labService: LabService, private userService: UserService) { }
+  labTrackerSubject: BehaviorSubject<LabTracker | undefined> = new BehaviorSubject<LabTracker | undefined>(undefined);
+  labTracker: LabTracker | undefined;
+  constructor(private route: ActivatedRoute, private labService: LabService, private labTrackerService: LabTrackerService, private userService: UserService) { }
 
   ngOnInit(): void {
     combineLatest([
@@ -27,12 +29,11 @@ export class LabSettingsComponent implements OnInit {
     ]).subscribe(([paramMap, queryParamMap]) => {
       this.labName = paramMap.get('name')!;
       this.labId = queryParamMap.get('id')!;
-      console.log(this.labName, this.labId);
 
-      this.labService.getLabById(this.labId).subscribe((lab: Lab) => {
-        if (!lab) return;
-
-        console.log('lab', lab);
+      this.labTrackerService.getLabTrackerById(this.labId).subscribe((labTracker) => {
+        console.log('labTracker', labTracker);
+        this.labTracker = labTracker;
+        this.labTrackerSubject.next(this.labTracker)
       });
     });
 

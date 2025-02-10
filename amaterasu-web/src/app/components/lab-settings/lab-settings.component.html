@@ -1,1 +1,30 @@
-<p>lab-settings works!</p>
+<div class="dashboard">
+  <h1>Lab Tracker Dashboard</h1>
+  <div class="service-list">
+    <div *ngFor="let service of labTrackerSubject.value?.services" class="service-card">
+      <h2>{{ service.name }}</h2>
+      <p><strong>Status:</strong> {{ service.state }}</p>
+      <p><strong>IP Addresses:</strong>
+        <span *ngFor="let ip of service.ipAddresses; let last = last">
+          {{ ip }}<span *ngIf="!last">, </span>
+        </span>
+      </p>
+      <p><strong>Networks:</strong>
+        <span *ngFor="let network of service.networks; let last = last">
+          {{ network }}<span *ngIf="!last">, </span>
+        </span>
+      </p>
+      <p><strong>Ports:</strong>
+        <span *ngFor="let port of service.ports; let last = last">
+          {{ port }}<span *ngIf="!last">, </span>
+        </span>
+      </p>
+      <p><strong>Volumes:</strong></p>
+      <ul>
+        <li *ngFor="let volume of service.volumes | keyvalue">
+          - {{ volume.key }} - {{ volume.value }}<br>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>

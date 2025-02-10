@@ -11,8 +11,7 @@
         <span class="lab-id" *ngIf="isHovered">{{ lab.id }}</span>
       </h2>
       <span class="lab-status" [class.active]="lab.status === 'ACTIVE'" [class.inactive]="lab.status !== 'ACTIVE'">
-        <a [routerLink]="['/lab/settings', formatLabName(lab.name!)]" [queryParams]="{ id: lab.id }">{{ lab.status
-          }}</a>
+        <a [routerLink]="['/lab/settings', formatLabName(lab.name!)]" [queryParams]="{ id: getLabTracker(lab.id)?.id }">{{ lab.status}}</a>
       </span>
     </div>
     <div class="lab-body">
@@ -26,6 +25,7 @@
         <li><strong>Status:</strong> {{ getLabStatus(lab.id) }}</li>
         <li><strong>Ready:</strong> {{ lab.ready }}</li>
         <li><strong>isTracked:</strong> {{ isInTrackedLabs(lab.id) }}</li>
+        <li><strong>LabTrackerID:</strong> {{ getLabTracker(lab.id)?.id ?? 'N/A' }}</li>
       </ul>
 
       <!-- YAML Upload Box -->

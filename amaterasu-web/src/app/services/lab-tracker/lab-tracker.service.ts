@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core';
 import { EnvironmentService } from '../environment/environment.service';
-import { Lab } from '../../models/lab.model';
 import { HttpClient } from '@angular/common/http';
 import { BaseService } from '../base/base.service';
 import { map, Observable } from 'rxjs';
@@ -22,6 +21,13 @@ export class LabTrackerService extends BaseService {
     return this.get<ApiResponse<LabTracker[]>>(this.environmentService.settings?.restUrl + '/lab-tracker')
       .pipe(
         map((response: ApiResponse<LabTracker[]>) => response.data.map((labTracker) => new LabTracker(labTracker)))
+      );
+  }
+
+  getLabTrackerById(id: string): Observable<LabTracker> {
+    return this.get<ApiResponse<LabTracker>>(this.environmentService.settings?.restUrl + '/lab-tracker/' + id)
+      .pipe(
+        map((response: ApiResponse<LabTracker>) => new LabTracker(response.data))
       );
   }
 }

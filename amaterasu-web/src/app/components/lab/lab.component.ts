@@ -33,10 +33,10 @@ export class LabComponent implements OnInit {
   isLoading$ = this.isLoadingSubject.asObservable();
   private loadingLabs = new Set<string>();
 
-  private labsSubject = new BehaviorSubject<Lab[]>([]);
-  private loggedInUserSubject = new BehaviorSubject<User | undefined>(undefined);
-  private trackedLabsSubject = new BehaviorSubject<LabTracker[]>([]);
-  private userTeamSubject = new BehaviorSubject<Team | undefined>(undefined);
+  private labsSubject: BehaviorSubject<Lab[]> = new BehaviorSubject<Lab[]>([]);
+  private loggedInUserSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);
+  private trackedLabsSubject: BehaviorSubject<LabTracker[]> = new BehaviorSubject<LabTracker[]>([]);
+  private userTeamSubject: BehaviorSubject<Team | undefined> = new BehaviorSubject<Team | undefined>(undefined);
 
   labsObservable$: Observable<Lab[]> = this.labsSubject.asObservable();
   loggedInUserObservable$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
@@ -129,6 +129,20 @@ export class LabComponent implements OnInit {
 
   isLabLoading(labId?: string): boolean {
     return this.loadingLabs.has(labId!);
+  }
+
+  getLabTracker(labId?: string): LabTracker | undefined {
+    const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
+
+    // Filter and sort trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
+    const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
+      tracker => teamLabTrackerIds.includes(tracker.id!) &&
+        tracker.labStatus !== LabStatus.DELETED && tracker.labStarted?.id === labId
+    );
+
+    return filteredTrackedLabs.sort((a, b) =>
+      (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
+    )[0];
   }
 
   addLab() {

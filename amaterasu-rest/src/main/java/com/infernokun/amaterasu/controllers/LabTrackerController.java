@@ -1,6 +1,7 @@
 package com.infernokun.amaterasu.controllers;
 
 import com.infernokun.amaterasu.controllers.base.BaseController;
+import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.services.LabTrackerService;
@@ -26,6 +27,17 @@ public class LabTrackerController extends BaseController {
                 .code(HttpStatus.OK.value())
                 .message("Lab trackers retrieved successfully.")
                 .data(labTrackers)
+                .build());
+    }
+
+    @GetMapping("{labTrackerId}")
+    public ResponseEntity<ApiResponse<LabTracker>> getLabTrackerById(@PathVariable String labTrackerId) {
+        LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId).orElseThrow(
+                () -> new ResourceNotFoundException("Lab Tracker" + labTrackerId +"not found!"));
+        return ResponseEntity.ok(ApiResponse.<LabTracker>builder()
+                .code(HttpStatus.OK.value())
+                .message("Lab tracker " + labTrackerId +  " retrieved successfully.")
+                .data(labTracker)
                 .build());
     }
 
