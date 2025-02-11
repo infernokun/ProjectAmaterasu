@@ -23,7 +23,7 @@ FROM nginx:alpine AS runtime-stage
 LABEL maintainer="infernokun@infernokun.com" \
   description="NGINX Angular Docker image" \
   source="https://github.com/infernokun/ProjectAmaterasu" \
-  run="docker run -p 443:443 -d <docker image>"
+  run="docker run -p 443:443 <docker image> -d"
 
 VOLUME ["/data/certs"]
 VOLUME ["/data/nginx"]

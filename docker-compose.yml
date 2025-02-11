@@ -20,6 +20,13 @@ services:
     restart: always
     ports:
       - "8080:8080"
+    environment:
+      - DOCKER_COMPOSE_PATH=/app/amaterasu
+      - DOCKER_IP=amaterasu
+      - DOCKER_USER=amaterasu
+      - DOCKER_PASS=amaterasu
+      - DB_USER=infernokun
+      - DB_PASS=amaterasu
     depends_on:
       - amaterasu-db
     

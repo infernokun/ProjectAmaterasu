@@ -4,11 +4,10 @@
   "description": "Java backend for the amaterasu-web",
   "port": 8080,
   "scripts": {
-    "start": "gradlew bootRun",
-    "version": "gradlew --version -PnewVersion=${npm_package_version}",
+    "start": "./gradlew bootRun",
+    "version": "./gradlew --version -PnewVersion=${npm_package_version}",
     "docker:build-compile": "export PROJECT=$(echo ${npm_package_name} | cut -d \"/\" -f2) && docker buildx build --target compile-stage --build-arg BUILDKIT_INLINE_CACHE=1 --build-arg PROXY=$(jq -r .proxy package.json) -t infernokun/${npm_package_name}:compile .",
     "docker:build-runtime": "export PROJECT=$(echo ${npm_package_name} | cut -d \"/\" -f2) && docker buildx build --target runtime-stage --build-arg BUILDKIT_INLINE_CACHE=1 --build-arg PROXY=$(jq -r .proxy package.json) --build-arg PORT=$(jq -r .port package.json) -t infernokun/${npm_package_name}:latest .",
-    "jenkins": "npm run docker:build-compile -s && npm run docker:build-runtime -s",
     "docker:push": "docker push infernokun/${npm_package_name}:latest",
     "docker:build": "npm run docker:build-compile -s && npm run docker:build-runtime -s && npm run docker:push -s"
   },

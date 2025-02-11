@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "nx serve --host 0.0.0.0 --ssl --port=4300",
+    "start": "nx serve --host 0.0.0.0 --port=4300",
     "build": "nx build",
     "watch": "nx build --watch --configuration development",
     "name": "echo ${npm_package_name}",

@@ -20,7 +20,7 @@ management:
 
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_IP}:5432/amaterasu
+    url: jdbc:postgresql://${DB_IP}:${DB_PORT:5432}/${DB_NAME:amaterasu}  # Ensure that DB_IP, DB_PORT, and DB_NAME are set properly
     username: ${DB_USER}
     password: ${DB_PASS}
   jpa:
@@ -39,32 +39,17 @@ server:
       protocol-header: "X-Forwarded-Proto"
       remote-ip-header: "X-FORWARDED-FOR"
   use-forward-headers: true
-  ssl:
-    enabled: true
-    key-store: ${KEYSTORE}
-    key-store-password: ${KEYSTORE_PASSWORD}
-    key-store-type: pkcs12
-    key-alias: ${DB_USER}
-    key-password: ${KEYSTORE_PASSWORD}
 
 amaterasu:
   applicationName: Amaterasu
   defaultAdminUsername: admin
   defaultAdminPassword: password
-  uploadDir: "${DOCKER_COMPOSE_PATH}"
+  uploadDir: "${DOCKER_COMPOSE_PATH:/app/amaterasu}"
   dockerHost: "${DOCKER_IP}"
   dockerUser: "${DOCKER_USER}"
   dockerPass: "${DOCKER_PASS}"
   chatService: ""
   chatSocket: ""
-
-ssl:
-  keystore:
-    urI: ${KEYSTORE}
-    password: ${KEYSTORE_PASSWORD}
-  truststore:
-    uri: ${TRUSTSTORE}
-    password: ${TRUSTSTORE_PASSWORD}
 
 logging:
   level:
