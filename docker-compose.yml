@@ -1,0 +1,25 @@
+services:
+  amaterasu-web:
+    build: ./amaterasu-web
+    restart: always
+    ports:
+      - "443:443"
+    depends_on:
+      - amaterasu-db
+  amaterasu-db:
+    image: postgres:15
+    restart: always
+    environment:
+      - POSTGRES_USER=amaterasu
+      - POSTGRES_PASSWORD=amaterasu
+      - POSTGRES_DB=amaterasu
+    volumes:
+      - ./amaterasu-db:/var/lib/postgresql/data
+  amaterasu-rest:
+    build: ./amaterasu-rest
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - amaterasu-db
+    
