@@ -1,0 +1,86 @@
+stages:
+  - build
+  - push
+  - deploy
+
+variables:
+  DOCKER_REGISTRY: docker.io 
+  DOCKER_USERNAME: $DOCKER_HUB_USERNAME 
+  IMAGE_REST: ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/amaterasu-rest:${CI_COMMIT_SHA}
+  IMAGE_WEB: ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/amaterasu-web:${CI_COMMIT_SHA}
+  PROJECT_REST: $(echo amaterasu-rest | cut -d "/" -f2)
+  PROJECT_WEB: $(echo amaterasu-web | cut -d "/" -f2)
+
+before_script:
+  - docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
+
+build-rest:
+  stage: build
+  image: gradle:jdk21-corretto # Or your preferred Java image
+  services:
+    - docker:dind
+  script:
+    - cd amaterasu-rest
+    - export PROJECT=${PROJECT_REST}
+    - docker build -t ${IMAGE_REST} .
+  tags:
+    - docker
+
+build-web:
+  stage: build
+  image: node:lts-bullseye # Use a Node.js image for npm/pnpm
+  services:
+    - docker:dind
+  script:
+    - cd amaterasu-web
+    - export PROJECT=${PROJECT_WEB}
+    - docker build -t ${IMAGE_WEB} .
+  tags:
+    - docker
+
+push-rest:
+  stage: push
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker push ${IMAGE_REST}
+  tags:
+    - docker
+  dependencies:
+    - build-rest
+
+push-web:
+  stage: push
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker push ${IMAGE_WEB}
+  tags:
+    - docker
+  dependencies:
+    - build-web
+
+deploy:
+  stage: deploy
+  image: ubuntu:latest # Use a base image with necessary tools
+  services:
+    - docker:dind
+  before_script:
+    - apt-get update -y
+    - apt-get install -y kubectl curl
+    - curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+    - install minikube-linux-amd64 /usr/local/bin/minikube
+    - minikube start --driver=docker
+    - export KUBECONFIG=$HOME/.kube/config
+    - kubectl cluster-info
+  script:
+    - kubectl apply -f kubernetes/deployment.yaml
+    - kubectl apply -f kubernetes/service.yaml
+  tags:
+    - docker
+  dependencies:
+    - push-rest
+    - push-web
+  when: manual
