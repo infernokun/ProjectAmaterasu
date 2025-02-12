@@ -20,12 +20,13 @@ management:
 
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_IP}:${DB_PORT:5432}/${DB_NAME:amaterasu}  # Ensure that DB_IP, DB_PORT, and DB_NAME are set properly
+    url: jdbc:postgresql://${DB_IP}:${DB_PORT:5432}/${DB_NAME:amaterasu}
     username: ${DB_USER}
     password: ${DB_PASS}
+    initialization-mode: always
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: update 
     open-in-view: false
 
 server:

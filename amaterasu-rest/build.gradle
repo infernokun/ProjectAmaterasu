@@ -13,6 +13,11 @@ java {
 	}
 }
 
+bootJar {
+    archiveFileName = 'amaterasu-rest.jar'
+	mainClass.set('com.infernokun.amaterasu.AmaterasuRestApplication')
+}
+
 configurations {
 	compileOnly {
 		extendsFrom annotationProcessor

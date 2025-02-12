@@ -23,16 +23,13 @@ FROM nginx:alpine AS runtime-stage
 LABEL maintainer="infernokun@infernokun.com" \
   description="NGINX Angular Docker image" \
   source="https://github.com/infernokun/ProjectAmaterasu" \
-  run="docker run -p 443:443 <docker image> -d"
+  run="docker run -p 80:80 <docker image> -d"
 
-VOLUME ["/data/certs"]
 VOLUME ["/data/nginx"]
 
 # user ID 101 is nginx
 COPY --link --chown=101:101 nginx/nginx.conf /etc/nginx/nginx.conf
 RUN set -eux \
-  && /usr/sbin/update-ca-certificates \
-  && ln -fs /etc/ssl/certs/ca-bundle.crt /etc/ssl/certs/ca-certificates.crt \
   && chown 101:101 -R /var/cache/nginx \
   && chown 101:101 -R /var/log/nginx \
   && chown 101:101 -R /etc/nginx \
@@ -42,8 +39,8 @@ RUN set -eux \
   && rm /etc/nginx/conf.d/default.conf
 
 COPY --link --chown=101:101 --from=compile-stage /app/dist/app/browser /usr/share/nginx/html/
-EXPOSE 443
-HEALTHCHECK --start-period=5s CMD curl --fail https://localhost/ || exit 1
+EXPOSE 80
+HEALTHCHECK --start-period=5s CMD curl --fail http://localhost/ || exit 1
 
 # Start Nginx server
 CMD ["nginx", "-g", "daemon off;"]

@@ -3,30 +3,34 @@ services:
     build: ./amaterasu-web
     restart: always
     ports:
-      - "443:443"
+      - "80:80"
     depends_on:
-      - amaterasu-db
+      - amaterasu-rest
   amaterasu-db:
     image: postgres:15
     restart: always
     environment:
-      - POSTGRES_USER=amaterasu
-      - POSTGRES_PASSWORD=amaterasu
-      - POSTGRES_DB=amaterasu
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - ./amaterasu-db:/var/lib/postgresql/data
   amaterasu-rest:
-    build: ./amaterasu-rest
+    image: infernokun/amaterasu-rest
+    #build: ./amaterasu-rest
     restart: always
     ports:
       - "8080:8080"
     environment:
       - DOCKER_COMPOSE_PATH=/app/amaterasu
-      - DOCKER_IP=amaterasu
-      - DOCKER_USER=amaterasu
-      - DOCKER_PASS=amaterasu
-      - DB_USER=infernokun
-      - DB_PASS=amaterasu
+      - DOCKER_IP=${DOCKER_IP}
+      - DOCKER_USER=${DOCKER_USER}
+      - DOCKER_PASS=${DOCKER_PASS}
+      - DB_IP=${DB_IP}
+      - DB_NAME=${POSTGRES_DB}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASS=${POSTGRES_PASSWORD}
+      - DB_PORT=${DB_PORT}
     depends_on:
       - amaterasu-db
     
