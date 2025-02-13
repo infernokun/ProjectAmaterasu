@@ -11,7 +11,7 @@ build-rest:
   before_script:
     - export DOCKER_HOST=tcp://localhost:2375
     - echo $DOCKER_HUB_PASSWORD | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin
-    - apk add --no-cache nodejs npm bash
+    - apk add --no-cache nodejs npm bash jq
   script:
     - cd amaterasu-rest
     - npm run docker:build
@@ -27,7 +27,7 @@ build-web:
   before_script:
     - export DOCKER_HOST=tcp://localhost:2375
     - echo $DOCKER_HUB_PASSWORD | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin
-    - apk add --no-cache nodejs npm bash
+    - apk add --no-cache nodejs npm bash jq
   script:
     - cd amaterasu-web
     - npm run docker:build
