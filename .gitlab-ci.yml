@@ -9,7 +9,7 @@ build-rest:
   - name: docker:dind
     command: ["--host=tcp://0.0.0.0:2375"]
   before_script:
-    - export DOCKER_HOST=tcp://localhost:2375
+    - export DOCKER_HOST=tcp://docker:2375
     - echo $DOCKER_HUB_PASSWORD | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin
     - apk add --no-cache nodejs npm bash jq
   script:
@@ -25,7 +25,7 @@ build-web:
   - name: docker:dind
     command: ["--host=tcp://0.0.0.0:2375"]
   before_script:
-    - export DOCKER_HOST=tcp://localhost:2375
+    - export DOCKER_HOST=tcp://docker:2375
     - echo $DOCKER_HUB_PASSWORD | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin
     - apk add --no-cache nodejs npm bash jq
   script:
