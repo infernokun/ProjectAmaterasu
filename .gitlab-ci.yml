@@ -1,66 +1,30 @@
 stages:
   - build
-  - push
   - deploy
-
-variables:
-  DOCKER_REGISTRY: docker.io 
-  DOCKER_USERNAME: $DOCKER_HUB_USERNAME 
-  IMAGE_REST: ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/amaterasu-rest:${CI_COMMIT_SHA}
-  IMAGE_WEB: ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/amaterasu-web:${CI_COMMIT_SHA}
-  PROJECT_REST: $(echo amaterasu-rest | cut -d "/" -f2)
-  PROJECT_WEB: $(echo amaterasu-web | cut -d "/" -f2)
 
 build-rest:
   stage: build
-  image: gradle:jdk21-corretto # Or your preferred Java image
-  services:
-    - docker:dind
+  image: docker:24.0.7 
+  before_script:
+    - docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
+    - apk add --no-cache nodejs npm
   script:
     - cd amaterasu-rest
-    - export PROJECT=${PROJECT_REST}
-    - docker build -t ${IMAGE_REST} .
+    - npm run docker:build
   tags:
     - docker
 
 build-web:
   stage: build
-  image: node:lts-bullseye # Use a Node.js image for npm/pnpm
-  services:
-    - docker:dind
+  image: docker:24.0.7
+  before_script:
+    - docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
+    - apk add --no-cache nodejs npm
   script:
     - cd amaterasu-web
-    - export PROJECT=${PROJECT_WEB}
-    - docker build -t ${IMAGE_WEB} .
+    - npm run docker:build
   tags:
     - docker
-
-push-rest:
-  stage: push
-  image: docker:latest
-  services:
-    - docker:dind
-  script:
-    - docker push ${IMAGE_REST}
-  tags:
-    - docker
-  dependencies:
-    - build-rest
-
-push-web:
-  stage: push
-  image: docker:latest
-  services:
-    - docker:dind
-  before_script:
-    - apt install docker.io
-    - docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
-  script:
-    - docker push ${IMAGE_WEB}
-  tags:
-    - docker
-  dependencies:
-    - build-web
 
 deploy:
   stage: deploy
@@ -81,6 +45,6 @@ deploy:
   tags:
     - docker
   dependencies:
-    - push-rest
-    - push-web
+    - build-rest
+    - build-web
   when: manual
