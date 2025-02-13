@@ -4,10 +4,13 @@ stages:
 
 build-rest:
   stage: build
-  image: docker:24.0.7 
+  image: docker:24.0.7
+  services:
+    - docker:dind
   before_script:
-    - docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
-    - apk add --no-cache nodejs npm
+    - export DOCKER_HOST=tcp://docker:2375
+    - echo $DOCKER_HUB_PASSWORD | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin
+    - apk add --no-cache nodejs npm bash
   script:
     - cd amaterasu-rest
     - npm run docker:build
@@ -17,9 +20,12 @@ build-rest:
 build-web:
   stage: build
   image: docker:24.0.7
+  services:
+    - docker:dind
   before_script:
-    - docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
-    - apk add --no-cache nodejs npm
+    - export DOCKER_HOST=tcp://docker:2375
+    - echo $DOCKER_HUB_PASSWORD | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin
+    - apk add --no-cache nodejs npm bash
   script:
     - cd amaterasu-web
     - npm run docker:build
@@ -28,14 +34,15 @@ build-web:
 
 deploy:
   stage: deploy
-  image: ubuntu:latest # Use a base image with necessary tools
+  image: ubuntu:latest
   services:
     - docker:dind
   before_script:
     - apt-get update -y
     - apt-get install -y kubectl curl
-    - curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-    - install minikube-linux-amd64 /usr/local/bin/minikube
+    - curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+    - chmod +x minikube
+    - mv minikube /usr/local/bin/
     - minikube start --driver=docker
     - export KUBECONFIG=$HOME/.kube/config
     - kubectl cluster-info
