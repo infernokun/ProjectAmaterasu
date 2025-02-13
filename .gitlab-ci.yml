@@ -12,6 +12,7 @@ variables:
   PROJECT_WEB: $(echo amaterasu-web | cut -d "/" -f2)
 
 before_script:
+  - echo -e "nameserver 10.0.0.1\nnameserver 8.8.8.8" | tee /etc/resolv.conf
   - docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
 
 build-rest:
