@@ -56,6 +56,9 @@ push-web:
   image: docker:latest
   services:
     - docker:dind
+  before_script:
+    - apt install docker.io
+    - docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
   script:
     - docker push ${IMAGE_WEB}
   tags:
