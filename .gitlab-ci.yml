@@ -10,7 +10,7 @@ build-rest:
     command: ["--host=tcp://0.0.0.0:2375"]
   before_script:
     - export DOCKER_HOST=tcp://localhost:2375
-    - echo $DOCKER_HUB_PASSWORD | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin
+    - echo $DOCKER_HUB_ACCESS_TOKEN | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin
     - apk add --no-cache nodejs npm bash jq
   script:
     - cd amaterasu-rest
@@ -26,7 +26,7 @@ build-web:
     command: ["--host=tcp://0.0.0.0:2375"]
   before_script:
     - export DOCKER_HOST=tcp://localhost:2375
-    - echo $DOCKER_HUB_PASSWORD | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin
+    - echo $DOCKER_HUB_ACCESS_TOKEN  | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin
     - apk add --no-cache nodejs npm bash jq
   script:
     - cd amaterasu-web
