@@ -26,6 +26,7 @@ public class User extends StoredObject implements UserDetails {
     private Team team;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private Role role = Role.MEMBER;
 
     public User(String username, String password) {

@@ -25,9 +25,4 @@ public class ApplicationInfoService extends BaseService {
 
         return applicationInfoRepository.save(applicationInfo);
     }
-
-    @Override
-    public Object findById(String id) {
-        return null;
-    }
 }
