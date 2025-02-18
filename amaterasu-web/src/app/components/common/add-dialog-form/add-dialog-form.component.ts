@@ -7,7 +7,7 @@ import {
   ViewChildren,
 } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
-import { MessageService } from '../../../services/message/message.service';
+import { MessageService } from '../../../services/message.service';
 import { SimpleFormData } from '../../../models/simple-form-data.model';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { DialogQuestionComponent } from '../dialog-question/dialog-question.component';

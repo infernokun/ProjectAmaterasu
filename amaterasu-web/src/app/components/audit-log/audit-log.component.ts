@@ -3,7 +3,7 @@ import { MatPaginator } from '@angular/material/paginator';
 import { MatSort } from '@angular/material/sort';
 import { LabTracker } from '../../models/lab-tracker.model';
 import { MatTableDataSource } from '@angular/material/table';
-import { LabTrackerService } from '../../services/lab-tracker/lab-tracker.service';
+import { LabTrackerService } from '../../services/lab-tracker.service';
 
 @Component({
   selector: 'app-audit-log',

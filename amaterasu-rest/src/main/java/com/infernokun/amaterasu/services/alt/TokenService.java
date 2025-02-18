@@ -1,9 +1,9 @@
 package com.infernokun.amaterasu.services.alt;
 
 import com.infernokun.amaterasu.models.entities.User;
-import com.infernokun.amaterasu.services.RefreshTokenService;
-import com.infernokun.amaterasu.services.UserService;
-import com.infernokun.amaterasu.services.base.BaseService;
+import com.infernokun.amaterasu.services.entity.RefreshTokenService;
+import com.infernokun.amaterasu.services.entity.UserService;
+import com.infernokun.amaterasu.services.BaseService;
 import jakarta.annotation.PostConstruct;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

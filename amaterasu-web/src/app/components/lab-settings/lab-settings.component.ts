@@ -1,11 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { LabService } from '../../services/lab/lab.service';
+import { LabService } from '../../services/lab.service';
 import { BehaviorSubject, combineLatest } from 'rxjs';
 import { Lab } from '../../models/lab.model';
-import { UserService } from '../../services/user/user.service';
+import { UserService } from '../../services/user.service';
 import { Team } from '../../models/team.model';
-import { LabTrackerService } from '../../services/lab-tracker/lab-tracker.service';
+import { LabTrackerService } from '../../services/lab-tracker.service';
 import { LabTracker } from '../../models/lab-tracker.model';
 
 @Component({

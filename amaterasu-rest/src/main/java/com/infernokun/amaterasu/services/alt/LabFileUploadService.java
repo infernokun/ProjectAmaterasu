@@ -4,7 +4,7 @@ import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.FileUploadException;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.entities.Lab;
-import com.infernokun.amaterasu.services.base.BaseService;
+import com.infernokun.amaterasu.services.BaseService;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
 

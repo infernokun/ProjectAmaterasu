@@ -1,19 +1,19 @@
 import { Component, OnInit } from '@angular/core';
-import { LabService } from '../../services/lab/lab.service';
+import { LabService } from '../../services/lab.service';
 import { Lab, LabFormData } from '../../models/lab.model';
-import { UserService } from '../../services/user/user.service';
+import { UserService } from '../../services/user.service';
 import { Observable, BehaviorSubject, switchMap, combineLatest, finalize, of, catchError, map } from 'rxjs';
 import { User } from '../../models/user.model';
 import { ApiResponse } from '../../models/api-response.model';
-import { LabTrackerService } from '../../services/lab-tracker/lab-tracker.service';
+import { LabTrackerService } from '../../services/lab-tracker.service';
 import { LabTracker } from '../../models/lab-tracker.model';
-import { TeamService } from '../../services/team/team.service';
+import { TeamService } from '../../services/team.service';
 import { Team } from '../../models/team.model';
 import { LabStatus } from '../../enums/lab-status.enum';
 import { LabActionResult } from '../../models/lab-action-result.model';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogComponent } from '../common/dialog/dialog.component';
-import { EditDialogService } from '../../services/edit-dialog/edit-dialog.service';
+import { EditDialogService } from '../../services/edit-dialog.service';
 import { LabDTO } from '../../models/dto/lab.dto.model';
 
 import * as yaml from 'js-yaml';

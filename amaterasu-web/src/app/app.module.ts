@@ -7,7 +7,7 @@ import { AppComponent } from './app.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MaterialModule } from './material.module';
 import { HomeComponent } from './components/home/home.component';
-import { EnvironmentService } from './services/environment/environment.service';
+import { EnvironmentService } from './services/environment.service';
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { LabComponent } from './components/lab/lab.component';
 import { CommonModule } from '@angular/common';

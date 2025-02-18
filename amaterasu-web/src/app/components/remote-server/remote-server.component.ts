@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { RemoteServer } from '../../models/remote-server.model';
-import { RemoteServerService } from '../../services/remote-server/remote-server.service';
+import { RemoteServerService } from '../../services/remote-server.service';
 
 @Component({
   selector: 'app-remote-server',

@@ -3,7 +3,7 @@ package com.infernokun.amaterasu.services.alt;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.RemoteCommandException;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
-import com.infernokun.amaterasu.services.base.BaseService;
+import com.infernokun.amaterasu.services.BaseService;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;

@@ -1,9 +1,9 @@
 import { Component } from '@angular/core';
 import { User } from './models/user.model';
-import { UserService } from './services/user/user.service';
+import { UserService } from './services/user.service';
 import { Observable } from 'rxjs';
 import { AuthService } from './services/auth.service';
-import { EditDialogService } from './services/edit-dialog/edit-dialog.service';
+import { EditDialogService } from './services/edit-dialog.service';
 
 declare var require: any;
 const { version: appVersion } = require('../../package.json');
@@ -27,7 +27,7 @@ export class AppComponent {
   loadingUser$: Observable<boolean>;
 
   constructor(private userService: UserService,
-     private authService: AuthService, private dialogService: EditDialogService
+    private authService: AuthService, private dialogService: EditDialogService
   ) {
     this.appVersion = appVersion;
 
@@ -42,7 +42,7 @@ export class AppComponent {
 
     /*this.userService.getAllUsers().subscribe((users) => {
       if (users.length > 0) {
-        this.userService.setLoggedInUser(users[0]); 
+        this.userService.setLoggedInUser(users[0]);
       }
     });*/
 

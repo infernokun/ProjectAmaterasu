@@ -1,8 +1,7 @@
 package com.infernokun.amaterasu.components;
 
 import com.infernokun.amaterasu.config.AmaterasuConfig;
-import com.infernokun.amaterasu.models.entities.Lab;
-import com.infernokun.amaterasu.services.LabService;
+import com.infernokun.amaterasu.services.entity.LabService;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
@@ -10,12 +9,7 @@ import com.jcraft.jsch.Session;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
 
 @Component
 public class LabInitializer {

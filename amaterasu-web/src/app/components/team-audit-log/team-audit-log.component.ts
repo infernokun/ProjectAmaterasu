@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { TeamService } from '../../services/team/team.service';
+import { TeamService } from '../../services/team.service';
 import { Team } from '../../models/team.model';
 
 @Component({
