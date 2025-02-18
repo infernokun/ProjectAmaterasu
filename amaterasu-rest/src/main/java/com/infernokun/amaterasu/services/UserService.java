@@ -4,18 +4,34 @@ import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.services.base.BaseService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
-public class UserService extends BaseService {
+public class UserService extends BaseService implements UserDetailsService {
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    @Autowired
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    public boolean existsByUsername(User user) {
+        return this.userRepository.existsByUsername(user.getUsername());
+    }
+
+    public void registerUser(User user) {
+        String encodedPassword  = this.passwordEncoder.encode(user.getPassword());
+        user.setPassword(encodedPassword);
+
+        this.userRepository.save(user);
     }
 
     // Retrieve all users
@@ -59,5 +75,10 @@ public class UserService extends BaseService {
 
     public Optional<User> findUserById(String userId) {
         return this.userRepository.findById(userId);
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        return this.userRepository.findByUsername(username).orElseThrow(() -> new UsernameNotFoundException("user is not valid"));
     }
 }

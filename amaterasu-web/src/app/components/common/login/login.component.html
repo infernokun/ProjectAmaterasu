@@ -1,0 +1,18 @@
+<form class="login-container">
+    <div class="form-group">
+        <label for="username">Email/Username</label>
+        <input type="username" class="form-control" id="username" aria-describedby="usernameHelp" placeholder="Enter Email/Username" [(ngModel)]="username" name="username">
+        <small id="usernameHelp" class="form-text text-muted">We'll never share your email with anyone else.</small>
+    </div>
+    <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" class="form-control" id="password" placeholder="Password" [(ngModel)]="password" name="password">
+    </div>
+    <div *ngIf="wrongPassword" class="alert alert-danger" role="alert">
+        Wrong password. Please try again.
+    </div>
+    <button type="submit" class="btn btn-primary" (click)="loginClick()" [disabled]="busy">Submit</button>
+    <div *ngIf="busy" class="spinner-border text-primary" role="status">
+        <mat-spinner></mat-spinner>
+    </div>
+</form>

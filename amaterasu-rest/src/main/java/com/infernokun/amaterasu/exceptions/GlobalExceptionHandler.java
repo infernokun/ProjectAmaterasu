@@ -52,6 +52,26 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(WrongPasswordException.class)
+    public ResponseEntity<ApiResponse<String>> handleWrongPasswordException(WrongPasswordException ex) {
+        ApiResponse<String> response = ApiResponse.<String>builder()
+                .code(HttpStatus.UNAUTHORIZED.value())
+                .message("Invalid credentials: " + ex.getMessage())
+                .data(null)
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(AuthFailedException.class)
+    public ResponseEntity<ApiResponse<Boolean>> handleAuthFailedException(AuthFailedException ex) {
+        ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
+                .code(HttpStatus.UNAUTHORIZED.value())
+                .message("Authentication failed: " + ex.getMessage())
+                .data(false)
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<String>> handleGeneralException(Exception ex) {
         ApiResponse<String> response = ApiResponse.<String>builder()

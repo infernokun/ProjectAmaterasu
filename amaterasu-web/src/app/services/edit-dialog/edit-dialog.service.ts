@@ -1,9 +1,12 @@
-import { Injectable } from '@angular/core';
+import { Component, Injectable } from '@angular/core';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { SimpleFormData } from '../../models/simple-form-data.model';
 import { map, Observable } from 'rxjs';
 import { StoredObject } from '../../models/stored-object.model';
 import { AddDialogFormComponent } from '../../components/common/add-dialog-form/add-dialog-form.component';
+import { LoginComponent } from '../../components/common/login/login.component';
+import { RegisterComponent } from '../../components/common/register/register.component';
+import { ComponentType } from '@angular/cdk/overlay';
 
 @Injectable({
   providedIn: 'root'
@@ -11,14 +14,14 @@ import { AddDialogFormComponent } from '../../components/common/add-dialog-form/
 export class EditDialogService {
   constructor(private dialog: MatDialog) { }
 
-  openForm(formData: SimpleFormData): Observable<any> {
+  openForm(formData: SimpleFormData | undefined, component?: ComponentType<any>): Observable<any> {
     const config = new MatDialogConfig();
     config.disableClose = true;
     config.autoFocus = true;
     config.data = formData;
     config.minWidth = "50vw";
     return this.dialog
-      .open(AddDialogFormComponent, config)
+      .open(component ? component : AddDialogFormComponent, config)
       .afterClosed();
   }
 
@@ -35,5 +38,13 @@ export class EditDialogService {
         }
       })
     );
+  }
+  
+  openLoginDialog(): Observable<any> {
+    return this.openForm(undefined, LoginComponent);
+  }
+
+  openRegisterDialog(): Observable<any> {
+    return this.openForm(undefined, RegisterComponent);
   }
 }

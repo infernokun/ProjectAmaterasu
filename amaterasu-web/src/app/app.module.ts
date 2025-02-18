@@ -25,6 +25,9 @@ import { SkeletonRectComponent } from './components/common/skeleton-rect/skeleto
 import { SkeletonDirective } from './directives/skeleton.directive';
 import { LabSettingsComponent } from './components/lab-settings/lab-settings.component';
 import { DragnDropDirective } from './directives/dragndrop.directive';
+import { AppInitComponent } from './components/app-init/app-init.component';
+import { LoginComponent } from './components/common/login/login.component';
+import { RegisterComponent } from './components/common/register/register.component';
 
 export function init_app(environmentService: EnvironmentService) {
   return () => environmentService.load().then(() => {
@@ -48,7 +51,10 @@ export function init_app(environmentService: EnvironmentService) {
     SkeletonRectComponent,
     SkeletonDirective,
     LabSettingsComponent,
-    DragnDropDirective
+    DragnDropDirective,
+    AppInitComponent,
+    LoginComponent,
+    RegisterComponent
   ],
   imports: [
     BrowserModule,

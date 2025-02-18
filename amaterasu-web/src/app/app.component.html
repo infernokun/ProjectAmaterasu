@@ -16,7 +16,7 @@
         </div>
         <div class="text-sm" style="line-height: 16px">
           A tool by
-          <a href="">Me..</a>
+          <a href="https://github.com/infernokun">InfernoKun..</a>
         </div>
       </div>
     </article>
@@ -31,8 +31,8 @@
   </nav>
   <div class="display-flex flex-row width-100-percent justify-content-end">
     <article class="margin-right-2x display-flex flex-column justify-content-center">
-      <div *ngIf="loggedInUser$ | async as user">
-        {{ user.username }}
+      <div *ngIf="(loggedInUser$ | async) as user else login">
+        <div>{{ user.username }} | {{ user.role }}</div>
       </div>
     </article>
     <button class="menuButton" mat-icon-button [matMenuTriggerFor]="theMenu">
@@ -40,6 +40,7 @@
     </button>
     <mat-menu #theMenu="matMenu">
       <div class="toolbar-menu-options-wrapper">
+        <button mat-menu-item>Register</button>
         <button mat-menu-item>Profile</button>
         <button mat-menu-item (click)="logoutButton()">Logout</button>
       </div>
@@ -57,5 +58,12 @@
   <div class="spinner-border" role="status">
     <span class="visually-hidden">Loading...</span>
     <mat-spinner></mat-spinner>
+  </div>
+</ng-template>
+
+<ng-template #login>
+  <div *ngIf="!(loadingUser$ | async) else loading" style="display: flex;">
+    <button class="user-button" mat-button (click)="openLoginModal()">Login</button>
+    <button class="user-button" mat-button (click)="openRegisterModal()">Register</button>
   </div>
 </ng-template>

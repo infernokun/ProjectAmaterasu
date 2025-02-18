@@ -1,0 +1,24 @@
+<form class="register-container">
+    <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" class="form-control" id="username" placeholder="Enter Username" [(ngModel)]="username" name="username">
+    </div>
+    <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" class="form-control" id="email" placeholder="Enter Email" [(ngModel)]="email" name="email">
+        <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small>
+    </div>
+    <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" class="form-control" id="password" placeholder="Password" [(ngModel)]="password" name="password">
+    </div>
+    <div class="form-group">
+        <label for="cpassword">Confirm Password</label>
+        <input type="password" class="form-control" id="cpassword" placeholder="Confirm Password" [(ngModel)]="confirmPassword" name="password">
+        <small *ngIf="!passwordMatches()">Nope</small>
+    </div>
+    <button type="submit" class="btn btn-primary" (click)="registerClick()" [disabled]="busy">Register</button>
+    <div *ngIf="busy" class="spinner-border text-primary" role="status">
+        <mat-spinner></mat-spinner>
+    </div>
+</form>
