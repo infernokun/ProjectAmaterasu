@@ -30,4 +30,10 @@ export class TeamService extends BaseService {
         map((response: ApiResponse<Team>) => new Team(response.data))
       );
   }
+
+  createNewTeam(team: Team): Observable<ApiResponse<Team>> {
+    return this.post<ApiResponse<Team>>(this.environmentService.settings?.restUrl + '/team',
+      team
+    )
+  }
 }

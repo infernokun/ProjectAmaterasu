@@ -1,7 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, NgZone, OnInit } from '@angular/core';
 import { FormControl, FormGroup } from '@angular/forms';
-
-
+import { AppInitService } from '../../services/app-init.service';
+import { ApplicationInfo } from '../../models/application-info.model';
+import { ApiResponse } from '../../models/api-response.model';
+import { Router } from '@angular/router';
+import { Observable, of } from 'rxjs';
 
 @Component({
   selector: 'app-app-init',
@@ -9,10 +12,10 @@ import { FormControl, FormGroup } from '@angular/forms';
   styleUrls: ['./app-init.component.scss']
 })
 export class AppInitComponent implements OnInit {
-
   formGroup: FormGroup;
+  isInitialized$: Observable<boolean> | undefined = of(false);
 
-  constructor() {
+  constructor(private appInitService: AppInitService, private router: Router, private ngZone: NgZone) {
     this.formGroup = new FormGroup({
       name: new FormControl(''),
       description: new FormControl(''),
@@ -25,12 +28,39 @@ export class AppInitComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.isInitialized$ = this.appInitService.isInitialized();
+    this.appInitService.isInitialized().subscribe((initialized: boolean) => {
+      if (initialized) {
+        this.ngZone.run(() => {
+          this.router.navigate(['/home']);
+        });
+      }
+    });
+
     this.formGroup.valueChanges.subscribe((value: any) => {
       console.log(value);
     });
   }
 
   handleAction() {
-    console.log(this.formGroup.value);
+    let applicationInfo: ApplicationInfo = this.formGroup.value;
+    applicationInfo.settings = JSON.stringify(this.formGroup.value.settings);
+
+    console.log('Application Info: ', applicationInfo);
+
+    this.appInitService.createApplicationInfo(applicationInfo).subscribe(
+      (response: ApiResponse<any>) => {
+        if (response && response.data) {
+          console.log('Response: ', response);
+          this.appInitService.applicationInfo$.next(new ApplicationInfo(response.data));
+          this.appInitService.initialized$.next(true);
+          this.router.navigate(['/home']);
+        }
+      },
+      (error) => {
+        console.log('Error creating application info: ', error);
+        this.router.navigate(['/home']);
+      }
+    );
   }
 }

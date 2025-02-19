@@ -29,6 +29,15 @@ public class UserController extends BaseController {
                 .build());
     }
 
+    @GetMapping("{id}")
+    public ResponseEntity<ApiResponse<User>> getUserById(@PathVariable String id) {
+        return ResponseEntity.ok(ApiResponse.<User>builder()
+                .code(HttpStatus.OK.value())
+                .message("Retrieved user!")
+                .data(userService.getUserById(id))
+                .build());
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<User>> createUser(@RequestBody User user) {
         User createdUser = userService.createUser(user);

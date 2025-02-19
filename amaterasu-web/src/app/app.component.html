@@ -28,11 +28,13 @@
     <a routerLink="/team-log" class="nav-link">Team Log</a>
     <a routerLink="/code" class="nav-link">Code</a>
     <a routerLink="/remote-server" class="nav-link">Remote Server</a>
+    <a routerLink="/users" class="nav-link">Users</a>
+    <a routerLink="/teams" class="nav-link">Teams</a>
   </nav>
   <div class="display-flex flex-row width-100-percent justify-content-end">
     <article class="margin-right-2x display-flex flex-column justify-content-center">
       <div *ngIf="(loggedInUser$ | async) as user else login">
-        <div>{{ user.username }} | {{ user.role }}</div>
+        <div>{{ user.username }} | {{ user.role | enumToString:Role }}</div>
       </div>
     </article>
     <button class="menuButton" mat-icon-button [matMenuTriggerFor]="theMenu">
@@ -63,7 +65,9 @@
 
 <ng-template #login>
   <div *ngIf="!(loadingUser$ | async) else loading" style="display: flex;">
-    <button class="user-button" mat-button (click)="openLoginModal()">Login</button>
-    <button class="user-button" mat-button (click)="openRegisterModal()">Register</button>
+    <button class="user-button" [disabled]="!(isInitialized | async)" mat-button
+      (click)="openLoginModal()">Login</button>
+    <button class="user-button" [disabled]="!(isInitialized | async)" mat-button
+      (click)="openRegisterModal()">Register</button>
   </div>
 </ng-template>

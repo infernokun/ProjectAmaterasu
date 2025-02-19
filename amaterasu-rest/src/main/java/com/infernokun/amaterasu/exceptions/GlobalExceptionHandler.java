@@ -71,10 +71,29 @@ public class GlobalExceptionHandler {
                 .build();
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }
+    @ExceptionHandler(TokenException.class)
+    public ResponseEntity<ApiResponse<Boolean>> handleTokenException(TokenException ex) {
+        ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
+                .code(HttpStatus.BAD_REQUEST.value())
+                .message("Token operation failed: " + ex.getMessage())
+                .data(false)
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ApiResponse<?>> handleRuntimeException(RuntimeException ex) {
+        ApiResponse<?> response = ApiResponse.<String>builder()
+                .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .message("An error occurred: " + ex.getMessage())
+                .data(null)
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<String>> handleGeneralException(Exception ex) {
-        ApiResponse<String> response = ApiResponse.<String>builder()
+    public ResponseEntity<ApiResponse<?>> handleGeneralException(Exception ex) {
+        ApiResponse<?> response = ApiResponse.<String>builder()
                 .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .message("An error occurred: " + ex.getMessage())
                 .data(null)

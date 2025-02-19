@@ -8,6 +8,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 @Entity
@@ -36,6 +37,9 @@ public class User extends StoredObject implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
+        if (this.role == null) {
+            return Collections.emptyList();
+        }
         return List.of(new SimpleGrantedAuthority(this.role.getValue()));
     }
 

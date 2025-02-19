@@ -6,7 +6,6 @@ import com.infernokun.amaterasu.services.entity.UserService;
 import com.infernokun.amaterasu.services.BaseService;
 import jakarta.annotation.PostConstruct;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -29,11 +28,12 @@ public class TokenService extends BaseService {
         this.refreshTokenService = refreshTokenService;
         this.userService = userService;
     }
-    public String generateJwt(UserDetails userDetails) {
+
+    public String generateJwt(User user) {
         Instant now = Instant.now();
         Instant expiration = now.plus(10, ChronoUnit.MINUTES); // Extended expiration time
 
-        String scope = userDetails.getAuthorities().stream()
+        String scope = user.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(" "));
 
@@ -41,12 +41,12 @@ public class TokenService extends BaseService {
                 .issuer("self")
                 .issuedAt(now)
                 .expiresAt(expiration)
-                .subject(userDetails.getUsername())
+                .subject(user.getId())
                 .claim("roles", scope)
                 .build();
 
         String token = this.jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
-        this.refreshTokenService.createRefreshToken(userDetails.getUsername(), token, expiration);
+        refreshTokenService.createRefreshToken(user.getUsername(), token, expiration);
         return token;
     }
 
@@ -62,8 +62,7 @@ public class TokenService extends BaseService {
         String scope = admin.getAuthorities() != null
                 ? admin.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.joining(" "))
-                : "";
+                .collect(Collectors.joining(" ")) : "";
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer("self")

@@ -3,6 +3,9 @@ import { Router } from '@angular/router';
 import { MatDialogRef } from '@angular/material/dialog';
 import { LoginService } from '../../../services/login.service';
 import { AuthService } from '../../../services/auth.service';
+import { ApiResponse } from '../../../models/api-response.model';
+import { LoginResponseDTO } from '../../../models/dto/login-response.dto.model';
+import { UserService } from '../../../services/user.service';
 
 @Component({
   selector: 'app-login',
@@ -20,7 +23,8 @@ export class LoginComponent implements OnInit {
     private loginService: LoginService,
     private authService: AuthService,
     private router: Router,
-    private dialogRef: MatDialogRef<LoginComponent>
+    private dialogRef: MatDialogRef<LoginComponent>,
+    private userService: UserService
   ) { }
 
   ngOnInit(): void {
@@ -33,15 +37,15 @@ export class LoginComponent implements OnInit {
 
     this.busy = true;
     console.log('Login button clicked', this.username, this.password);
-    this.loginService.login(this.username, this.password).subscribe((response: any) => {
-      if (response.jwt) {
-        const tokenDecode = atob(response.jwt.split('.')[1]);
+    this.loginService.login(this.username, this.password).subscribe((response: ApiResponse<LoginResponseDTO>) => {
+      if (response.data.jwt) {
+        const tokenDecode = atob(response.data.jwt.split('.')[1]);
         if (tokenDecode) {
           console.log('Token decode: ', JSON.parse(tokenDecode));
-          localStorage.setItem('jwt', response.jwt);
+          localStorage.setItem('jwt', response.data.jwt);
           this.wrongPassword = false;
           this.busy = false;
-          this.authService.setPayload(this.username, JSON.parse(tokenDecode).roles);
+          this.authService.setPayload(response.data.user!, JSON.parse(tokenDecode));
           this.router.navigate(['/home']);
           this.dialogRef.close();
         }

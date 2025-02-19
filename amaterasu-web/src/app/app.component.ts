@@ -1,9 +1,12 @@
 import { Component } from '@angular/core';
 import { User } from './models/user.model';
 import { UserService } from './services/user.service';
-import { Observable } from 'rxjs';
+import { Observable, BehaviorSubject } from 'rxjs';
 import { AuthService } from './services/auth.service';
 import { EditDialogService } from './services/edit-dialog.service';
+
+import { Role } from './enums/role.enum';
+import { AppInitService } from './services/app-init.service';
 
 declare var require: any;
 const { version: appVersion } = require('../../package.json');
@@ -26,10 +29,22 @@ export class AppComponent {
   loggedInUser$: Observable<User | undefined> | undefined;
   loadingUser$: Observable<boolean>;
 
+  isInitialized?: Observable<boolean>;
+
+  Role = Role;
+
   constructor(private userService: UserService,
-    private authService: AuthService, private dialogService: EditDialogService
+    private authService: AuthService, private dialogService: EditDialogService,
+    private appInitService: AppInitService
   ) {
     this.appVersion = appVersion;
+
+    this.isInitialized = this.appInitService.isInitialized();
+
+    this.isInitialized.subscribe((initialized: boolean) => {
+      if (initialized) {
+      }
+    });
 
     this.authService.isAuthenticated().subscribe((authenticated: any) => {
       if (authenticated) {
@@ -40,13 +55,7 @@ export class AppComponent {
       this.authService.loadingSubject.next(false);
     });
 
-    /*this.userService.getAllUsers().subscribe((users) => {
-      if (users.length > 0) {
-        this.userService.setLoggedInUser(users[0]);
-      }
-    });*/
-
-    this.loggedInUser$ = this.userService.getLoggedInUser();
+    this.loggedInUser$ = this.authService.userSubject;
     this.loadingUser$ = this.authService.loading$;
   }
 

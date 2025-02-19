@@ -5,17 +5,18 @@ import com.infernokun.amaterasu.exceptions.WrongPasswordException;
 import com.infernokun.amaterasu.models.dto.LoginResponseDTO;
 import com.infernokun.amaterasu.models.entities.RefreshToken;
 import com.infernokun.amaterasu.models.entities.User;
+import com.infernokun.amaterasu.models.enums.Role;
 import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.entity.RefreshTokenService;
 import com.infernokun.amaterasu.services.entity.UserService;
-import jakarta.transaction.Transactional;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +24,6 @@ import java.util.Objects;
 import java.util.Optional;
 
 @Service
-@Transactional
 public class AuthenticationService extends BaseService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -52,6 +52,7 @@ public class AuthenticationService extends BaseService {
 
         String encodedPassword = this.passwordEncoder.encode(user.getPassword());
         user.setPassword(encodedPassword);
+        user.setRole(Role.MEMBER);
 
         userRepository.save(user);
 
@@ -66,8 +67,12 @@ public class AuthenticationService extends BaseService {
             );
 
             UserDetails userDetails = (UserDetails) auth.getPrincipal();
-            String token = tokenService.generateJwt(userDetails);
-            return new LoginResponseDTO(token);
+
+            User user = userRepository.findByUsername(username).orElseThrow(()
+                    -> new UsernameNotFoundException("User not found!"));
+
+            String token = tokenService.generateJwt(user);
+            return new LoginResponseDTO(token, user);
         } catch (BadCredentialsException e) {
             throw new WrongPasswordException("Invalid username or password");
         } catch (AuthenticationException e) {
@@ -77,18 +82,15 @@ public class AuthenticationService extends BaseService {
 
     public LoginResponseDTO revalidateToken(String oldToken) {
         LOGGER.info("old token: {}", oldToken);
-        Optional<RefreshToken> oldRefreshToken = this.refreshTokenService.findByToken(oldToken);
-        LOGGER.info("OLD REFRESH TOKEN - Attempting!");
-        if (oldRefreshToken.isPresent()) {
-            LOGGER.info("OLD REFRESH TOKEN - Found!");
-            if (Objects.equals(oldRefreshToken.get().getToken(), oldToken)) {
-                LOGGER.info("OLD REFRESH TOKEN - Matches database for user {}!", oldRefreshToken.get().getUser().getId());
-                Optional<User> user = this.userRepository.findById(oldRefreshToken.get().getUser().getId());
-                if (user.isPresent()) {
-                    LOGGER.info("OLD REFRESH TOKEN - Token replaced!");
-                    String token = this.tokenService.generateJwt(user.get());
-                    return new LoginResponseDTO(token);
-                }
+        RefreshToken oldRefreshToken = this.refreshTokenService.findByToken(oldToken);
+        LOGGER.info("OLD REFRESH TOKEN - Found!");
+        if (Objects.equals(oldRefreshToken.getToken(), oldToken)) {
+            LOGGER.info("OLD REFRESH TOKEN - Matches database for user {}!", oldRefreshToken.getUser().getId());
+            Optional<User> user = this.userRepository.findById(oldRefreshToken.getUser().getId());
+            if (user.isPresent()) {
+                LOGGER.info("OLD REFRESH TOKEN - Token replaced!");
+                String token = this.tokenService.generateJwt(user.get());
+                return new LoginResponseDTO(token, user.get());
             }
         }
         return null;

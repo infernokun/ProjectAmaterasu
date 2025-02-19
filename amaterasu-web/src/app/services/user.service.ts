@@ -31,6 +31,13 @@ export class UserService extends BaseService {
     this.loggedInUserSubject.next(user);
   }
 
+  getUserById(id: string): Observable<User | undefined> {
+    return this.get<ApiResponse<User>>(this.environmentService.settings?.restUrl + '/user/' + id)
+      .pipe(
+        map((response: ApiResponse<User>) => new User(response.data))
+      );
+  }
+
   getAllUsers(): Observable<User[]> {
     return this.get<ApiResponse<User[]>>(this.environmentService.settings?.restUrl + '/user').pipe(
       map((response: ApiResponse<User[]>) => response.data.map((user) => new User(user))),

@@ -28,12 +28,20 @@ import { DragnDropDirective } from './directives/dragndrop.directive';
 import { AppInitComponent } from './components/app-init/app-init.component';
 import { LoginComponent } from './components/common/login/login.component';
 import { RegisterComponent } from './components/common/register/register.component';
+import { UsersComponent } from './components/users/users.component';
+import { EnumToStringPipe } from './pipes/enum-to-string.pipe';
+import { AppInitService } from './services/app-init.service';
+import { TeamsComponent } from './components/teams/teams.component';
 
-export function init_app(environmentService: EnvironmentService) {
-  return () => environmentService.load().then(() => {
-    console.log('App initialized');
-  });
+export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
+  return () => {
+    return environmentService.load().then(() => {
+      // You can now call any method of AppInitService here if needed
+      appInitService.load(environmentService); // Example if AppInitService has an initialize method
+    });
+  };
 }
+
 
 @NgModule({
   declarations: [
@@ -54,7 +62,10 @@ export function init_app(environmentService: EnvironmentService) {
     DragnDropDirective,
     AppInitComponent,
     LoginComponent,
-    RegisterComponent
+    RegisterComponent,
+    UsersComponent,
+    EnumToStringPipe,
+    TeamsComponent
   ],
   imports: [
     BrowserModule,
@@ -67,10 +78,12 @@ export function init_app(environmentService: EnvironmentService) {
     CodeEditorModule
   ],
   providers: [
+    EnvironmentService,
+    AppInitService,
     {
       provide: APP_INITIALIZER,
       useFactory: init_app,
-      deps: [EnvironmentService],
+      deps: [EnvironmentService, AppInitService],
       multi: true,
     },
     provideHttpClient(withInterceptorsFromDi()),

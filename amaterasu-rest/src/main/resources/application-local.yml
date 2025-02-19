@@ -23,7 +23,6 @@ spring:
     url: jdbc:postgresql://${DB_IP}:${DB_PORT:5432}/${DB_NAME:amaterasu}
     username: ${DB_USER}
     password: ${DB_PASS}
-    initialization-mode: always
   jpa:
     hibernate:
       ddl-auto: update 

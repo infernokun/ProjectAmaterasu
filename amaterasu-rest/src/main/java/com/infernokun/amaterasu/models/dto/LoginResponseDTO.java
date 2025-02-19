@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.models.dto;
 
+import com.infernokun.amaterasu.models.entities.User;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,4 +12,14 @@ import lombok.Setter;
 @AllArgsConstructor
 public class LoginResponseDTO {
     private String jwt;
+    private UserDTO user;
+
+    public LoginResponseDTO(String jwt, User user) {
+        this.jwt = jwt;
+        this.user = UserDTO.builder()
+                .role(String.valueOf(user.getRole()))
+                .team(user.getTeam())
+                .username(user.getUsername())
+                .build();
+    }
 }

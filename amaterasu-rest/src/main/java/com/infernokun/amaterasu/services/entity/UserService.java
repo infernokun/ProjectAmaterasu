@@ -33,6 +33,10 @@ public class UserService extends BaseService implements UserDetailsService {
         this.userRepository.save(user);
     }
 
+    public User getUserById(String id) {
+        return userRepository.findById(id).orElseThrow(() -> new UsernameNotFoundException("User not found!"));
+    }
+
     // Retrieve all users
     public List<User> findAllUsers() {
         return userRepository.findAll();

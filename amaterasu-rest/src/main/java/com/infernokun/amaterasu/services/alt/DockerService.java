@@ -69,7 +69,7 @@ public class DockerService extends BaseService {
     }
 
     public LabActionResult startDockerCompose(Lab lab, LabTracker labTracker, AmaterasuConfig amaterasuConfig) {
-        String catOriginalDockerComposeCmd = String.format("cat %s/%s/%s " , amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile());
+        String catOriginalDockerComposeCmd = String.format("cat %s/%s/%s", amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile());
         RemoteCommandResponse catOriginalDockerComposeOutput = remoteCommandService.handleRemoteCommand(catOriginalDockerComposeCmd, amaterasuConfig);
 
         String composeYAML = catOriginalDockerComposeOutput.getBoth();

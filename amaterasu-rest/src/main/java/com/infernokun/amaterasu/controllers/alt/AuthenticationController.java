@@ -52,23 +52,26 @@ public class AuthenticationController extends BaseController {
     }
 
     @PostMapping("/token")
-    public ResponseEntity<LoginResponseDTO> revalidateToken(@RequestBody String token) {
-        return ResponseEntity.ok(authenticationService.revalidateToken(token));
+    public ResponseEntity<ApiResponse<LoginResponseDTO>> revalidateToken(@RequestBody String token) {
+        return ResponseEntity.ok(ApiResponse.<LoginResponseDTO>builder()
+                .code(HttpStatus.OK.value())
+                .message("Token revalidated")
+                .data(authenticationService.revalidateToken(token))
+                .build());
     }
 
     @PostMapping("/token/check")
-    public ResponseEntity<Boolean> checkToken(@RequestBody String token) {
-        Optional<RefreshToken> refreshToken = refreshTokenService.findByToken(token);
-
-        if (refreshToken.isPresent()) {
-            return ResponseEntity.ok(true);
-        }
-        return ResponseEntity.ok(false);
+    public ResponseEntity<ApiResponse<Boolean>> checkToken(@RequestBody String token) {
+        return ResponseEntity.ok(ApiResponse.<Boolean>builder()
+                .code(HttpStatus.OK.value())
+                .message("Token revalidated")
+                .data(refreshTokenService.findByToken(token) != null)
+                .build());
     }
 
-    @DeleteMapping("/token/logout/{username}")
-    public ResponseEntity<?> logoutUser(@PathVariable String username) {
-        Optional<RefreshToken> refreshTokenOptional = refreshTokenService.deleteToken(username);
+    @DeleteMapping("/token/logout/{id}")
+    public ResponseEntity<?> logoutUser(@PathVariable String id) {
+        Optional<RefreshToken> refreshTokenOptional = refreshTokenService.deleteToken(id);
 
         if (refreshTokenOptional.isPresent()) {
             return ResponseEntity.noContent().build();
