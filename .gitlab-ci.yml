@@ -9,8 +9,8 @@ build-rest:
   stage: build
   image: docker:24.0.7
   services:
-  - name: docker:dind
-    command: ["--host=tcp://0.0.0.0:2375", "--mtu=1500"]
+    - name: docker:dind
+      command: ["--host=tcp://0.0.0.0:2375", "--mtu=1500"]
   before_script:
     - echo $DOCKER_HUB_ACCESS_TOKEN | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin
     - apk add --no-cache nodejs npm bash jq
@@ -24,8 +24,8 @@ build-web:
   stage: build
   image: docker:24.0.7
   services:
-  - name: docker:dind
-    command: ["--host=tcp://0.0.0.0:2375", "--mtu=1500"]
+    - name: docker:dind
+      command: ["--host=tcp://0.0.0.0:2375", "--mtu=1500"]
   before_script:
     - echo $DOCKER_HUB_ACCESS_TOKEN  | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin
     - apk add --no-cache nodejs npm bash jq
@@ -42,7 +42,12 @@ deploy:
     - docker:dind
   before_script:
     - apt-get update -y
-    - apt-get install -y kubectl curl
+    - apt-get install -y curl
+    - |
+      KUBECTL_VERSION=$(curl -s https://dl.k8s.io/release/stable.txt)
+      curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+    - chmod +x kubectl
+    - mv kubectl /usr/local/bin/
     - curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
     - chmod +x minikube
     - mv minikube /usr/local/bin/
