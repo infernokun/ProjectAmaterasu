@@ -15,6 +15,16 @@
     formControl.value.length }}/{{ question.size }}</p>
 </div>
 
+<div *ngIf="question.type === 'password'" class="row width-100-percent form-field-container">
+  <mat-form-field floatLabel="always">
+    <mat-label>{{ question.label }}</mat-label>
+    <input type="password" [formControl]="formControl" matInput maxlength="{{ question.size }}">
+  </mat-form-field>
+  <p class="character-count"
+    [ngClass]="formControl.value.length === question.size ? 'character-count-max' : 'character-count-min'">{{
+    formControl.value.length }}/{{ question.size }}</p>
+</div>
+
 <div *ngIf="question.type === 'textarea'">
   <mat-form-field floatLabel="always">
     <mat-label>{{ question.label }}</mat-label>
@@ -57,8 +67,7 @@
     <mat-label>{{ question.label }}</mat-label>
 
     <div class="dropzone-content" *ngIf="!file">
-      <input type="file" #fileInput id="file-input" (change)="onFileSelected($event)"
-        accept=".yml,.yaml" />
+      <input type="file" #fileInput id="file-input" (change)="onFileSelected($event)" accept=".yml,.yaml" />
       <img src="assets/upload-file.svg" alt="Upload Icon">
       <h3 class="file-text">Drag and drop file here</h3>
       <h3 class="file-text">or</h3>

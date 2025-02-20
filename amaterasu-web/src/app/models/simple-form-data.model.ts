@@ -90,6 +90,10 @@ export class TextQuestion extends QuestionBase {
   override type: string = 'text';
 }
 
+export class PasswordQuestion extends QuestionBase {
+  override type: string = 'password';
+}
+
 export class TextAreaQuestion extends QuestionBase {
   override type: string = 'textarea';
   override size: number = 350;
