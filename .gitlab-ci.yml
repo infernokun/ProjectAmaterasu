@@ -42,7 +42,10 @@ deploy:
     - docker:dind
   before_script:
     - apt-get update -y
-    - apt-get install -y curl
+    - apt-get install -y curl docker.io
+    - usermod -aG docker $USER
+    - newgrp docker
+    - service docker start
     - curl -LO "https://dl.k8s.io/release/v1.32.2/bin/linux/amd64/kubectl"
     - chmod +x kubectl
     - mv kubectl /usr/local/bin/
