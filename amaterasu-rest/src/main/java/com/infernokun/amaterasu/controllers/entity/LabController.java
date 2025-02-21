@@ -7,7 +7,9 @@ import com.infernokun.amaterasu.models.LabRequest;
 import com.infernokun.amaterasu.models.dto.LabDTO;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
+import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.services.entity.LabService;
+import com.infernokun.amaterasu.services.entity.RemoteServerService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,9 +22,11 @@ import java.util.Optional;
 @RequestMapping("/api/labs")
 public class LabController extends BaseController {
     private final LabService labService;
+    private final RemoteServerService remoteServerService;
 
-    public LabController(LabService labService) {
+    public LabController(LabService labService, RemoteServerService remoteServerService) {
         this.labService = labService;
+        this.remoteServerService = remoteServerService;
     }
 
     @GetMapping
@@ -58,9 +62,10 @@ public class LabController extends BaseController {
         );
     }*/
 
-    @GetMapping("/check/{labId}")
-    public ResponseEntity<ApiResponse<Boolean>> checkLabReadiness(@PathVariable String labId) {
-        boolean isLabReady = labService.checkDockerComposeValidity(labId);
+    @GetMapping("/check/{labId}/{remoteServerId}")
+    public ResponseEntity<ApiResponse<Boolean>> checkLabReadiness(@PathVariable String labId, @PathVariable String remoteServerId) {
+        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
+        boolean isLabReady = labService.checkDockerComposeValidity(labId, remoteServer);
 
         return ResponseEntity.ok(
                 ApiResponse.<Boolean>builder()
@@ -72,8 +77,9 @@ public class LabController extends BaseController {
     }
 
     @GetMapping("/settings/{labId}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getLabFile(@PathVariable String labId) {
-        Map<String, Object> response = labService.getLabFile(labId);
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getLabFile(@PathVariable String labId, @PathVariable String remoteServerId) {
+        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
+        Map<String, Object> response = labService.getLabFile(labId, remoteServer);
 
         return ResponseEntity.ok(
                 ApiResponse.<Map<String, Object>>builder()
@@ -84,11 +90,12 @@ public class LabController extends BaseController {
         );
     }
 
-    @PostMapping
-    public ResponseEntity<ApiResponse<Lab>> createLab(@RequestBody LabDTO labDTO) {
+    @PostMapping("{remoteServerId}")
+    public ResponseEntity<ApiResponse<Lab>> createLab( @PathVariable String remoteServerId, @RequestBody LabDTO labDTO) {
         if (labDTO == null) throw new RuntimeException("labDTO is null");
+        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
 
-        Lab createdLab = labService.createLab(labDTO);
+        Lab createdLab = labService.createLab(labDTO, remoteServer);
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse.<Lab>builder()
                         .code(HttpStatus.CREATED.value())
@@ -154,9 +161,10 @@ public class LabController extends BaseController {
         }
     }
 
-    @PostMapping("/upload/{labId}")
-    public ResponseEntity<ApiResponse<String>> uploadLabFile(@PathVariable String labId, @RequestBody String content) {
-        String response = labService.uploadLabFile(labId, content);
+    @PostMapping("/upload/{labId}/{remoteServerId}")
+    public ResponseEntity<ApiResponse<String>> uploadLabFile(@PathVariable String labId, @PathVariable String remoteServerId, @RequestBody String content) {
+        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
+        String response = labService.uploadLabFile(labId, content, remoteServer);
 
         return ResponseEntity.ok(
                 ApiResponse.<String>builder()
@@ -167,10 +175,11 @@ public class LabController extends BaseController {
         );
     }
 
-    @PostMapping("/start")
-    public ResponseEntity<ApiResponse<LabActionResult>> startLab(@RequestBody LabRequest labRequest) {
+    @PostMapping("/start/{remoteServerId}")
+    public ResponseEntity<ApiResponse<LabActionResult>> startLab(@PathVariable String remoteServerId, @RequestBody LabRequest labRequest) {
+        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
         Optional<LabActionResult> startedLabOptional =
-                labService.startLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
+                labService.startLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
 
         return ResponseEntity.status(startedLabOptional.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.<LabActionResult>builder()
@@ -180,10 +189,12 @@ public class LabController extends BaseController {
                         .build());
     }
 
-    @PostMapping("/stop")
-    public ResponseEntity<ApiResponse<LabActionResult>> stopLab(@RequestBody LabRequest labRequest) {
+    @PostMapping("/stop/{remoteServerId}")
+    public ResponseEntity<ApiResponse<LabActionResult>> stopLab(@PathVariable String remoteServerId, @RequestBody LabRequest labRequest) {
+        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
+
         Optional<LabActionResult> stoppedLabOptional =
-                labService.stopLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
+                labService.stopLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
         return ResponseEntity.status(stoppedLabOptional.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.<LabActionResult>builder()
                         .code(stoppedLabOptional.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())

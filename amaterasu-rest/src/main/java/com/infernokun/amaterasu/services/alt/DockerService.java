@@ -15,6 +15,7 @@ import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
+import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.services.BaseService;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
@@ -26,12 +27,15 @@ import java.util.*;
 
 @Service
 public class DockerService extends BaseService {
+    private final RemoteCommandService remoteCommandService;
+    private final AmaterasuConfig amaterasuConfig;
+
     private DockerClientConfig dockerClientConfig;
     private DockerClient dockerClient;
-    private final RemoteCommandService remoteCommandService;
 
-    public DockerService(RemoteCommandService remoteCommandService) {
+    public DockerService(RemoteCommandService remoteCommandService, AmaterasuConfig amaterasuConfig) {
         this.remoteCommandService = remoteCommandService;
+        this.amaterasuConfig = amaterasuConfig;
     }
 
     public void startDockerContainer(String imageName, String host) throws URISyntaxException {
@@ -68,20 +72,20 @@ public class DockerService extends BaseService {
         dockerClient.stopContainerCmd(containerId).exec();
     }
 
-    public LabActionResult startDockerCompose(Lab lab, LabTracker labTracker, AmaterasuConfig amaterasuConfig) {
+    public LabActionResult startDockerCompose(Lab lab, LabTracker labTracker, RemoteServer dockerServer) {
         String catOriginalDockerComposeCmd = String.format("cat %s/%s/%s", amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile());
-        RemoteCommandResponse catOriginalDockerComposeOutput = remoteCommandService.handleRemoteCommand(catOriginalDockerComposeCmd, amaterasuConfig);
+        RemoteCommandResponse catOriginalDockerComposeOutput = remoteCommandService.handleRemoteCommand(catOriginalDockerComposeCmd, dockerServer);
 
         String composeYAML = catOriginalDockerComposeOutput.getBoth();
-        String modifiedYAML = modifyDockerComposeYAML(composeYAML, labTracker.getId(), amaterasuConfig);
+        String modifiedYAML = modifyDockerComposeYAML(composeYAML, labTracker.getId());
 
         String createLabTrackerBasedFileCmd = String.format("DIR=%s/tracker-compose && mkdir -p $DIR && echo \"%s\" > $DIR/%s",
                 amaterasuConfig.getUploadDir(), modifiedYAML, labTracker.getId() + "_" + lab.getDockerFile());
-        RemoteCommandResponse createLabTrackerBasedFileOutput = remoteCommandService.handleRemoteCommand(createLabTrackerBasedFileCmd, amaterasuConfig);
+        RemoteCommandResponse createLabTrackerBasedFileOutput = remoteCommandService.handleRemoteCommand(createLabTrackerBasedFileCmd, dockerServer);
 
         String startTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s up -d ",
                 amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + lab.getDockerFile());
-        RemoteCommandResponse startTrackerComposeOutput = remoteCommandService.handleRemoteCommand(startTrackerComposeCmd, amaterasuConfig);
+        RemoteCommandResponse startTrackerComposeOutput = remoteCommandService.handleRemoteCommand(startTrackerComposeCmd, dockerServer);
 
         //String checkTrackerProcessCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s ps -a",
         //       amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + lab.getDockerFile());
@@ -89,7 +93,7 @@ public class DockerService extends BaseService {
 
         String checkTrackerProcessCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s ps -q | xargs docker inspect",
                 amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + lab.getDockerFile());
-        RemoteCommandResponse checkTrackerProcessOutput = remoteCommandService.handleRemoteCommand(checkTrackerProcessCmd, amaterasuConfig);
+        RemoteCommandResponse checkTrackerProcessOutput = remoteCommandService.handleRemoteCommand(checkTrackerProcessCmd, dockerServer);
 
         labTracker.setServices(parseDockerInspectOutput(checkTrackerProcessOutput.getBoth().trim()));
 
@@ -100,11 +104,11 @@ public class DockerService extends BaseService {
                 .build();
     }
 
-    public LabActionResult stopDockerCompose(Lab lab, LabTracker labTracker, AmaterasuConfig amaterasuConfig) {
+    public LabActionResult stopDockerCompose(Lab lab, LabTracker labTracker, RemoteServer dockerServer) {
 
         String stopTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s down",
                 amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + lab.getDockerFile());
-        RemoteCommandResponse stopTrackerComposeOutput = remoteCommandService.handleRemoteCommand(stopTrackerComposeCmd, amaterasuConfig);
+        RemoteCommandResponse stopTrackerComposeOutput = remoteCommandService.handleRemoteCommand(stopTrackerComposeCmd, dockerServer);
 
         return LabActionResult.builder()
                 .labTracker(labTracker)
@@ -113,7 +117,7 @@ public class DockerService extends BaseService {
                 .build();
     }
 
-    public static String modifyDockerComposeYAML(String yaml, String labTrackerId, AmaterasuConfig amaterasuConfig) {
+    public String modifyDockerComposeYAML(String yaml, String labTrackerId) {
         Yaml yamlParser = new Yaml();
         Map<String, Object> data = yamlParser.load(yaml);
 
@@ -124,7 +128,7 @@ public class DockerService extends BaseService {
                 if (serviceMap != null) {
                     if (serviceMap.containsKey("volumes")) {
                         List<String> volumes = (List<String>) serviceMap.get("volumes");
-                        volumes.replaceAll(originalVolume -> modifyVolume(originalVolume, labTrackerId, serviceName, amaterasuConfig));
+                        volumes.replaceAll(originalVolume -> modifyVolume(originalVolume, labTrackerId, serviceName));
                     }
 
                     serviceMap.remove("ports");
@@ -147,15 +151,15 @@ public class DockerService extends BaseService {
         return new Yaml().dump(data);
     }
 
-    private static Map<String, Object> getMap(Object obj) {
+    private Map<String, Object> getMap(Object obj) {
         return (obj instanceof Map) ? (Map<String, Object>) obj : null;
     }
 
-    private static Map<String, Object> getMap(Map<String, Object> parent, String key) {
+    private Map<String, Object> getMap(Map<String, Object> parent, String key) {
         return (parent != null && parent.get(key) instanceof Map) ? (Map<String, Object>) parent.get(key) : null;
     }
 
-    public static String modifyVolume(String originalVolume, String labTrackerId, String serviceName, AmaterasuConfig amaterasuConfig) {
+    public String modifyVolume(String originalVolume, String labTrackerId, String serviceName) {
         String[] parts = originalVolume.split(":");
         String sourcePath = parts[0];
         String modifiedVolumePath;
@@ -180,7 +184,7 @@ public class DockerService extends BaseService {
         return modifiedVolumePath;
     }
 
-    public static List<DockerServiceInfo> parseDockerInspectOutput(String jsonOutput) {
+    public List<DockerServiceInfo> parseDockerInspectOutput(String jsonOutput) {
         List<DockerServiceInfo> containerInfos = new ArrayList<>();
         ObjectMapper objectMapper = new ObjectMapper();
 

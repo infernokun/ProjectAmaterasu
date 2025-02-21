@@ -4,6 +4,7 @@ import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.FileUploadException;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.entities.Lab;
+import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.services.BaseService;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
@@ -11,13 +12,15 @@ import org.yaml.snakeyaml.Yaml;
 @Service
 public class LabFileUploadService extends BaseService {
     private final RemoteCommandService remoteCommandService;
+    private final AmaterasuConfig amaterasuConfig;
     private final Yaml yaml = new Yaml();
 
-    public LabFileUploadService(RemoteCommandService remoteCommandService) {
+    public LabFileUploadService(RemoteCommandService remoteCommandService, AmaterasuConfig amaterasuConfig) {
         this.remoteCommandService = remoteCommandService;
+        this.amaterasuConfig = amaterasuConfig;
     }
 
-    public String uploadDockerComposeFile(Lab lab, AmaterasuConfig amaterasuConfig, String content) {
+    public String uploadDockerComposeFile(Lab lab, String content, RemoteServer remoteServer) {
         try {
             Object parsedYaml = yaml.load(content);
 
@@ -38,7 +41,7 @@ public class LabFileUploadService extends BaseService {
                 lab.getDockerFile()
         );
         RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(command,
-                amaterasuConfig);
+                remoteServer);
 
         String response = remoteCommandResponse.getBoth();
 

@@ -5,6 +5,7 @@ import com.infernokun.amaterasu.exceptions.LabReadinessException;
 import com.infernokun.amaterasu.exceptions.RemoteCommandException;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.entities.Lab;
+import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.services.BaseService;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
@@ -15,17 +16,19 @@ import java.util.Map;
 @Service
 public class LabReadinessService extends BaseService {
     private final RemoteCommandService remoteCommandService;
+    private final AmaterasuConfig amaterasuConfig;
 
-    public LabReadinessService(RemoteCommandService remoteCommandService) {
+    public LabReadinessService(RemoteCommandService remoteCommandService, AmaterasuConfig amaterasuConfig) {
         this.remoteCommandService = remoteCommandService;
+        this.amaterasuConfig = amaterasuConfig;
     }
 
-    public boolean checkDockerComposeReadiness(Lab lab, AmaterasuConfig amaterasuConfig) {
+    public boolean checkDockerComposeReadiness(Lab lab, RemoteServer dockerServer) {
         try {
             String cmd = String.format("DIR=%s/%s && cd $DIR && docker-compose -f %s config",
                     amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile());
 
-            RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(cmd, amaterasuConfig);
+            RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(cmd, dockerServer);
 
             String response = remoteCommandResponse.getBoth();
 
@@ -36,12 +39,12 @@ public class LabReadinessService extends BaseService {
         }
     }
 
-    public Map<String, Object> getDockerComposeFile(Lab lab, AmaterasuConfig amaterasuConfig) {
+    public Map<String, Object> getDockerComposeFile(Lab lab, RemoteServer dockerServer) {
         try {
             String cmd = String.format("DIR=%s/%s && cd $DIR && cat %s",
                     amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile());
 
-            RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(cmd, amaterasuConfig);
+            RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(cmd, dockerServer);
             String yamlContent = remoteCommandResponse.getBoth();
 
             Yaml yaml = new Yaml();

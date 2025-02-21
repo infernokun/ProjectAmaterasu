@@ -4,6 +4,7 @@ import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
+import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.services.BaseService;
 import org.springframework.stereotype.Service;
 
@@ -15,13 +16,13 @@ public class LabActionService extends BaseService {
         this.dockerService = dockerService;
     }
 
-    public LabActionResult startLab(Lab lab, LabTracker labTracker, AmaterasuConfig amaterasuConfig) {
+    public LabActionResult startLab(Lab lab, LabTracker labTracker, RemoteServer remoteServer) {
         switch (lab.getLabType()) {
             case DOCKER_CONTAINER ->  {
                 return new LabActionResult();
             }
             case DOCKER_COMPOSE -> {
-                return dockerService.startDockerCompose(lab, labTracker, amaterasuConfig);
+                return dockerService.startDockerCompose(lab, labTracker, remoteServer);
             }
             case VIRTUAL_MACHINE -> {
                 String type = "vm";
@@ -42,13 +43,13 @@ public class LabActionService extends BaseService {
         }
     }
 
-    public LabActionResult stopLab(Lab lab, LabTracker labTracker,  AmaterasuConfig amaterasuConfig) {
+    public LabActionResult stopLab(Lab lab, LabTracker labTracker, RemoteServer remoteServer) {
         switch (lab.getLabType()) {
             case DOCKER_CONTAINER ->  {
                 return new LabActionResult();
             }
             case DOCKER_COMPOSE -> {
-                return dockerService.stopDockerCompose(lab, labTracker, amaterasuConfig);
+                return dockerService.stopDockerCompose(lab, labTracker, remoteServer);
             }
             case VIRTUAL_MACHINE -> {
                 String type = "vm";

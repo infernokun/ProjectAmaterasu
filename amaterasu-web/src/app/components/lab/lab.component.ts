@@ -17,6 +17,7 @@ import { EditDialogService } from '../../services/edit-dialog.service';
 import { LabDTO } from '../../models/dto/lab.dto.model';
 
 import * as yaml from 'js-yaml';
+import { LabType } from '../../enums/lab-type.enum';
 
 @Component({
   selector: 'app-lab',
@@ -46,6 +47,8 @@ export class LabComponent implements OnInit {
   isHovered = false;
   busy = false;
   dockerComposeData: any;
+
+  LabType = LabType;
 
   constructor(
     private labService: LabService, private userService: UserService,

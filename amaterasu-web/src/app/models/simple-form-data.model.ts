@@ -44,6 +44,8 @@ export class QuestionBase {
   dependentQuestions: Map<string, QuestionBase> | undefined; //key is the show val
   size: number = 50;
   action?: Function;
+  neededEnum?: { key: string, value: string };
+  isHiddenByDefault?: boolean;
 
   constructor(
     options: {
@@ -58,7 +60,8 @@ export class QuestionBase {
       options?: { key: string; value: string }[];
       dependentQuestions?: Map<string, QuestionBase>;
       action?: Function;
-    } = {}
+      neededEnum?: { key: string, value: string };
+    } = {}, isHiddenByDefault: boolean = false
   ) {
     this.cb = options.cb ?? ((k: any, v: any) => { });
     this.dependentQuestions = options.dependentQuestions;
@@ -71,6 +74,8 @@ export class QuestionBase {
     this.type = options.type || '';
     this.options = options.options || [];
     this.action = options.action ?? ((...argsv: any[]) => { });
+    this.neededEnum = options.neededEnum;
+    this.isHiddenByDefault = isHiddenByDefault;
   }
 }
 

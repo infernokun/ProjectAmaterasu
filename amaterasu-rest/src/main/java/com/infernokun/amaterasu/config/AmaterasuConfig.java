@@ -22,4 +22,6 @@ public class AmaterasuConfig {
     private String chatService;
     private String chatSocket;
     private String apiKey;
+    private String proxmoxAPIToken;
+    private String encryptionKey;
 }

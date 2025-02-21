@@ -63,6 +63,8 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit {
   // }
 
   hideUploadBox(event: boolean) {
+    if (!this.questionComponents) return;
+
     console.log('huh', event)
 
     this.questionComponents!.forEach((q) => {
@@ -105,5 +107,21 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit {
     // console.log(val);
     // console.log(this.data);
     this.data.result.set(input, val);
+  }
+
+  checkboxSelectionChanged(event: any) {
+    this.questionComponents?.forEach((questionComponent: DialogQuestionComponent) => {
+      if (!questionComponent.question.neededEnum) return;
+
+      if (questionComponent.question.neededEnum.key === event.key) {
+        switch (event.value) {
+          case questionComponent.question.neededEnum.value:
+            questionComponent.isHidden = !questionComponent.isHidden;
+            break;
+          default:
+            questionComponent.isHidden = true;
+        }
+      }
+    })
   }
 }

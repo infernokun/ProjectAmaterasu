@@ -11,6 +11,7 @@ import { FormControl, Validators } from '@angular/forms';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { QuestionBase } from '../../../models/simple-form-data.model';
 import { LabType } from '../../../enums/lab-type.enum';
+import { MatRadioChange } from '@angular/material/radio';
 
 @Component({
   selector: 'app-dialog-question',
@@ -25,7 +26,8 @@ export class DialogQuestionComponent implements OnInit {
 
   formControl: FormControl = new FormControl('');
   @Output() labType = new EventEmitter<boolean>();
-  showUploadBox: boolean = false;
+  @Output() checkboxSelectionChanged = new EventEmitter<{ key: string, value: any }>();
+  isHidden: boolean = false;
 
   required: string[] = [
     'title',
@@ -72,28 +74,25 @@ export class DialogQuestionComponent implements OnInit {
     if (this.question.type === 'number') {
       this.formControl.addValidators(Validators.pattern(/^[0-9]*$/));
     }
+
+    if (this.question.type === 'checkbox') {
+      this.formControl.setValue(this.question.options[0].value);
+    }
+
+    this.isHidden = this.question.isHiddenByDefault!;
+    console.log(this.isHidden)
+  }
+  handleAction(event: Event, value?: string): void {
   }
 
-  handleAction(): void {
-    switch (this.question.key) {
-      case 'test':
-        const config = new MatDialogConfig();
-        config.autoFocus = false;
-        config.minWidth = '50vw';
-        config.minHeight = '10vw';
-        config.data = {
-          title: 'test',
-        };
-        if (this.question.action) {
-          // Call the action if defined
-          this.question.action();
-        }
-        break;
-    }
+  handleMatRadioSelect(event: MatRadioChange, value?: string): void {
+    if (!value) return;
+    this.formControl.setValue(event.value);
+    this.checkboxSelectionChanged.emit({ key: this.question.key, value: this.formControl.value });
   }
 
   setUploadBoxVisibility(isVisible: boolean) {
-    this.showUploadBox = isVisible;
+    this.isHidden = isVisible;
     console.log(this.question)
   }
 
@@ -133,5 +132,14 @@ export class DialogQuestionComponent implements OnInit {
   validateYaml() {
     // Your validation logic here
     console.log('Validating YAML file:', this.file);
+  }
+
+  isQuestionVisible(question: QuestionBase): boolean {
+    if (!question.neededEnum) {
+      return true; // No condition, always show
+    }
+
+    const relatedControl = this.formControl.get(question.neededEnum.key)!;
+    return relatedControl && relatedControl.value === question.neededEnum.value;
   }
 }

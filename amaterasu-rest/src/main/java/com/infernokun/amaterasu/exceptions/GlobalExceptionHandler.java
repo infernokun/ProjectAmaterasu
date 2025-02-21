@@ -71,12 +71,23 @@ public class GlobalExceptionHandler {
                 .build();
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }
+
     @ExceptionHandler(TokenException.class)
     public ResponseEntity<ApiResponse<Boolean>> handleTokenException(TokenException ex) {
         ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
                 .code(HttpStatus.BAD_REQUEST.value())
                 .message("Token operation failed: " + ex.getMessage())
                 .data(false)
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(CryptoException.class)
+    public ResponseEntity<ApiResponse<Boolean>> handleTokenException(CryptoException ex) {
+        ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
+                .code(HttpStatus.BAD_REQUEST.value())
+                .message("Crypto issue: " + ex.getMessage())
+                .data(null)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }

@@ -76,7 +76,7 @@ public class LabService extends BaseService {
         return labRepository.save(lab);
     }
 
-    public Lab createLab(LabDTO labDTO) {
+    public Lab createLab(LabDTO labDTO, RemoteServer remoteServer) {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
 
         Lab newLab = null;
@@ -95,7 +95,7 @@ public class LabService extends BaseService {
                         .capacity(labDTO.getCapacity())
                         .build();
                 Lab savedLab = labRepository.save(newLab);
-                uploadLabFile(savedLab.getId(), labDTO.getDockerFile());
+                uploadLabFile(savedLab.getId(), labDTO.getDockerFile(), remoteServer);
 
                 LabFileChangeLog labFileChangeLog = new LabFileChangeLog(savedLab, false);
                 labFileChangeLog.setUpdatedAt(LocalDateTime.now().minusYears(10));
@@ -150,12 +150,12 @@ public class LabService extends BaseService {
         return null;
     }
 
-    public String uploadLabFile(String labId, String content) {
+    public String uploadLabFile(String labId, String content, RemoteServer remoteServer) {
         Lab lab = findLabById(labId);
 
         switch (lab.getLabType()) {
             case DOCKER_COMPOSE -> {
-                return labFileUploadService.uploadDockerComposeFile(lab, amaterasuConfig, content);
+                return labFileUploadService.uploadDockerComposeFile(lab, content, remoteServer);
             }
             case DOCKER_CONTAINER -> {
                 throw new FileUploadException("coming one day...");
@@ -164,7 +164,7 @@ public class LabService extends BaseService {
         }
     }
 
-    public Optional<LabActionResult> startLab(String labId, String userId, String labTrackerId) {
+    public Optional<LabActionResult> startLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
         LOGGER.info("lab id {} user id {}, lab tracker id {}", labId, userId, labTrackerId);
 
         Lab lab = this.findLabById(labId);
@@ -185,7 +185,7 @@ public class LabService extends BaseService {
             labTracker = labTrackerService.createLabTracker(labTracker);
         }
 
-        LabActionResult labActionResult = labActionService.startLab(lab, labTracker, amaterasuConfig);
+        LabActionResult labActionResult = labActionService.startLab(lab, labTracker, remoteServer);
 
         labTracker.setUpdatedAt(LocalDateTime.now());
         labTracker.setUpdatedBy(user.getId());
@@ -199,7 +199,7 @@ public class LabService extends BaseService {
         return Optional.of(labActionResult);
     }
 
-    public Optional<LabActionResult> stopLab(String labId, String userId, String labTrackerId) {
+    public Optional<LabActionResult> stopLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
         LOGGER.info("Stopping lab with id {} by user id {} and lab tracker id {}", labId, userId, labTrackerId);
 
         Lab lab = this.findLabById(labId);
@@ -212,7 +212,7 @@ public class LabService extends BaseService {
         Optional<LabTracker> existingLabTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
         if (existingLabTrackerOptional.isPresent()) {
             LabTracker existingLabTracker = existingLabTrackerOptional.get();
-            LabActionResult labActionResult = labActionService.stopLab(lab, existingLabTracker, amaterasuConfig);
+            LabActionResult labActionResult = labActionService.stopLab(lab, existingLabTracker, remoteServer);
 
             existingLabTracker.setUpdatedAt(LocalDateTime.now());
             existingLabTracker.setUpdatedBy(user.getId());
@@ -273,12 +273,12 @@ public class LabService extends BaseService {
         return Optional.empty();
     }
 
-    public boolean checkDockerComposeValidity(String labId) {
+    public boolean checkDockerComposeValidity(String labId, RemoteServer remoteServer) {
         Lab lab = findLabById(labId);
 
         switch (lab.getLabType()) {
             case DOCKER_COMPOSE -> {
-                return labReadinessService.checkDockerComposeReadiness(lab, amaterasuConfig);
+                return labReadinessService.checkDockerComposeReadiness(lab, remoteServer);
             }
             case DOCKER_CONTAINER -> {
                 throw new LabReadinessException("coming one day...");
@@ -287,12 +287,12 @@ public class LabService extends BaseService {
         }
     }
 
-    public Map<String, Object> getLabFile(String labId) {
+    public Map<String, Object> getLabFile(String labId, RemoteServer remoteServer) {
         Lab lab = findLabById(labId);
 
         switch (lab.getLabType()) {
             case DOCKER_COMPOSE -> {
-                return labReadinessService.getDockerComposeFile(lab, amaterasuConfig);
+                return labReadinessService.getDockerComposeFile(lab, remoteServer);
             }
             case DOCKER_CONTAINER -> {
                 throw new LabReadinessException("coming one day...");

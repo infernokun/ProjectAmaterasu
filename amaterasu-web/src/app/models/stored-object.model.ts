@@ -10,8 +10,8 @@ export class StoredObject {
       this.id = serverResult.id;
       this.createdBy = serverResult.createdBy;
       this.updatedBy = serverResult.updatedBy;
-      this.createdAt = new Date(serverResult.createdAt);
-      this.updatedAt = new Date(serverResult.updatedAt);
+      this.createdAt = serverResult.createdAt ? new Date(serverResult.createdAt) : undefined;
+      this.updatedAt = serverResult.updatedAt ? new Date(serverResult.updatedAt) : undefined;
     }
   }
 }

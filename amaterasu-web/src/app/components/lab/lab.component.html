@@ -11,7 +11,8 @@
         <span class="lab-id" *ngIf="isHovered">{{ lab.id }}</span>
       </h2>
       <span class="lab-status" [class.active]="lab.status === 'ACTIVE'" [class.inactive]="lab.status !== 'ACTIVE'">
-        <a [routerLink]="['/lab/settings', formatLabName(lab.name!)]" [queryParams]="{ id: getLabTracker(lab.id)?.id }">{{ lab.status}}</a>
+        <a [routerLink]="['/lab/settings', formatLabName(lab.name!)]"
+          [queryParams]="{ id: getLabTracker(lab.id)?.id }">{{ lab.status}}</a>
       </span>
     </div>
     <div class="lab-body">
@@ -29,7 +30,7 @@
       </ul>
 
       <!-- YAML Upload Box -->
-      <div class="upload-box" *ngIf="lab.labType === 'DOCKER_COMPOSE'">
+      <div class="upload-box" *ngIf="lab.labType === LabType.DOCKER_COMPOSE">
         <label for="dockerComposeUpload">Upload Docker Compose YAML File:</label>
         <input type="file" id="dockerComposeUpload" accept=".yml,.yaml"
           (change)="dockerComposeUpload($event, lab.id!)" />
@@ -63,7 +64,7 @@
 
           <!-- Settings Button (for Docker Compose type labs) -->
           <button mat-button class="button start" (click)="getSettings(lab.id, loggedInUser)"
-            *ngIf="!isLabLoading(lab.id) && lab.labType === 'DOCKER_COMPOSE'">
+            *ngIf="!isLabLoading(lab.id) && lab.labType === LabType.DOCKER_COMPOSE">
             Settings
           </button>
 

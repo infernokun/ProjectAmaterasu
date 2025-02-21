@@ -41,11 +41,10 @@ export class RemoteServerComponent implements OnInit {
   }
 
   addRemoteServer(): void {
-
     const remoteServerFormData = new RemoteServerFormData();
 
     this.editDialogService.openDialog<RemoteServer>(remoteServerFormData, (remoteServer: RemoteServer) => {
-      remoteServer = new RemoteServer(remoteServer);
+      //remoteServer = new RemoteServer(remoteServer);
 
       remoteServer.createdBy = this.authService.userSubject.value?.username;
 
@@ -53,9 +52,13 @@ export class RemoteServerComponent implements OnInit {
       console.log('remoteServer', remoteServer);
 
       this.remoteServerService.addServer(remoteServer).subscribe((response: ApiResponse<RemoteServer>) => {
+        if (!response.data) return;
+
         this.remoteServers.push(response.data);
         this.selectedServer = response.data;
       });
+    }).subscribe((res: any) => {
+
     });
   }
 }

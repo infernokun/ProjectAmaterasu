@@ -8,11 +8,9 @@ import lombok.ToString;
 @Getter
 @ToString
 @AllArgsConstructor
-public enum Role {
-    DEVELOPER("DEVELOPER"),
-    ADMIN("ADMIN"),
-    TEAM_ADMIN("TEAM_ADMIN"),
-    MEMBER("MEMBER");
+public enum ServerType {
+    DOCKER_HOST("DOCKER_HOST"),
+    PROXMOX("PROXMOX");
 
     private final String value;
 

@@ -34,18 +34,13 @@ public class RemoteServerController extends BaseController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<RemoteServer>> getRemoteServerById(@PathVariable String id) {
-        Optional<RemoteServer> remoteServerOptional = remoteServerService.getServerById(id);
-        return remoteServerOptional.map(remoteServer -> ResponseEntity.ok(
+        RemoteServer remoteServer = remoteServerService.getServerById(id);
+        return ResponseEntity.ok(
                 ApiResponse.<RemoteServer>builder()
                         .code(HttpStatus.OK.value())
                         .data(remoteServer)
                         .build()
-        )).orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.<RemoteServer>builder()
-                        .code(HttpStatus.NOT_FOUND.value())
-                        .message("Remote server not found.")
-                        .data(null)
-                        .build()));
+        );
     }
 
     @PostMapping
