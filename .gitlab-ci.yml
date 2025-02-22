@@ -40,7 +40,6 @@ deploy:
   image: ubuntu:latest
   services:
     - docker:dind
-  before_script:
 before_script:
     - apt-get update -y
     - apt-get install -y curl docker.io
