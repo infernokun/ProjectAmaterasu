@@ -41,9 +41,11 @@ deploy:
   services:
     - docker:dind
   before_script:
+before_script:
     - apt-get update -y
     - apt-get install -y curl docker.io
-    - service docker start
+    - systemctl enable docker
+    - systemctl start docker
     - curl -LO "https://dl.k8s.io/release/v1.32.2/bin/linux/amd64/kubectl"
     - chmod +x kubectl
     - mv kubectl /usr/local/bin/
