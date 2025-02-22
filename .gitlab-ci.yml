@@ -37,14 +37,11 @@ build-web:
 
 deploy:
   stage: deploy
-  image: ubuntu:latest
+  image: docker:24.0.7
   services:
     - docker:dind
   before_script:
-    - apt-get update -y
-    - apt-get install -y curl docker.io
-    - systemctl enable docker
-    - systemctl start docker
+    - apk add --no-cache bash curl
     - curl -LO "https://dl.k8s.io/release/v1.32.2/bin/linux/amd64/kubectl"
     - chmod +x kubectl
     - mv kubectl /usr/local/bin/
