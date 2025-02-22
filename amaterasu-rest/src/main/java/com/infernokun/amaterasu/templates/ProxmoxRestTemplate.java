@@ -53,7 +53,7 @@ public class ProxmoxRestTemplate {
         return List.of();
     }
 
-    public List<ProxmoxVM> getTemplates() {
+    public List<ProxmoxVM> getVMTemplates() {
         return getVMs().stream()
                 .filter(ProxmoxVM::isTemplate)
                 .collect(Collectors.toList());

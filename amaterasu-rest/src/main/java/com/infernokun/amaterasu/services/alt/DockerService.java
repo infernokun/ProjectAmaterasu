@@ -150,7 +150,6 @@ public class DockerService extends BaseService {
 
         return new Yaml().dump(data);
     }
-
     private Map<String, Object> getMap(Object obj) {
         return (obj instanceof Map) ? (Map<String, Object>) obj : null;
     }

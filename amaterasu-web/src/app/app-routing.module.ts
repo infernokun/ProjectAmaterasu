@@ -10,8 +10,10 @@ import { AppInitComponent } from './components/app-init/app-init.component';
 import { UsersComponent } from './components/users/users.component';
 import { AppInitGuard } from './guards/app-init.guard';
 import { TeamsComponent } from './components/teams/teams.component';
+import { VMLabBuilderComponent } from './components/vm-lab-builder/vm-lab-builder.component';
 
 const routes: Routes = [
+  { path: 'vm-lab-builder', component: VMLabBuilderComponent, canActivate: [AppInitGuard] },
   { path: 'teams', component: TeamsComponent, canActivate: [AppInitGuard] },
   { path: 'users', component: UsersComponent, canActivate: [AppInitGuard] },
   { path: 'lab/settings/:name', component: LabSettingsComponent, canActivate: [AppInitGuard] },

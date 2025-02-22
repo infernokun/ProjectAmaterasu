@@ -6,7 +6,7 @@
   <div class="questions-container"
     *skeleton="!data || !data.questions || !(data.questions.length > 0); height: '100px'">
     <div *ngFor="let q of data.questions; let i = index" class="question-row">
-      <app-dialog-question [question]="q" (labType)="hideUploadBox($event)"
+      <app-dialog-question [question]="q"
         (checkboxSelectionChanged)="checkboxSelectionChanged($event)"></app-dialog-question>
     </div>
   </div>

@@ -1,6 +1,6 @@
 import { StoredObject } from './stored-object.model';
 import { RemoteServerStats } from './remote-server-stats.model';
-import { CheckboxQuestion, PasswordQuestion, SimpleFormData, TextQuestion } from './simple-form-data.model';
+import { RadioQuestion, PasswordQuestion, SimpleFormData, TextQuestion } from './simple-form-data.model';
 import { ServerType } from '../enums/server-type.enum';
 
 export class RemoteServer extends StoredObject {
@@ -30,7 +30,7 @@ export class RemoteServerFormData extends SimpleFormData {
     ]);
 
     this.questions.push(
-      new CheckboxQuestion({
+      new RadioQuestion({
         label: 'Server Type',
         key: 'serverType',
         options: Object.values(ServerType).map(value => ({ key: value, value }))

@@ -53,7 +53,7 @@
   </mat-form-field>
 </div>
 
-<div *ngIf="question.type === 'checkbox' && !isHidden" class="row width-100-percent">
+<div *ngIf="question.type === 'radio' && !isHidden" class="row width-100-percent">
   <mat-label>{{ question.label }}</mat-label>
   <mat-radio-group [formControl]="formControl">
     <mat-radio-button *ngFor="let option of question.options" [value]="option.value"
@@ -63,7 +63,16 @@
   </mat-radio-group>
 </div>
 
-<div *ngIf="question.type === 'uploadbox' && isHidden" class="row width-100-percent">
+<div *ngIf="question.type === 'checkbox' && !isHidden" class="row width-100-percent">
+  <mat-label>{{ question.label }}</mat-label>
+  <div *ngFor="let option of question.options2">
+    <mat-checkbox [checked]="formControl.value.includes(option.key)" (change)="checkboxChange($event, option.key)">
+      {{ option.value }}
+    </mat-checkbox>
+  </div>
+</div>
+
+<div *ngIf="question.type === 'uploadbox' && !isHidden" class="row width-100-percent">
   <div class="dropzone" appDragDrop (fileDropped)="onFileDropped($event)">
     <mat-label>{{ question.label }}</mat-label>
 

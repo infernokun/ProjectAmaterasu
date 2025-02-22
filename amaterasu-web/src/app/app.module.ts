@@ -32,6 +32,7 @@ import { UsersComponent } from './components/users/users.component';
 import { EnumToStringPipe } from './pipes/enum-to-string.pipe';
 import { AppInitService } from './services/app-init.service';
 import { TeamsComponent } from './components/teams/teams.component';
+import { VMLabBuilderComponent } from './components/vm-lab-builder/vm-lab-builder.component';
 
 export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
   return () => {
@@ -65,7 +66,8 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     RegisterComponent,
     UsersComponent,
     EnumToStringPipe,
-    TeamsComponent
+    TeamsComponent,
+    VMLabBuilderComponent
   ],
   imports: [
     BrowserModule,
