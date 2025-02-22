@@ -11,6 +11,7 @@ import { MessageService } from '../../../services/message.service';
 import { SimpleFormData } from '../../../models/simple-form-data.model';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { DialogQuestionComponent } from '../dialog-question/dialog-question.component';
+import { RemoteServer } from '../../../models/remote-server.model';
 
 @Component({
   selector: 'app-add-dialog-form',
@@ -53,6 +54,16 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit {
           questionComponent.question.key,
           questionComponent.formControl
         );
+
+        if (questionComponent.question.key == 'remoteServer') {
+          questionComponent.question.asyncData?.subscribe((remoteServer: RemoteServer[]) => {
+            if (!remoteServer) return;
+            if (remoteServer.length < 0) return;
+
+            questionComponent.question.options = remoteServer.map(r => ({ key: r.name!, value: r.id! }));
+            questionComponent.formControl.setValue(questionComponent.question.options[0].value)
+          });
+        }
       }
     );
   }
@@ -61,18 +72,6 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit {
   //   console.log(e);
   //   this.question.cb(k, e.target.value);
   // }
-
-  hideUploadBox(event: boolean) {
-    if (!this.questionComponents) return;
-
-    console.log('huh', event)
-
-    this.questionComponents!.forEach((q) => {
-      if (q.question.key == 'dockerFile') {
-        q.setUploadBoxVisibility(event);
-      }
-    })
-  }
 
   onSubmit() {
     if (this.dynamicForm!.valid) {
@@ -113,15 +112,22 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit {
     this.questionComponents?.forEach((questionComponent: DialogQuestionComponent) => {
       if (!questionComponent.question.neededEnum) return;
 
-      if (questionComponent.question.neededEnum.key === event.key) {
-        switch (event.value) {
-          case questionComponent.question.neededEnum.value:
-            questionComponent.isHidden = !questionComponent.isHidden;
-            break;
-          default:
-            questionComponent.isHidden = true;
-        }
+      const selectedEnum = event.value;
+
+      if (questionComponent.question.neededEnum.value == selectedEnum) {
+        questionComponent.isHidden = !questionComponent.isHidden;
+        console.log('question', questionComponent.question.key, "needs", questionComponent.question.neededEnum.value)
+        questionComponent.question.asyncData?.subscribe((data) => {
+          questionComponent.question.options2 = data.map((o: any) => ({ key: o.vmid, value: o.name }));
+        })
+      } else {
+        questionComponent.isHidden = true
+
       }
+
     })
+
+    const hidden = this.questionComponents?.map((q) => q.isHidden);
+    console.log(hidden);
   }
 }

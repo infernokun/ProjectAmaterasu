@@ -11,7 +11,6 @@ import lombok.Setter;
 @Setter
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ProxmoxVM {
-
     private String name;
     private int vmid;
     private String status;
@@ -20,6 +19,7 @@ public class ProxmoxVM {
     private long maxmem;
     private double cpu;
     private int cpus;
+    @Getter
     private boolean template;
 
     @JsonProperty("template")

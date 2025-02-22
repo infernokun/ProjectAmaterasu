@@ -91,7 +91,7 @@ public class LabController extends BaseController {
     }
 
     @PostMapping("{remoteServerId}")
-    public ResponseEntity<ApiResponse<Lab>> createLab( @PathVariable String remoteServerId, @RequestBody LabDTO labDTO) {
+    public ResponseEntity<ApiResponse<Lab>> createLab(@PathVariable String remoteServerId, @RequestBody LabDTO labDTO) {
         if (labDTO == null) throw new RuntimeException("labDTO is null");
         RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
 

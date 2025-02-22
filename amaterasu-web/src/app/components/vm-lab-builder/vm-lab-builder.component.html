@@ -1,0 +1,25 @@
+<div class="vm-lab-builder">
+  <h2>Available VM Templates</h2>
+  <div class="vm-list">
+    <div class="vm-card" *ngFor="let vm of vms">
+      <div class="vm-header">
+        <h3>{{ vm.name }}</h3>
+        <span class="vm-status"
+          [ngClass]="{'status-active': vm.status === 'running', 'status-stopped': vm.status !== 'running'}">
+          {{ vm.status }}
+        </span>
+      </div>
+
+      <div class="vm-details">
+        <p>VMID: {{ vm.vmid }}</p>
+        <p>Uptime: {{ vm.uptime | number }} seconds</p>
+        <p>Memory: {{ vm.mem | number }} MB / {{ vm.maxmem | number }} MB</p>
+        <p>CPU Usage: {{ vm.cpu | number:'1.2-2' }}% ({{vm.cpus}} Cores)</p>
+      </div>
+
+      <div class="vm-actions">
+        <button class="btn btn-primary">Create Lab</button>
+      </div>
+    </div>
+  </div>
+</div>

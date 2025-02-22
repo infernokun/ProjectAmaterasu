@@ -15,7 +15,6 @@ export class TeamsComponent implements OnInit {
   teams: Team[] = [];
   busy = false;
 
-
   constructor(private teamService: TeamService,
     private editDialogService: EditDialogService,
     private authService: AuthService) { }

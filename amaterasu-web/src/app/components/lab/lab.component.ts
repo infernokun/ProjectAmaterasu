@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { LabService } from '../../services/lab.service';
-import { Lab, LabFormData } from '../../models/lab.model';
+import { Lab, LabDTO, LabFormData } from '../../models/lab.model';
 import { UserService } from '../../services/user.service';
 import { Observable, BehaviorSubject, switchMap, combineLatest, finalize, of, catchError, map } from 'rxjs';
 import { User } from '../../models/user.model';
@@ -14,10 +14,14 @@ import { LabActionResult } from '../../models/lab-action-result.model';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogComponent } from '../common/dialog/dialog.component';
 import { EditDialogService } from '../../services/edit-dialog.service';
-import { LabDTO } from '../../models/dto/lab.dto.model';
 
 import * as yaml from 'js-yaml';
 import { LabType } from '../../enums/lab-type.enum';
+import { ProxmoxService } from '../../services/proxmox.service';
+import { ProxmoxVM } from '../../models/proxmox-vm.model';
+import { RemoteServer } from '../../models/remote-server.model';
+import { RemoteServerService } from '../../services/remote-server.service';
+import { FormControl } from '@angular/forms';
 
 @Component({
   selector: 'app-lab',
@@ -29,10 +33,13 @@ export class LabComponent implements OnInit {
   loggedInUser: User | undefined;
   trackedLabs: LabTracker[] = [];
   team: Team | undefined;
+  remoteServers: RemoteServer[] = [];
 
   private isLoadingSubject = new BehaviorSubject<boolean>(false);
   isLoading$ = this.isLoadingSubject.asObservable();
   private loadingLabs = new Set<string>();
+
+  remoteServerControl: FormControl = new FormControl('');
 
   private labsSubject: BehaviorSubject<Lab[]> = new BehaviorSubject<Lab[]>([]);
   private loggedInUserSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);
@@ -53,15 +60,17 @@ export class LabComponent implements OnInit {
   constructor(
     private labService: LabService, private userService: UserService,
     private teamService: TeamService, private labTrackerService: LabTrackerService,
-    private dialog: MatDialog, private editDialogService: EditDialogService) { }
+    private dialog: MatDialog, private editDialogService: EditDialogService,
+    private proxmoxService: ProxmoxService, private remoteServerService: RemoteServerService) { }
 
   ngOnInit(): void {
     combineLatest([
       this.labService.getAllLabs(),
       this.userService.getLoggedInUser(),
-      this.labTrackerService.getAllLabTrackers()
+      this.labTrackerService.getAllLabTrackers(),
+      this.remoteServerService.getAllServers()
     ]).pipe(
-      switchMap(([labs, user, labsTracked]) => {
+      switchMap(([labs, user, labsTracked, remoteServers]) => {
         this.labs = labs
           .map(lab => new Lab(lab))
           .sort((a, b) => a.name!.localeCompare(b.name!));
@@ -73,7 +82,8 @@ export class LabComponent implements OnInit {
         this.trackedLabs = labsTracked.map(tracker => new LabTracker(tracker));
         this.trackedLabsSubject.next(this.trackedLabs);
 
-        console.log("Initial tracked labs:", this.trackedLabs);
+        this.remoteServers = remoteServers;
+        this.remoteServerControl.setValue(this.remoteServers[0].id);
 
         // Ensure loggedInUser and its team are defined before proceeding
         const teamId = this.loggedInUser?.team?.id;
@@ -149,9 +159,22 @@ export class LabComponent implements OnInit {
   }
 
   addLab() {
-    const labFormData = new LabFormData();
+    const labFormData: LabFormData = new LabFormData();
+    const vmTemplates$: Observable<ProxmoxVM[]> = this.proxmoxService.getVMTemplates();
+    const remoteServers$: Observable<RemoteServer[]> = this.remoteServerService.getAllServers();
 
-    this.editDialogService.openDialog<Lab>(labFormData, (labDTO: LabDTO) => {
+    const labFormDataWithVMs = new LabFormData(
+      (k: any, v: any) => { },
+      {
+        'remoteServer': remoteServers$,
+        'vms': vmTemplates$
+      }
+    );
+    this.proxmoxService.getVMTemplates().subscribe((vms: ProxmoxVM[]) => {
+      const vmsLst = vms;
+    })
+
+    this.editDialogService.openDialog<Lab>(labFormDataWithVMs, (labDTO: LabDTO) => {
       if (!labDTO) return;
       this.busy = true;
 

@@ -1,8 +1,16 @@
+import { Observable } from "rxjs";
+
+export interface ObservableMap {
+  [key: string]: Observable<any>;
+}
+
 export class SimpleFormData {
   preFilledData?: Map<string, string>;
   questions: QuestionBase[];
   typeName: string;
   result: Map<string, string>;
+  action?: Observable<any>;
+  asyncData?: Observable<any>;
   constructor(_typeName: string, _questions: QuestionBase[] = []) {
     this.typeName = _typeName;
     this.questions = _questions;
@@ -41,11 +49,13 @@ export class QuestionBase {
   controlType: string;
   type: string;
   options: { key: string; value: string }[];
+  options2: { key: string; value: string }[];
   dependentQuestions: Map<string, QuestionBase> | undefined; //key is the show val
   size: number = 50;
   action?: Function;
   neededEnum?: { key: string, value: string };
   isHiddenByDefault?: boolean;
+  asyncData?: Observable<any>;
 
   constructor(
     options: {
@@ -58,9 +68,12 @@ export class QuestionBase {
       controlType?: string;
       type?: string;
       options?: { key: string; value: string }[];
+      options2?: { key: string; value: string }[];
       dependentQuestions?: Map<string, QuestionBase>;
       action?: Function;
       neededEnum?: { key: string, value: string };
+      asyncData?: Observable<any>;
+
     } = {}, isHiddenByDefault: boolean = false
   ) {
     this.cb = options.cb ?? ((k: any, v: any) => { });
@@ -73,9 +86,17 @@ export class QuestionBase {
     this.controlType = options.controlType || '';
     this.type = options.type || '';
     this.options = options.options || [];
+    this.options2 = options.options2 || [];
     this.action = options.action ?? ((...argsv: any[]) => { });
     this.neededEnum = options.neededEnum;
     this.isHiddenByDefault = isHiddenByDefault;
+    this.asyncData = options.asyncData || undefined;
+  }
+
+  perform() {
+    this.asyncData?.subscribe((data: any) => {
+      console.log('some data!!!!', data)
+    })
   }
 }
 
@@ -108,12 +129,16 @@ export class DateQuestion extends QuestionBase {
   override type: string = 'date';
 }
 
-export class CheckboxQuestion extends QuestionBase {
-  override type: string = 'checkbox';
+export class RadioQuestion extends QuestionBase {
+  override type: string = 'radio';
 }
 
 export class UploadBoxQuestion extends QuestionBase {
   override type: string = 'uploadbox';
+}
+
+export class CheckBoxQuestion extends QuestionBase {
+  override type: string = 'checkbox';
 }
 
 export class Button extends QuestionBase {
