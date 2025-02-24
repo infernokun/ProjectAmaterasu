@@ -1,10 +1,12 @@
 import { Injectable } from '@angular/core';
 import { Lab } from '../models/lab.model';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { map, Observable } from 'rxjs';
 import { ApiResponse } from '../models/api-response.model';
 import { BaseService } from './base.service';
 import { EnvironmentService } from './environment.service';
+import { LabRequest } from '../models/dto/lab-request.model';
+import { LabActionResult } from '../models/lab-action-result.model';
 
 const httpOptions = {
   headers: new HttpHeaders({
@@ -37,12 +39,10 @@ export class LabService extends BaseService {
       );
   }
 
-  startLab(labId: string, userId?: string, labTrackerId?: string): Observable<ApiResponse<any>> {
-    return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/start', {
-      labId,
-      userId,
-      labTrackerId
-    });
+  startLab(labRequest: LabRequest): Observable<ApiResponse<any>> {
+    return this.post<ApiResponse<LabActionResult>>(this.environmentService.settings?.restUrl + '/labs/start',
+      labRequest
+    );
   }
 
   stopLab(labId: string, userId?: string, labTrackerId?: string): Observable<ApiResponse<any>> {
@@ -53,9 +53,13 @@ export class LabService extends BaseService {
     });
   }
 
-  createNewLab(lab: Lab): Observable<ApiResponse<Lab>> {
-    return this.post<ApiResponse<Lab>>(this.environmentService.settings?.restUrl + '/labs',
-      lab
+  createNewLab(lab: Lab, remoteServerId: string): Observable<ApiResponse<Lab>> {
+    const httpOptions = {
+      params: new HttpParams().set('remoteServerId', remoteServerId),
+      headers: new HttpHeaders({ 'Content-Type': 'application/json' })
+    };
+    const params = new HttpParams().set('remoteServerId', remoteServerId);
+    return this.post<ApiResponse<Lab>>(this.environmentService.settings?.restUrl + '/labs', lab, httpOptions
     )
   }
 

@@ -19,6 +19,7 @@ public class RemoteServer extends StoredObject {
     private String password;
     private String apiToken;
     private ServerType serverType;
+    private String nodeName;
     @OneToOne
     @JoinColumn(name = "stats_id", referencedColumnName = "id")
     private RemoteServerStats remoteServerStats;

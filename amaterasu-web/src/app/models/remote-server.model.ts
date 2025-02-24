@@ -8,6 +8,7 @@ export class RemoteServer extends StoredObject {
   ipAddress?: string;
   serverType?: ServerType;
   remoteServerStats?: RemoteServerStats;
+  nodeName?: string;
 
   constructor(serverResult?: any) {
     super(serverResult);
@@ -16,6 +17,7 @@ export class RemoteServer extends StoredObject {
       this.ipAddress = serverResult.ipAddress;
       this.serverType = serverResult.serverType;
       this.remoteServerStats = serverResult.remoteServerStats ? new RemoteServerStats(serverResult.remoteServerStats) : undefined;
+      this.nodeName = serverResult.nodeName;
     }
   }
 }
@@ -46,17 +48,24 @@ export class RemoteServerFormData extends SimpleFormData {
       new TextQuestion({
         label: "Username",
         key: "username",
-        neededEnum: { key: "serverType", value: ServerType.DOCKER_HOST },
+        neededEnum: { key: "serverType", value: ServerType.DOCKER_HOST }
       }),
       new PasswordQuestion({
         label: "Password",
         key: "password",
-        neededEnum: { key: "serverType", value: ServerType.DOCKER_HOST },
+        neededEnum: { key: "serverType", value: ServerType.DOCKER_HOST }
       }),
       new TextQuestion({
         label: "API Token",
         key: "apiToken",
         neededEnum: { key: "serverType", value: ServerType.PROXMOX },
+        hint: "TOKEN_ID=SECRET",
+        size: 100
+      }, true),
+      new TextQuestion({
+        label: "Node Name",
+        key: "nodeName",
+        neededEnum: { key: "serverType", value: ServerType.PROXMOX }
       }, true)
     );
     this.questions.forEach((e) => (e.cb = updateResultsCB));

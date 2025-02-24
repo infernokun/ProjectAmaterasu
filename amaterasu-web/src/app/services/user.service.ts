@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { BehaviorSubject, map, Observable, tap } from 'rxjs';
 import { User } from '../models/user.model';
 import { ApiResponse } from '../models/api-response.model';
@@ -12,6 +12,7 @@ import { BaseService } from './base.service';
 export class UserService extends BaseService {
   private usersSubject = new BehaviorSubject<User[]>([]);
   private loggedInUserSubject = new BehaviorSubject<User | undefined>(undefined);
+  loggedInUser$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
 
   constructor(
     protected httpClient: HttpClient,
@@ -24,7 +25,7 @@ export class UserService extends BaseService {
   }
 
   getLoggedInUser(): Observable<User | undefined> {
-    return this.loggedInUserSubject.asObservable();
+    return this.loggedInUser$;
   }
 
   setLoggedInUser(user: User): void {
@@ -45,5 +46,15 @@ export class UserService extends BaseService {
         this.usersSubject.next(users);
       })
     );
+  }
+
+  setUserTeam(userId: string, teamId: string) {
+    return this.put<ApiResponse<User>>(this.environmentService.settings?.restUrl + '/user/team',
+      {},
+      { params: { userId: userId, teamId: teamId } }
+    )
+      .pipe(
+        map((response: ApiResponse<User>) => new User(response.data))
+      );
   }
 }

@@ -5,6 +5,7 @@ import { EnvironmentService } from './environment.service';
 import { ProxmoxVM } from '../models/proxmox-vm.model';
 import { map, Observable } from 'rxjs';
 import { ApiResponse } from '../models/api-response.model';
+import { RemoteServer } from '../models/remote-server.model';
 
 @Injectable({
   providedIn: 'root'
@@ -15,8 +16,10 @@ export class ProxmoxService extends BaseService {
     super(httpClient);
   }
 
-  getVMTemplates(): Observable<ProxmoxVM[]> {
-    return this.get<ApiResponse<ProxmoxVM[]>>(this.environmentService.settings?.restUrl + '/proxmox/vms?template=1')
+  getVMTemplates(remoteServerId: string): Observable<ProxmoxVM[]> {
+    return this.get<ApiResponse<ProxmoxVM[]>>(this.environmentService.settings?.restUrl + '/proxmox/vms',
+      { params: { remoteServerId: remoteServerId, template: '1' } }
+    )
       .pipe(
         map((response: ApiResponse<ProxmoxVM[]>) => response.data.map((proxmoxVM) => new ProxmoxVM(proxmoxVM)))
       );

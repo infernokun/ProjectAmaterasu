@@ -8,4 +8,5 @@ public class LabRequest {
     private String userId;
     private String teamId;
     private String labTrackerId;
+    private String remoteServerId;
 }

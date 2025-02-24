@@ -106,11 +106,8 @@
 .lab-actions {
   display: flex;
   justify-content: center;
-  /* Center the button horizontally */
   align-items: center;
-  /* Center the button vertically */
   height: 60px;
-  /* Set a height for the actions area to allow vertical centering */
 }
 
 .button-container {
@@ -120,30 +117,19 @@
   margin-top: 1rem;
 }
 
-/* General button styles */
 .button {
   background-color: #4caf50;
-  /* Default green background */
   color: white;
-  /* White text */
   padding: 10px 20px;
-  /* Padding for button */
   border: none;
-  /* Remove border */
   border-radius: 4px;
-  /* Rounded corners */
   cursor: pointer;
-  /* Pointer cursor on hover */
   transition: background-color 0.3s;
-  /* Smooth background change */
   font-size: 14px;
-  /* Standard font size */
 }
 
-/* Hover effect for all buttons */
 .button:hover {
   opacity: 0.9;
-  /* Slight transparency on hover */
 }
 
 /* Specific styles for button states */

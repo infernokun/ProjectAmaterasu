@@ -54,11 +54,7 @@ public class LabTrackerService extends BaseService {
 
     // Update an existing lab tracker
     public LabTracker updateLabTracker(LabTracker labTracker) {
-        Optional<LabTracker> existingLabTrackerOpt = labTrackerRepository.findById(labTracker.getId());
-        if (existingLabTrackerOpt.isPresent()) {
-            return labTrackerRepository.save(labTracker); // Save the updated lab tracker
-        }
-        return null; // Lab tracker not found
+        return labTrackerRepository.save(labTracker);
     }
 
     public void deleteAll() {

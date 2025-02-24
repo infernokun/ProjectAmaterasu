@@ -1,8 +1,13 @@
 package com.infernokun.amaterasu.services.entity;
 
+import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
+import com.infernokun.amaterasu.models.dto.UserDTO;
+import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
+import com.infernokun.amaterasu.repositories.TeamRepository;
 import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.services.BaseService;
+import com.infernokun.amaterasu.utils.dto.UserMapper;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -15,11 +20,15 @@ import java.util.Optional;
 @Service
 public class UserService extends BaseService implements UserDetailsService {
     private final UserRepository userRepository;
+    private final TeamRepository teamRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserMapper userMapper;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, TeamRepository teamRepository, PasswordEncoder passwordEncoder, UserMapper userMapper) {
         this.userRepository = userRepository;
+        this.teamRepository = teamRepository;
         this.passwordEncoder = passwordEncoder;
+        this.userMapper = userMapper;
     }
 
     public boolean existsByUsername(User user) {
@@ -74,6 +83,17 @@ public class UserService extends BaseService implements UserDetailsService {
             return userRepository.save(existingUser); // Save the updated user
         }
         return null; // User not found
+    }
+
+    public User updateUserTeam(String userId, String teamId) {
+        User user = findUserById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User ID not found"));
+
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new ResourceNotFoundException("Team ID not found"));
+
+        user.setTeam(team);
+        return userRepository.save(user);
     }
 
     public Optional<User> findUserById(String userId) {

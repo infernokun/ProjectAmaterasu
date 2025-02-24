@@ -6,9 +6,11 @@
 </div>
 
 <div *ngIf="question.type === 'text' && !isHidden" class="row width-100-percent form-field-container">
-  <mat-form-field floatLabel="always">
+  <mat-form-field appearance="fill" floatLabel="always">
     <mat-label>{{ question.label }}</mat-label>
-    <input [formControl]="formControl" matInput maxlength="{{ question.size }}">
+    <mat-hint *ngIf="question.hint">{{ question.hint }}</mat-hint>
+    <input [formControl]="formControl" matInput maxlength="{{ question.size }}"
+      [placeholder]="question.hint ? question.hint : ''">
   </mat-form-field>
   <p class="character-count"
     [ngClass]="formControl.value.length === question.size ? 'character-count-max' : 'character-count-min'">{{

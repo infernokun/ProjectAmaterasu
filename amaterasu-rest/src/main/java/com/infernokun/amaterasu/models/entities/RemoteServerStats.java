@@ -1,10 +1,7 @@
 package com.infernokun.amaterasu.models.entities;
 
 import com.infernokun.amaterasu.models.enums.LabStatus;
-import jakarta.persistence.Entity;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
@@ -27,6 +24,7 @@ public class RemoteServerStats extends StoredObject {
     private float availableDiskSpace;
     private float usedDiskSpace;
     private long uptime;
+    @Enumerated(EnumType.STRING)
     private LabStatus status;
     @ManyToOne
     @JoinColumn(name = "remote_server_id")

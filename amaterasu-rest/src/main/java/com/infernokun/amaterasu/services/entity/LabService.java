@@ -8,12 +8,15 @@ import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.dto.LabDTO;
 import com.infernokun.amaterasu.models.entities.*;
 import com.infernokun.amaterasu.models.enums.LabStatus;
+import com.infernokun.amaterasu.models.enums.LabType;
 import com.infernokun.amaterasu.repositories.LabFileChangeLogRepository;
 import com.infernokun.amaterasu.repositories.LabRepository;
 import com.infernokun.amaterasu.services.alt.LabFileUploadService;
 import com.infernokun.amaterasu.services.alt.LabActionService;
 import com.infernokun.amaterasu.services.alt.LabReadinessService;
 import com.infernokun.amaterasu.services.BaseService;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -35,6 +38,7 @@ public class LabService extends BaseService {
     private final LabFileUploadService labFileUploadService;
     private final LabReadinessService labReadinessService;
     private final LabFileChangeLogRepository labFileChangeLogRepository;
+    private final EntityManager entityManager;
 
     private final AmaterasuConfig amaterasuConfig;
 
@@ -42,7 +46,7 @@ public class LabService extends BaseService {
             LabRepository labRepository, UserService userService,
             TeamService teamService, LabTrackerService labTrackerService,
             LabActionService labActionService, LabFileUploadService labFileUploadService,
-            LabReadinessService labReadinessService, LabFileChangeLogRepository labFileChangeLogRepository,
+            LabReadinessService labReadinessService, LabFileChangeLogRepository labFileChangeLogRepository, EntityManager entityManager,
             AmaterasuConfig amaterasuConfig) {
         this.labRepository = labRepository;
         this.userService = userService;
@@ -52,16 +56,23 @@ public class LabService extends BaseService {
         this.labFileUploadService = labFileUploadService;
         this.labReadinessService = labReadinessService;
         this.labFileChangeLogRepository = labFileChangeLogRepository;
+        this.entityManager = entityManager;
         this.amaterasuConfig = amaterasuConfig;
     }
 
     public List<Lab> findAllLabs() {
+        List<Lab> labs = labRepository.findAll();
+        LOGGER.error("Labs found: {}", labs.size());
         return labRepository.findAll();
     }
 
     public Lab findLabById(String id) {
         return labRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Lab " + id + " not found"));
+    }
+
+    public List<Lab> findByLabType(LabType labType) {
+        return labRepository.findByLabType(labType);
     }
 
     public Lab createLab(Lab lab) {
@@ -87,36 +98,40 @@ public class LabService extends BaseService {
                 newLab = Lab.builder()
                         .name(labDTO.getName())
                         .labType(labDTO.getLabType())
-                        .createdBy(labDTO.getCreatedBy())
                         .ready(false)
                         .dockerFile(labDTO.getName().toLowerCase().replace(" ", "-") + "_" + timestamp + ".yml")
                         .description(labDTO.getDescription())
                         .version(labDTO.getVersion())
                         .capacity(labDTO.getCapacity())
                         .build();
+                newLab.setCreatedBy(labDTO.getCreatedBy());
                 Lab savedLab = labRepository.save(newLab);
                 uploadLabFile(savedLab.getId(), labDTO.getDockerFile(), remoteServer);
 
                 LabFileChangeLog labFileChangeLog = new LabFileChangeLog(savedLab, false);
                 labFileChangeLog.setUpdatedAt(LocalDateTime.now().minusYears(10));
                 labFileChangeLogRepository.save(labFileChangeLog);
+
                 return savedLab;
             }
-            case KUBERNETES -> {
-                LOGGER.info("Kube! Coming one day....");
-                return newLab;
-            }
+            case KUBERNETES -> throw new RuntimeException("Kube! Coming one day....");
             case VIRTUAL_MACHINE -> {
-                LOGGER.info("VM! Coming one day....");
-                return newLab;
+                newLab = Lab.builder()
+                        .name(labDTO.getName())
+                        .labType(labDTO.getLabType())
+                        .ready(true)
+                        .description(labDTO.getDescription())
+                        .version(labDTO.getVersion())
+                        .capacity(labDTO.getCapacity())
+                        .vmIds(labDTO.getVms())
+                        .status(LabStatus.ACTIVE)
+                        .build();
+                newLab.setCreatedBy(labDTO.getCreatedBy());
+                return labRepository.save(newLab);
             }
-            case DOCKER_CONTAINER -> {
-                LOGGER.info("Docker Container! Coming one day....");
-                return newLab;
-            }
+            case DOCKER_CONTAINER -> throw new RuntimeException("Docker Container! Coming one day....");
             default -> {
-                LOGGER.info("Coming one day....");
-                return newLab;
+                throw new RuntimeException("Coming one day....");
             }
         }
     }
@@ -164,7 +179,8 @@ public class LabService extends BaseService {
         }
     }
 
-    public Optional<LabActionResult> startLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
+    @Transactional
+    public LabActionResult startLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
         LOGGER.info("lab id {} user id {}, lab tracker id {}", labId, userId, labTrackerId);
 
         Lab lab = this.findLabById(labId);
@@ -172,33 +188,42 @@ public class LabService extends BaseService {
         Team userTeam = user.getTeam();
         LOGGER.info("Starting lab...");
 
-        LabTracker labTracker =
-                labTrackerService.findLabTrackerById(labTrackerId).orElseGet(() ->
-                        LabTracker.builder()
-                                .labStarted(lab)
-                                .labOwner(userTeam)
-                                .build()
-                );
+        LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId).orElseGet(() ->
+                        LabTracker.builder().labStarted(lab).labOwner(userTeam).build());
         String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy @ hh:mma"));
 
         if (labTracker.getId() == null) {
-            labTracker = labTrackerService.createLabTracker(labTracker);
+            try {
+                labTracker = labTrackerService.createLabTracker(labTracker);
+            } catch (Exception e) {
+                throw new RuntimeException("createLabTracker: " + e.getMessage());
+            }
         }
 
         LabActionResult labActionResult = labActionService.startLab(lab, labTracker, remoteServer);
 
-        labTracker.setUpdatedAt(LocalDateTime.now());
-        labTracker.setUpdatedBy(user.getId());
-        labTracker.setLabStatus(labActionResult.isSuccessful() ? LabStatus.ACTIVE : LabStatus.FAILED);
-
-        if (!userTeam.getTeamActiveLabs().contains(labTracker.getId())) {
-            userTeam.getTeamActiveLabs().add(labTracker.getId());
-            teamService.updateTeam(userTeam);
+        labActionResult.getLabTracker().setUpdatedAt(LocalDateTime.now());
+        labActionResult.getLabTracker().setUpdatedBy(user.getId());
+        labActionResult.getLabTracker().setLabStatus(labActionResult.isSuccessful() ? LabStatus.ACTIVE : LabStatus.FAILED);
+        labActionResult.getLabTracker().setRemoteServer(remoteServer);
+        try {
+            labTrackerService.updateLabTracker(labActionResult.getLabTracker());
+        } catch (Exception e) {
+            throw new RuntimeException("updateLabTracker: " + e.getMessage());
         }
-        labTrackerService.updateLabTracker(labTracker);
-        return Optional.of(labActionResult);
+
+        if (!userTeam.getTeamActiveLabs().contains(labActionResult.getLabTracker().getId())) {
+            userTeam.getTeamActiveLabs().add(labActionResult.getLabTracker().getId());
+            try {
+                teamService.updateTeam(userTeam);
+            } catch (Exception e) {
+                throw new RuntimeException("updateTeam: " + e.getMessage());
+            }
+        }
+        return labActionResult;
     }
 
+    @Transactional
     public Optional<LabActionResult> stopLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
         LOGGER.info("Stopping lab with id {} by user id {} and lab tracker id {}", labId, userId, labTrackerId);
 
@@ -214,11 +239,11 @@ public class LabService extends BaseService {
             LabTracker existingLabTracker = existingLabTrackerOptional.get();
             LabActionResult labActionResult = labActionService.stopLab(lab, existingLabTracker, remoteServer);
 
-            existingLabTracker.setUpdatedAt(LocalDateTime.now());
-            existingLabTracker.setUpdatedBy(user.getId());
-            existingLabTracker.setLabStatus(labActionResult.isSuccessful() ? LabStatus.STOPPED : LabStatus.ACTIVE);
+            labActionResult.getLabTracker().setUpdatedAt(LocalDateTime.now());
+            labActionResult.getLabTracker().setUpdatedBy(user.getId());
+            labActionResult.getLabTracker().setLabStatus(labActionResult.isSuccessful() ? LabStatus.STOPPED : LabStatus.ACTIVE);
 
-            labTrackerService.updateLabTracker(existingLabTracker);
+            labTrackerService.updateLabTracker(labActionResult.getLabTracker());
 
             return Optional.of(labActionResult);
         }

@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { EnvironmentService } from './environment.service';
 import { BaseService } from './base.service';
-import { Observable, map } from 'rxjs';
+import { BehaviorSubject, Observable, map } from 'rxjs';
 import { ApiResponse } from '../models/api-response.model';
 import { RemoteServer } from '../models/remote-server.model';
 
@@ -10,44 +10,61 @@ import { RemoteServer } from '../models/remote-server.model';
   providedIn: 'root'
 })
 export class RemoteServerService extends BaseService {
-  constructor(
-    protected httpClient: HttpClient,
-    private environmentService: EnvironmentService
-  ) {
+  constructor(protected httpClient: HttpClient, private environmentService: EnvironmentService) {
     super(httpClient);
   }
 
-  /**
-   * Retrieves all remote servers.
-   */
+  private selectedRemoteServerSubject: BehaviorSubject<RemoteServer | undefined> = new BehaviorSubject<RemoteServer | undefined>(undefined);
+  selectedRemoteServer$: Observable<RemoteServer | undefined> = this.selectedRemoteServerSubject.asObservable();
+
+  private remoteServersSubject: BehaviorSubject<RemoteServer[]> = new BehaviorSubject<RemoteServer[]>([]);
+  remoteServers$: Observable<RemoteServer[]> = this.remoteServersSubject.asObservable();
+
+  setRemoteServers(remoteServers: RemoteServer[]): void {
+    this.remoteServersSubject.next(remoteServers);
+  }
+
+  getRemoteServers(): RemoteServer[] {
+    return this.remoteServersSubject.value!;
+
+  }
+
+  setSelectedRemoteServer(remoteServer: RemoteServer): void {
+    this.selectedRemoteServerSubject.next(remoteServer);
+  }
+
+  getSelectedRemoteServer(): RemoteServer {
+    return this.selectedRemoteServerSubject.value!;
+
+  }
+
   getAllServers(): Observable<RemoteServer[]> {
     const url = this.environmentService.settings?.restUrl + '/remote-server';
+
     return this.get<ApiResponse<RemoteServer[]>>(url).pipe(
-      map((response: ApiResponse<RemoteServer[]>) =>
-        response.data.map(server => new RemoteServer(server))
-      )
+      map((response: ApiResponse<RemoteServer[]>) => {
+        const servers = response.data.map(server => new RemoteServer(server));
+
+        // Automatically set the first server as selected if not already set
+        if (servers.length > 0 && !this.getSelectedRemoteServer()) {
+          this.setSelectedRemoteServer(servers[0]);
+        }
+
+        return servers;
+      })
     );
   }
 
-  /**
-   * Adds a new remote server.
-   */
   addServer(server: RemoteServer): Observable<ApiResponse<RemoteServer>> {
     const url = this.environmentService.settings?.restUrl + '/remote-server';
     return this.post<ApiResponse<RemoteServer>>(url, server);
   }
 
-  /**
-   * Updates an existing remote server.
-   */
   updateServer(server: RemoteServer): Observable<ApiResponse<RemoteServer>> {
     const url = this.environmentService.settings?.restUrl + '/remote-server/' + server.id;
     return this.put<ApiResponse<RemoteServer>>(url, server);
   }
 
-  /**
-   * Deletes a remote server by its id.
-   */
   deleteServer(serverId: string): Observable<ApiResponse<any>> {
     const url = this.environmentService.settings?.restUrl + '/remote-server/' + serverId;
     return this.delete<ApiResponse<any>>(url);

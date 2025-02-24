@@ -5,9 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.models.DockerServiceInfo;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.enums.LabType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import com.infernokun.amaterasu.models.helper.IntegerListConverter;
+import jakarta.persistence.*;
 import lombok.*;
 
 import java.util.ArrayList;
@@ -24,17 +23,19 @@ public class Lab extends StoredObject {
     private String name;
     private String description;
     @Builder.Default
+    @Enumerated(EnumType.STRING)
     private LabStatus status = LabStatus.ACTIVE;
-    private String createdBy;
     private String version;
     private Integer capacity;
+    @Enumerated(EnumType.STRING)
     private LabType labType;
     @Builder.Default
     private boolean ready = false;
     private String dockerFile;
-    @Column(columnDefinition = "TEXT")
     @Builder.Default
-    private List<Integer> VMIDs = new ArrayList<>();
+    @Column(columnDefinition = "TEXT")
+    @Convert(converter = IntegerListConverter.class)
+    private List<Integer> vmIds = new ArrayList<>();
 
     public String toJsonString() throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();

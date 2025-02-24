@@ -12,6 +12,7 @@ export class Lab extends StoredObject {
   labType?: LabType
   dockerFile?: string;
   ready?: boolean;
+  vmIds?: number[];
 
   constructor(serverResult?: any) {
     if (serverResult) {
@@ -25,6 +26,7 @@ export class Lab extends StoredObject {
       this.labType = serverResult.labType;
       this.dockerFile = serverResult.dockerFile;
       this.ready = serverResult.ready;
+      this.vmIds = serverResult.vmIds;
     }
   }
 }

@@ -3,7 +3,8 @@ package com.infernokun.amaterasu.models.dto;
 import com.infernokun.amaterasu.models.enums.LabType;
 import lombok.Data;
 
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 public class LabDTO {
@@ -14,4 +15,5 @@ public class LabDTO {
     private int capacity;
     private String dockerFile;
     private String createdBy;
+    private List<Integer> vms = new ArrayList<>();
 }

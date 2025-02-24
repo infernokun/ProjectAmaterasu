@@ -74,7 +74,7 @@ export class DialogQuestionComponent implements OnInit {
       if (this.question.options[0] == undefined) return;
 
       this.question.cb(this.question.key, this.question.options[0].value);
-
+      this.formControl.setValue(this.question.options[0].value);
     }
 
     if (this.question.type === 'number') {
@@ -83,6 +83,7 @@ export class DialogQuestionComponent implements OnInit {
 
     if (this.question.type === 'radio') {
       if (!this.question.options) return;
+      if (this.question.options[0] == undefined) return;
       if (this.question.options[0].value == undefined) return;
 
       this.formControl.setValue(this.question.options[0].value);

@@ -22,6 +22,8 @@ import { ProxmoxVM } from '../../models/proxmox-vm.model';
 import { RemoteServer } from '../../models/remote-server.model';
 import { RemoteServerService } from '../../services/remote-server.service';
 import { FormControl } from '@angular/forms';
+import { AuthService } from '../../services/auth.service';
+import { LabRequest } from '../../models/dto/lab-request.model';
 
 @Component({
   selector: 'app-lab',
@@ -33,7 +35,6 @@ export class LabComponent implements OnInit {
   loggedInUser: User | undefined;
   trackedLabs: LabTracker[] = [];
   team: Team | undefined;
-  remoteServers: RemoteServer[] = [];
 
   private isLoadingSubject = new BehaviorSubject<boolean>(false);
   isLoading$ = this.isLoadingSubject.asObservable();
@@ -61,29 +62,25 @@ export class LabComponent implements OnInit {
     private labService: LabService, private userService: UserService,
     private teamService: TeamService, private labTrackerService: LabTrackerService,
     private dialog: MatDialog, private editDialogService: EditDialogService,
-    private proxmoxService: ProxmoxService, private remoteServerService: RemoteServerService) { }
+    private proxmoxService: ProxmoxService, private remoteServerService: RemoteServerService, private authService: AuthService) { }
 
   ngOnInit(): void {
     combineLatest([
       this.labService.getAllLabs(),
-      this.userService.getLoggedInUser(),
-      this.labTrackerService.getAllLabTrackers(),
-      this.remoteServerService.getAllServers()
+      this.authService.user$,
+      this.labTrackerService.getAllLabTrackers()
     ]).pipe(
-      switchMap(([labs, user, labsTracked, remoteServers]) => {
+      switchMap(([labs, user, labsTracked]) => {
         this.labs = labs
           .map(lab => new Lab(lab))
           .sort((a, b) => a.name!.localeCompare(b.name!));
+
         this.labsSubject.next(this.labs);
-
         this.loggedInUser = user;
+        console.log(this.loggedInUser?.username)
         this.loggedInUserSubject.next(this.loggedInUser);
-
         this.trackedLabs = labsTracked.map(tracker => new LabTracker(tracker));
         this.trackedLabsSubject.next(this.trackedLabs);
-
-        this.remoteServers = remoteServers;
-        this.remoteServerControl.setValue(this.remoteServers[0].id);
 
         // Ensure loggedInUser and its team are defined before proceeding
         const teamId = this.loggedInUser?.team?.id;
@@ -160,7 +157,7 @@ export class LabComponent implements OnInit {
 
   addLab() {
     const labFormData: LabFormData = new LabFormData();
-    const vmTemplates$: Observable<ProxmoxVM[]> = this.proxmoxService.getVMTemplates();
+    const vmTemplates$: Observable<ProxmoxVM[]> = this.proxmoxService.getVMTemplates(this.remoteServerService.getSelectedRemoteServer().id!);
     const remoteServers$: Observable<RemoteServer[]> = this.remoteServerService.getAllServers();
 
     const labFormDataWithVMs = new LabFormData(
@@ -170,9 +167,6 @@ export class LabComponent implements OnInit {
         'vms': vmTemplates$
       }
     );
-    this.proxmoxService.getVMTemplates().subscribe((vms: ProxmoxVM[]) => {
-      const vmsLst = vms;
-    })
 
     this.editDialogService.openDialog<Lab>(labFormDataWithVMs, (labDTO: LabDTO) => {
       if (!labDTO) return;
@@ -184,7 +178,7 @@ export class LabComponent implements OnInit {
 
       console.log('labFromData', labFormData);
       console.log('labDTO', labDTO);
-      this.labService.createNewLab(labDTO).subscribe((labResp: ApiResponse<Lab>) => {
+      this.labService.createNewLab(labDTO, this.remoteServerService.getSelectedRemoteServer().id!).subscribe((labResp: ApiResponse<Lab>) => {
         this.busy = false;
 
         console.log('labResp', labResp);
@@ -213,8 +207,16 @@ export class LabComponent implements OnInit {
       (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
     )[0];
 
+    const labRequest: LabRequest = {
+      labId: labId,
+      userId: user?.id,
+      labTrackerId: latestLabTracker?.id || "",
+      remoteServerId: this.remoteServerService.getSelectedRemoteServer().id
+    }
 
-    this.labService.startLab(labId, user?.id, latestLabTracker?.id || "").subscribe({
+    console.log('labRequest', labRequest);
+
+    this.labService.startLab(labRequest).subscribe({
       next: (response: ApiResponse<LabActionResult | undefined>) => {
         if (!response.data) return;
 
@@ -266,6 +268,7 @@ export class LabComponent implements OnInit {
       },
       error: (err) => {
         console.error(`Failed to start lab ${labId}:`, err);
+        this.loadingLabs.delete(labId);
       },
       complete: () => {
         // Remove the labId from the loadingLabs set

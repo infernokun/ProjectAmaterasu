@@ -1,16 +1,14 @@
 package com.infernokun.amaterasu.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
-
-import java.util.List;
+import lombok.*;
 
 @Data
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProxmoxResponse {
-    private List<ProxmoxVM> data;
+public class ProxmoxActionResponse {
+    private String data;
 }

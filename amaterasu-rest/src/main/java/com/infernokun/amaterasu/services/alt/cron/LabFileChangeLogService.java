@@ -58,7 +58,7 @@ public class LabFileChangeLogService extends BaseService {
         dockerServers.forEach(dockerServer -> {
 
             LOGGER.info("Starting changelog time check...");
-            List<Lab> labs = labRepository.findAll();
+            List<Lab> labs = labService.findByLabType(LabType.DOCKER_COMPOSE);
 
             List<LabFileChangeLog> logsToUpdate = new ArrayList<>();
             List<Lab> labsToUpdate = new ArrayList<>();

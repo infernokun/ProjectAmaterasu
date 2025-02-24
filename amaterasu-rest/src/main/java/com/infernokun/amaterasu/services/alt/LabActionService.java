@@ -11,9 +11,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class LabActionService extends BaseService {
     private final DockerService dockerService;
+    private final ProxmoxService proxmoxService;
 
-    public LabActionService(DockerService dockerService) {
+    public LabActionService(DockerService dockerService, ProxmoxService proxmoxService) {
         this.dockerService = dockerService;
+        this.proxmoxService = proxmoxService;
     }
 
     public LabActionResult startLab(Lab lab, LabTracker labTracker, RemoteServer remoteServer) {
@@ -25,8 +27,7 @@ public class LabActionService extends BaseService {
                 return dockerService.startDockerCompose(lab, labTracker, remoteServer);
             }
             case VIRTUAL_MACHINE -> {
-                String type = "vm";
-                return new LabActionResult();
+                return proxmoxService.startProxmoxLab(lab, labTracker, remoteServer);
             }
             case KUBERNETES -> {
                 String type = "kubernetes";

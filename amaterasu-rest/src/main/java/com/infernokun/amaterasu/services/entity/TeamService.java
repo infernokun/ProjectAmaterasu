@@ -49,10 +49,6 @@ public class TeamService extends BaseService {
 
     // Update an existing team
     public Team updateTeam(Team team) {
-        Optional<Team> existingTeamOptional =  this.teamRepository.findById(team.getId());
-        if (existingTeamOptional.isPresent()) {
-            return teamRepository.save(team);
-        }
-        return null;
+        return teamRepository.save(team);
     }
 }

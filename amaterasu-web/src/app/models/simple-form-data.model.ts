@@ -5,7 +5,7 @@ export interface ObservableMap {
 }
 
 export class SimpleFormData {
-  preFilledData?: Map<string, string>;
+  preFilledData?: Map<string, any>;
   questions: QuestionBase[];
   typeName: string;
   result: Map<string, string>;
@@ -56,6 +56,7 @@ export class QuestionBase {
   neededEnum?: { key: string, value: string };
   isHiddenByDefault?: boolean;
   asyncData?: Observable<any>;
+  hint?: string;
 
   constructor(
     options: {
@@ -73,6 +74,8 @@ export class QuestionBase {
       action?: Function;
       neededEnum?: { key: string, value: string };
       asyncData?: Observable<any>;
+      hint?: string;
+      size?: number
 
     } = {}, isHiddenByDefault: boolean = false
   ) {
@@ -91,6 +94,8 @@ export class QuestionBase {
     this.neededEnum = options.neededEnum;
     this.isHiddenByDefault = isHiddenByDefault;
     this.asyncData = options.asyncData || undefined;
+    this.hint = options.hint || undefined;
+    this.size = options.size || this.size;
   }
 
   perform() {

@@ -90,8 +90,8 @@ public class LabController extends BaseController {
         );
     }
 
-    @PostMapping("{remoteServerId}")
-    public ResponseEntity<ApiResponse<Lab>> createLab(@PathVariable String remoteServerId, @RequestBody LabDTO labDTO) {
+    @PostMapping()
+    public ResponseEntity<ApiResponse<Lab>> createLab(@RequestParam String remoteServerId, @RequestBody LabDTO labDTO) {
         if (labDTO == null) throw new RuntimeException("labDTO is null");
         RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
 
@@ -175,17 +175,17 @@ public class LabController extends BaseController {
         );
     }
 
-    @PostMapping("/start/{remoteServerId}")
-    public ResponseEntity<ApiResponse<LabActionResult>> startLab(@PathVariable String remoteServerId, @RequestBody LabRequest labRequest) {
-        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
-        Optional<LabActionResult> startedLabOptional =
-                labService.startLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
+    @PostMapping("/start")
+    public ResponseEntity<ApiResponse<LabActionResult>> startLab(@RequestBody LabRequest labRequest) {
+        RemoteServer remoteServer = remoteServerService.getServerById(labRequest.getRemoteServerId());
+        LabActionResult startedLabOptional = labService.startLab(labRequest.getLabId(),
+                labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
 
-        return ResponseEntity.status(startedLabOptional.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+        return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabActionResult>builder()
-                        .code(startedLabOptional.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
-                        .message(startedLabOptional.isPresent() ? "Lab started successfully." : "Failed to start the lab.")
-                        .data(startedLabOptional.orElse(null))
+                        .code(HttpStatus.OK.value())
+                        .message("Lab started successfully.")
+                        .data(startedLabOptional)
                         .build());
     }
 

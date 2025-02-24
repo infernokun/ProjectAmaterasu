@@ -12,6 +12,8 @@ import { SimpleFormData } from '../../../models/simple-form-data.model';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { DialogQuestionComponent } from '../dialog-question/dialog-question.component';
 import { RemoteServer } from '../../../models/remote-server.model';
+import { Team } from '../../../models/team.model';
+import { take } from 'rxjs';
 
 @Component({
   selector: 'app-add-dialog-form',
@@ -55,13 +57,29 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit {
           questionComponent.formControl
         );
 
-        if (questionComponent.question.key == 'remoteServer') {
-          questionComponent.question.asyncData?.subscribe((remoteServer: RemoteServer[]) => {
-            if (!remoteServer) return;
-            if (remoteServer.length < 0) return;
+        if (questionComponent.question.asyncData) {
+          questionComponent.question.asyncData.pipe(take(1)).subscribe((data: any[]) => {
+            if (!data || data.length === 0) return;
 
-            questionComponent.question.options = remoteServer.map(r => ({ key: r.name!, value: r.id! }));
-            questionComponent.formControl.setValue(questionComponent.question.options[0].value)
+            switch (questionComponent.question.key) {
+              case 'remoteServer':
+                console.log('async data!!! -> remoteServer');
+                questionComponent.question.options = data
+                  .filter(r => r.name && r.id)
+                  .map(r => ({ key: r.name, value: r.id }));
+                break;
+              case 'team':
+                console.log('async data!!! -> teams');
+                questionComponent.question.options = data
+                  .filter(t => t.name && t.id)
+                  .map(t => ({ key: t.name, value: t.id }));
+                break;
+              default:
+                return;
+            }
+            if (questionComponent.question.options.length > 0) {
+              questionComponent.formControl.setValue(questionComponent.question.options[0].value);
+            }
           });
         }
       }

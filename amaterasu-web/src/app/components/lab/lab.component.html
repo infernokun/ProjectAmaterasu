@@ -3,15 +3,6 @@
   <mat-icon fontIcon="add"></mat-icon>
 </button>
 
-<mat-form-field floatLabel="always">
-  <mat-label>Remote Server</mat-label>
-  <mat-select [formControl]="remoteServerControl">
-    <mat-option *ngFor="let remoteServer of remoteServers" class="option" [value]="remoteServer.id">
-      {{ remoteServer.name }}
-    </mat-option>
-  </mat-select>
-</mat-form-field>
-
 <div class="lab-container">
   <div class="lab-card" *ngFor="let lab of labsObservable$ | async" (mouseenter)="onMouseEnter()"
     (mouseleave)="onMouseLeave()">
@@ -32,7 +23,7 @@
         <li><strong>Version:</strong> {{ lab.version }}</li>
         <li><strong>Capacity:</strong> {{ lab.capacity }}</li>
         <li><strong>Type:</strong> {{ lab.labType }}</li>
-        <li><strong>Loc:</strong> {{ lab.id }}/{{ lab.dockerFile }}</li>
+        <li *ngIf="lab.dockerFile"><strong>Loc:</strong> {{ lab.id }}/{{ lab.dockerFile }}</li>
         <li><strong>Status:</strong> {{ getLabStatus(lab.id) }}</li>
         <li><strong>Ready:</strong> {{ lab.ready }}</li>
         <li><strong>isTracked:</strong> {{ isInTrackedLabs(lab.id) }}</li>

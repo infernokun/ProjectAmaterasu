@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.controllers.entity;
 
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
+import com.infernokun.amaterasu.models.dto.UserDTO;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.services.entity.UserService;
 import org.springframework.http.HttpStatus;
@@ -93,5 +94,14 @@ public class UserController extends BaseController {
                     .data(null)
                     .build());
         }
+    }
+
+    @PutMapping("/team")
+    public ResponseEntity<ApiResponse<User>> updateUserTeam(@RequestParam String userId, @RequestParam String teamId) {
+        return ResponseEntity.ok(ApiResponse.<User>builder()
+                .code(HttpStatus.OK.value())
+                .message("User updated successfully.")
+                .data(userService.updateUserTeam(userId, teamId))
+                .build());
     }
 }
