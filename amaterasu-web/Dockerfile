@@ -35,9 +35,8 @@ RUN set -eux \
   && rm -f /etc/nginx/conf.d/default.conf
 
 COPY --link --chown=101:101 --from=compile-stage /app/dist/app/browser /usr/share/nginx/html/
-COPY --link --chown=101:101 app.config.json /usr/share/nginx/html/assets/environment/app.config.production.json
 
-COPY --chmod=755 entrypoint.sh /entrypoint.sh
+COPY --chmod=755 ./scripts/docker-entrypoint.sh /docker-entrypoint.sh
 
 EXPOSE 80
 HEALTHCHECK --start-period=5s CMD curl --fail http://localhost/ || exit 1
@@ -45,4 +44,4 @@ HEALTHCHECK --start-period=5s CMD curl --fail http://localhost/ || exit 1
 USER nginx
 
 # Start Nginx
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
