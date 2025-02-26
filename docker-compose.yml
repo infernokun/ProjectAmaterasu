@@ -1,8 +1,11 @@
 services:
   amaterasu-web:
-    image: infernokun/amaterasu-rest
+    image: infernokun/amaterasu-web
     #build: ./amaterasu-web
     restart: always
+    environment:
+      - BASE_URL=http://amaterasu-web
+      - REST_URL=http://amaterasu-rest:8080/amaterasu-rest
     ports:
       - "80:80"
     depends_on:
@@ -24,7 +27,7 @@ services:
       - "8080:8080"
     environment:
       - DOCKER_COMPOSE_PATH=/app/amaterasu
-      - DB_IP=${DB_IP}
+      - DB_IP=amaterasu-db
       - DB_NAME=${POSTGRES_DB}
       - DB_USER=${POSTGRES_USER}
       - DB_PASS=${POSTGRES_PASSWORD}
