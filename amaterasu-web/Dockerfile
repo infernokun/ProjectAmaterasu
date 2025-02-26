@@ -38,6 +38,8 @@ COPY --link --chown=101:101 --from=compile-stage /app/dist/app/browser /usr/shar
 
 COPY --chmod=755 ./scripts/docker-entrypoint.sh /docker-entrypoint.sh
 
+VOLUME [ "/etc/nginx" ]
+
 EXPOSE 80
 HEALTHCHECK --start-period=5s CMD curl --fail http://localhost/ || exit 1
 
