@@ -145,18 +145,6 @@ public class LabService extends BaseService {
         return labRepository.saveAll(labs);
     }
 
-    public boolean deleteLab(String id) {
-        try {
-            labRepository.deleteById(id);
-            return true;
-        } catch (OptimisticLockingFailureException e) {
-            LOGGER.info("????");
-            return false;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     public Lab updateLab(Lab updatedLabData) {
         Optional<Lab> existingLabOptional = labRepository.findById(updatedLabData.getId());
         if (existingLabOptional.isPresent()) {
@@ -200,7 +188,7 @@ public class LabService extends BaseService {
             }
         }
 
-        LabActionResult labActionResult = labActionService.startLab(lab, labTracker, remoteServer);
+        LabActionResult labActionResult = labActionService.startLab(labTracker, remoteServer);
 
         labActionResult.getLabTracker().setUpdatedAt(LocalDateTime.now());
         labActionResult.getLabTracker().setUpdatedBy(user.getId());
@@ -224,33 +212,67 @@ public class LabService extends BaseService {
     }
 
     @Transactional
-    public Optional<LabActionResult> stopLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
+    public LabActionResult stopLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
         LOGGER.info("Stopping lab with id {} by user id {} and lab tracker id {}", labId, userId, labTrackerId);
+
+        Optional<LabTracker> existingLabTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
+        if (existingLabTrackerOptional.isEmpty())
+            throw new ResourceNotFoundException("No existing lab tracker found for lab tracker id " + labTrackerId);
 
         Lab lab = this.findLabById(labId);
         User user = this.userService.findUserById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
         Team userTeam = user.getTeam();
+
         LOGGER.info("Stopping lab...");
 
         String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy @ hh:mma"));
 
+        LabTracker existingLabTracker = existingLabTrackerOptional.get();
+        LabActionResult labActionResult = labActionService.stopLab(lab, existingLabTracker, remoteServer);
+
+        labActionResult.getLabTracker().setUpdatedAt(LocalDateTime.now());
+        labActionResult.getLabTracker().setUpdatedBy(user.getId());
+        labActionResult.getLabTracker().setLabStatus(labActionResult.isSuccessful() ? LabStatus.STOPPED : LabStatus.ACTIVE);
+
+        labTrackerService.updateLabTracker(labActionResult.getLabTracker());
+
+        return labActionResult;
+    }
+
+    @Transactional
+    public LabActionResult deleteLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
+        LOGGER.info("Deleting lab with id {} by user id {} and lab tracker id {}", labId, userId, labTrackerId);
+
         Optional<LabTracker> existingLabTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
-        if (existingLabTrackerOptional.isPresent()) {
-            LabTracker existingLabTracker = existingLabTrackerOptional.get();
-            LabActionResult labActionResult = labActionService.stopLab(lab, existingLabTracker, remoteServer);
+        if (existingLabTrackerOptional.isEmpty())
+            throw new ResourceNotFoundException("No existing lab tracker found for lab tracker id " + labTrackerId);
 
-            labActionResult.getLabTracker().setUpdatedAt(LocalDateTime.now());
-            labActionResult.getLabTracker().setUpdatedBy(user.getId());
-            labActionResult.getLabTracker().setLabStatus(labActionResult.isSuccessful() ? LabStatus.STOPPED : LabStatus.ACTIVE);
+        Lab lab = this.findLabById(labId);
+        User user = this.userService.findUserById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        Team userTeam = user.getTeam();
 
-            labTrackerService.updateLabTracker(labActionResult.getLabTracker());
+        LOGGER.info("Deleting lab...");
 
-            return Optional.of(labActionResult);
+        LabTracker existingLabTracker = existingLabTrackerOptional.get();
+        LabActionResult labActionResult = labActionService.deleteLab(existingLabTracker, remoteServer);
+
+        if (labActionResult.isSuccessful()) {
+            try {
+                existingLabTracker.setLabStatus(LabStatus.DELETED);
+                userTeam.getTeamActiveLabs().remove(existingLabTracker.getId());
+                userTeam.getTeamDeletedLabs().add(existingLabTracker.getId());
+                teamService.updateTeam(userTeam);
+                labTrackerService.updateLabTracker(existingLabTracker);
+            } catch (Exception e) {
+                throw new RuntimeException("Error during lab deletion: " + e.getMessage());
+            }
+        } else {
+            LOGGER.warn("Lab deletion failed for lab {}", labId);
         }
 
-        LOGGER.warn("No existing lab tracker found for lab tracker id {}", labTrackerId);
-        return Optional.empty();
+        return labActionResult;
     }
+
 
     private Optional<LabTracker> handleLabStop(Lab lab, User user, LabTracker existingLabTracker, boolean successfulStop, LocalDateTime now, String formattedDate) {
         existingLabTracker.setUpdatedAt(now);

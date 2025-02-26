@@ -1,6 +1,7 @@
 services:
   amaterasu-web:
-    build: ./amaterasu-web
+    image: infernokun/amaterasu-rest
+    #build: ./amaterasu-web
     restart: always
     ports:
       - "80:80"
@@ -23,14 +24,12 @@ services:
       - "8080:8080"
     environment:
       - DOCKER_COMPOSE_PATH=/app/amaterasu
-      - DOCKER_IP=${DOCKER_IP}
-      - DOCKER_USER=${DOCKER_USER}
-      - DOCKER_PASS=${DOCKER_PASS}
       - DB_IP=${DB_IP}
       - DB_NAME=${POSTGRES_DB}
       - DB_USER=${POSTGRES_USER}
       - DB_PASS=${POSTGRES_PASSWORD}
       - DB_PORT=${DB_PORT}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
     depends_on:
       - amaterasu-db
     

@@ -6,22 +6,17 @@ import lombok.NoArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
-@Configuration
-@ConfigurationProperties(prefix = "amaterasu")
 @Data
+@Configuration
 @NoArgsConstructor
 @AllArgsConstructor
+@ConfigurationProperties(prefix = "amaterasu")
 public class AmaterasuConfig {
     private String applicationName;
     private String defaultAdminUsername;
     private String defaultAdminPassword;
     private String uploadDir;
-    private String dockerHost;
-    private String dockerUser;
-    private String dockerPass;
     private String chatService;
     private String chatSocket;
-    private String apiKey;
-    private String proxmoxAPIToken;
     private String encryptionKey;
 }

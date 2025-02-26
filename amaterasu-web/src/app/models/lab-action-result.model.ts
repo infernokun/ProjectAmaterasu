@@ -4,5 +4,4 @@ export class LabActionResult {
   isSuccessful?: boolean;
   labTracker?: LabTracker
   output?: string;
-
 }

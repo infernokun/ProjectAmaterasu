@@ -1,6 +1,7 @@
 package com.infernokun.amaterasu.exceptions;
 
 import com.infernokun.amaterasu.models.ApiResponse;
+import com.infernokun.amaterasu.models.LabActionResult;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -14,7 +15,7 @@ public class GlobalExceptionHandler {
             FileUploadException ex) {
         ApiResponse<String> response = ApiResponse.<String>builder()
                 .code(HttpStatus.BAD_REQUEST.value())
-                .message("File upload error: " + ex.getMessage())
+                .message("FileUploadException: " + ex.getMessage())
                 .data("Error encountered during file upload")
                 .build();
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
@@ -25,7 +26,7 @@ public class GlobalExceptionHandler {
             LabReadinessException ex) {
         ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
                 .code(HttpStatus.BAD_REQUEST.value())
-                .message("Lab readiness exception...: " + ex.getMessage())
+                .message("LabReadinessException: " + ex.getMessage())
                 .data(false)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
@@ -35,7 +36,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Boolean>> handleRemoteCommandException(RemoteCommandException ex) {
         ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
                 .code(HttpStatus.BAD_REQUEST.value())
-                .message("Remote command error: " + ex.getMessage())
+                .message("RemoteCommandException: " + ex.getMessage())
                 .data(false)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
@@ -46,7 +47,7 @@ public class GlobalExceptionHandler {
             ResourceNotFoundException ex) {
         ApiResponse<String> response = ApiResponse.<String>builder()
                 .code(HttpStatus.NOT_FOUND.value())
-                .message("Resource not found: " + ex.getMessage())
+                .message("ResourceNotFoundException: " + ex.getMessage())
                 .data(null)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
@@ -56,7 +57,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<String>> handleWrongPasswordException(WrongPasswordException ex) {
         ApiResponse<String> response = ApiResponse.<String>builder()
                 .code(HttpStatus.UNAUTHORIZED.value())
-                .message("Invalid credentials: " + ex.getMessage())
+                .message("WrongPasswordException: " + ex.getMessage())
                 .data(null)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
@@ -66,7 +67,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Boolean>> handleAuthFailedException(AuthFailedException ex) {
         ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
                 .code(HttpStatus.UNAUTHORIZED.value())
-                .message("Authentication failed: " + ex.getMessage())
+                .message("AuthFailedException: " + ex.getMessage())
                 .data(false)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
@@ -76,7 +77,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Boolean>> handleTokenException(TokenException ex) {
         ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
                 .code(HttpStatus.BAD_REQUEST.value())
-                .message("Token operation failed: " + ex.getMessage())
+                .message("TokenException: " + ex.getMessage())
                 .data(false)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
@@ -86,8 +87,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Boolean>> handleTokenException(CryptoException ex) {
         ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
                 .code(HttpStatus.BAD_REQUEST.value())
-                .message("Crypto issue: " + ex.getMessage())
+                .message("CryptoException: " + ex.getMessage())
                 .data(null)
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ServerTypeException.class)
+    public ResponseEntity<ApiResponse<LabActionResult>> handleTokenException(ServerTypeException ex) {
+        ApiResponse<LabActionResult> response = ApiResponse.<LabActionResult>builder()
+                .code(HttpStatus.BAD_REQUEST.value())
+                .message("ServerTypeException: " + ex.getMessage())
+                .data(new LabActionResult(false, null, ex.getMessage()))
                 .build();
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
@@ -96,7 +107,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleRuntimeException(RuntimeException ex) {
         ApiResponse<?> response = ApiResponse.<String>builder()
                 .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .message("An error occurred: " + ex.getMessage())
+                .message("RuntimeException: " + ex.getMessage())
                 .data(null)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -106,7 +117,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleGeneralException(Exception ex) {
         ApiResponse<?> response = ApiResponse.<String>builder()
                 .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .message("An error occurred: " + ex.getMessage())
+                .message("Exception: " + ex.getMessage())
                 .data(null)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);

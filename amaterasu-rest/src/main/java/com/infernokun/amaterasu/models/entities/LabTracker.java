@@ -1,7 +1,7 @@
 package com.infernokun.amaterasu.models.entities;
 
 import com.infernokun.amaterasu.models.DockerServiceInfo;
-import com.infernokun.amaterasu.models.ProxmoxVM;
+import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.helper.DockerServiceInfoConverter;
 import com.infernokun.amaterasu.models.helper.ProxmoxVMListConverter;

@@ -1,7 +1,6 @@
 package com.infernokun.amaterasu.exceptions;
 
 public class TokenException extends RuntimeException {
-
     public TokenException(String message) {
         super(message);
     }

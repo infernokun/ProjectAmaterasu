@@ -2,7 +2,7 @@ package com.infernokun.amaterasu.models.helper;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.infernokun.amaterasu.models.ProxmoxVM;
+import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 import org.slf4j.Logger;

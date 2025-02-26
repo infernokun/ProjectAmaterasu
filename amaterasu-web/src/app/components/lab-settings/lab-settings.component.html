@@ -1,6 +1,8 @@
 <div class="dashboard">
   <h1>Lab Tracker Dashboard</h1>
-  <div class="service-list">
+
+  <!-- Docker Services Section -->
+  <div class="service-list" *ngIf="labTracker?.remoteServer?.serverType === ServerType.DOCKER_HOST">
     <div *ngFor="let service of labTrackerSubject.value?.services" class="service-card">
       <h2>{{ service.name }}</h2>
       <p><strong>Status:</strong> {{ service.state }}</p>
@@ -25,6 +27,23 @@
           - {{ volume.key }} - {{ volume.value }}<br>
         </li>
       </ul>
+    </div>
+  </div>
+
+  <!-- Proxmox VMs Section -->
+  <div class="proxmox-list" *ngIf="labTracker?.remoteServer?.serverType === ServerType.PROXMOX">
+    <h2>Proxmox Virtual Machines</h2>
+    <div *ngFor="let vm of labTrackerSubject.value?.vms" class="vm-card">
+      <h3>{{ vm.name }}</h3>
+      <p><strong>VM ID:</strong> {{ vm.vmid }}</p>
+      <p><strong>Status:</strong> {{ vm.status }}</p>
+      <p><strong>Uptime:</strong> {{ vm.uptime! | duration }} </p>
+      <p><strong>Memory Usage:</strong>
+        {{ (vm.mem! / 1073741824) | number:'1.2-2' }}/
+        {{ (vm.maxmem! / 1073741824) | number:'1.2-2' }} GB
+      </p>
+      <p><strong>CPU Usage:</strong> {{ vm.cpu | percent }} ({{ vm.cpus }} CPU{{ vm.cpus! > 1 ? 's' : '' }})</p>
+      <p><strong>Template:</strong> {{ vm.template ? 'Yes' : 'No' }}</p>
     </div>
   </div>
 </div>

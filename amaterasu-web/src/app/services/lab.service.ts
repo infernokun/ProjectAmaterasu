@@ -45,12 +45,9 @@ export class LabService extends BaseService {
     );
   }
 
-  stopLab(labId: string, userId?: string, labTrackerId?: string): Observable<ApiResponse<any>> {
-    return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/stop', {
-      labId,
-      userId,
-      labTrackerId
-    });
+  stopLab(labRequest: LabRequest): Observable<ApiResponse<any>> {
+    return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/stop',
+      labRequest);
   }
 
   createNewLab(lab: Lab, remoteServerId: string): Observable<ApiResponse<Lab>> {
@@ -63,12 +60,10 @@ export class LabService extends BaseService {
     )
   }
 
-  deleteLab(labId: string, userId?: string, labTrackerId?: string): Observable<ApiResponse<any>> {
-    return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/delete-lab-from-team', {
-      labId,
-      userId,
-      labTrackerId
-    });
+  deleteLab(labRequest: LabRequest): Observable<ApiResponse<any>> {
+    return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/delete',
+      labRequest
+    );
   }
 
   uploadDockerComposeFile(labId: string, content: string): Observable<ApiResponse<string>> {

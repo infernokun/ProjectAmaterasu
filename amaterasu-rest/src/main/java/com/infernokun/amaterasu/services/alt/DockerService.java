@@ -10,13 +10,16 @@ import com.github.dockerjava.core.*;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import com.github.dockerjava.transport.DockerHttpClient;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
+import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.DockerServiceInfo;
 import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
+import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.services.BaseService;
+import com.infernokun.amaterasu.services.entity.LabTrackerService;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
 
@@ -28,13 +31,15 @@ import java.util.*;
 @Service
 public class DockerService extends BaseService {
     private final RemoteCommandService remoteCommandService;
+    private final LabTrackerService labTrackerService;
     private final AmaterasuConfig amaterasuConfig;
 
     private DockerClientConfig dockerClientConfig;
     private DockerClient dockerClient;
 
-    public DockerService(RemoteCommandService remoteCommandService, AmaterasuConfig amaterasuConfig) {
+    public DockerService(RemoteCommandService remoteCommandService, LabTrackerService labTrackerService, AmaterasuConfig amaterasuConfig) {
         this.remoteCommandService = remoteCommandService;
+        this.labTrackerService = labTrackerService;
         this.amaterasuConfig = amaterasuConfig;
     }
 
@@ -72,28 +77,28 @@ public class DockerService extends BaseService {
         dockerClient.stopContainerCmd(containerId).exec();
     }
 
-    public LabActionResult startDockerCompose(Lab lab, LabTracker labTracker, RemoteServer dockerServer) {
-        String catOriginalDockerComposeCmd = String.format("cat %s/%s/%s", amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile());
-        RemoteCommandResponse catOriginalDockerComposeOutput = remoteCommandService.handleRemoteCommand(catOriginalDockerComposeCmd, dockerServer);
+    public LabActionResult startDockerCompose(LabTracker labTracker, RemoteServer remoteServer) {
+        String catOriginalDockerComposeCmd = String.format("cat %s/%s/%s", amaterasuConfig.getUploadDir(), labTracker.getLabStarted().getId(), labTracker.getLabStarted().getDockerFile());
+        RemoteCommandResponse catOriginalDockerComposeOutput = remoteCommandService.handleRemoteCommand(catOriginalDockerComposeCmd, remoteServer);
 
         String composeYAML = catOriginalDockerComposeOutput.getBoth();
         String modifiedYAML = modifyDockerComposeYAML(composeYAML, labTracker.getId());
 
         String createLabTrackerBasedFileCmd = String.format("DIR=%s/tracker-compose && mkdir -p $DIR && echo \"%s\" > $DIR/%s",
-                amaterasuConfig.getUploadDir(), modifiedYAML, labTracker.getId() + "_" + lab.getDockerFile());
-        RemoteCommandResponse createLabTrackerBasedFileOutput = remoteCommandService.handleRemoteCommand(createLabTrackerBasedFileCmd, dockerServer);
+                amaterasuConfig.getUploadDir(), modifiedYAML, labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
+        RemoteCommandResponse createLabTrackerBasedFileOutput = remoteCommandService.handleRemoteCommand(createLabTrackerBasedFileCmd, remoteServer);
 
         String startTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s up -d ",
-                amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + lab.getDockerFile());
-        RemoteCommandResponse startTrackerComposeOutput = remoteCommandService.handleRemoteCommand(startTrackerComposeCmd, dockerServer);
+                amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
+        RemoteCommandResponse startTrackerComposeOutput = remoteCommandService.handleRemoteCommand(startTrackerComposeCmd, remoteServer);
 
         //String checkTrackerProcessCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s ps -a",
         //       amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + lab.getDockerFile());
         //RemoteCommandResponse checkTrackerProcessOutput = remoteCommandService.handleRemoteCommand(checkTrackerProcessCmd, amaterasuConfig);
 
         String checkTrackerProcessCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s ps -q | xargs docker inspect",
-                amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + lab.getDockerFile());
-        RemoteCommandResponse checkTrackerProcessOutput = remoteCommandService.handleRemoteCommand(checkTrackerProcessCmd, dockerServer);
+                amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
+        RemoteCommandResponse checkTrackerProcessOutput = remoteCommandService.handleRemoteCommand(checkTrackerProcessCmd, remoteServer);
 
         labTracker.setServices(parseDockerInspectOutput(checkTrackerProcessOutput.getBoth().trim()));
 
@@ -104,11 +109,13 @@ public class DockerService extends BaseService {
                 .build();
     }
 
-    public LabActionResult stopDockerCompose(Lab lab, LabTracker labTracker, RemoteServer dockerServer) {
+    public LabActionResult stopDockerCompose(String labTrackerId, RemoteServer remoteServer) {
+        LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId)
+                .orElseThrow(() -> new ResourceNotFoundException("LabTracker not found"));
 
         String stopTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s down",
-                amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + lab.getDockerFile());
-        RemoteCommandResponse stopTrackerComposeOutput = remoteCommandService.handleRemoteCommand(stopTrackerComposeCmd, dockerServer);
+                amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
+        RemoteCommandResponse stopTrackerComposeOutput = remoteCommandService.handleRemoteCommand(stopTrackerComposeCmd, remoteServer);
 
         return LabActionResult.builder()
                 .labTracker(labTracker)

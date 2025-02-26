@@ -45,10 +45,6 @@ amaterasu:
   defaultAdminUsername: admin
   defaultAdminPassword: password
   uploadDir: "${DOCKER_COMPOSE_PATH:/app/amaterasu}"
-  dockerHost: "${DOCKER_IP}"
-  dockerUser: "${DOCKER_USER}"
-  dockerPass: "${DOCKER_PASS}"
-  proxmoxAPIToken: "${PROXMOX_API_TOKEN}"
   encryptionKey: "${ENCRYPTION_KEY}"
   chatService: ""
   chatSocket: ""

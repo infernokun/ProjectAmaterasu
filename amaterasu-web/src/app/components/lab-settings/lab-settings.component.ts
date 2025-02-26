@@ -7,6 +7,7 @@ import { UserService } from '../../services/user.service';
 import { Team } from '../../models/team.model';
 import { LabTrackerService } from '../../services/lab-tracker.service';
 import { LabTracker } from '../../models/lab-tracker.model';
+import { ServerType } from '../../enums/server-type.enum';
 
 @Component({
   selector: 'app-lab-settings',
@@ -20,6 +21,7 @@ export class LabSettingsComponent implements OnInit {
 
   labTrackerSubject: BehaviorSubject<LabTracker | undefined> = new BehaviorSubject<LabTracker | undefined>(undefined);
   labTracker: LabTracker | undefined;
+  ServerType = ServerType;
   constructor(private route: ActivatedRoute, private labService: LabService, private labTrackerService: LabTrackerService, private userService: UserService) { }
 
   ngOnInit(): void {

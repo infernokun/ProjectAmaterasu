@@ -24,6 +24,7 @@ import { RemoteServerService } from '../../services/remote-server.service';
 import { FormControl } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { LabRequest } from '../../models/dto/lab-request.model';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-lab',
@@ -214,8 +215,6 @@ export class LabComponent implements OnInit {
       remoteServerId: this.remoteServerService.getSelectedRemoteServer().id
     }
 
-    console.log('labRequest', labRequest);
-
     this.labService.startLab(labRequest).subscribe({
       next: (response: ApiResponse<LabActionResult | undefined>) => {
         if (!response.data) return;
@@ -253,7 +252,7 @@ export class LabComponent implements OnInit {
           this.dialog.open(DialogComponent, {
             data: {
               title: 'Lab Start',
-              content: response.data.output,
+              content: JSON.stringify(response.data.output),
               isCode: true,
               isReadOnly: true,
               fileType: 'bash'
@@ -266,8 +265,32 @@ export class LabComponent implements OnInit {
 
         console.log("Started lab:", response);
       },
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
         console.error(`Failed to start lab ${labId}:`, err);
+
+        // Ensure proper extraction of LabActionResult from API response
+        let errorContent: string;
+
+        try {
+          const apiResponse: ApiResponse<LabActionResult> = err.error;
+          errorContent = JSON.stringify(apiResponse.data, null, 2); // Pretty-print JSON
+        } catch (e) {
+          errorContent = JSON.stringify({ error: 'Unexpected error format', details: err.message }, null, 2);
+        }
+
+        this.dialog.open(DialogComponent, {
+          data: {
+            title: 'Lab Start',
+            content: errorContent,
+            isCode: true,
+            isReadOnly: true,
+            fileType: 'json' // Change to JSON since it's structured data
+          },
+          width: '75rem',
+          height: '50rem',
+          disableClose: true
+        });
+
         this.loadingLabs.delete(labId);
       },
       complete: () => {
@@ -300,7 +323,14 @@ export class LabComponent implements OnInit {
       return;
     }
 
-    this.labService.stopLab(labId, user?.id, latestLabTracker.id).subscribe({
+    const labRequest: LabRequest = {
+      labId: labId,
+      userId: user?.id,
+      labTrackerId: latestLabTracker?.id || "",
+      remoteServerId: this.remoteServerService.getSelectedRemoteServer().id
+    }
+
+    this.labService.stopLab(labRequest).subscribe({
       next: (response: ApiResponse<LabActionResult | undefined>) => {
         if (!response.data) return;
 
@@ -357,6 +387,8 @@ export class LabComponent implements OnInit {
   deleteLab(labId?: string): void {
     if (!labId) return; // Early return if labId is not provided
 
+    this.loadingLabs.add(labId);
+
     // Find all labs that match the labId and are stopped
     const matchingLabs = this.trackedLabs.filter(tracker =>
       (tracker.labStatus === LabStatus.STOPPED || tracker.labStatus === LabStatus.FAILED) && tracker.labStarted?.id === labId
@@ -372,31 +404,52 @@ export class LabComponent implements OnInit {
       return;
     }
 
-    this.labService.deleteLab(labId, this.loggedInUser?.id, latestLabTracker.id)
-      .subscribe({
-        next: ({ data }: ApiResponse<LabTracker | undefined>) => {
-          if (!data) return;
+    const labRequest: LabRequest = {
+      labId: labId,
+      userId: this.loggedInUser!.id,
+      labTrackerId: latestLabTracker?.id || "",
+      remoteServerId: this.remoteServerService.getSelectedRemoteServer().id
+    }
 
-          const deletedLabTracker = new LabTracker(data);
-          console.log("Deleted lab", deletedLabTracker);
+    this.labService.deleteLab(labRequest).subscribe({
+      next: (response: ApiResponse<LabActionResult | undefined>) => {
+        if (!response.data) return;
 
-          const index = this.trackedLabs.findIndex(tracker => tracker.id === deletedLabTracker.id);
-          if (index !== -1) {
-            this.trackedLabs[index] = deletedLabTracker;
-            this.trackedLabsSubject.next(this.trackedLabs);
-            console.log("Updated tracked labs after deletion", this.trackedLabs);
-          } else {
-            console.warn(`Lab tracker not found in trackedLabs: ${deletedLabTracker.id}`);
-          }
-        },
-        error: (err) => {
-          console.error(`Failed to delete lab ${labId}:`, err);
-          this.loadingLabs.delete(labId);
-        },
-        complete: () => {
-          this.loadingLabs.delete(labId);
-        },
-      });
+        const deletedLabTracker = new LabTracker(response.data.labTracker);
+        console.log("Deleted lab", deletedLabTracker);
+
+        if (response.data.output) {
+          this.dialog.open(DialogComponent, {
+            data: {
+              title: 'Lab Start',
+              content: response.data.output,
+              isCode: true,
+              isReadOnly: true,
+              fileType: 'bash'
+            },
+            width: '75rem',
+            height: '50rem',
+            disableClose: true
+          });
+        }
+
+        const index = this.trackedLabs.findIndex(tracker => tracker.id === deletedLabTracker.id);
+        if (index !== -1) {
+          this.trackedLabs[index] = deletedLabTracker;
+          this.trackedLabsSubject.next(this.trackedLabs);
+          console.log("Updated tracked labs after deletion", this.trackedLabs);
+        } else {
+          console.warn(`Lab tracker not found in trackedLabs: ${deletedLabTracker.id}`);
+        }
+      },
+      error: (err) => {
+        console.error(`Failed to delete lab ${labId}:`, err);
+        this.loadingLabs.delete(labId);
+      },
+      complete: () => {
+        this.loadingLabs.delete(labId);
+      },
+    });
   }
 
   getSettings(labId?: string, user?: User): void {

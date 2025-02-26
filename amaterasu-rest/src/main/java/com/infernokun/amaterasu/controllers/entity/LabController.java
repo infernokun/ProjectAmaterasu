@@ -117,28 +117,6 @@ public class LabController extends BaseController {
         );
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteLab(@PathVariable String id) {
-        boolean isDeleted = labService.deleteLab(id);
-        if (isDeleted) {
-            return ResponseEntity.ok(
-                    ApiResponse.<Void>builder()
-                            .code(HttpStatus.OK.value())
-                            .message("Lab deleted successfully.")
-                            .data(null)
-                            .build()
-            );
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                    ApiResponse.<Void>builder()
-                            .code(HttpStatus.NOT_FOUND.value())
-                            .message("Lab not found or a conflict occurred.")
-                            .data(null)
-                            .build()
-            );
-        }
-    }
-
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Lab>> updateLab(@RequestBody Lab lab) {
         Lab updatedLab = labService.updateLab(lab);
@@ -189,17 +167,31 @@ public class LabController extends BaseController {
                         .build());
     }
 
-    @PostMapping("/stop/{remoteServerId}")
-    public ResponseEntity<ApiResponse<LabActionResult>> stopLab(@PathVariable String remoteServerId, @RequestBody LabRequest labRequest) {
-        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
+    @PostMapping("/stop")
+    public ResponseEntity<ApiResponse<LabActionResult>> stopLab(@RequestBody LabRequest labRequest) {
+        RemoteServer remoteServer = remoteServerService.getServerById(labRequest.getRemoteServerId());
 
-        Optional<LabActionResult> stoppedLabOptional =
-                labService.stopLab(labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
-        return ResponseEntity.status(stoppedLabOptional.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+        LabActionResult stoppedLab = labService.stopLab(
+                labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
+        return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabActionResult>builder()
-                        .code(stoppedLabOptional.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
-                        .message(stoppedLabOptional.isPresent() ? "Lab stopped successfully." : "Failed to stop the lab.")
-                        .data(stoppedLabOptional.orElse(null))
+                        .code(HttpStatus.OK.value())
+                        .message("Lab stopped successfully.")
+                        .data(stoppedLab)
+                        .build());
+    }
+
+    @PostMapping("/delete")
+    public ResponseEntity<ApiResponse<LabActionResult>> deleteLab(@RequestBody LabRequest labRequest) {
+        RemoteServer remoteServer = remoteServerService.getServerById(labRequest.getRemoteServerId());
+
+        LabActionResult deletedLab = labService.deleteLab(
+                labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.<LabActionResult>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Lab deleted successfully.")
+                        .data(deletedLab)
                         .build());
     }
 

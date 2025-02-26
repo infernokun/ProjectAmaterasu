@@ -8,6 +8,7 @@ import os
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Proxmox API details
+load_dotenv()
 PROXMOX_HOST = "https://10.0.0.250:8006"
 TOKEN_ID = os.getenv("TOKEN_ID")
 TOKEN_SECRET = os.getenv("TOKEN_SECRET")
@@ -84,6 +85,14 @@ def get_vms():
     return response.json()
 
 
+def get_vm(vmid):
+    url = f"{PROXMOX_HOST}/api2/json/nodes/{NODE}/qemu/{vmid}/status/current"
+    response = requests.get(url, headers=HEADERS, verify=False)
+    if response.status_code == 200:
+        return response.json()
+    return {url, response.status_code}
+
+
 def get_vmids_with_short_uptime_and_high_vmid(
     uptime_threshold_hours=10, vmid_threshold=120
 ):
@@ -113,6 +122,30 @@ def get_vmids_with_short_uptime_and_high_vmid(
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
         return []
+
+
+def get_vm_config(vmid: int):
+    url = f"{PROXMOX_HOST}/api2/json/nodes/{NODE}/qemu/{vmid}/config"
+    response = requests.get(url, headers=HEADERS, verify=False)
+    if response.status_code == 200:
+        return response.json()
+    return {url, response.status_code}
+
+
+def get_node_networks():
+    url = f"{PROXMOX_HOST}/api2/json/nodes/{NODE}/network"
+    response = requests.get(url, headers=HEADERS, verify=False)
+    if response.status_code == 200:
+        return response.json()
+    return {url, response.status_code}
+
+
+def qemu(vmid):
+    url = f"{PROXMOX_HOST}/api2/json/nodes/{NODE}/qemu/{vmid}/agent/ping"
+    response = requests.get(url, headers=HEADERS, verify=False)
+    if response.status_code == 200:
+        return response.json()
+    return {url, response.status_code}
 
 
 def main():
@@ -156,3 +189,22 @@ if __name__ == "__main__":
     # main()
     quick_delete(get_vmids_with_short_uptime_and_high_vmid())
     # print(get_vms())
+    # print(get_vm(100))
+    # print(get_vm_config(896545858))
+    # print(get_node_networks())
+    print(qemu(744876730))
+    vms = [102, 104, 105, 106]
+
+    for vm in vms:
+        config = get_vm_config(vm)["data"]
+        print(config["name"])
+        for key, value in config.items():
+            if key.startswith("net"):
+                print(value)
+
+    """for x in get_node_networks()["data"]:
+        print(
+            x["iface"],
+            x["address"] if "address" in x else "",
+            x["cidr"] if "cidr" in x else "",
+        )"""

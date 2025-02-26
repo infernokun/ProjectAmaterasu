@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.models;
+package com.infernokun.amaterasu.models.proxmox;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
