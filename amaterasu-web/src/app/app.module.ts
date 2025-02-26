@@ -90,7 +90,8 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     },
     provideHttpClient(withInterceptorsFromDi()),
     provideCodeEditor({
-      editorVersion: '0.44.0'
+      editorVersion: '0.44.0',
+      baseUrl: '/assets/monaco-editor/min'
     })
   ],
   bootstrap: [AppComponent]
