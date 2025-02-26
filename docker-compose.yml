@@ -5,7 +5,7 @@ services:
     restart: always
     environment:
       - BASE_URL=http://amaterasu-web
-      - REST_URL=http://amaterasu-rest:8080/amaterasu-rest
+      - REST_URL/api
     ports:
       - "80:80"
     depends_on:
