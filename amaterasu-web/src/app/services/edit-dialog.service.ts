@@ -14,12 +14,12 @@ import { ComponentType } from '@angular/cdk/overlay';
 export class EditDialogService {
   constructor(private dialog: MatDialog) { }
 
-  openForm(formData: SimpleFormData | undefined, component?: ComponentType<any>): Observable<any> {
-    const config = new MatDialogConfig();
-    config.disableClose = true;
-    config.autoFocus = true;
-    config.data = formData;
-    config.minWidth = "50vw";
+  openForm(formData: SimpleFormData | undefined, component?: ComponentType<any>, customConfig?: MatDialogConfig): Observable<any> {
+    const config = customConfig || new MatDialogConfig();
+    config.disableClose = config.disableClose ?? true;
+    config.autoFocus = config.autoFocus ?? true;
+    config.data = formData ?? config.data;
+    config.minWidth = config.minWidth ?? "50vw";
     return this.dialog
       .open(component ? component : AddDialogFormComponent, config)
       .afterClosed();
@@ -41,10 +41,14 @@ export class EditDialogService {
   }
 
   openLoginDialog(): Observable<any> {
-    return this.openForm(undefined, LoginComponent);
+    const config = new MatDialogConfig();
+    config.disableClose = false;
+    return this.openForm(undefined, LoginComponent, config);
   }
 
   openRegisterDialog(): Observable<any> {
-    return this.openForm(undefined, RegisterComponent);
+    const config = new MatDialogConfig();
+    config.disableClose = false;
+    return this.openForm(undefined, RegisterComponent, config);
   }
 }

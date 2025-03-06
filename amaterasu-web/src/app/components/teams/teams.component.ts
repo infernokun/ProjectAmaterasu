@@ -5,6 +5,8 @@ import { LabFormData } from '../../models/lab.model';
 import { EditDialogService } from '../../services/edit-dialog.service';
 import { AuthService } from '../../services/auth.service';
 import { ApiResponse } from '../../models/api-response.model';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { User } from '../../models/user.model';
 
 @Component({
   selector: 'app-teams',
@@ -15,11 +17,17 @@ export class TeamsComponent implements OnInit {
   teams: Team[] = [];
   busy = false;
 
+  private loggedInUserSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);
+
+  loggedInUser$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
+
   constructor(private teamService: TeamService,
     private editDialogService: EditDialogService,
     private authService: AuthService) { }
 
   ngOnInit(): void {
+    this.loggedInUser$ = this.authService.user$;
+
     this.teamService.getAllTeams().subscribe((teams: any) => {
       console.log(teams);
       this.teams = teams;

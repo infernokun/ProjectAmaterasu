@@ -48,10 +48,10 @@ export class LabComponent implements OnInit {
   private trackedLabsSubject: BehaviorSubject<LabTracker[]> = new BehaviorSubject<LabTracker[]>([]);
   private userTeamSubject: BehaviorSubject<Team | undefined> = new BehaviorSubject<Team | undefined>(undefined);
 
-  labsObservable$: Observable<Lab[]> = this.labsSubject.asObservable();
-  loggedInUserObservable$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
-  trackedLabsObservable$: Observable<LabTracker[]> = this.trackedLabsSubject.asObservable();
-  userTeamObservable$: Observable<Team | undefined> = this.userTeamSubject.asObservable();
+  labs$: Observable<Lab[]> = this.labsSubject.asObservable();
+  loggedInUser$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
+  trackedLabs$: Observable<LabTracker[]> = this.trackedLabsSubject.asObservable();
+  userTeam$: Observable<Team | undefined> = this.userTeamSubject.asObservable();
 
   isHovered = false;
   busy = false;

@@ -1,4 +1,4 @@
-<button mat-fab mat-success (click)="addRemoteServer()" matTooltip="New Remote Server">
+<button mat-fab mat-success (click)="addRemoteServer()" matTooltip="New Remote Server" *ngIf="(loggedInUser$ | async)">
   <mat-icon fontIcon="add"></mat-icon>
 </button>
 

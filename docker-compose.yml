@@ -1,38 +1,46 @@
 services:
   amaterasu-web:
-    image: infernokun/amaterasu-web
+    image: infernokun/amaterasu-web:latest
     #build: ./amaterasu-web
     restart: always
     environment:
       - BASE_URL=http://amaterasu-web
       - REST_URL=/api
     ports:
-      - "80:80"
+      - "8764:80"
     depends_on:
-      - amaterasu-rest
+      amaterasu-db:
+        condition: service_healthy
+
   amaterasu-db:
     image: postgres:15
     restart: always
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      POSTGRES_USER: "${POSTGRES_USER:-amaterasu}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-amaterasu}"
+      POSTGRES_DB: "${POSTGRES_DB:-amaterasu}"
     volumes:
       - ./amaterasu-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-amaterasu}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   amaterasu-rest:
-    image: infernokun/amaterasu-rest
+    image: infernokun/amaterasu-rest:latest
     #build: ./amaterasu-rest
     restart: always
     ports:
-      - "8080:8080"
+      - "8765:8080"
     environment:
-      - DOCKER_COMPOSE_PATH=/app/amaterasu
-      - DB_IP=amaterasu-db
-      - DB_NAME=${POSTGRES_DB}
-      - DB_USER=${POSTGRES_USER}
-      - DB_PASS=${POSTGRES_PASSWORD}
-      - DB_PORT=${DB_PORT}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      DOCKER_COMPOSE_PATH: "${DOCKER_COMPOSE_PATH:-/var/tmp/amaterasu}"
+      DB_IP: "${POSTGRES_IP:-amaterasu-db}"
+      DB_NAME: "${POSTGRES_DB:-amaterasu}"
+      DB_USER: "${POSTGRES_USER:-amaterasu}"
+      DB_PASS: "${POSTGRES_PASSWORD:-amaterasu}"
+      DB_PORT: "${DB_PORT:-5432}"
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY:-secret_key}"
     depends_on:
       - amaterasu-db
     

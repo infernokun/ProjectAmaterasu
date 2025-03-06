@@ -37,23 +37,22 @@ build-web:
 
 deploy:
   stage: deploy
-  image: docker:24.0.7
-  services:
-    - docker:dind
+  image: ubuntu:latest
   before_script:
-    - apk add --no-cache bash curl
-    - curl -LO "https://dl.k8s.io/release/v1.32.2/bin/linux/amd64/kubectl"
-    - chmod +x kubectl
-    - mv kubectl /usr/local/bin/
-    - curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-    - chmod +x minikube
-    - mv minikube /usr/local/bin/
-    - /usr/local/bin/minikube start --driver=docker --force
-    - export KUBECONFIG=$HOME/.kube/config
-    - kubectl cluster-info
+    - apt-get -yq update
+    - apt-get -yqq install ssh
+    - install -m 600 -D /dev/null ~/.ssh/id_rsa
+    - echo "$STAGE_SERVER_PRIVATE_KEY" | base64 --decode > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan -H "$STAGE_SERVER_HOST" > ~/.ssh/known_hosts
+    # Export the path variable
+    - export DEPLOY_PATH="~/amaterasu"
   script:
-    - kubectl apply -f kubernetes/deployment.yaml
-    - kubectl apply -f kubernetes/service.yaml
+    - ssh "$STAGE_SERVER_USER@$STAGE_SERVER_HOST" "mkdir -p $DEPLOY_PATH"
+    - scp -r . "$STAGE_SERVER_USER@$STAGE_SERVER_HOST:$DEPLOY_PATH"
+    - ssh "$STAGE_SERVER_USER@$STAGE_SERVER_HOST" "cd $DEPLOY_PATH && docker compose down --remove-orphans && docker compose pull && docker compose up -d"
+  after_script:
+    - rm -rf ~/.ssh
   tags:
     - docker
   dependencies:
