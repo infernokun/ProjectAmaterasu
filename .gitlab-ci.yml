@@ -39,9 +39,11 @@ deploy:
   stage: deploy
   image: docker:24.0.7
   services:
-    - docker:dind
+    - name: docker:dind
+      command: ["--host=tcp://0.0.0.0:2375", "--mtu=1500"]
   before_script:
     - apk add --no-cache bash curl
+    - export DOCKER_HOST=unix:///var/run/docker.sock
   script:
     - docker compose -f docker-compose.yml up -d --remove-orphans
   tags:
