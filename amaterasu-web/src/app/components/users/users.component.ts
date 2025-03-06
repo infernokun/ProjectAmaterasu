@@ -3,9 +3,10 @@ import { User, UserFormData } from '../../models/user.model';
 import { UserService } from '../../services/user.service';
 import { TeamService } from '../../services/team.service';
 import { EditDialogService } from '../../services/edit-dialog.service';
-import { Observable } from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { Team } from '../../models/team.model';
 import { MessageService } from '../../services/message.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-users',
@@ -15,12 +16,16 @@ import { MessageService } from '../../services/message.service';
 export class UsersComponent implements OnInit {
   users: User[] = [];
   busy: boolean = false;
+  private loggedInUserSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);
+
+  loggedInUser$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
 
   constructor(private userService: UserService,
     private teamService: TeamService, private dialog: EditDialogService,
-    private messageService: MessageService) { }
+    private messageService: MessageService, private authService: AuthService) { }
 
   ngOnInit(): void {
+    this.loggedInUser$ = this.authService.user$;
 
     this.userService.getAllUsers().subscribe((users: User[]) => {
       console.log(users);

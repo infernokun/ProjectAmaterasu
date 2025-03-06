@@ -1,11 +1,12 @@
-<button mat-button class="button" (click)="clear()">Clear</button>
-<button mat-fab mat-success (click)="addLab()" matTooltip="New Lab">
-  <mat-icon fontIcon="add"></mat-icon>
-</button>
+<div class="otherButtons" *ngIf="(loggedInUser$ | async)">
+  <button mat-button class="button" (click)="clear()">Clear</button>
+  <button mat-fab mat-success (click)="addLab()" matTooltip="New Lab">
+    <mat-icon fontIcon="add"></mat-icon>
+  </button>
+</div>
 
 <div class="lab-container">
-  <div class="lab-card" *ngFor="let lab of labsObservable$ | async" (mouseenter)="onMouseEnter()"
-    (mouseleave)="onMouseLeave()">
+  <div class="lab-card" *ngFor="let lab of labs$ | async" (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()">
     <div class="lab-header">
       <h2 (mouseenter)="onMouseEnter()">
         {{ lab.name }}
@@ -33,8 +34,8 @@
       <!-- YAML Upload Box -->
       <div class="upload-box" *ngIf="lab.labType === LabType.DOCKER_COMPOSE">
         <label for="dockerComposeUpload">Upload Docker Compose YAML File:</label>
-        <input type="file" id="dockerComposeUpload" accept=".yml,.yaml"
-          (change)="dockerComposeUpload($event, lab.id!)" />
+        <input type="file" id="dockerComposeUpload" accept=".yml,.yaml" (change)="dockerComposeUpload($event, lab.id!)"
+          *ngIf="(loggedInUser$ | async)" />
       </div>
     </div>
     <div class="lab-footer">
@@ -47,7 +48,7 @@
 
       <!-- Button content when not loading -->
       <ng-template #buttonContent>
-        <div class="button-container">
+        <div class="button-container" *ngIf="(loggedInUser$ | async)">
           <!-- Querying Button -->
           <button mat-button class="button querying" *ngIf="isLabLoading(lab.id)">
             Querying

@@ -4,6 +4,8 @@ import { RemoteServerService } from '../../services/remote-server.service';
 import { EditDialogService } from '../../services/edit-dialog.service';
 import { AuthService } from '../../services/auth.service';
 import { ApiResponse } from '../../models/api-response.model';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { User } from '../../models/user.model';
 
 @Component({
   selector: 'app-remote-server',
@@ -14,12 +16,17 @@ export class RemoteServerComponent implements OnInit {
   remoteServers: RemoteServer[] = [];
   selectedServer?: RemoteServer;
 
+  private loggedInUserSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);
+
+  loggedInUser$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
+
   constructor(private remoteServerService: RemoteServerService,
     private editDialogService: EditDialogService,
     private authService: AuthService) { }
 
   ngOnInit(): void {
     this.loadRemoteServers();
+    this.loggedInUser$ = this.authService.user$;
   }
 
   loadRemoteServers(): void {

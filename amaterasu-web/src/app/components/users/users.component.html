@@ -1,4 +1,4 @@
-<button mat-button (click)="editUsers()">Edit Users</button>
+<button mat-button (click)="editUsers()" *ngIf="(loggedInUser$ | async)">Edit Users</button>
 <div *ngIf="users.length > 0; else noUsers">
   <div *ngFor="let user of users">
     <div class="card">
