@@ -1,6 +1,6 @@
 services:
   amaterasu-web:
-    image: infernokun/amaterasu-web
+    image: infernokun/amaterasu-web:latest
     #build: ./amaterasu-web
     restart: always
     environment:
@@ -28,7 +28,7 @@ services:
       retries: 5
 
   amaterasu-rest:
-    image: infernokun/amaterasu-rest
+    image: infernokun/amaterasu-rest:latest
     #build: ./amaterasu-rest
     restart: always
     ports:

@@ -37,18 +37,20 @@ build-web:
 
 deploy:
   stage: deploy
-  image: creatiwww/docker-compose:latest
+  image: docker:latest
   services:
     - name: docker:dind
       command: ["--host=tcp://0.0.0.0:2375", "--mtu=1500"]
   before_script:
-    - apk add --no-cache bash curl
+    - apk add --no-cache bash curl python3 py3-pip py3-paramiko
   script:
     - eval $(ssh-agent -s)
+    - ssh-keyscan -H $STAGE_SERVER_IP >> ~/.ssh/known_hosts
     - echo "$STAGE_SERVER_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
-    - docker-compose -H "ssh://$STAGE_SERVER_USER@$STAGE_SERVER_IP" down --remove-orphans
-    - docker-compose -H "ssh://$STAGE_SERVER_USER@$STAGE_SERVER_IP" pull
-    - docker-compose -H "ssh://$STAGE_SERVER_USER@$STAGE_SERVER_IP" up -d
+    - export DOCKER_HOST=ssh://$STAGE_SERVER_USER@$STAGE_SERVER_IP
+    - docker compose down --remove-orphans
+    - docker compose pull
+    - docker compose up -d
   tags:
     - docker
   dependencies:
