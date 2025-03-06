@@ -45,6 +45,7 @@ deploy:
     - apk add --no-cache bash curl python3 py3-pip py3-paramiko
   script:
     - eval $(ssh-agent -s)
+    - mkdir ~/.ssh
     - ssh-keyscan -H $STAGE_SERVER_IP >> ~/.ssh/known_hosts
     - echo "$STAGE_SERVER_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
     - export DOCKER_HOST=ssh://$STAGE_SERVER_USER@$STAGE_SERVER_IP
