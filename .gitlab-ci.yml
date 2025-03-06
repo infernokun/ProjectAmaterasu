@@ -45,12 +45,12 @@ deploy:
     - echo "$STAGE_SERVER_PRIVATE_KEY" | base64 --decode > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
     - ssh-keyscan -H "$STAGE_SERVER_HOST" > ~/.ssh/known_hosts
-    # Export the path variable
     - export DEPLOY_PATH="~/amaterasu"
   script:
     - ssh "$STAGE_SERVER_USER@$STAGE_SERVER_HOST" "mkdir -p $DEPLOY_PATH"
     - scp -r . "$STAGE_SERVER_USER@$STAGE_SERVER_HOST:$DEPLOY_PATH"
     - ssh "$STAGE_SERVER_USER@$STAGE_SERVER_HOST" "cd $DEPLOY_PATH && docker compose down --remove-orphans && docker compose pull && docker compose up -d"
+    - ssh "$STAGE_SERVER_USER@$STAGE_SERVER_HOST" "rm -rf $DEPLOY_PATH/*"
   after_script:
     - rm -rf ~/.ssh
   tags:
