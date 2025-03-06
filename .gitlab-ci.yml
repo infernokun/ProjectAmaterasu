@@ -38,20 +38,15 @@ build-web:
 deploy:
   stage: deploy
   image: docker:latest
-  services:
-    - name: docker:dind
-      command: ["--host=tcp://0.0.0.0:2375", "--mtu=1500"]
   before_script:
-    - apk add --no-cache bash curl python3 py3-pip py3-paramiko
+    - apk add --no-cache bash curl
+    - docker info
   script:
-    - eval $(ssh-agent -s)
-    - mkdir ~/.ssh
-    - ssh-keyscan -H $STAGE_SERVER_IP >> ~/.ssh/known_hosts
-    - echo "$STAGE_SERVER_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
-    - export DOCKER_HOST=ssh://$STAGE_SERVER_USER@$STAGE_SERVER_IP
     - docker compose down --remove-orphans
     - docker compose pull
     - docker compose up -d
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
   tags:
     - docker
   dependencies:
