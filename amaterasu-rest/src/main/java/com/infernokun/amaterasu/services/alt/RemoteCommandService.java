@@ -48,8 +48,8 @@ public class RemoteCommandService extends BaseService {
                 decryptedPassword = Normalizer.normalize(decryptedPassword, Normalizer.Form.NFKC);
 
             } catch (Exception e) {
-                LOGGER.error("Error decrypting password for server: {}", remoteServer.getId(), e);
-                throw new RemoteCommandException("Error decrypting password: " + e.getMessage(), e);
+                LOGGER.error("Error decrypting password for server: {}", remoteServer.getId());
+                throw new RemoteCommandException("Error decrypting password: " + e.getMessage());
             }
 
             session.setPassword(decryptedPassword);
@@ -64,15 +64,15 @@ public class RemoteCommandService extends BaseService {
                 session.setPassword(""); // Clear the password after use
             } catch (JSchException e) {
                 LOGGER.error("SSH connection failed for server {}: {}", remoteServer.getId(), e.getMessage());
-                throw new RemoteCommandException("SSH connection failed: " + e.getMessage(), e);
+                throw new RemoteCommandException("SSH connection failed: " + e.getMessage());
             }
 
             CommandResult result = executeRemoteCommand(session, cmd);
 
             return new RemoteCommandResponse(result.output(), result.error());
         } catch (Exception e) {
-            LOGGER.error("Exception while running command for server {}: {}", remoteServer.getId(), e.getMessage(), e);
-            throw new RemoteCommandException("Exception while running command: " + e.getMessage(), e);
+            LOGGER.error("Exception while running command for server {}: {}", remoteServer.getId(), e.getMessage());
+            throw new RemoteCommandException("Exception while running command: " + e.getMessage());
         } finally {
             if (session != null && session.isConnected()) {
                 session.disconnect();
@@ -97,7 +97,7 @@ public class RemoteCommandService extends BaseService {
 
             return new CommandResult(output, errorOutput);
         } catch (JSchException | IOException e) {
-            throw new RemoteCommandException("Exception while running command: " + command, e);
+            throw new RemoteCommandException("Exception while running command: " + command);
         }
     }
 
