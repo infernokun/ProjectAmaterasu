@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { map, Observable } from 'rxjs';
+import { BehaviorSubject, map, Observable } from 'rxjs';
 import { ApiResponse } from '../models/api-response.model';
 import { LabTracker } from '../models/lab-tracker.model';
 import { BaseService } from './base.service';
@@ -10,6 +10,8 @@ import { EnvironmentService } from './environment.service';
   providedIn: 'root'
 })
 export class LabTrackerService extends BaseService {
+  private labTrackersSubject = new BehaviorSubject<LabTracker[] | undefined>(undefined);
+  labTrackers$: Observable<LabTracker[] | undefined> = this.labTrackersSubject.asObservable();
 
   constructor(
     protected httpClient: HttpClient,
@@ -17,11 +19,12 @@ export class LabTrackerService extends BaseService {
     super(httpClient);
   }
 
-  getAllLabTrackers(): Observable<LabTracker[]> {
-    return this.get<ApiResponse<LabTracker[]>>(this.environmentService.settings?.restUrl + '/lab-tracker')
+  fetchLabTrackers(): void {
+    this.get<ApiResponse<LabTracker[]>>(`${this.environmentService.settings?.restUrl}/lab-tracker`)
       .pipe(
-        map((response: ApiResponse<LabTracker[]>) => response.data.map((labTracker) => new LabTracker(labTracker)))
-      );
+        map(response => response.data.map(labTracker => new LabTracker(labTracker)))
+      )
+      .subscribe(labTracker => this.labTrackersSubject.next(labTracker));
   }
 
   getLabTrackerById(id: string): Observable<LabTracker> {
@@ -29,5 +32,9 @@ export class LabTrackerService extends BaseService {
       .pipe(
         map((response: ApiResponse<LabTracker>) => new LabTracker(response.data))
       );
+  }
+
+  setLabTrackers(labTrackers: LabTracker[]): void {
+    this.labTrackersSubject.next(labTrackers);
   }
 }

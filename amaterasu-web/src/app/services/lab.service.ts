@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Lab } from '../models/lab.model';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { map, Observable } from 'rxjs';
+import { BehaviorSubject, map, Observable } from 'rxjs';
 import { ApiResponse } from '../models/api-response.model';
 import { BaseService } from './base.service';
 import { EnvironmentService } from './environment.service';
@@ -18,6 +18,8 @@ const httpOptions = {
   providedIn: 'root'
 })
 export class LabService extends BaseService {
+  private labsSubject = new BehaviorSubject<Lab[] | undefined>(undefined);
+  labs$: Observable<Lab[] | undefined> = this.labsSubject.asObservable();
 
   constructor(
     protected httpClient: HttpClient,
@@ -25,11 +27,12 @@ export class LabService extends BaseService {
     super(httpClient);
   }
 
-  getAllLabs(): Observable<Lab[]> {
-    return this.get<ApiResponse<Lab[]>>(this.environmentService.settings?.restUrl + '/labs')
+  fetchLabs(): void {
+    this.get<ApiResponse<Lab[]>>(`${this.environmentService.settings?.restUrl}/labs`)
       .pipe(
-        map((response: ApiResponse<Lab[]>) => response.data.map((lab) => new Lab(lab)))
-      );
+        map(response => response.data.map(lab => new Lab(lab)).sort((a, b) => a.name!.localeCompare(b.name!)))
+      )
+      .subscribe(labs => this.labsSubject.next(labs));
   }
 
   getLabById(labId: string): Observable<Lab> {

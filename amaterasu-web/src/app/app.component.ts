@@ -26,7 +26,7 @@ export class AppComponent {
   appVersion: any = appVersion;
   bannerDisplayStyle: string = 'green-white';
 
-  loadingUser$: Observable<boolean>;
+  loadingUser$: Observable<boolean> = of(false);
   loggedInUser$: Observable<User | undefined> | undefined;
   isInitialized: Observable<boolean> = of(false);
 
@@ -42,6 +42,10 @@ export class AppComponent {
     private authService: AuthService, private dialogService: EditDialogService,
     private appInitService: AppInitService, private remoteServerService: RemoteServerService
   ) {
+
+  }
+
+  ngOnInit(): void {
     this.isInitialized = this.appInitService.isInitialized();
     this.initializeApp();
     this.checkAuthentication();

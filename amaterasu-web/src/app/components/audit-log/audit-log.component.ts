@@ -36,7 +36,8 @@ export class AuditLogComponent {
   constructor(private labTrackerService: LabTrackerService) { }
 
   ngOnInit() {
-    this.labTrackerService.getAllLabTrackers().subscribe((labTrackers) => {
+    this.labTrackerService.fetchLabTrackers();
+    this.labTrackerService.labTrackers$.subscribe((labTrackers) => {
       this.auditLogDataSource = new MatTableDataSource<LabTracker>(labTrackers);
 
       // Set the custom filter predicate here to filter all fields

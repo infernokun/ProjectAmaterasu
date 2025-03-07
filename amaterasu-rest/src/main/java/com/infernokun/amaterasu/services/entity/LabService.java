@@ -61,8 +61,6 @@ public class LabService extends BaseService {
     }
 
     public List<Lab> findAllLabs() {
-        List<Lab> labs = labRepository.findAll();
-        LOGGER.error("Labs found: {}", labs.size());
         return labRepository.findAll();
     }
 

@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { LabService } from '../../services/lab.service';
 import { Lab, LabDTO, LabFormData } from '../../models/lab.model';
 import { UserService } from '../../services/user.service';
-import { Observable, BehaviorSubject, switchMap, combineLatest, finalize, of, catchError, map } from 'rxjs';
+import { Observable, BehaviorSubject, switchMap, combineLatest, finalize, of, catchError, map, distinctUntilChanged, take, filter } from 'rxjs';
 import { User } from '../../models/user.model';
 import { ApiResponse } from '../../models/api-response.model';
 import { LabTrackerService } from '../../services/lab-tracker.service';
@@ -39,32 +39,29 @@ import { trigger, transition, style, animate } from '@angular/animations';
   ]
 })
 export class LabComponent implements OnInit {
-  labs: Lab[] = [];
-  loggedInUser: User | undefined;
-  trackedLabs: LabTracker[] = [];
-  team: Team | undefined;
-
-  private isLoadingSubject = new BehaviorSubject<boolean>(false);
-  isLoading$ = this.isLoadingSubject.asObservable();
+  private loggedInUserSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);
+  private userTeamSubject: BehaviorSubject<Team | undefined> = new BehaviorSubject<Team | undefined>(undefined);
+  private isLoadingSubject: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   private loadingLabs = new Set<string>();
+
+  labs: Lab[] = [];
+  team: Team | undefined;
+  trackedLabs: LabTracker[] = [];
+  loggedInUser: User | undefined;
 
   remoteServerControl: FormControl = new FormControl('');
 
-  private labsSubject: BehaviorSubject<Lab[]> = new BehaviorSubject<Lab[]>([]);
-  private loggedInUserSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);
-  private trackedLabsSubject: BehaviorSubject<LabTracker[]> = new BehaviorSubject<LabTracker[]>([]);
-  private userTeamSubject: BehaviorSubject<Team | undefined> = new BehaviorSubject<Team | undefined>(undefined);
-
-  labs$: Observable<Lab[]> = this.labsSubject.asObservable();
-  loggedInUser$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
-  trackedLabs$: Observable<LabTracker[]> = this.trackedLabsSubject.asObservable();
-  userTeam$: Observable<Team | undefined> = this.userTeamSubject.asObservable();
-
-  isHovered = false;
-  busy = false;
+  isHovered: boolean = false;
+  busy: boolean = false;
   dockerComposeData: any;
 
   LabType = LabType;
+
+  labs$: Observable<Lab[] | undefined> | undefined;
+  loggedInUser$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
+  trackedLabs$: Observable<LabTracker[] | undefined> | undefined;
+  userTeam$: Observable<Team | undefined> = this.userTeamSubject.asObservable();
+  isLoading$: Observable<boolean> = this.isLoadingSubject.asObservable();
 
   constructor(
     private labService: LabService, private userService: UserService,
@@ -72,44 +69,67 @@ export class LabComponent implements OnInit {
     private dialog: MatDialog, private editDialogService: EditDialogService,
     private proxmoxService: ProxmoxService, private remoteServerService: RemoteServerService, private authService: AuthService) { }
 
-  ngOnInit(): void {
-    combineLatest([
-      this.labService.getAllLabs(),
-      this.authService.user$,
-      this.labTrackerService.getAllLabTrackers()
-    ]).pipe(
-      switchMap(([labs, user, labsTracked]) => {
-        this.labs = labs
-          .map(lab => new Lab(lab))
-          .sort((a, b) => a.name!.localeCompare(b.name!));
+    ngOnInit(): void {
+      this.isLoadingSubject.next(true);
+      
+      this.labService.fetchLabs();
+      this.labTrackerService.fetchLabTrackers();
+      
+      combineLatest([
+        this.labService.labs$,
+        this.authService.user$,
+        this.labTrackerService.labTrackers$
+      ]).pipe(
+        // Make sure user exists and labs and labsTracked are arrays (empty arrays are valid)
+        filter(([labs, user, trackedLabs]) => 
+          !!user && Array.isArray(labs) && Array.isArray(trackedLabs)
+        ),
+        // Only react when the team ID changes, not on every emission
+        distinctUntilChanged(([_, prevUser, __], [___, currUser, ____]) => 
+          prevUser?.team?.id === currUser?.team?.id
+        ),
+        switchMap(([labs, user, labsTracked]) => {
+          // Store values locally
+          this.labs = labs!;
+          this.labs$ = this.labService.labs$;
+          this.loggedInUser = user;
+          this.loggedInUserSubject.next(this.loggedInUser);
+          
+          // Handle empty labsTracked array as a valid case
+          this.trackedLabs = labsTracked!;
+          this.trackedLabs$ = this.labTrackerService.labTrackers$;
+          
+          const teamId = user?.team?.id;
+          if (!teamId) {
+            console.error("Logged in user does not have a team.");
+            return of(null);
+          }
+          
+          // Check if we already have the team data with this ID
+          if (this.team && this.team.id === teamId) {
+            return of(this.team); // Reuse existing team data
+          }
+          
+          // Only fetch team data if necessary
+          return this.teamService.getTeamById(teamId).pipe(take(1));
+        })
+      ).subscribe({
+        next: (team) => {
+          if (team) {
+            this.team = team;
+            this.userTeamSubject.next(this.team);
+          } else {
+            console.warn("No team data available.");
+          }
 
-        this.labsSubject.next(this.labs);
-        this.loggedInUser = user;
-        this.loggedInUserSubject.next(this.loggedInUser);
-        this.trackedLabs = labsTracked.map(tracker => new LabTracker(tracker));
-        this.trackedLabsSubject.next(this.trackedLabs);
-
-        // Ensure loggedInUser and its team are defined before proceeding
-        const teamId = this.loggedInUser?.team?.id;
-        if (!teamId) {
-          console.warn("Logged in user does not have a team.");
-          return of(null); // Return an observable with null if no team
+          this.isLoadingSubject.next(false);
+        },
+        error: (err) => {
+          console.error("Error in data loading process:", err);
+          this.isLoadingSubject.next(false);
         }
-
-        return this.teamService.getTeamById(teamId);
-      }),
-      finalize(() => {
-        this.isLoadingSubject.next(false); // Loading ends
-      })
-    ).subscribe((team) => {
-      if (team) {
-        this.team = team;
-        this.userTeamSubject.next(this.team);
-      } else {
-        console.warn("No team data available.");
-      }
-    });
-  }
+      });
+    }
 
   isInTrackedLabs(labId?: string): boolean {
     if (!labId) return false; // Early return if labId is not provided
@@ -126,13 +146,13 @@ export class LabComponent implements OnInit {
 
   getLabStatus(labId?: string): string | undefined {
     if (!labId) return LabStatus.NONE; // Early return if labId is not provided
-    if (this.trackedLabsSubject.value.length === 0) return LabStatus.NONE;
+    if (this.trackedLabs.length === 0) return LabStatus.NONE;
 
     // Get all tracked labs that are active for the team
     const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
 
     // Filter trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
-    const filteredTrackedLabs: LabTracker[] = this.trackedLabsSubject.value.filter(
+    const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
       tracker => teamLabTrackerIds.includes(tracker.id!) &&
         tracker.labStatus !== LabStatus.DELETED
     );
@@ -245,7 +265,7 @@ export class LabComponent implements OnInit {
 
         // Emit updated subjects
         this.userTeamSubject.next({ ...this.team });
-        this.trackedLabsSubject.next([...this.trackedLabs]);
+        this.labTrackerService.setLabTrackers([...this.trackedLabs]);
 
         if (response.data.output) {
           this.dialog.open(DialogComponent, {
@@ -347,7 +367,7 @@ export class LabComponent implements OnInit {
           this.trackedLabs.push(stoppedLabTracker);
         }
 
-        this.trackedLabsSubject.next([...this.trackedLabs]);
+        this.labTrackerService.setLabTrackers([...this.trackedLabs]);
 
         if (response.data.output) {
           this.dialog.open(DialogComponent, {
@@ -425,7 +445,7 @@ export class LabComponent implements OnInit {
         const index = this.trackedLabs.findIndex(tracker => tracker.id === deletedLabTracker.id);
         if (index !== -1) {
           this.trackedLabs[index] = deletedLabTracker;
-          this.trackedLabsSubject.next(this.trackedLabs);
+          this.labTrackerService.setLabTrackers(this.trackedLabs);
         } else {
           console.warn(`Lab tracker not found in trackedLabs: ${deletedLabTracker.id}`);
         }

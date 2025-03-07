@@ -8,6 +8,7 @@
     "watch": "nx build --watch --configuration development",
     "name": "echo ${npm_package_name}",
     "test": "nx test",
+    "postinstall": "npx shx mkdir -p src/assets/monaco-editor/min && npx shx cp -R node_modules/monaco-editor/min/* src/assets/monaco-editor/min/",
     "build:app": "NODE_OPTIONS=--max_old_space_size=8192 pnpm build --configuration=production",
     "build:prod": "pnpm build --configuration production",
     "docker:build-compile": "export PROJECT=$(jq -r .name package.json) && docker buildx build --target compile-stage --build-arg BUILDKIT_INLINE_CACHE=1 -t infernokun/$PROJECT:compile .",
