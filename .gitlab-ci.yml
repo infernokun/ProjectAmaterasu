@@ -58,4 +58,4 @@ deploy:
   dependencies:
     - build-rest
     - build-web
-  when: manual
+#  when: manual

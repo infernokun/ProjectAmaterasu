@@ -14,8 +14,6 @@ import { LabActionResult } from '../../models/lab-action-result.model';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogComponent } from '../common/dialog/dialog.component';
 import { EditDialogService } from '../../services/edit-dialog.service';
-
-import * as yaml from 'js-yaml';
 import { LabType } from '../../enums/lab-type.enum';
 import { ProxmoxService } from '../../services/proxmox.service';
 import { ProxmoxVM } from '../../models/proxmox-vm.model';
@@ -25,11 +23,20 @@ import { FormControl } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { LabRequest } from '../../models/dto/lab-request.model';
 import { HttpErrorResponse } from '@angular/common/http';
+import { trigger, transition, style, animate } from '@angular/animations';
 
 @Component({
   selector: 'app-lab',
   templateUrl: './lab.component.html',
-  styleUrl: './lab.component.scss'
+  styleUrl: './lab.component.scss',
+  animations: [
+    trigger('fadeIn', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(10px)' }),
+        animate('300ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
+      ])
+    ])
+  ]
 })
 export class LabComponent implements OnInit {
   labs: Lab[] = [];
@@ -78,7 +85,6 @@ export class LabComponent implements OnInit {
 
         this.labsSubject.next(this.labs);
         this.loggedInUser = user;
-        console.log(this.loggedInUser?.username)
         this.loggedInUserSubject.next(this.loggedInUser);
         this.trackedLabs = labsTracked.map(tracker => new LabTracker(tracker));
         this.trackedLabsSubject.next(this.trackedLabs);
@@ -174,15 +180,11 @@ export class LabComponent implements OnInit {
       this.busy = true;
 
       labDTO = new LabDTO(labDTO);
-
       labDTO.createdBy = this.loggedInUser?.username;
 
-      console.log('labFromData', labFormData);
-      console.log('labDTO', labDTO);
       this.labService.createNewLab(labDTO, this.remoteServerService.getSelectedRemoteServer().id!).subscribe((labResp: ApiResponse<Lab>) => {
         this.busy = false;
 
-        console.log('labResp', labResp);
         if (!labResp.data) return;
         this.labs.push(new Lab(labResp.data));
       });
@@ -227,15 +229,12 @@ export class LabComponent implements OnInit {
           if (latestLabTracker.labStatus === LabStatus.DELETED) {
             this.trackedLabs.splice(index, 1);
             this.trackedLabs.push(newTrackedLab);
-            console.log("Found a lab tracker, but it was DELETED", this.trackedLabs);
           } else if (latestLabTracker.labStatus === LabStatus.STOPPED || latestLabTracker.labStatus === LabStatus.FAILED) {
             this.trackedLabs[index] = newTrackedLab;
-            console.log("Found a lab tracker, but it was STOPPED at index", index);
           }
         } else {
           // Create a new lab tracker
           this.trackedLabs.push(newTrackedLab);
-          console.log("Created a new lab tracker:", newTrackedLab);
         }
 
         // Update team active labs without mutating the original array
@@ -262,8 +261,6 @@ export class LabComponent implements OnInit {
             disableClose: true
           });
         }
-
-        console.log("Started lab:", response);
       },
       error: (err: HttpErrorResponse) => {
         console.error(`Failed to start lab ${labId}:`, err);
@@ -306,7 +303,6 @@ export class LabComponent implements OnInit {
     this.loadingLabs.add(labId);
 
     const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
-    console.log("Team active labs:", teamLabTrackerIds);
 
     // Filter trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
     const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
@@ -343,15 +339,12 @@ export class LabComponent implements OnInit {
           if (latestLabTracker.labStatus === LabStatus.DELETED) {
             this.trackedLabs.splice(index, 1);
             this.trackedLabs.push(stoppedLabTracker);
-            console.log("Found a lab tracker, but it was DELETED", this.trackedLabs);
           } else if (latestLabTracker.labStatus === LabStatus.ACTIVE || latestLabTracker.labStatus === LabStatus.FAILED) {
             this.trackedLabs[index] = stoppedLabTracker;
-            console.log("Found a lab tracker, but it was STOPPED at index", index);
           }
         } else {
           // Create a new lab tracker
           this.trackedLabs.push(stoppedLabTracker);
-          console.log("Created a new lab tracker:", stoppedLabTracker);
         }
 
         this.trackedLabsSubject.next([...this.trackedLabs]);
@@ -370,9 +363,6 @@ export class LabComponent implements OnInit {
             disableClose: true
           });
         }
-
-        console.log("Stopped lab:", response);
-
       },
       error: (err) => {
         console.error(`Failed to stop lab ${labId}:`, err);
@@ -416,7 +406,6 @@ export class LabComponent implements OnInit {
         if (!response.data) return;
 
         const deletedLabTracker = new LabTracker(response.data.labTracker);
-        console.log("Deleted lab", deletedLabTracker);
 
         if (response.data.output) {
           this.dialog.open(DialogComponent, {
@@ -437,7 +426,6 @@ export class LabComponent implements OnInit {
         if (index !== -1) {
           this.trackedLabs[index] = deletedLabTracker;
           this.trackedLabsSubject.next(this.trackedLabs);
-          console.log("Updated tracked labs after deletion", this.trackedLabs);
         } else {
           console.warn(`Lab tracker not found in trackedLabs: ${deletedLabTracker.id}`);
         }
@@ -459,8 +447,6 @@ export class LabComponent implements OnInit {
         return;
       }
       this.dockerComposeData = res.data;
-
-      console.log('yml', yaml.load(this.dockerComposeData.yml));
       this.dialog.open(DialogComponent, {
         data: {
           title: 'Lab Output',
@@ -504,15 +490,12 @@ export class LabComponent implements OnInit {
       return;
     }
     const file = input.files[0];
-    console.log('Uploaded file:', file);
-
     const reader = new FileReader();
+
     reader.onload = (e: any) => {
       const content = e.target.result;
-      console.log('File content:', content);
       // Now, post the content to the backend
       this.labService.uploadDockerComposeFile(labId, content).subscribe((res: ApiResponse<string>) => {
-        console.log('Upload response:', res);
       })
     };
     reader.readAsText(file);

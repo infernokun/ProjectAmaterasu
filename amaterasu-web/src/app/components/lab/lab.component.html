@@ -6,7 +6,8 @@
 </div>
 
 <div class="lab-container">
-  <div class="lab-card" *ngFor="let lab of labs$ | async" (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()">
+  <div class="lab-card" *ngFor="let lab of labs$ | async" @fadeIn (mouseenter)="onMouseEnter()"
+    (mouseleave)="onMouseLeave()">
     <div class="lab-header">
       <h2 (mouseenter)="onMouseEnter()">
         {{ lab.name }}

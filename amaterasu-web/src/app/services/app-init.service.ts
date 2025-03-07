@@ -45,7 +45,7 @@ export class AppInitService extends BaseService {
         }
       },
       (err: any) => {
-        console.error('Error reading configuration file: ', err);
+        console.error('Error reading configuration file: ', err.message);
         this.initialized$.next(false);
       }
     );

@@ -1,69 +1,71 @@
-<header class="header-footer {{ bannerDisplayStyle }}">
-  <b>{{ header }}</b>
-</header>
-<mat-toolbar class="main-toolbar">
-  <div class="display-flex flex-row" matTooltip="or known as 1LT Brown...">
-    <article class="margin-left-half flex-fill display-flex">
-      <div class="image-box interactive-text" routerLink="/">
-        <svg width="45" height="45" xmlns="http://www.w3.org/2000/svg">
-          <image xlink:href="assets/icon.svg" width="45" height="45" x="0" y="0" />
-        </svg>
-      </div>
-      <div class="display-flex flex-column justify-content-start tool-info">
-        <div class="display-flex flex-row align-items-baseline">
-          <span class="text-2x interactive-text" routerLink="/">{{ title }}&nbsp;</span>
-          <span class="text-sm" style="line-height: 16px">v{{ appVersion }}</span>
+<div class="main-body" *ngIf="isInitialized | async else loading">
+  <header class="header-footer {{ bannerDisplayStyle }}">
+    <b>{{ header }}</b>
+  </header>
+  <mat-toolbar class="main-toolbar">
+    <div class="display-flex flex-row" matTooltip="or known as 1LT Brown...">
+      <article class="margin-left-half flex-fill display-flex">
+        <div class="image-box interactive-text" routerLink="/">
+          <svg width="45" height="45" xmlns="http://www.w3.org/2000/svg">
+            <image xlink:href="assets/icon.svg" width="45" height="45" x="0" y="0" />
+          </svg>
         </div>
-        <div class="text-sm" style="line-height: 16px">
-          A tool by
-          <a href="https://github.com/infernokun">InfernoKun..</a>
+        <div class="display-flex flex-column justify-content-start tool-info">
+          <div class="display-flex flex-row align-items-baseline">
+            <span class="text-2x interactive-text" routerLink="/">{{ title }}&nbsp;</span>
+            <span class="text-sm" style="line-height: 16px">v{{ appVersion }}</span>
+          </div>
+          <div class="text-sm" style="line-height: 16px">
+            A tool by
+            <a href="https://github.com/infernokun">InfernoKun..</a>
+          </div>
         </div>
-      </div>
-    </article>
+      </article>
+    </div>
+    <!-- Navigation Links - Inline -->
+    <nav class="nav-links">
+      <a routerLink="/" class="nav-link">Home</a>
+      <a routerLink="/log" class="nav-link">Log</a>
+      <a routerLink="/team-log" class="nav-link">Team Log</a>
+      <a routerLink="/code" class="nav-link">Code</a>
+      <a routerLink="/remote-server" class="nav-link">Remote Server</a>
+      <a routerLink="/users" class="nav-link">Users</a>
+      <a routerLink="/teams" class="nav-link">Teams</a>
+      <a routerLink="/vm-lab-builder" class="nav-link">VM Lab Builder</a>
+    </nav>
+    <mat-form-field floatLabel="always">
+      <mat-label>Remote Server</mat-label>
+      <mat-select [formControl]="remoteServerControl" (selectionChange)="selectedRemoteServerChange($event.value)">
+        <mat-option *ngFor="let remoteServer of remoteServers" class="option" [value]="remoteServer.id">
+          {{ remoteServer.name }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+    <div class="display-flex flex-row width-100-percent justify-content-end">
+      <article class="margin-right-2x display-flex flex-column justify-content-center">
+        <div *ngIf="(loggedInUser$ | async) as user else login">
+          <div>{{ user.username }} | {{ user.role?.toString() }}</div>
+        </div>
+      </article>
+      <button class="menuButton" mat-icon-button [matMenuTriggerFor]="theMenu">
+        <mat-icon>menu</mat-icon>
+      </button>
+      <mat-menu #theMenu="matMenu">
+        <div class="toolbar-menu-options-wrapper">
+          <button mat-menu-item>Register</button>
+          <button mat-menu-item>Profile</button>
+          <button mat-menu-item (click)="logoutButton()">Logout</button>
+        </div>
+      </mat-menu>
+    </div>
+  </mat-toolbar>
+  <div class="main-content" id="router-container">
+    <router-outlet></router-outlet>
   </div>
-  <!-- Navigation Links - Inline -->
-  <nav class="nav-links">
-    <a routerLink="/" class="nav-link">Home</a>
-    <a routerLink="/log" class="nav-link">Log</a>
-    <a routerLink="/team-log" class="nav-link">Team Log</a>
-    <a routerLink="/code" class="nav-link">Code</a>
-    <a routerLink="/remote-server" class="nav-link">Remote Server</a>
-    <a routerLink="/users" class="nav-link">Users</a>
-    <a routerLink="/teams" class="nav-link">Teams</a>
-    <a routerLink="/vm-lab-builder" class="nav-link">VM Lab Builder</a>
-  </nav>
-  <mat-form-field floatLabel="always">
-    <mat-label>Remote Server</mat-label>
-    <mat-select [formControl]="remoteServerControl" (selectionChange)="selectedRemoteServerChange($event.value)">
-      <mat-option *ngFor="let remoteServer of remoteServers" class="option" [value]="remoteServer.id">
-        {{ remoteServer.name }}
-      </mat-option>
-    </mat-select>
-  </mat-form-field>
-  <div class="display-flex flex-row width-100-percent justify-content-end">
-    <article class="margin-right-2x display-flex flex-column justify-content-center">
-      <div *ngIf="(loggedInUser$ | async) as user else login">
-        <div>{{ user.username }} | {{ user.role?.toString() }}</div>
-      </div>
-    </article>
-    <button class="menuButton" mat-icon-button [matMenuTriggerFor]="theMenu">
-      <mat-icon>menu</mat-icon>
-    </button>
-    <mat-menu #theMenu="matMenu">
-      <div class="toolbar-menu-options-wrapper">
-        <button mat-menu-item>Register</button>
-        <button mat-menu-item>Profile</button>
-        <button mat-menu-item (click)="logoutButton()">Logout</button>
-      </div>
-    </mat-menu>
-  </div>
-</mat-toolbar>
-<div class="main-content" id="router-container">
-  <router-outlet></router-outlet>
+  <footer class="header-footer {{ bannerDisplayStyle }}">
+    <b>{{ footer }}</b>
+  </footer>
 </div>
-<footer class="header-footer {{ bannerDisplayStyle }}">
-  <b>{{ footer }}</b>
-</footer>
 
 <ng-template #loading>
   <div class="spinner-border" role="status">

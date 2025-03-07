@@ -11,10 +11,10 @@ import { AuthService } from '../../../services/auth.service';
   styleUrl: './register.component.scss'
 })
 export class RegisterComponent implements OnInit {
-  username: string = 'infernokun';
-  password: string = 'password';
-  confirmPassword: string = 'password';
-  email: string = 'infernokun';
+  username: string = '';
+  password: string = '';
+  confirmPassword: string = '';
+  email: string = '';
 
   busy: boolean = false;
 
@@ -30,27 +30,29 @@ export class RegisterComponent implements OnInit {
   }
 
   public registerClick(): void {
-    if (this.username === '' || this.password === '' || this.email === '' || !this.passwordMatches()) {
+    if (!this.username || !this.password || !this.email || !this.passwordMatches()) {
       return;
     }
 
     this.busy = true;
-    console.log('Register button clicked', this.username, this.password);
-    this.loginService.register(this.username, this.password, this.email).subscribe((res) => {
-      console.log('register response', res);
-      this.busy = false;
-      this.dialogRef.close();
-      this.snackBar.open('ok', 'close', { duration: 2000 });
-     },
-     (error) => {
+    console.log('Register button clicked', this.username);
+
+    this.loginService.register(this.username, this.password, this.email).subscribe(
+      (res) => {
+        console.log('register response', res);
         this.busy = false;
-        this.snackBar.open('error: ' + error.error, 'close', { duration: 2000 });
-     });
+        this.dialogRef.close();
+        this.snackBar.open('Registration successful', 'Close', { duration: 2000 });
+      },
+      (error) => {
+        this.busy = false;
+        const errorMessage = error?.error?.message || 'An unexpected error occurred';
+        this.snackBar.open('Error: ' + errorMessage, 'Close', { duration: 2000 });
+      }
+    );
   }
 
   public passwordMatches(): boolean {
-    if (this.confirmPassword === '') return true;
-    
-    return this.password === this.confirmPassword;
+    return !!this.password && !!this.confirmPassword && this.password === this.confirmPassword;
   }
 }
