@@ -94,6 +94,10 @@
   <button mat-button *ngIf="question.key === 'dockerFile'" (click)="validateYaml()">Validate</button>
 </div>
 
+<button mat-button *ngIf="question.type === 'button' && !isHidden" (click)="question.action!($event)">
+  {{ question.label }}
+</button>
+
 <div *ngFor="let kv of question.dependentQuestions | keyvalue">
   <div *ngIf="formControl.value && kv.key!==undefined && formControl.value === kv.key">
     <app-dialog-question [question]="kv.value"></app-dialog-question>

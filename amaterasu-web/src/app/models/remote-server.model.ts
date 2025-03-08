@@ -1,6 +1,6 @@
 import { StoredObject } from './stored-object.model';
 import { RemoteServerStats } from './remote-server-stats.model';
-import { RadioQuestion, PasswordQuestion, SimpleFormData, TextQuestion } from './simple-form-data.model';
+import { RadioQuestion, PasswordQuestion, SimpleFormData, TextQuestion, ButtonQuestion } from './simple-form-data.model';
 import { ServerType } from '../enums/server-type.enum';
 
 export class RemoteServer extends StoredObject {
@@ -66,7 +66,14 @@ export class RemoteServerFormData extends SimpleFormData {
         label: "Node Name",
         key: "nodeName",
         neededEnum: { key: "serverType", value: ServerType.PROXMOX }
-      }, true)
+      }, true),
+      new ButtonQuestion({
+        label: "Validate",
+        key: "validate",
+        action: (something: any) => {
+          console.log('Validating server:', something);
+        }
+      })
     );
     this.questions.forEach((e) => (e.cb = updateResultsCB));
   }

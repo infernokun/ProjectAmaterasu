@@ -8,9 +8,8 @@ import {
   ViewChild,
 } from '@angular/core';
 import { FormControl, Validators } from '@angular/forms';
-import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
+import { MatDialog } from '@angular/material/dialog';
 import { QuestionBase } from '../../../models/simple-form-data.model';
-import { LabType } from '../../../enums/lab-type.enum';
 import { MatRadioChange } from '@angular/material/radio';
 
 @Component({

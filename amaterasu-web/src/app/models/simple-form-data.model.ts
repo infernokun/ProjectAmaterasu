@@ -146,6 +146,6 @@ export class CheckBoxQuestion extends QuestionBase {
   override type: string = 'checkbox';
 }
 
-export class Button extends QuestionBase {
+export class ButtonQuestion extends QuestionBase {
   override type: string = 'button';
 }
