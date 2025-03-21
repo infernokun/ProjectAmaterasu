@@ -16,13 +16,13 @@ export interface UserPayload {
   providedIn: 'root'
 })
 export class AuthService {
-  public payloadSubject: BehaviorSubject<UserPayload | undefined> = new BehaviorSubject<UserPayload | undefined>(undefined);
+  private payloadSubject: BehaviorSubject<UserPayload | undefined> = new BehaviorSubject<UserPayload | undefined>(undefined);
   public payload$: Observable<UserPayload | undefined> = this.payloadSubject.asObservable();
 
-  public userSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);
+  private userSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);
   public user$: Observable<User | undefined> = this.userSubject.asObservable();
 
-  public loadingSubject: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(true);
+  private loadingSubject: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(true);
   public loading$: Observable<boolean> = this.loadingSubject.asObservable();
 
   constructor(private loginService: LoginService, private router: Router, private userService: UserService) { }
@@ -72,6 +72,10 @@ export class AuthService {
     };
     this.payloadSubject.next(payload);
     this.userSubject.next(user);
+  }
+
+  setLoading(loading: boolean): void {
+    this.loadingSubject.next(loading);
   }
 
   private decodeToken(token: string): any {

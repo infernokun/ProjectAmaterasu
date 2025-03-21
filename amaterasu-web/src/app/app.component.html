@@ -1,4 +1,4 @@
-<div class="main-body" *ngIf="isInitialized | async else loading">
+<div class="main-body" *ngIf="appReady$ | async; else loading">
   <header class="header-footer {{ bannerDisplayStyle }}">
     <b>{{ header }}</b>
   </header>
@@ -33,7 +33,7 @@
       <a routerLink="/teams" class="nav-link">Teams</a>
       <a routerLink="/vm-lab-builder" class="nav-link">VM Lab Builder</a>
     </nav>
-    <mat-form-field floatLabel="always">
+    <mat-form-field floatLabel="always" class="remote-server-select">
       <mat-label>Remote Server</mat-label>
       <mat-select [formControl]="remoteServerControl" (selectionChange)="selectedRemoteServerChange($event.value)">
         <mat-option *ngFor="let remoteServer of remoteServers" class="option" [value]="remoteServer.id">
@@ -42,9 +42,10 @@
       </mat-select>
     </mat-form-field>
     <div class="display-flex flex-row width-100-percent justify-content-end">
-      <article class="margin-right-2x display-flex flex-column justify-content-center">
-        <div *ngIf="(loggedInUser$ | async) as user else login">
-          <div>{{ user.username }} | {{ user.role?.toString() }}</div>
+      <article class="user-info">
+        <div *ngIf="(loggedInUser$ | async) as user; else login" class="user-details">
+          <span class="username">{{ user?.username }}</span>
+          <span class="role">[{{ user?.role }}]</span>
         </div>
       </article>
       <button class="menuButton" mat-icon-button [matMenuTriggerFor]="theMenu">
@@ -76,9 +77,9 @@
 
 <ng-template #login>
   <div *ngIf="!(loadingUser$ | async) else loading" style="display: flex;">
-    <button class="user-button" [disabled]="!(isInitialized | async)" mat-button
+    <button class="user-button" [disabled]="!(isInitialized$ | async)" mat-button
       (click)="openLoginModal()">Login</button>
-    <button class="user-button" [disabled]="!(isInitialized | async)" mat-button
+    <button class="user-button" [disabled]="!(isInitialized$ | async)" mat-button
       (click)="openRegisterModal()">Register</button>
   </div>
 </ng-template>

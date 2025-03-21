@@ -1,3 +1,8 @@
+.main-body {
+  margin: 0 auto;
+  display: grid;
+}
+
 .main-content {
   margin: 0 auto;
 }
@@ -31,9 +36,9 @@
   margin-top: auto;
   margin-bottom: auto;
 }
-
 .main-toolbar {
   background-color: #222222;
+  height: 5rem;
 }
 
 .user-button {
@@ -76,8 +81,40 @@
   }
 }
 
-mat-form-field {
+.remote-server-select {
   position: relative;
   top: 0.7rem;
-  width: 50rem;
+  width: 100%;
+  margin-right: 5rem;
+
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  background: #303030;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  font-size: 0.95rem;
+  font-weight: 500;
+  height: 50%; 
+  margin: 0.5rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+
+  .user-details {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #333;
+
+    .username {
+      color: #007bff;
+      font-weight: 600;
+    }
+
+    .role {
+      color: #28a745;
+    }
+  }
 }

@@ -14,7 +14,8 @@
   </div>
 
   <div class="stats-container" *ngIf="selectedServer && selectedServer.remoteServerStats">
-    <h3>Server Statistics</h3>
+    <h3>Server Statistics <button mat-button (click)="deleteRemoteServer(selectedServer.id!)">Delete</button></h3>
+
     <div class="stat">
       <span class="label">Hostname:</span>
       <span class="value">{{ selectedServer.remoteServerStats.hostname }}</span>

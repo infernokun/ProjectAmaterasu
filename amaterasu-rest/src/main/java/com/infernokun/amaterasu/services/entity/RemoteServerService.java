@@ -4,6 +4,8 @@ import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.repositories.RemoteServerRepository;
 import com.infernokun.amaterasu.services.BaseService;
+import com.infernokun.amaterasu.services.alt.DockerService;
+import com.infernokun.amaterasu.services.alt.ProxmoxService;
 import com.infernokun.amaterasu.utils.AESUtil;
 import org.springframework.stereotype.Service;
 
@@ -13,10 +15,14 @@ import java.util.Optional;
 
 @Service
 public class RemoteServerService extends BaseService {
+    private final ProxmoxService proxmoxService;
+    private final DockerService dockerService;
     private final RemoteServerRepository remoteServerRepository;
     private final AESUtil aesUtil;
 
-    public RemoteServerService(RemoteServerRepository remoteServerRepository, AESUtil aesUtil) {
+    public RemoteServerService(ProxmoxService proxmoxService, DockerService dockerService, RemoteServerRepository remoteServerRepository, AESUtil aesUtil) {
+        this.proxmoxService = proxmoxService;
+        this.dockerService = dockerService;
         this.remoteServerRepository = remoteServerRepository;
         this.aesUtil = aesUtil;
     }
@@ -54,6 +60,17 @@ public class RemoteServerService extends BaseService {
         return remoteServerRepository.save(remoteServer);
     }
 
+    public boolean validateRemoteServer(RemoteServer remoteServer) {
+        switch (remoteServer.getServerType()) {
+            case PROXMOX -> {
+                return proxmoxService.proxmoxHealthCheck(remoteServer);
+            }
+            case DOCKER_HOST -> {
+                return dockerService.dockerHealthCheck(remoteServer);
+            }
+        }
+        return false;
+    }
     public RemoteServer modifyStatus(RemoteServer remoteServer) {
         return remoteServerRepository.save(remoteServer);
     }

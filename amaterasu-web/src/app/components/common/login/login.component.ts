@@ -6,6 +6,7 @@ import { AuthService } from '../../../services/auth.service';
 import { ApiResponse } from '../../../models/api-response.model';
 import { LoginResponseDTO } from '../../../models/dto/login-response.dto.model';
 import { UserService } from '../../../services/user.service';
+import { User } from '../../../models/user.model';
 
 @Component({
   selector: 'app-login',
@@ -31,34 +32,52 @@ export class LoginComponent implements OnInit {
   }
 
   public loginClick(): void {
-    if (this.username === '' || this.password === '') {
+    // Early return if credentials are empty
+    if (!this.username || !this.password) {
       return;
     }
-
+    
     this.busy = true;
-    console.log('Login button clicked', this.username, this.password);
-    this.loginService.login(this.username, this.password).subscribe((response: ApiResponse<LoginResponseDTO>) => {
-      if (response.data.jwt) {
-        const tokenDecode = atob(response.data.jwt.split('.')[1]);
-        if (tokenDecode) {
-          console.log('Token decode: ', JSON.parse(tokenDecode));
+    
+    this.loginService.login(this.username, this.password).subscribe({
+      next: (response: ApiResponse<LoginResponseDTO>) => {
+        if (!response.data?.jwt) {
+          this.busy = false;
+          return;
+        }
+        
+        try {
+          const tokenPayload = JSON.parse(atob(response.data.jwt.split('.')[1]));
+          
+          // Store token and reset state
           localStorage.setItem('jwt', response.data.jwt);
           this.wrongPassword = false;
-          this.busy = false;
-          this.authService.setPayload(response.data.user!, JSON.parse(tokenDecode));
+          
+          if (!response.data.user) {
+            this.busy = false;
+            return;
+          }
+          
+          // Set user data and navigate
+          const user = new User(response.data.user);
+          this.authService.setPayload(user, tokenPayload);
           this.router.navigate(['/home']);
           this.dialogRef.close();
+        } catch (e) {
+          console.error('Failed to process JWT token', e);
+        } finally {
+          this.busy = false;
         }
-      }
-    },
-      (error) => {
-        if (error.status === 401) {
-          console.log('Invalid username or password');
-          this.wrongPassword = true;
-        } else {
-          console.log('Error: ', error);
-        }
+      },
+      error: (error) => {
+        this.wrongPassword = error.status === 401;
+        console.warn(
+          error.status === 401 
+            ? 'Invalid username or password' 
+            : `Error: ${error}`
+        );
         this.busy = false;
-      });
+      }
+    });
   }
 }

@@ -54,4 +54,27 @@ public class RemoteServerController extends BaseController {
                         .build()
         );
     }
+
+    @PostMapping("/validate")
+    public ResponseEntity<ApiResponse<Boolean>> validateRemoteServer(@RequestBody RemoteServer remoteServer) {
+        boolean isRemoteServerValid = remoteServerService.validateRemoteServer(remoteServer);
+        return ResponseEntity.status(HttpStatus.OK).body(
+                ApiResponse.<Boolean>builder()
+                    .code(HttpStatus.OK.value())
+                    .message("Remote server status is: " + isRemoteServerValid)
+                    .data(isRemoteServerValid)
+                    .build()
+        );
+    }
+    @DeleteMapping("{id}")
+    public ResponseEntity<ApiResponse<Boolean>> deleteRemoteServer(@PathVariable String id) {
+        boolean remoteServerDeleted = remoteServerService.deleteServer(id);
+        return ResponseEntity.status(HttpStatus.OK).body(
+                ApiResponse.<Boolean>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Remote server " + id + " deleted!")
+                        .data(remoteServerDeleted)
+                        .build()
+        );
+    }
 }

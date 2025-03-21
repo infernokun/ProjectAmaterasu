@@ -19,4 +19,5 @@ public class AmaterasuConfig {
     private String chatService;
     private String chatSocket;
     private String encryptionKey;
+    private int sshPort;
 }

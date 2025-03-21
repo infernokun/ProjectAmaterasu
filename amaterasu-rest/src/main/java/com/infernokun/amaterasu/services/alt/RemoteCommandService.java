@@ -20,64 +20,125 @@ import java.text.Normalizer;
 
 @Service
 public class RemoteCommandService extends BaseService {
+    private final AmaterasuConfig amaterasuConfig;
     private final AESUtil aesUtil;
 
-    public RemoteCommandService(AESUtil aesUtil) {
+    public RemoteCommandService(AmaterasuConfig amaterasuConfig, AESUtil aesUtil) {
+        this.amaterasuConfig = amaterasuConfig;
         this.aesUtil = aesUtil;
     }
 
     public RemoteCommandResponse handleRemoteCommand(String cmd, RemoteServer remoteServer) {
         Session session = null;
-        JSch jSch = null; // Create a new JSch instance for each connection
         try {
-            jSch = new JSch(); // Create a new JSch instance
-            session = jSch.getSession(remoteServer.getUsername(), remoteServer.getIpAddress(), 22);
+            // Get connected session using the shared method
+            session = getConnectedSession(remoteServer);
 
-            String decryptedPassword = null;
-            String originalPassword = remoteServer.getPassword(); // Get the original password
-
-            try {
-                decryptedPassword = aesUtil.decrypt(originalPassword);
-
-                if (decryptedPassword == null || decryptedPassword.isEmpty()) {
-                    LOGGER.error("Decrypted password is null or empty for server: {}", remoteServer.getId());
-                    throw new IllegalArgumentException("Decrypted password is null or empty!");
-                }
-
-                // Normalize the decrypted password
-                decryptedPassword = Normalizer.normalize(decryptedPassword, Normalizer.Form.NFKC);
-
-            } catch (Exception e) {
-                LOGGER.error("Error decrypting password for server: {}", remoteServer.getId());
-                throw new RemoteCommandException("Error decrypting password: " + e.getMessage());
-            }
-
-            session.setPassword(decryptedPassword);
-            session.setConfig("StrictHostKeyChecking", "no");
-            session.setConfig("session.connect", "false"); // Disable session reuse
-            session.setConfig("PreferredAuthentications", "publickey,password,keyboard-interactive"); // Explicit auth methods
-
-            // Try connecting with proper error handling
-            try {
-                session.connect(60000);
-                LOGGER.info("Connected successfully to {}@{} for server: {}", remoteServer.getUsername(), remoteServer.getIpAddress(), remoteServer.getId());
-                session.setPassword(""); // Clear the password after use
-            } catch (JSchException e) {
-                LOGGER.error("SSH connection failed for server {}: {}", remoteServer.getId(), e.getMessage());
-                throw new RemoteCommandException("SSH connection failed: " + e.getMessage());
-            }
-
+            // Execute the command
             CommandResult result = executeRemoteCommand(session, cmd);
-
             return new RemoteCommandResponse(result.output(), result.error());
         } catch (Exception e) {
             LOGGER.error("Exception while running command for server {}: {}", remoteServer.getId(), e.getMessage());
             throw new RemoteCommandException("Exception while running command: " + e.getMessage());
         } finally {
-            if (session != null && session.isConnected()) {
-                session.disconnect();
-                LOGGER.debug("Disconnected from {}@{} for server: {}", remoteServer.getUsername(), remoteServer.getIpAddress(), remoteServer.getId());
+            disconnectSession(session, remoteServer);
+        }
+    }
+
+    public boolean validateConnection(RemoteServer remoteServer) {
+        Session session = null;
+        try {
+            // Get connected session using the shared method
+            session = getConnectedSession(remoteServer, 30000); // Shorter timeout for validation
+
+            // Run a simple test command
+            CommandResult result = executeRemoteCommand(session, "echo CONNECTION_TEST_SUCCESSFUL");
+
+            // Verify the output contains our test string
+            boolean isValid = result.output().contains("CONNECTION_TEST_SUCCESSFUL");
+
+            LOGGER.info("Connection validation for server {}: {}", remoteServer.getId(),
+                    isValid ? "SUCCESSFUL" : "FAILED");
+
+            return isValid;
+        } catch (Exception e) {
+            LOGGER.error("Connection validation failed for server {}: {}", remoteServer.getId(), e.getMessage());
+            return false;
+        } finally {
+            disconnectSession(session, remoteServer);
+        }
+    }
+
+// Private helper methods to reduce duplication
+
+    /**
+     * Creates and returns a connected SSH session
+     */
+    private Session getConnectedSession(RemoteServer remoteServer) throws RemoteCommandException {
+        return getConnectedSession(remoteServer, 60000); // Default timeout
+    }
+
+    /**
+     * Creates and returns a connected SSH session with specified timeout
+     */
+    private Session getConnectedSession(RemoteServer remoteServer, int timeout) throws RemoteCommandException {
+        JSch jSch = new JSch();
+        Session session = null;
+
+        try {
+            session = jSch.getSession(remoteServer.getUsername(), remoteServer.getIpAddress(), amaterasuConfig.getSshPort());
+
+            String decryptedPassword = remoteServer.getId() != null ? decryptPassword(remoteServer) : remoteServer.getPassword();
+
+            session.setPassword(decryptedPassword);
+            session.setConfig("StrictHostKeyChecking", "no");
+            session.setConfig("session.connect", "false");
+            session.setConfig("PreferredAuthentications", "publickey,password,keyboard-interactive");
+
+            session.connect(timeout);
+            LOGGER.info("Connected successfully to {}@{} for server: {}",
+                    remoteServer.getUsername(), remoteServer.getIpAddress(), remoteServer.getId());
+
+            session.setPassword(""); // Clear the password after use
+            return session;
+        } catch (JSchException e) {
+            LOGGER.error("SSH connection failed for server {}: {}", remoteServer.getId(), e.getMessage());
+            // Cleanup the session if needed
+            disconnectSession(session, remoteServer);
+            throw new RemoteCommandException("SSH connection failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Decrypts and normalizes the server password
+     */
+    private String decryptPassword(RemoteServer remoteServer) throws RemoteCommandException {
+        String originalPassword = remoteServer.getPassword();
+
+        try {
+            String decryptedPassword = aesUtil.decrypt(originalPassword);
+
+            if (decryptedPassword == null || decryptedPassword.isEmpty()) {
+                LOGGER.error("Decrypted password is null or empty for server: {}", remoteServer.getId());
+                throw new IllegalArgumentException("Decrypted password is null or empty!");
             }
+
+            // Normalize the decrypted password
+            return Normalizer.normalize(decryptedPassword, Normalizer.Form.NFKC);
+        } catch (Exception e) {
+            LOGGER.error("Error decrypting password for server: {}", remoteServer.getId());
+            throw new RemoteCommandException("Error decrypting password: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Safely disconnects a session if it's connected
+     */
+    private void disconnectSession(Session session, RemoteServer remoteServer) {
+        if (session != null && session.isConnected()) {
+            session.disconnect();
+            LOGGER.debug("Disconnected from {}@{} for server: {}",
+                    remoteServer.getUsername(), remoteServer.getIpAddress(), remoteServer.getId());
         }
     }
 

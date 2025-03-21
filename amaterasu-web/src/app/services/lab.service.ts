@@ -75,6 +75,12 @@ export class LabService extends BaseService {
     );
   }
 
+  validateDockerComposeFile(content: string): Observable<ApiResponse<boolean>> {
+    return this.post<ApiResponse<boolean>>(this.environmentService.settings?.restUrl + '/labs/validate',
+      content
+    );
+  }
+
   getLabReadiness(labId: string): Observable<ApiResponse<boolean>> {
     return this.get<ApiResponse<boolean>>(this.environmentService.settings?.restUrl + '/labs/check/' + labId);
   }

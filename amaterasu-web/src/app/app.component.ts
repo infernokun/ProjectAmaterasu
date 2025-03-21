@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { User } from './models/user.model';
 import { UserService } from './services/user.service';
-import { Observable, BehaviorSubject, filter, Subject, switchMap, takeUntil, of } from 'rxjs';
+import { Observable, BehaviorSubject, filter, Subject, switchMap, takeUntil, of, combineLatest, map, startWith } from 'rxjs';
 import { AuthService } from './services/auth.service';
 import { EditDialogService } from './services/edit-dialog.service';
 
@@ -28,7 +28,9 @@ export class AppComponent {
 
   loadingUser$: Observable<boolean> = of(false);
   loggedInUser$: Observable<User | undefined> | undefined;
-  isInitialized: Observable<boolean> = of(false);
+  isInitialized$: Observable<boolean | undefined> = of(undefined);
+  initializationComplete$: Observable<boolean | undefined> = of(undefined);
+  appReady$: Observable<boolean> | undefined;
 
   Role = Role;
   protected users: User[] = [];
@@ -46,32 +48,32 @@ export class AppComponent {
   }
 
   ngOnInit(): void {
-    this.isInitialized = this.appInitService.isInitialized();
-    this.initializeApp();
-    this.checkAuthentication();
+    this.appReady$ = this.appInitService.initializationComplete$.pipe(
+      // Convert void emission to true
+      map(() => true),
+      // Start with false until we get a value
+      startWith(false)
+    );
 
-    this.loggedInUser$ = this.authService.userSubject;
+    this.remoteServerService.getAllServers().subscribe(remoteServers => {
+      if (remoteServers.length === 0) return;
+
+      this.remoteServerService.setRemoteServers(remoteServers);
+      this.remoteServers = remoteServers;
+      this.remoteServerControl.setValue(remoteServers[0].id);
+    });
+    
+    this.isInitialized$ = this.appInitService.isInitialized();
+    this.initializationComplete$ = this.appInitService.initializationComplete$;
+    this.loggedInUser$ = this.authService.user$;
     this.loadingUser$ = this.authService.loading$;
+
+    this.checkAuthentication();
   }
 
   ngOnDestroy() {
     this.unsubscribe$.next();
     this.unsubscribe$.complete();
-  }
-
-  private initializeApp() {
-    this.isInitialized.pipe(
-      filter(initialized => initialized),
-      switchMap(() => this.remoteServerService.getAllServers()),
-      takeUntil(this.unsubscribe$)
-    )
-      .subscribe(remoteServers => {
-        if (remoteServers.length === 0) return;
-
-        this.remoteServerService.setRemoteServers(remoteServers);
-        this.remoteServers = remoteServers;
-        this.remoteServerControl.setValue(remoteServers[0].id);
-      });
   }
 
   private checkAuthentication() {
@@ -80,7 +82,7 @@ export class AppComponent {
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe(authenticated => {
         console.log(authenticated ? 'Authenticated' : 'Not authenticated');
-        this.authService.loadingSubject.next(false);
+        this.authService.setLoading(false);
       });
   }
 

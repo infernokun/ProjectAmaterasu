@@ -23,6 +23,7 @@ export class RemoteServer extends StoredObject {
 }
 
 export class RemoteServerFormData extends SimpleFormData {
+  validated?: boolean = false;
   constructor(
     updateResultsCB: Function = (k: any, v: any) => { }
   ) {
@@ -35,45 +36,52 @@ export class RemoteServerFormData extends SimpleFormData {
       new RadioQuestion({
         label: 'Server Type',
         key: 'serverType',
-        options: Object.values(ServerType).map(value => ({ key: value, value }))
+        options: Object.values(ServerType).map(value => ({ key: value, value: value, disabled: false })),
+        neededEnum: { key: 'serverType', value: Object.values(ServerType) }
       }),
       new TextQuestion({
         label: 'Name',
         key: 'name',
+        neededEnum: { key: 'serverType', value: Object.values(ServerType) }
       }),
       new TextQuestion({
         label: 'IPAddress',
         key: 'ipAddress',
+        neededEnum: { key: 'serverType', value: Object.values(ServerType) }
       }),
       new TextQuestion({
         label: "Username",
         key: "username",
-        neededEnum: { key: "serverType", value: ServerType.DOCKER_HOST }
+        neededEnum: { key: "serverType", value: [ServerType.DOCKER_HOST] }
       }),
       new PasswordQuestion({
         label: "Password",
         key: "password",
-        neededEnum: { key: "serverType", value: ServerType.DOCKER_HOST }
+        neededEnum: { key: "serverType", value: [ServerType.DOCKER_HOST] }
       }),
       new TextQuestion({
         label: "API Token",
         key: "apiToken",
-        neededEnum: { key: "serverType", value: ServerType.PROXMOX },
+        neededEnum: { key: "serverType", value: [ServerType.PROXMOX] },
         hint: "TOKEN_ID=SECRET",
         size: 100
       }, true),
       new TextQuestion({
         label: "Node Name",
         key: "nodeName",
-        neededEnum: { key: "serverType", value: ServerType.PROXMOX }
+        neededEnum: { key: "serverType", value: [ServerType.PROXMOX] }
       }, true),
       new ButtonQuestion({
         label: "Validate",
         key: "validate",
-        action: (something: any) => {
-          console.log('Validating server:', something);
+        dataBoolean: false,
+        neededEnum: { key: 'serverType', value: [ServerType.DOCKER_HOST, ServerType.PROXMOX] },
+        action: (func: () => void) => {
+          if (!func) return; 
+          func();
+          console.log('func called')
         }
-      })
+      }),
     );
     this.questions.forEach((e) => (e.cb = updateResultsCB));
   }

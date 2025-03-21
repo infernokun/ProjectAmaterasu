@@ -1,4 +1,4 @@
-import { Component, Injectable } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { SimpleFormData } from '../models/simple-form-data.model';
 import { map, Observable } from 'rxjs';

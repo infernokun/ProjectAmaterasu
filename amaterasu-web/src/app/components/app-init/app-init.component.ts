@@ -37,23 +37,20 @@ export class AppInitComponent implements OnInit {
       }
     });
 
-    this.formGroup.valueChanges.subscribe((value: any) => {
+    /*this.formGroup.valueChanges.subscribe((value: any) => {
       console.log(value);
-    });
+    });*/
   }
 
   handleAction() {
     let applicationInfo: ApplicationInfo = this.formGroup.value;
     applicationInfo.settings = JSON.stringify(this.formGroup.value.settings);
 
-    console.log('Application Info: ', applicationInfo);
-
     this.appInitService.createApplicationInfo(applicationInfo).subscribe(
       (response: ApiResponse<any>) => {
         if (response && response.data) {
-          console.log('Response: ', response);
           this.appInitService.applicationInfo$.next(new ApplicationInfo(response.data));
-          this.appInitService.initialized$.next(true);
+          this.appInitService.setInitialized(true);
           this.router.navigate(['/home']);
         }
       },
