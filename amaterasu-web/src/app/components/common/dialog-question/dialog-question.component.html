@@ -1,7 +1,7 @@
 <div *ngIf="question.type === 'number' && !isHidden" class="row width-100-percent form-field-container">
   <mat-form-field floatLabel="always">
     <mat-label>{{ question.label }}</mat-label>
-    <input [formControl]="formControl" matInput numberInput>
+    <input [formControl]="formControl" matInput numberInput [disabled]="isDisabled || isValidated">
   </mat-form-field>
 </div>
 
@@ -9,7 +9,7 @@
   <mat-form-field appearance="fill" floatLabel="always">
     <mat-label>{{ question.label }}</mat-label>
     <mat-hint *ngIf="question.hint">{{ question.hint }}</mat-hint>
-    <input [formControl]="formControl" matInput maxlength="{{ question.size }}"
+    <input [formControl]="formControl" matInput maxlength="{{ question.size }}" [readonly]="isDisabled || isValidated"
       [placeholder]="question.hint ? question.hint : ''">
   </mat-form-field>
   <p class="character-count"
@@ -20,7 +20,7 @@
 <div *ngIf="question.type === 'password' && !isHidden" class="row width-100-percent form-field-container">
   <mat-form-field floatLabel="always">
     <mat-label>{{ question.label }}</mat-label>
-    <input type="password" [formControl]="formControl" matInput maxlength="{{ question.size }}">
+    <input type="password" [formControl]="formControl" matInput maxlength="{{ question.size }}" [disabled]="isDisabled || isValidated">
   </mat-form-field>
   <p class="character-count"
     [ngClass]="formControl.value.length === question.size ? 'character-count-max' : 'character-count-min'">{{
@@ -30,7 +30,7 @@
 <div *ngIf="question.type === 'textarea' && !isHidden">
   <mat-form-field floatLabel="always">
     <mat-label>{{ question.label }}</mat-label>
-    <textarea rows="3" [formControl]="formControl" matInput maxlength="{{ question.size }}"></textarea>
+    <textarea rows="3" [formControl]="formControl" matInput maxlength="{{ question.size }}" [disabled]="isDisabled || isValidated"></textarea>
   </mat-form-field>
   <p class="character-count"
     [ngClass]="formControl.value.length === question.size ? 'character-count-max' : 'character-count-min'">{{
@@ -40,7 +40,7 @@
 <div *ngIf="question.type === 'dropdown' && !isHidden" class="row width-100-percent">
   <mat-form-field floatLabel="always">
     <mat-label>{{ question.label }}</mat-label>
-    <mat-select [formControl]="formControl" #dropdownMenu>
+    <mat-select [formControl]="formControl" #dropdownMenu [disabled]="isDisabled || isValidated" (selectionChange)="handleMatSelect($event)">
       <mat-option *ngFor="let ent of question.options" class="option" [value]="ent.value">
         {{ ent.key }}
       </mat-option>
@@ -51,14 +51,14 @@
 <div *ngIf="question.type === 'popup' && !isHidden" class="row width-100-percent">
   <mat-form-field floatLabel="always">
     <mat-label>{{ question.label }}</mat-label>
-    <input matInput [formControl]="formControl" (click)="handleAction($event)" readonly />
+    <input matInput [formControl]="formControl" (click)="handleAction($event)" readonly [disabled]="isDisabled || isValidated" />
   </mat-form-field>
 </div>
 
 <div *ngIf="question.type === 'radio' && !isHidden" class="row width-100-percent">
   <mat-label>{{ question.label }}</mat-label>
-  <mat-radio-group [formControl]="formControl">
-    <mat-radio-button *ngFor="let option of question.options" [value]="option.value"
+  <mat-radio-group [formControl]="formControl" [disabled]="isDisabled || isValidated">
+    <mat-radio-button *ngFor="let option of question.options" [value]="option.value" [disabled]="option.disabled"
       (change)="handleMatRadioSelect($event, option.value)">
       {{ option.key }}
     </mat-radio-button>
@@ -68,7 +68,7 @@
 <div *ngIf="question.type === 'checkbox' && !isHidden" class="row width-100-percent">
   <mat-label>{{ question.label }}</mat-label>
   <div *ngFor="let option of question.options2">
-    <mat-checkbox [checked]="formControl.value.includes(option.key)" (change)="checkboxChange($event, option.key)">
+    <mat-checkbox [checked]="formControl.value.includes(option.key)" (change)="checkboxChange($event, option.key)" [disabled]="isDisabled || isValidated">
       {{ option.value }}
     </mat-checkbox>
   </div>
@@ -79,7 +79,7 @@
     <mat-label>{{ question.label }}</mat-label>
 
     <div class="dropzone-content" *ngIf="!file">
-      <input type="file" #fileInput id="file-input" (change)="onFileSelected($event)" accept=".yml,.yaml" />
+      <input type="file" #fileInput id="file-input" (change)="onFileSelected($event)" accept=".yml,.yaml" [disabled]="isDisabled || isValidated" />
       <img src="assets/upload-file.svg" alt="Upload Icon">
       <h3 class="file-text">Drag and drop file here</h3>
       <h3 class="file-text">or</h3>
@@ -91,7 +91,11 @@
       <button mat-button (click)="removeFile()">Remove</button>
     </div>
   </div>
-  <button mat-button *ngIf="question.key === 'dockerFile'" (click)="validateYaml()">Validate</button>
+</div>
+
+<div *ngIf="question.type === 'button' && !isHidden">
+  <button mat-button  (click)="clickedButtonQuestion(question)" [disabled]="isDisabled || isValidated">{{ question.label }}</button>
+  <p *ngIf="question.key =='validate'"> Validated: {{ question.dataBoolean }}</p>
 </div>
 
 <div *ngFor="let kv of question.dependentQuestions | keyvalue">

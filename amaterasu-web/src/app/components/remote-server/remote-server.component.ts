@@ -4,7 +4,7 @@ import { RemoteServerService } from '../../services/remote-server.service';
 import { EditDialogService } from '../../services/edit-dialog.service';
 import { AuthService } from '../../services/auth.service';
 import { ApiResponse } from '../../models/api-response.model';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, take } from 'rxjs';
 import { User } from '../../models/user.model';
 
 @Component({
@@ -49,23 +49,29 @@ export class RemoteServerComponent implements OnInit {
 
   addRemoteServer(): void {
     const remoteServerFormData = new RemoteServerFormData();
+  
+    this.editDialogService
+      .openDialog<RemoteServer>(remoteServerFormData, (remoteServer: RemoteServer) => {
+        this.authService.user$.pipe(take(1)).subscribe(user => {
+          if (!user) return;
+  
+          remoteServer.createdBy = user.username;
+  
+          this.remoteServerService.addServer(remoteServer).subscribe((response: ApiResponse<RemoteServer>) => {
+            if (!response.data) return;
+  
+            this.remoteServers.push(response.data);
+            this.selectedServer = response.data;
+          });
+        });
+      }).subscribe();
+  }
 
-    this.editDialogService.openDialog<RemoteServer>(remoteServerFormData, (remoteServer: RemoteServer) => {
-      //remoteServer = new RemoteServer(remoteServer);
-
-      remoteServer.createdBy = this.authService.userSubject.value?.username;
-
-      console.log('remoteServerFormData', remoteServerFormData);
-      console.log('remoteServer', remoteServer);
-
-      this.remoteServerService.addServer(remoteServer).subscribe((response: ApiResponse<RemoteServer>) => {
-        if (!response.data) return;
-
-        this.remoteServers.push(response.data);
-        this.selectedServer = response.data;
-      });
-    }).subscribe((res: any) => {
-
+  deleteRemoteServer(id: string): void {
+    this.remoteServerService.deleteServer(id).subscribe(() => {
+      this.remoteServers = this.remoteServers.filter(server => server.id !== id);
+      this.selectedServer = this.remoteServers.length > 0 ? this.remoteServers[0] : undefined;
     });
+
   }
 }

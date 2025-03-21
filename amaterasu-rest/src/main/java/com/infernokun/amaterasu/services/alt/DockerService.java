@@ -77,6 +77,9 @@ public class DockerService extends BaseService {
         dockerClient.stopContainerCmd(containerId).exec();
     }
 
+    public boolean dockerHealthCheck(RemoteServer remoteServer) {
+        return remoteCommandService.validateConnection(remoteServer);
+    }
     public LabActionResult startDockerCompose(LabTracker labTracker, RemoteServer remoteServer) {
         String catOriginalDockerComposeCmd = String.format("cat %s/%s/%s", amaterasuConfig.getUploadDir(), labTracker.getLabStarted().getId(), labTracker.getLabStarted().getDockerFile());
         RemoteCommandResponse catOriginalDockerComposeOutput = remoteCommandService.handleRemoteCommand(catOriginalDockerComposeCmd, remoteServer);

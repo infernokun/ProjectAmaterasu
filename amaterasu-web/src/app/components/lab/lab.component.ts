@@ -69,129 +69,81 @@ export class LabComponent implements OnInit {
     private dialog: MatDialog, private editDialogService: EditDialogService,
     private proxmoxService: ProxmoxService, private remoteServerService: RemoteServerService, private authService: AuthService) { }
 
-    ngOnInit(): void {
-      this.isLoadingSubject.next(true);
-      
-      this.labService.fetchLabs();
-      this.labTrackerService.fetchLabTrackers();
-      
-      combineLatest([
-        this.labService.labs$,
-        this.authService.user$,
-        this.labTrackerService.labTrackers$
-      ]).pipe(
-        // Make sure user exists and labs and labsTracked are arrays (empty arrays are valid)
-        filter(([labs, user, trackedLabs]) => 
-          !!user && Array.isArray(labs) && Array.isArray(trackedLabs)
-        ),
-        // Only react when the team ID changes, not on every emission
-        distinctUntilChanged(([_, prevUser, __], [___, currUser, ____]) => 
-          prevUser?.team?.id === currUser?.team?.id
-        ),
-        switchMap(([labs, user, labsTracked]) => {
-          // Store values locally
-          this.labs = labs!;
-          this.labs$ = this.labService.labs$;
-          this.loggedInUser = user;
-          this.loggedInUserSubject.next(this.loggedInUser);
-          
-          // Handle empty labsTracked array as a valid case
-          this.trackedLabs = labsTracked!;
-          this.trackedLabs$ = this.labTrackerService.labTrackers$;
-          
-          const teamId = user?.team?.id;
-          if (!teamId) {
-            console.error("Logged in user does not have a team.");
-            return of(null);
-          }
-          
-          // Check if we already have the team data with this ID
-          if (this.team && this.team.id === teamId) {
-            return of(this.team); // Reuse existing team data
-          }
-          
-          // Only fetch team data if necessary
-          return this.teamService.getTeamById(teamId).pipe(take(1));
-        })
-      ).subscribe({
-        next: (team) => {
-          if (team) {
-            this.team = team;
-            this.userTeamSubject.next(this.team);
-          } else {
-            console.warn("No team data available.");
-          }
+  ngOnInit(): void {
+    this.isLoadingSubject.next(true);
 
-          this.isLoadingSubject.next(false);
-        },
-        error: (err) => {
-          console.error("Error in data loading process:", err);
-          this.isLoadingSubject.next(false);
+    this.labService.fetchLabs();
+    this.labTrackerService.fetchLabTrackers();
+
+    combineLatest([
+      this.labService.labs$,
+      this.authService.user$,
+      this.labTrackerService.labTrackers$
+    ]).pipe(
+      // Make sure user exists and labs and labsTracked are arrays (empty arrays are valid)
+      filter(([labs, user, trackedLabs]) =>
+        !!user && Array.isArray(labs) && Array.isArray(trackedLabs)
+      ),
+      // Only react when the team ID changes, not on every emission
+      distinctUntilChanged(([_, prevUser, __], [___, currUser, ____]) =>
+        prevUser?.team?.id === currUser?.team?.id
+      ),
+      switchMap(([labs, user, labsTracked]) => {
+        // Store values locally
+        this.labs = labs!;
+        this.labs$ = this.labService.labs$;
+        this.loggedInUser = user;
+        this.loggedInUserSubject.next(this.loggedInUser);
+
+        // Handle empty labsTracked array as a valid case
+        this.trackedLabs = labsTracked!;
+        this.trackedLabs$ = this.labTrackerService.labTrackers$;
+
+        const teamId = user?.team?.id;
+        if (!teamId) {
+          console.error("Logged in user does not have a team.");
+          return of(null);
         }
-      });
-    }
 
-  isInTrackedLabs(labId?: string): boolean {
-    if (!labId) return false; // Early return if labId is not provided
+        // Check if we already have the team data with this ID
+        if (this.team && this.team.id === teamId) {
+          return of(this.team); // Reuse existing team data
+        }
 
-    const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
+        // Only fetch team data if necessary
+        return this.teamService.getTeamById(teamId).pipe(take(1));
+      })
+    ).subscribe({
+      next: (team) => {
+        if (team) {
+          this.team = team;
+          this.userTeamSubject.next(this.team);
+        } else {
+          console.warn("No team data available.");
+        }
 
-    // Check if the labId exists in trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
-    return this.trackedLabs.some(tracker =>
-      teamLabTrackerIds.includes(tracker.id!) &&
-      tracker.labStatus !== LabStatus.DELETED &&
-      tracker.labStarted?.id === labId
-    );
+        this.isLoadingSubject.next(false);
+      },
+      error: (err) => {
+        console.error("Error in data loading process:", err);
+        this.isLoadingSubject.next(false);
+      }
+    });
   }
 
-  getLabStatus(labId?: string): string | undefined {
-    if (!labId) return LabStatus.NONE; // Early return if labId is not provided
-    if (this.trackedLabs.length === 0) return LabStatus.NONE;
-
-    // Get all tracked labs that are active for the team
-    const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
-
-    // Filter trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
-    const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
-      tracker => teamLabTrackerIds.includes(tracker.id!) &&
-        tracker.labStatus !== LabStatus.DELETED
-    );
-
-    // Find the specific lab tracker
-    const labTracker = filteredTrackedLabs.find(tracker => tracker.labStarted?.id === labId);
-
-    // Return the lab status or a default value
-    return labTracker?.labStatus ?? LabStatus.NONE;
-  }
-
-  isLabLoading(labId?: string): boolean {
-    return this.loadingLabs.has(labId!);
-  }
-
-  getLabTracker(labId?: string): LabTracker | undefined {
-    const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
-
-    // Filter and sort trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
-    const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
-      tracker => teamLabTrackerIds.includes(tracker.id!) &&
-        tracker.labStatus !== LabStatus.DELETED && tracker.labStarted?.id === labId
-    );
-
-    return filteredTrackedLabs.sort((a, b) =>
-      (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
-    )[0];
-  }
-
-  addLab() {
+  addLab(): void {
     const labFormData: LabFormData = new LabFormData();
-    const vmTemplates$: Observable<ProxmoxVM[]> = this.proxmoxService.getVMTemplates(this.remoteServerService.getSelectedRemoteServer().id!);
+    const vmTemplates = this.proxmoxService.getVMTemplates.bind(this.proxmoxService);
     const remoteServers$: Observable<RemoteServer[]> = this.remoteServerService.getAllServers();
 
     const labFormDataWithVMs = new LabFormData(
       (k: any, v: any) => { },
       {
         'remoteServer': remoteServers$,
-        'vms': vmTemplates$
+        //'vms': vmTemplates$
+      },
+      {
+        'vms': vmTemplates
       }
     );
 
@@ -460,6 +412,57 @@ export class LabComponent implements OnInit {
     });
   }
 
+  isInTrackedLabs(labId?: string): boolean {
+    if (!labId) return false; // Early return if labId is not provided
+
+    const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
+
+    // Check if the labId exists in trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
+    return this.trackedLabs.some(tracker =>
+      teamLabTrackerIds.includes(tracker.id!) &&
+      tracker.labStatus !== LabStatus.DELETED &&
+      tracker.labStarted?.id === labId
+    );
+  }
+
+  getLabStatus(labId?: string): string | undefined {
+    if (!labId) return LabStatus.NONE; // Early return if labId is not provided
+    if (this.trackedLabs.length === 0) return LabStatus.NONE;
+
+    // Get all tracked labs that are active for the team
+    const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
+
+    // Filter trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
+    const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
+      tracker => teamLabTrackerIds.includes(tracker.id!) &&
+        tracker.labStatus !== LabStatus.DELETED
+    );
+
+    // Find the specific lab tracker
+    const labTracker = filteredTrackedLabs.find(tracker => tracker.labStarted?.id === labId);
+
+    // Return the lab status or a default value
+    return labTracker?.labStatus ?? LabStatus.NONE;
+  }
+
+  isLabLoading(labId?: string): boolean {
+    return this.loadingLabs.has(labId!);
+  }
+
+  getLabTracker(labId?: string): LabTracker | undefined {
+    const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
+
+    // Filter and sort trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
+    const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
+      tracker => teamLabTrackerIds.includes(tracker.id!) &&
+        tracker.labStatus !== LabStatus.DELETED && tracker.labStarted?.id === labId
+    );
+
+    return filteredTrackedLabs.sort((a, b) =>
+      (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
+    )[0];
+  }
+
   getSettings(labId?: string, user?: User): void {
     this.labService.getSettings(labId!).subscribe((res: ApiResponse<any>) => {
       if (!res.data || !res.data.yml) {
@@ -521,15 +524,15 @@ export class LabComponent implements OnInit {
     reader.readAsText(file);
   }
 
-  onMouseEnter() {
+  onMouseEnter(): void {
     this.isHovered = true;
   }
 
-  onMouseLeave() {
+  onMouseLeave(): void {
     this.isHovered = false;
   }
 
-  clear() {
+  clear(): void {
     if (!this.loggedInUser?.team?.id) {
       console.error("Team ID is missing");
       return;

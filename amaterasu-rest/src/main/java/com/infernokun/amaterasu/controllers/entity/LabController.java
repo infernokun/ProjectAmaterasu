@@ -8,6 +8,7 @@ import com.infernokun.amaterasu.models.dto.LabDTO;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
+import com.infernokun.amaterasu.services.alt.LabFileUploadService;
 import com.infernokun.amaterasu.services.entity.LabService;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
 import org.springframework.http.HttpStatus;
@@ -22,10 +23,12 @@ import java.util.Optional;
 @RequestMapping("/api/labs")
 public class LabController extends BaseController {
     private final LabService labService;
+    private final LabFileUploadService labFileUploadService;
     private final RemoteServerService remoteServerService;
 
-    public LabController(LabService labService, RemoteServerService remoteServerService) {
+    public LabController(LabService labService, LabFileUploadService labFileUploadService, RemoteServerService remoteServerService) {
         this.labService = labService;
+        this.labFileUploadService = labFileUploadService;
         this.remoteServerService = remoteServerService;
     }
 
@@ -151,6 +154,19 @@ public class LabController extends BaseController {
                         .data(response)
                         .build()
         );
+    }
+
+    @PostMapping("/validate")
+    public ResponseEntity<ApiResponse<Boolean>> validateDockerComposeYml(@RequestBody String content) {
+        boolean isValid = labFileUploadService.validateDockerComposeFile(content);
+        return ResponseEntity.ok(
+                ApiResponse.<Boolean>builder()
+                        .code(HttpStatus.OK.value())
+                        .message(isValid ? "YML successfully validated!" : "YML validation unsuccessful!")
+                        .data(isValid)
+                        .build()
+        );
+
     }
 
     @PostMapping("/start")

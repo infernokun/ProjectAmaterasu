@@ -117,8 +117,8 @@ public class AESUtil {
             byte[] decrypted = cipher.doFinal(encryptedData);
             return new String(decrypted, StandardCharsets.UTF_8);
         } catch (Exception e) {
-            LOGGER.error("Decryption failed: " + e.getMessage(), e);
-            throw new CryptoException("Decryption failed: " + e.getMessage(), e);
+            LOGGER.error("Decryption failed: {}", e.getMessage());
+            throw new CryptoException("Decryption failed: " + e.getMessage());
         }
     }
 

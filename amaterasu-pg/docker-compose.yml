@@ -25,9 +25,21 @@ services:
     networks:
       - postgres-network
 
+  amaterasu:
+    build: .
+    container_name: amaterasu
+    privileged: true
+    restart: always
+    ports:
+      - "2222:22"
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+
 volumes:
   postgres-data:
 
 networks:
   postgres-network:
     driver: bridge
+  wsl:
+    external: true

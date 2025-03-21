@@ -5,7 +5,7 @@ import { LabFormData } from '../../models/lab.model';
 import { EditDialogService } from '../../services/edit-dialog.service';
 import { AuthService } from '../../services/auth.service';
 import { ApiResponse } from '../../models/api-response.model';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, take } from 'rxjs';
 import { User } from '../../models/user.model';
 
 @Component({
@@ -36,25 +36,30 @@ export class TeamsComponent implements OnInit {
 
   addTeam(): void {
     const teamFormData = new TeamFormData();
-
-    this.editDialogService.openDialog<Team>(teamFormData, (team: Team) => {
-      if (!team) return;
-      this.busy = true;
-
-      team = new Team(team);
-
-      team.createdBy = this.authService.userSubject.value?.username;
-
-      console.log('teamFromData', teamFormData);
-      this.teamService.createNewTeam(team).subscribe((teamResp: ApiResponse<Team>) => {
-        this.busy = false;
-
-        console.log('teamResp', teamResp);
-        if (!teamResp.data) return;
-        this.teams.push(new Team(teamResp.data));
-      });
-    }).subscribe((res: any) => {
-
-    });
+  
+    this.editDialogService
+      .openDialog<Team>(teamFormData, (team: Team) => {
+        if (!team) return;
+        this.busy = true;
+  
+        team = new Team(team);
+  
+        this.authService.user$.pipe(take(1)).subscribe(user => {
+          if (!user) return;
+  
+          team.createdBy = user.username;
+          console.log('teamFormData', teamFormData);
+  
+          this.teamService.createNewTeam(team).subscribe((teamResp: ApiResponse<Team>) => {
+            this.busy = false;
+  
+            console.log('teamResp', teamResp);
+            if (!teamResp.data) return;
+            this.teams.push(new Team(teamResp.data));
+          });
+        });
+      })
+      .subscribe();
   }
+  
 }

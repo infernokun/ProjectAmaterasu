@@ -177,7 +177,7 @@ public class RemoteStatsService extends BaseService {
     private void createNewStats(RemoteServer remoteServer, RemoteServerStats statsFromJson) {
         RemoteServerStats savedStats = remoteServerStatsRepository.save(statsFromJson);
         remoteServer.setRemoteServerStats(savedStats);
-        remoteServerService.modifyStatus(remoteServer);
-        LOGGER.info("Created stats for server {}: hostname {}", remoteServer.getId(), savedStats.getHostname());
+        RemoteServer modifiedRemoteServer = remoteServerService.modifyStatus(remoteServer);
+        LOGGER.info("Created stats for server {}: hostname {}", modifiedRemoteServer.getId(), savedStats.getHostname());
     }
 }

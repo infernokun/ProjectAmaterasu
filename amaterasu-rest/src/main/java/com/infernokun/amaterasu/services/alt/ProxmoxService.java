@@ -25,6 +25,9 @@ import org.apache.hc.core5.util.Timeout;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.stereotype.Service;
 
@@ -52,6 +55,24 @@ public class ProxmoxService extends BaseService {
         this.labTrackerService = labTrackerService;
         this.restTemplate = createRestTemplate();
     }
+
+    public boolean proxmoxHealthCheck(RemoteServer remoteServer) {
+        HttpEntity<String> entity = new HttpEntity<>(createHeaders(remoteServer));
+        String url = String.format("https://%s:8006/api2/json/version", remoteServer.getIpAddress());
+
+        try {
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.GET, entity, new ParameterizedTypeReference<>() { }
+            );
+
+            return response.getStatusCode().is2xxSuccessful();
+        } catch (HttpClientErrorException | HttpServerErrorException e) {
+            return false; // Invalid API token or server error
+        } catch (ResourceAccessException e) {
+            return false; // Connection issues (e.g., wrong IP, Proxmox not reachable)
+        }
+    }
+
 
     public List<ProxmoxVM> getVMs(RemoteServer remoteServer) {
         HttpEntity<String> entity = new HttpEntity<>(createHeaders(remoteServer));
@@ -695,7 +716,8 @@ public class ProxmoxService extends BaseService {
 
     private HttpHeaders createHeaders(RemoteServer remoteServer) {
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "PVEAPIToken " + aesUtil.decrypt(remoteServer.getApiToken()));
+        String apiToken = remoteServer.getId() != null ? aesUtil.decrypt(remoteServer.getApiToken()) : remoteServer.getApiToken();
+        headers.set("Authorization", "PVEAPIToken " + apiToken);
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
         return headers;

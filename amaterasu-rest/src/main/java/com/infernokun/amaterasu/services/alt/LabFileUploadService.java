@@ -48,4 +48,14 @@ public class LabFileUploadService extends BaseService {
         LOGGER.info("Upload response: {}", response);
         return response;
     }
+
+    public boolean validateDockerComposeFile(String content) {
+        try {
+            Object parsedYaml = yaml.load(content);
+
+            return parsedYaml != null;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

@@ -4,6 +4,10 @@ export interface ObservableMap {
   [key: string]: Observable<any>;
 }
 
+export interface FucntionMap {
+  [key: string]: Function;
+}
+
 export class SimpleFormData {
   preFilledData?: Map<string, any>;
   questions: QuestionBase[];
@@ -11,6 +15,7 @@ export class SimpleFormData {
   result: Map<string, string>;
   action?: Observable<any>;
   asyncData?: Observable<any>;
+  function?: Function;
   constructor(_typeName: string, _questions: QuestionBase[] = []) {
     this.typeName = _typeName;
     this.questions = _questions;
@@ -48,15 +53,17 @@ export class QuestionBase {
   order: number;
   controlType: string;
   type: string;
-  options: { key: string; value: string }[];
+  options: { key: string; value: string, disabled: boolean }[];
   options2: { key: string; value: string }[];
   dependentQuestions: Map<string, QuestionBase> | undefined; //key is the show val
   size: number = 50;
   action?: Function;
-  neededEnum?: { key: string, value: string };
+  neededEnum?: { key: string, value: string[] };
   isHiddenByDefault?: boolean;
   asyncData?: Observable<any>;
   hint?: string;
+  dataBoolean?: boolean = false;
+  function?: Function;
 
   constructor(
     options: {
@@ -68,14 +75,16 @@ export class QuestionBase {
       order?: number;
       controlType?: string;
       type?: string;
-      options?: { key: string; value: string }[];
+      options?: { key: string; value: string, disabled: boolean }[];
       options2?: { key: string; value: string }[];
       dependentQuestions?: Map<string, QuestionBase>;
       action?: Function;
-      neededEnum?: { key: string, value: string };
+      neededEnum?: { key: string, value: string[] };
       asyncData?: Observable<any>;
       hint?: string;
-      size?: number
+      size?: number;
+      dataBoolean?: boolean;
+      function?: Function;
 
     } = {}, isHiddenByDefault: boolean = false
   ) {
@@ -96,12 +105,8 @@ export class QuestionBase {
     this.asyncData = options.asyncData || undefined;
     this.hint = options.hint || undefined;
     this.size = options.size || this.size;
-  }
-
-  perform() {
-    this.asyncData?.subscribe((data: any) => {
-      console.log('some data!!!!', data)
-    })
+    this.dataBoolean = options.dataBoolean || false;
+    this.function = options.function || undefined;
   }
 }
 
@@ -146,6 +151,6 @@ export class CheckBoxQuestion extends QuestionBase {
   override type: string = 'checkbox';
 }
 
-export class Button extends QuestionBase {
+export class ButtonQuestion extends QuestionBase {
   override type: string = 'button';
 }

@@ -31,7 +31,7 @@ export class UserFormData extends SimpleFormData {
       new DropDownQuestion({
         label: "User",
         key: "user",
-        options: users.map(user => ({ key: user.username!, value: user.id! }))
+        options: users.map(user => ({ key: user.username!, value: user.id!, disabled: false })),
       }),
       new RadioQuestion({
         label: 'Team',

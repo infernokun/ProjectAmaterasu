@@ -69,4 +69,9 @@ export class RemoteServerService extends BaseService {
     const url = this.environmentService.settings?.restUrl + '/remote-server/' + serverId;
     return this.delete<ApiResponse<any>>(url);
   }
+
+  validateServer(server: RemoteServer): Observable<ApiResponse<boolean>> {
+    const url = this.environmentService.settings?.restUrl + '/remote-server/validate';
+    return this.post<ApiResponse<boolean>>(url, server);
+  }
 }

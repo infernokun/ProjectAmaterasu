@@ -1,10 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
-import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { LoginService } from '../../../services/login.service';
-import { AuthService } from '../../../services/auth.service';
-
 @Component({
   selector: 'app-register',
   templateUrl: './register.component.html',
@@ -20,8 +17,6 @@ export class RegisterComponent implements OnInit {
 
   constructor(
     private loginService: LoginService,
-    private authService: AuthService,
-    private router: Router,
     private dialogRef: MatDialogRef<RegisterComponent>,
     private snackBar: MatSnackBar
   ) { }
@@ -30,7 +25,7 @@ export class RegisterComponent implements OnInit {
   }
 
   public registerClick(): void {
-    if (!this.username || !this.password || !this.email || !this.passwordMatches()) {
+    if (!this.username || !this.password || !this.passwordMatches()) {
       return;
     }
 

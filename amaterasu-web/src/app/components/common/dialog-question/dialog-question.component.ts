@@ -8,10 +8,10 @@ import {
   ViewChild,
 } from '@angular/core';
 import { FormControl, Validators } from '@angular/forms';
-import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
+import { MatDialog } from '@angular/material/dialog';
 import { QuestionBase } from '../../../models/simple-form-data.model';
-import { LabType } from '../../../enums/lab-type.enum';
 import { MatRadioChange } from '@angular/material/radio';
+import { MatSelectChange } from '@angular/material/select';
 
 @Component({
   selector: 'app-dialog-question',
@@ -27,17 +27,20 @@ export class DialogQuestionComponent implements OnInit {
   formControl: FormControl = new FormControl('');
   @Output() labType = new EventEmitter<boolean>();
   @Output() checkboxSelectionChanged = new EventEmitter<{ key: string, value: any }>();
+  @Output() buttonClicked = new EventEmitter<{ key: string, value: any }>();
   isHidden: boolean = false;
+  isDisabled: boolean = false;
+  isValidated: boolean = false;
 
   required: string[] = [
-    'title',
-    'rank',
-    'definition',
-    'status',
-    'statusNarrative',
-    'information',
-    'source',
-    'link',
+    'name',
+    'description',
+    'labType',
+    'username',
+    'password',
+    'apiToken',
+    'ipAddress',
+    'nodeName'
   ];
 
   file: File | undefined;
@@ -100,11 +103,13 @@ export class DialogQuestionComponent implements OnInit {
   handleAction(event: Event, value?: string): void {
   }
 
+  handleMatSelect(event: MatSelectChange) {
+    console.log(event.value);
+  }
+
   handleMatRadioSelect(event: MatRadioChange, value?: string): void {
     if (!value) return;
     this.formControl.setValue(event.value);
-
-    console.log(event.value);
     this.checkboxSelectionChanged.emit({ key: this.question.key, value: this.formControl.value });
   }
 
@@ -169,5 +174,9 @@ export class DialogQuestionComponent implements OnInit {
 
     console.log('Selected values:', this.formControl.value);
     this.question.cb(this.question.key, this.formControl.value); // Call the callback
+  }
+
+  clickedButtonQuestion(question: QuestionBase) {
+    this.buttonClicked.emit(question);
   }
 }
