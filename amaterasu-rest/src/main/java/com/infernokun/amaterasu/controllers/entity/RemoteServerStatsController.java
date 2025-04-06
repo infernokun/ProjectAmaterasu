@@ -9,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 
 @RestController
@@ -35,18 +34,14 @@ public class RemoteServerStatsController extends BaseController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<RemoteServerStats>> getStatsById(@PathVariable String id) {
-        Optional<RemoteServerStats> statsOptional = remoteServerStatsService.findStatsById(id);
-        return statsOptional.map(remoteServerStats -> ResponseEntity.ok(
+        RemoteServerStats remoteServerStats = remoteServerStatsService.findStatsById(id);
+        return ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse.<RemoteServerStats>builder()
-                        .code(HttpStatus.OK.value())
+                        .code(HttpStatus.CREATED.value())
+                        .message("Remote server stats found!")
                         .data(remoteServerStats)
                         .build()
-        )).orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.<RemoteServerStats>builder()
-                        .code(HttpStatus.NOT_FOUND.value())
-                        .message("Remote server stats not found.")
-                        .data(null)
-                        .build()));
+        );
     }
 
     @PostMapping
@@ -64,8 +59,7 @@ public class RemoteServerStatsController extends BaseController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<RemoteServerStats>> updateStats(
             @PathVariable String id, @RequestBody RemoteServerStats stats) {
-        // Ensure the given ID matches the stats object if necessary
-        stats.setId(id);
+        //stats.setId(id);
         RemoteServerStats updatedStats = remoteServerStatsService.updateStats(stats);
         return ResponseEntity.ok(
                 ApiResponse.<RemoteServerStats>builder()
@@ -77,22 +71,13 @@ public class RemoteServerStatsController extends BaseController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteStats(@PathVariable String id) {
-        boolean isDeleted = remoteServerStatsService.deleteStats(id);
-        if (isDeleted) {
-            return ResponseEntity.ok(
-                    ApiResponse.<Void>builder()
-                            .code(HttpStatus.OK.value())
-                            .message("Remote server stats deleted successfully.")
-                            .data(null)
-                            .build());
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.<Void>builder()
-                            .code(HttpStatus.NOT_FOUND.value())
-                            .message("Remote server stats not found or conflict occurred.")
-                            .data(null)
-                            .build());
-        }
+    public ResponseEntity<ApiResponse<RemoteServerStats>> deleteStats(@PathVariable String id) {
+        RemoteServerStats deletedRemoteServerStats = remoteServerStatsService.deleteStats(id);
+        return ResponseEntity.ok(
+                ApiResponse.<RemoteServerStats>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Remote server stats deleted successfully.")
+                        .data(deletedRemoteServerStats)
+                        .build());
     }
 }

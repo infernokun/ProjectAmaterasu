@@ -44,8 +44,9 @@
     <div class="display-flex flex-row width-100-percent justify-content-end">
       <article class="user-info">
         <div *ngIf="(loggedInUser$ | async) as user; else login" class="user-details">
-          <span class="username">{{ user?.username }}</span>
-          <span class="role">[{{ user?.role }}]</span>
+          <span class="user-name">{{ user?.username }}</span>
+          <span class="team-name">({{ user?.team?.name }})</span>
+          <span class="role-name">[{{ user?.role }}]</span>
         </div>
       </article>
       <button class="menuButton" mat-icon-button [matMenuTriggerFor]="theMenu">

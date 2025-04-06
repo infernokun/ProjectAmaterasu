@@ -8,12 +8,15 @@ import com.infernokun.amaterasu.repositories.TeamRepository;
 import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.utils.dto.UserMapper;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,6 +38,7 @@ public class UserService extends BaseService implements UserDetailsService {
         return this.userRepository.existsByUsername(user.getUsername());
     }
 
+    @CacheEvict(value = {"users", "usersByUsername"}, allEntries = true)
     public void registerUser(User user) {
         String encodedPassword  = this.passwordEncoder.encode(user.getPassword());
         user.setPassword(encodedPassword);
@@ -42,52 +46,57 @@ public class UserService extends BaseService implements UserDetailsService {
         this.userRepository.save(user);
     }
 
-    public User getUserById(String id) {
-        return userRepository.findById(id).orElseThrow(() -> new UsernameNotFoundException("User not found!"));
-    }
-
-    // Retrieve all users
+    @Cacheable(value = "users", key = "'all'")
     public List<User> findAllUsers() {
         return userRepository.findAll();
     }
 
-    // Create a new user
+    /*@Cacheable(value = "users", key = "#userId")
+    public User findUserById(String id) {
+        return userRepository.findById(id).orElseThrow(() -> new UsernameNotFoundException("User not found!"));
+    }*/
+
+    @Cacheable(value = "users", key = "#userId")
+    public User findUserById(String userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID cannot be null");
+        }
+        return userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found!"));
+    }
+
+    @CacheEvict(value = {"users", "usersByUsername"}, allEntries = true)
     public User createUser(User user) {
         return userRepository.save(user);
     }
 
-    // Create multiple users
+
+    @CacheEvict(value = {"users", "usersByUsername"}, allEntries = true)
     public List<User> createManyUsers(List<User> users) {
         return userRepository.saveAll(users);
     }
 
-    // Delete a user by ID
-    public boolean deleteUser(String id) {
-        try {
-            userRepository.deleteById(id);
-            return true; // Deletion successful
-        } catch (Exception e) {
-            return false; // Deletion failed (e.g., user not found)
-        }
+    @CacheEvict(value = {"users", "usersByUsername"}, key = "#id")
+    public User deleteUser(String id) {
+        User deletedUser = findUserById(id);
+        userRepository.deleteById(deletedUser.getId());
+        return deletedUser;
     }
 
-    // Update an existing user
+    @CacheEvict(value = {"users", "usersByUsername"}, key = "#id")
     public User updateUser(String id, User user) {
-        Optional<User> existingUserOpt = userRepository.findById(id);
-        if (existingUserOpt.isPresent()) {
-            User existingUser = existingUserOpt.get();
-            // Update fields as necessary
-            existingUser.setUsername(user.getUsername());
-            existingUser.setTeam(user.getTeam()); // Assuming User has a Team field
-            // Add other fields to update as needed
-            return userRepository.save(existingUser); // Save the updated user
-        }
-        return null; // User not found
+        User existingUser = findUserById(id);
+
+        existingUser.setUsername(user.getUsername());
+        existingUser.setTeam(user.getTeam());
+        existingUser.setUpdatedAt(LocalDateTime.now());
+
+        return userRepository.save(existingUser);
+
     }
 
+    @CacheEvict(value = {"users", "usersByUsername"}, key = "#userId")
     public User updateUserTeam(String userId, String teamId) {
-        User user = findUserById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User ID not found"));
+        User user = findUserById(userId);
 
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Team ID not found"));
@@ -96,10 +105,7 @@ public class UserService extends BaseService implements UserDetailsService {
         return userRepository.save(user);
     }
 
-    public Optional<User> findUserById(String userId) {
-        return this.userRepository.findById(userId);
-    }
-
+    @Cacheable(value = "usersByUsername", key = "#username")
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return this.userRepository.findByUsername(username).orElseThrow(() -> new UsernameNotFoundException("user is not valid"));

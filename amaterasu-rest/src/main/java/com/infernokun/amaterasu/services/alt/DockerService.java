@@ -113,8 +113,7 @@ public class DockerService extends BaseService {
     }
 
     public LabActionResult stopDockerCompose(String labTrackerId, RemoteServer remoteServer) {
-        LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId)
-                .orElseThrow(() -> new ResourceNotFoundException("LabTracker not found"));
+        LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId);
 
         String stopTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s down",
                 amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());

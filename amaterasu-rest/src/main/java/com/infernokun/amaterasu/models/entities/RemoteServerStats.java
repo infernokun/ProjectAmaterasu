@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.models.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -11,6 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "remote_server_stats")
+@ToString(exclude = "remoteServer")
 public class RemoteServerStats extends StoredObject {
     private String hostname;
     private String osName;
@@ -28,5 +30,6 @@ public class RemoteServerStats extends StoredObject {
     private LabStatus status;
     @ManyToOne
     @JoinColumn(name = "remote_server_id")
+    @JsonIgnore
     private RemoteServer remoteServer;
 }

@@ -79,7 +79,7 @@ public class LabController extends BaseController {
         );
     }
 
-    @GetMapping("/settings/{labId}")
+    @GetMapping("/settings/{labId}/{remoteServerId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getLabFile(@PathVariable String labId, @PathVariable String remoteServerId) {
         RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
         Map<String, Object> response = labService.getLabFile(labId, remoteServer);
@@ -123,23 +123,13 @@ public class LabController extends BaseController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Lab>> updateLab(@RequestBody Lab lab) {
         Lab updatedLab = labService.updateLab(lab);
-        if (updatedLab != null) {
-            return ResponseEntity.ok(
-                    ApiResponse.<Lab>builder()
-                            .code(HttpStatus.OK.value())
-                            .message("Lab updated successfully.")
-                            .data(updatedLab)
-                            .build()
-            );
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                    ApiResponse.<Lab>builder()
-                            .code(HttpStatus.NOT_FOUND.value())
-                            .message("Lab not found.")
-                            .data(null)
-                            .build()
-            );
-        }
+        return ResponseEntity.ok(
+                ApiResponse.<Lab>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Lab updated successfully.")
+                        .data(updatedLab)
+                        .build()
+        );
     }
 
     @PostMapping("/upload/{labId}/{remoteServerId}")
@@ -159,6 +149,7 @@ public class LabController extends BaseController {
     @PostMapping("/validate")
     public ResponseEntity<ApiResponse<Boolean>> validateDockerComposeYml(@RequestBody String content) {
         boolean isValid = labFileUploadService.validateDockerComposeFile(content);
+
         return ResponseEntity.ok(
                 ApiResponse.<Boolean>builder()
                         .code(HttpStatus.OK.value())
@@ -189,6 +180,7 @@ public class LabController extends BaseController {
 
         LabActionResult stoppedLab = labService.stopLab(
                 labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
+
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabActionResult>builder()
                         .code(HttpStatus.OK.value())
@@ -203,6 +195,7 @@ public class LabController extends BaseController {
 
         LabActionResult deletedLab = labService.deleteLab(
                 labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
+
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabActionResult>builder()
                         .code(HttpStatus.OK.value())
@@ -216,16 +209,16 @@ public class LabController extends BaseController {
         LOGGER.info("Deleting lab with details {}, {}, and {}",
                 labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
 
-        Optional<LabTracker> deletedLab =
+        LabTracker deletedLab =
                 labService.deleteLabFromTeam(labRequest.getLabId(),
                         labRequest.getUserId(),
                         labRequest.getLabTrackerId());
 
-        return ResponseEntity.status(deletedLab.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+        return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabTracker>builder()
-                        .code(deletedLab.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
-                        .message(deletedLab.isPresent() ? "Lab deleted successfully." : "Failed to delete the lab.")
-                        .data(deletedLab.orElse(null))
+                        .code(HttpStatus.OK.value())
+                        .message("Lab deleted successfully.")
+                        .data(deletedLab)
                         .build());
     }
 

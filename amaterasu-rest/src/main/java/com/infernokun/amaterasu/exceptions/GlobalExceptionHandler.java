@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.exceptions;
 
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.LabActionResult;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -16,7 +17,7 @@ public class GlobalExceptionHandler {
         ApiResponse<String> response = ApiResponse.<String>builder()
                 .code(HttpStatus.BAD_REQUEST.value())
                 .message("FileUploadException: " + ex.getMessage())
-                .data("Error encountered during file upload")
+                .data(null)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }

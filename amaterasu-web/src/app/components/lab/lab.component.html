@@ -9,18 +9,15 @@
   <div class="lab-card" *ngFor="let lab of labs$ | async" @fadeIn (mouseenter)="onMouseEnter()"
     (mouseleave)="onMouseLeave()">
     <div class="lab-header">
-      <h2 (mouseenter)="onMouseEnter()">
-        {{ lab.name }}
-        <span class="lab-id" *ngIf="isHovered">{{ lab.id }}</span>
-      </h2>
+      <h2>{{ lab.name }}</h2>
       <span class="lab-status" [class.active]="lab.status === 'ACTIVE'" [class.inactive]="lab.status !== 'ACTIVE'">
         <a [routerLink]="['/lab/settings', formatLabName(lab.name!)]"
           [queryParams]="{ id: getLabTracker(lab.id)?.id }">{{ lab.status}}</a>
       </span>
     </div>
     <div class="lab-body">
-      <p class="lab-description">{{ lab.description }}</p>
       <ul class="lab-details">
+        <li><strong>Description:</strong> {{ lab.description }}</li>
         <li><strong>Created By:</strong> {{ lab.createdBy }}</li>
         <li><strong>Version:</strong> {{ lab.version }}</li>
         <li><strong>Capacity:</strong> {{ lab.capacity }}</li>
@@ -105,6 +102,9 @@
         </div>
       </ng-template>
 
+    </div>
+    <div class="lab-extras">
+      <button mat-button>Delete</button>
     </div>
   </div>
 </div>

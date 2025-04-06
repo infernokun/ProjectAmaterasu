@@ -108,12 +108,17 @@
     gap: 6px;
     color: #333;
 
-    .username {
+    .user-name {
       color: #007bff;
       font-weight: 600;
     }
 
-    .role {
+    .team-name {
+      color: #c58634;
+      font-weight: 500;
+    }
+
+    .role-name {
       color: #28a745;
     }
   }

@@ -1,5 +1,6 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "defaultProject": "amaterasu-web",
   "targetDefaults": {
     "build": {
       "cache": true,
@@ -35,7 +36,7 @@
   "nxCloudId": "6793ed7d8030ee7015d85052",
   "generators": {
     "@nx/angular:component": {
-      "style": "css"
+      "style": "scss"
     }
   }
 }

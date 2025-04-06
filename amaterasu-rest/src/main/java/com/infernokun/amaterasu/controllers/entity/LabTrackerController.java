@@ -32,8 +32,7 @@ public class LabTrackerController extends BaseController {
 
     @GetMapping("{labTrackerId}")
     public ResponseEntity<ApiResponse<LabTracker>> getLabTrackerById(@PathVariable String labTrackerId) {
-        LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId).orElseThrow(
-                () -> new ResourceNotFoundException("Lab Tracker" + labTrackerId +"not found!"));
+        LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId);
         return ResponseEntity.ok(ApiResponse.<LabTracker>builder()
                 .code(HttpStatus.OK.value())
                 .message("Lab tracker " + labTrackerId +  " retrieved successfully.")
@@ -62,13 +61,13 @@ public class LabTrackerController extends BaseController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Boolean>> deleteLabTracker(@PathVariable String id) {
-        boolean isDeleted = labTrackerService.deleteLabTracker(id);
+    public ResponseEntity<ApiResponse<LabTracker>> deleteLabTracker(@PathVariable String id) {
+        LabTracker deletedLabTracker = labTrackerService.deleteLabTracker(id);
 
-        return ResponseEntity.status(isDeleted ? HttpStatus.OK : HttpStatus.NOT_FOUND).body(ApiResponse.<Boolean>builder()
-                .code(isDeleted ? HttpStatus.OK.value() :HttpStatus.NOT_FOUND.value() )
-                .message(isDeleted ? "Lab tracker deleted successfully." : "Lab tracker not found or a conflict occurred.")
-                .data(isDeleted) // No additional data for delete operation
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.<LabTracker>builder()
+                .code(HttpStatus.OK.value())
+                .message("Lab tracker deleted successfully.")
+                .data(deletedLabTracker)
                 .build());
     }
 
@@ -76,10 +75,10 @@ public class LabTrackerController extends BaseController {
     public ResponseEntity<ApiResponse<LabTracker>> updateLabTracker(@RequestBody LabTracker labTracker) {
         LabTracker updatedLabTracker = labTrackerService.updateLabTracker(labTracker);
 
-        return ResponseEntity.status(updatedLabTracker != null ? HttpStatus.OK : HttpStatus.NOT_FOUND).body(ApiResponse.<LabTracker>builder()
-                .code(updatedLabTracker != null ? HttpStatus.OK.value() :HttpStatus.NOT_FOUND.value() )
-                .message(updatedLabTracker != null ? "Lab tracker updated successfully." : "Lab tracker not found.")
-                .data(updatedLabTracker) // No additional data for delete operation
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.<LabTracker>builder()
+                .code(HttpStatus.OK.value())
+                .message( "Lab tracker updated successfully.")
+                .data(updatedLabTracker)
                 .build());
     }
 }

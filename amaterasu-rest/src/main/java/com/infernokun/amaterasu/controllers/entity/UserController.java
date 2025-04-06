@@ -35,7 +35,7 @@ public class UserController extends BaseController {
         return ResponseEntity.ok(ApiResponse.<User>builder()
                 .code(HttpStatus.OK.value())
                 .message("Retrieved user!")
-                .data(userService.getUserById(id))
+                .data(userService.findUserById(id))
                 .build());
     }
 
@@ -60,40 +60,26 @@ public class UserController extends BaseController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable String id) {
-        boolean isDeleted = userService.deleteUser(id);
+    public ResponseEntity<ApiResponse<User>> deleteUser(@PathVariable String id) {
+        User deletedUser = userService.deleteUser(id);
 
-        if (isDeleted) {
-            return ResponseEntity.ok(ApiResponse.<Void>builder()
-                    .code(HttpStatus.OK.value())
-                    .message("User deleted successfully.")
-                    .data(null) // No additional data for delete operation
-                    .build());
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.<Void>builder()
-                    .code(HttpStatus.NOT_FOUND.value())
-                    .message("User not found or a conflict occurred.")
-                    .data(null)
-                    .build());
-        }
+        return ResponseEntity.ok(ApiResponse.<User>builder()
+                .code(HttpStatus.OK.value())
+                .message("User deleted successfully.")
+                .data(deletedUser)
+                .build());
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<User>> updateUser(@PathVariable String id, @RequestBody User user) {
         User updatedUser = userService.updateUser(id, user);
-        if (updatedUser != null) {
-            return ResponseEntity.ok(ApiResponse.<User>builder()
-                    .code(HttpStatus.OK.value())
-                    .message("User updated successfully.")
-                    .data(updatedUser)
-                    .build());
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.<User>builder()
-                    .code(HttpStatus.NOT_FOUND.value())
-                    .message("User not found.")
-                    .data(null)
-                    .build());
-        }
+
+        return ResponseEntity.ok(ApiResponse.<User>builder()
+                .code(HttpStatus.OK.value())
+                .message("User updated successfully.")
+                .data(updatedUser)
+                .build());
+
     }
 
     @PutMapping("/team")

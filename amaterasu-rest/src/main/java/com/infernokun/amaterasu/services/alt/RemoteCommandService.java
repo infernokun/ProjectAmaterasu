@@ -57,7 +57,7 @@ public class RemoteCommandService extends BaseService {
             // Verify the output contains our test string
             boolean isValid = result.output().contains("CONNECTION_TEST_SUCCESSFUL");
 
-            LOGGER.info("Connection validation for server {}: {}", remoteServer.getId(),
+            LOGGER.info("Connection validation for server {}: {}", remoteServer.getName(),
                     isValid ? "SUCCESSFUL" : "FAILED");
 
             return isValid;
