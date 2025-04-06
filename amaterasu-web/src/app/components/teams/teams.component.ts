@@ -9,9 +9,10 @@ import { BehaviorSubject, Observable, take } from 'rxjs';
 import { User } from '../../models/user.model';
 
 @Component({
-  selector: 'app-teams',
-  templateUrl: './teams.component.html',
-  styleUrl: './teams.component.scss'
+    selector: 'app-teams',
+    templateUrl: './teams.component.html',
+    styleUrl: './teams.component.scss',
+    standalone: false
 })
 export class TeamsComponent implements OnInit {
   teams: Team[] = [];

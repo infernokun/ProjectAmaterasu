@@ -6,9 +6,10 @@ import { MatTableDataSource } from '@angular/material/table';
 import { LabTrackerService } from '../../services/lab-tracker.service';
 
 @Component({
-  selector: 'app-audit-log',
-  templateUrl: './audit-log.component.html',
-  styleUrls: ['./audit-log.component.scss']
+    selector: 'app-audit-log',
+    templateUrl: './audit-log.component.html',
+    styleUrls: ['./audit-log.component.scss'],
+    standalone: false
 })
 export class AuditLogComponent {
   @ViewChild('auditLogSort') intersectionTableSort = new MatSort();

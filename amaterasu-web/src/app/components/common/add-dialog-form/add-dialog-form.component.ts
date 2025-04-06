@@ -22,9 +22,10 @@ import { RemoteServerService } from '../../../services/remote-server.service';
 import { DialogQuestionComponent } from '../dialog-question/dialog-question.component';
 
 @Component({
-  selector: 'app-add-dialog-form',
-  templateUrl: './add-dialog-form.component.html',
-  styleUrls: ['./add-dialog-form.component.scss'],
+    selector: 'app-add-dialog-form',
+    templateUrl: './add-dialog-form.component.html',
+    styleUrls: ['./add-dialog-form.component.scss'],
+    standalone: false
 })
 export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChildren(DialogQuestionComponent) questionComponents!: QueryList<DialogQuestionComponent>;

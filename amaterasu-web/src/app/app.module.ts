@@ -1,4 +1,4 @@
-import { APP_INITIALIZER, NgModule } from '@angular/core';
+import { NgModule, inject, provideAppInitializer } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
@@ -32,6 +32,7 @@ import { UsersComponent } from './components/users/users.component';
 import { AppInitService } from './services/app-init.service';
 import { TeamsComponent } from './components/teams/teams.component';
 import { VMLabBuilderComponent } from './components/vm-lab-builder/vm-lab-builder.component';
+import { LabMainComponent } from './components/lab/lab-main/lab-main.component';
 
 export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
   return () => {
@@ -65,7 +66,8 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     RegisterComponent,
     UsersComponent,
     TeamsComponent,
-    VMLabBuilderComponent
+    VMLabBuilderComponent,
+    LabMainComponent
   ],
   imports: [
     BrowserModule,
@@ -80,12 +82,10 @@ export function init_app(environmentService: EnvironmentService, appInitService:
   providers: [
     EnvironmentService,
     AppInitService,
-    {
-      provide: APP_INITIALIZER,
-      useFactory: init_app,
-      deps: [EnvironmentService, AppInitService],
-      multi: true,
-    },
+    provideAppInitializer(() => {
+        const initializerFn = (init_app)(inject(EnvironmentService), inject(AppInitService));
+        return initializerFn();
+      }),
     provideHttpClient(withInterceptorsFromDi()),
     provideCodeEditor({
       editorVersion: '0.44.0',

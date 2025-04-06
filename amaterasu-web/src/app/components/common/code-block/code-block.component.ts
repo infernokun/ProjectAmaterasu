@@ -3,9 +3,10 @@ import { CodeModel } from '@ngstack/code-editor';
 
 
 @Component({
-  selector: 'app-code-block',
-  templateUrl: './code-block.component.html',
-  styleUrls: ['./code-block.component.scss'],
+    selector: 'app-code-block',
+    templateUrl: './code-block.component.html',
+    styleUrls: ['./code-block.component.scss'],
+    standalone: false
 })
 export class CodeBlockComponent implements OnInit {
   @Input() id: string = '';

@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { LabService } from '../../services/lab.service';
 import { Lab, LabDTO, LabFormData } from '../../models/lab.model';
 import { UserService } from '../../services/user.service';
-import { Observable, BehaviorSubject, switchMap, combineLatest, finalize, of, catchError, map, distinctUntilChanged, take, filter } from 'rxjs';
+import { Observable, BehaviorSubject, switchMap, combineLatest, of, distinctUntilChanged, take, filter } from 'rxjs';
 import { User } from '../../models/user.model';
 import { ApiResponse } from '../../models/api-response.model';
 import { LabTrackerService } from '../../services/lab-tracker.service';
@@ -16,7 +16,6 @@ import { DialogComponent } from '../common/dialog/dialog.component';
 import { EditDialogService } from '../../services/edit-dialog.service';
 import { LabType } from '../../enums/lab-type.enum';
 import { ProxmoxService } from '../../services/proxmox.service';
-import { ProxmoxVM } from '../../models/proxmox-vm.model';
 import { RemoteServer } from '../../models/remote-server.model';
 import { RemoteServerService } from '../../services/remote-server.service';
 import { FormControl } from '@angular/forms';
@@ -26,17 +25,18 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { trigger, transition, style, animate } from '@angular/animations';
 
 @Component({
-  selector: 'app-lab',
-  templateUrl: './lab.component.html',
-  styleUrl: './lab.component.scss',
-  animations: [
-    trigger('fadeIn', [
-      transition(':enter', [
-        style({ opacity: 0, transform: 'translateY(10px)' }),
-        animate('300ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
-      ])
-    ])
-  ]
+    selector: 'app-lab',
+    templateUrl: './lab.component.html',
+    styleUrl: './lab.component.scss',
+    animations: [
+        trigger('fadeIn', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'translateY(10px)' }),
+                animate('300ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
+            ])
+        ])
+    ],
+    standalone: false
 })
 export class LabComponent implements OnInit {
   private loggedInUserSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);

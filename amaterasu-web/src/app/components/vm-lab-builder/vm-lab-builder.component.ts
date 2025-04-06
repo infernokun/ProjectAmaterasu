@@ -6,9 +6,10 @@ import { ServerType } from '../../enums/server-type.enum';
 import { EditDialogService } from '../../services/edit-dialog.service';
 
 @Component({
-  selector: 'app-vm-lab-builder',
-  templateUrl: './vm-lab-builder.component.html',
-  styleUrl: './vm-lab-builder.component.scss'
+    selector: 'app-vm-lab-builder',
+    templateUrl: './vm-lab-builder.component.html',
+    styleUrl: './vm-lab-builder.component.scss',
+    standalone: false
 })
 export class VMLabBuilderComponent implements OnInit {
   vms: ProxmoxVM[] = [];

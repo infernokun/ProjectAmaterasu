@@ -10,9 +10,10 @@ import { LabTracker } from '../../models/lab-tracker.model';
 import { ServerType } from '../../enums/server-type.enum';
 
 @Component({
-  selector: 'app-lab-settings',
-  templateUrl: './lab-settings.component.html',
-  styleUrl: './lab-settings.component.scss'
+    selector: 'app-lab-settings',
+    templateUrl: './lab-settings.component.html',
+    styleUrl: './lab-settings.component.scss',
+    standalone: false
 })
 export class LabSettingsComponent implements OnInit {
   labId: string = '';
