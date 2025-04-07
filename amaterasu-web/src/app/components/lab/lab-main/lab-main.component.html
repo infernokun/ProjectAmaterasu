@@ -1,1 +1,15 @@
-<p>lab-main works!</p>
+<div class="lab-container">
+    @for (lab of labs$ | async; track lab.id) {
+    <div class="lab-card" @fadeIn (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()">
+        <p>{{ lab.name }}</p>
+        <p>{{ lab.description }}</p>
+        <p>{{ lab.createdBy }}</p>
+        <p>{{ lab.ready }}</p>
+        @if (!isAlreadyDeployedByTeam) {
+        <button mat-button (click)="deployLab(lab.id!)">Deploy</button>
+        } @else {
+        <button mat-button disabled="">Already Deployed</button>
+        }
+    </div>
+    }
+</div>
