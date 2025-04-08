@@ -1,10 +1,13 @@
 <div class="lab-container">
     @for (lab of labs$ | async; track lab.id) {
-    <div class="lab-card" @fadeIn (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()">
-        <p>{{ lab.name }}</p>
+    <div class="lab-card" @fadeIn (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()" [ngClass]="lab.ready ? 'lab-ready' : 'lab-not-ready'">
+        <img *ngIf="lab.labType == LabType.DOCKER_COMPOSE" src="assets/compose.png" alt="">
+        <img *ngIf="lab.labType == LabType.DOCKER_CONTAINER" src="assets/container.png" alt="">
+        <h2>{{ lab.name }}</h2>
         <p>{{ lab.description }}</p>
         <p>{{ lab.createdBy }}</p>
         <p>{{ lab.ready }}</p>
+        <p>{{ lab.labType }}</p>
         @if (!isAlreadyDeployedByTeam) {
         <button mat-button (click)="deployLab(lab.id!)">Deploy</button>
         } @else {

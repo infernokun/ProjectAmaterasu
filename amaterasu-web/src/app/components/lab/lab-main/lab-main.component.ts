@@ -2,6 +2,7 @@ import { trigger, transition, style, animate } from '@angular/animations';
 import { Component, Input } from '@angular/core';
 import { Lab } from '../../../models/lab.model';
 import { Observable } from 'rxjs';
+import { LabType } from '../../../enums/lab-type.enum';
 
 @Component({
   selector: 'app-lab-main',
@@ -25,6 +26,8 @@ export class LabMainComponent {
   isHovered: boolean = false;
 
   isAlreadyDeployedByTeam: boolean = false;
+
+  LabType = LabType;
 
 
   onMouseEnter(): void {
