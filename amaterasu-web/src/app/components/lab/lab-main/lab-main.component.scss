@@ -24,6 +24,17 @@
         /* Slightly increase size on hover */
     }
 
+    .button {
+        background-color: #004d03;
+        color: white;
+        padding: 10px 20px;
+        border: 2px solid black;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        font-size: 14px;
+      }
+
     h2 {
         font-size: 1.25rem;
         margin: 0;
@@ -32,6 +43,7 @@
     }
 
     p {
+
     }
 
     img {
@@ -39,22 +51,6 @@
         width: 20%;
         margin-right: 20rem;
     }
-
-    .lab-status {
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.25rem;
-        font-size: 0.85rem;
-        color: #ffffff;
-
-        &.active {
-            background-color: #4caf50;
-        }
-
-        &.inactive {
-            background-color: #f44336;
-        }
-    }
-
 
     .lab-body {
         padding: 0.75rem;
