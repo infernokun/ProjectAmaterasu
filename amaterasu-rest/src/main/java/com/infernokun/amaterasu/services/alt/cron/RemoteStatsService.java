@@ -55,9 +55,7 @@ public class RemoteStatsService extends BaseService {
     @PostConstruct
     public void initialize() throws IOException {
         try (InputStream file = getClass().getClassLoader().getResourceAsStream("scripts/get_server_stats.sh")) {
-            if (file == null) {
-                throw new FileNotFoundException("Script file not found in resources");
-            }
+            if (file == null) throw new FileNotFoundException("Script file not found in resources");
             scriptContentBase64 = Base64.getEncoder().encodeToString(file.readAllBytes());
         }
     }
