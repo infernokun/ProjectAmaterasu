@@ -209,9 +209,7 @@ public class LabController extends BaseController {
         LOGGER.info("Deleting lab with details {}, {}, and {}",
                 labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
 
-        LabTracker deletedLab =
-                labService.deleteLabFromTeam(labRequest.getLabId(),
-                        labRequest.getUserId(),
+        LabTracker deletedLab = labService.deleteLabFromTeam(labRequest.getLabId(), labRequest.getUserId(),
                         labRequest.getLabTrackerId());
 
         return ResponseEntity.status(HttpStatus.OK)

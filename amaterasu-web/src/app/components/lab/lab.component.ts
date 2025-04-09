@@ -242,7 +242,7 @@ export class LabComponent implements OnInit {
 
         try {
           const apiResponse: ApiResponse<LabActionResult> = err.error;
-          errorContent = JSON.stringify(apiResponse.data, null, 2); // Pretty-print JSON
+          errorContent = JSON.stringify(apiResponse, null, 2); // Pretty-print JSON
         } catch (e) {
           errorContent = JSON.stringify({ error: 'Unexpected error format', details: err.message }, null, 2);
         }

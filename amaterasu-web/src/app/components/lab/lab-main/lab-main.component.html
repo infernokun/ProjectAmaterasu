@@ -9,10 +9,13 @@
             <p>{{ lab.createdBy }}</p>
             <p>{{ lab.ready }}</p>
             <p>{{ lab.labType }}</p>
-            @if (!isAlreadyDeployedByTeam) {
-            <button mat-button class="button" (click)="deployLab(lab.id!)">Deploy</button>
+            @if (!loggedInUser?.team?.teamActiveLabs?.includes(lab.id!) && !loadingLabs.has(lab.id!)) {
+                <button mat-button class="button" (click)="deployLab(lab.id!)">Deploy</button>
+            }
+            @else if (loggedInUser?.team?.teamActiveLabs?.includes(lab.id!) && !loadingLabs.has(lab.id!)) {
+                <button mat-button class="button" disabled="">Already Deployed</button>
             } @else {
-            <button mat-button class="button" disabled="">Already Deployed</button>
+            <button mat-button class="button" disabled="">Deploying...</button>
             }
         </div>
     </div>

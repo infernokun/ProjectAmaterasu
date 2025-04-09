@@ -33,6 +33,7 @@ import { AppInitService } from './services/app-init.service';
 import { TeamsComponent } from './components/teams/teams.component';
 import { VMLabBuilderComponent } from './components/vm-lab-builder/vm-lab-builder.component';
 import { LabMainComponent } from './components/lab/lab-main/lab-main.component';
+import { LabDeployComponent } from './components/lab/lab-deploy/lab-deploy.component';
 
 export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
   return () => {
@@ -67,7 +68,8 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     UsersComponent,
     TeamsComponent,
     VMLabBuilderComponent,
-    LabMainComponent
+    LabMainComponent,
+    LabDeployComponent
   ],
   imports: [
     BrowserModule,
