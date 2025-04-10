@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.services.entity;
 
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
+import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.repositories.RemoteServerRepository;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.alt.DockerService;
@@ -27,13 +28,17 @@ public class RemoteServerService extends BaseService {
         this.aesUtil = aesUtil;
     }
 
-    public List<RemoteServer> getAllServers() {
+    public List<RemoteServer> findAllServers() {
         return remoteServerRepository.findAll();
     }
 
-    public RemoteServer getServerById(String id) {
+    public RemoteServer findServerById(String id) {
         return remoteServerRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Did not find remote server"));
+    }
+
+    public List<RemoteServer> findByServerType(ServerType serverType) {
+        return remoteServerRepository.findByServerType(serverType);
     }
 
     public RemoteServer addServer(RemoteServer remoteServer) {

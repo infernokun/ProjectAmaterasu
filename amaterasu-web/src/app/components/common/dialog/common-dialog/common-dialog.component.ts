@@ -4,12 +4,12 @@ import { CodeModel } from '@ngstack/code-editor';
 
 
 @Component({
-    selector: 'app-dialog',
-    templateUrl: './dialog.component.html',
-    styleUrls: ['./dialog.component.scss'],
+    selector: 'app-common-dialog',
+    templateUrl: './common-dialog.component.html',
+    styleUrls: ['./common-dialog.component.scss'],
     standalone: false
 })
-export class DialogComponent {
+export class CommonDialogComponent {
   output: CodeModel;
   isCode: boolean = false;
   isReadOnly: boolean = false;
@@ -17,7 +17,7 @@ export class DialogComponent {
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: { title: string, isCode: boolean, content: string, fileType: string, isReadOnly: boolean },
-    private dialogRef: MatDialogRef<DialogComponent>
+    private dialogRef: MatDialogRef<CommonDialogComponent>
   ) {
     this.fileType = data.fileType;
 

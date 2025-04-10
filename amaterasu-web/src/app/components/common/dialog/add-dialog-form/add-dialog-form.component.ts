@@ -12,36 +12,44 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { forkJoin, Observable, of, Subscription } from 'rxjs';
 import { map, take } from 'rxjs/operators';
 
-import { LabType } from '../../../enums/lab-type.enum';
-import { ServerType } from '../../../enums/server-type.enum';
-import { RemoteServer } from '../../../models/remote-server.model';
-import { SimpleFormData } from '../../../models/simple-form-data.model';
-import { LabService } from '../../../services/lab.service';
-import { MessageService } from '../../../services/message.service';
-import { RemoteServerService } from '../../../services/remote-server.service';
 import { DialogQuestionComponent } from '../dialog-question/dialog-question.component';
+import { LabType } from '../../../../enums/lab-type.enum';
+import { ServerType } from '../../../../enums/server-type.enum';
+import { RemoteServer } from '../../../../models/remote-server.model';
+import { SimpleFormData } from '../../../../models/simple-form-data.model';
+import { LabService } from '../../../../services/lab.service';
+import { MessageService } from '../../../../services/message.service';
+import { RemoteServerService } from '../../../../services/remote-server.service';
 
 @Component({
-    selector: 'app-add-dialog-form',
-    templateUrl: './add-dialog-form.component.html',
-    styleUrls: ['./add-dialog-form.component.scss'],
-    standalone: false
+  selector: 'app-add-dialog-form',
+  templateUrl: './add-dialog-form.component.html',
+  styleUrls: ['./add-dialog-form.component.scss'],
+  standalone: false,
 })
-export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChildren(DialogQuestionComponent) questionComponents!: QueryList<DialogQuestionComponent>;
+export class AddDialogFormComponent
+  implements OnInit, AfterViewInit, OnDestroy
+{
+  @ViewChildren(DialogQuestionComponent)
+  questionComponents!: QueryList<DialogQuestionComponent>;
 
   dynamicForm!: FormGroup;
   private subscriptions = new Subscription();
-  
+
   // Constants
   private readonly REQUIRED_VALIDATION_TYPES = ['remoteServer', 'lab'];
-  
+
   // Server type to lab type mapping
-  private readonly SERVER_TYPE_LAB_CONSTRAINTS: Record<ServerType, LabType[]> = {
-    [ServerType.DOCKER_HOST]: [LabType.DOCKER_COMPOSE, LabType.DOCKER_CONTAINER],
-    [ServerType.PROXMOX]: [LabType.VIRTUAL_MACHINE],
-    // Add other server types as needed
-  };
+  private readonly SERVER_TYPE_LAB_CONSTRAINTS: Record<ServerType, LabType[]> =
+    {
+      [ServerType.DOCKER_HOST]: [
+        LabType.DOCKER_COMPOSE,
+        LabType.DOCKER_CONTAINER,
+        LabType.KUBERNETES,
+      ],
+      [ServerType.PROXMOX]: [LabType.VIRTUAL_MACHINE],
+      [ServerType.NONE]: [LabType.NONE],
+    };
 
   constructor(
     public dialogRef: MatDialogRef<AddDialogFormComponent>,
@@ -69,7 +77,7 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
     this.data.questions.forEach((question) => {
       // Set callback for value updates
       question.cb = (key: string, value: string) => this.updateMap(key, value);
-      
+
       // Pre-fill data if available
       if (this.data.preFilledData?.has(question.key)) {
         question.value = this.data.preFilledData.get(question.key);
@@ -93,7 +101,7 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
       if (component.question.asyncData) {
         return this.processAsyncData(component);
       }
-      
+
       return of(component);
     });
 
@@ -104,13 +112,15 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
           this.checkForRemoteServer();
         }
       },
-      error: (err) => console.error('Error setting up form:', err)
+      error: (err) => console.error('Error setting up form:', err),
     });
 
     this.subscriptions.add(subscription);
   }
 
-  private processAsyncData(component: DialogQuestionComponent): Observable<DialogQuestionComponent> {
+  private processAsyncData(
+    component: DialogQuestionComponent
+  ): Observable<DialogQuestionComponent> {
     return component.question.asyncData!.pipe(
       take(1),
       map((data: any[]) => {
@@ -134,10 +144,13 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
     );
   }
 
-  private handleRemoteServerData(component: DialogQuestionComponent, data: any[]): void {
+  private handleRemoteServerData(
+    component: DialogQuestionComponent,
+    data: any[]
+  ): void {
     component.question.options = data
-      .filter(r => r.name && r.id)
-      .map(r => ({ key: r.name, value: r.id, disabled: false }));
+      .filter((r) => r.name && r.id)
+      .map((r) => ({ key: r.name, value: r.id, disabled: false }));
 
     if (component.question.options.length > 0) {
       component.formControl.setValue(component.question.options[0].value);
@@ -145,10 +158,13 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
     }
   }
 
-  private handleTeamData(component: DialogQuestionComponent, data: any[]): void {
+  private handleTeamData(
+    component: DialogQuestionComponent,
+    data: any[]
+  ): void {
     component.question.options = data
-      .filter(t => t.name && t.id)
-      .map(t => ({ key: t.name, value: t.id, disabled: false }));
+      .filter((t) => t.name && t.id)
+      .map((t) => ({ key: t.name, value: t.id, disabled: false }));
 
     if (component.question.options.length > 0) {
       component.formControl.setValue(component.question.options[0].value);
@@ -156,20 +172,23 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   labLock(remoteServer: RemoteServer): void {
-    const labTypeQuestion = this.questionComponents?.find(q => q.question.key === 'labType');
+    const labTypeQuestion = this.questionComponents?.find(
+      (q) => q.question.key === 'labType'
+    );
     if (!labTypeQuestion) {
       return;
     }
 
     // Reset all options first
-    labTypeQuestion.question.options.forEach(option => {
+    labTypeQuestion.question.options.forEach((option) => {
       option.disabled = false;
     });
 
     // Apply constraints based on server type
-    const allowedLabTypes = this.SERVER_TYPE_LAB_CONSTRAINTS[remoteServer.serverType!];
+    const allowedLabTypes =
+      this.SERVER_TYPE_LAB_CONSTRAINTS[remoteServer.serverType!];
     if (allowedLabTypes) {
-      labTypeQuestion.question.options.forEach(option => {
+      labTypeQuestion.question.options.forEach((option) => {
         option.disabled = !allowedLabTypes.includes(option.value as LabType);
       });
     }
@@ -182,9 +201,12 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
 
     const labTypeValue = this.dynamicForm.value['labType'];
     const hideFields = labTypeValue === LabType.NONE;
-    
-    this.questionComponents?.forEach(component => {
-      if (component.question.key !== 'labType' && component.question.key !== 'remoteServer') {
+
+    this.questionComponents?.forEach((component) => {
+      if (
+        component.question.key !== 'labType' &&
+        component.question.key !== 'remoteServer'
+      ) {
         component.isHidden = hideFields;
       }
     });
@@ -194,7 +216,7 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
     const remoteValue = this.dynamicForm?.get('remoteServer')?.value;
     if (remoteValue === '') {
       setTimeout(() => {
-        this.questionComponents?.forEach(component => {
+        this.questionComponents?.forEach((component) => {
           component.isDisabled = component.question.key !== 'remoteServer';
         });
       });
@@ -206,12 +228,16 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
       return;
     }
 
-    const requiresSpecialValidation = this.REQUIRED_VALIDATION_TYPES.includes(this.data.typeName);
-    
+    const requiresSpecialValidation = this.REQUIRED_VALIDATION_TYPES.includes(
+      this.data.typeName
+    );
+
     if (this.dynamicForm.valid || requiresSpecialValidation) {
       if (requiresSpecialValidation) {
         this.handleSpecialValidation();
       } else {
+        console.log(this.data);
+
         this.dialogRef.close(this.data);
       }
     } else {
@@ -227,29 +253,33 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
         this.showValidationErrors();
       }
     } else {
-      this.messageService.snackbar('Server not validated! Please validate first.');
+      this.messageService.snackbar(
+        'Form not validated! Please validate first.'
+      );
     }
   }
 
   private showValidationErrors(): void {
     const invalidControls = this.getInvalidControlLabels();
-    
+
     if (invalidControls.length > 0) {
-      const message = `The following values are not valid: ${invalidControls.join(', ')}`;
+      const message = `The following values are not valid: ${invalidControls.join(
+        ', '
+      )}`;
       this.messageService.snackbar(message);
     }
   }
 
   private getInvalidControlLabels(): string[] {
     const invalidControls: string[] = [];
-    
+
     Object.keys(this.dynamicForm!.controls).forEach((key) => {
       const control = this.dynamicForm!.get(key);
       if (control && !control.valid) {
         invalidControls.push(this.getQuestionLabelByKey(key));
       }
     });
-    
+
     return invalidControls;
   }
 
@@ -264,7 +294,7 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   getQuestionLabelByKey(key: string): string {
-    const question = this.data.questions.find(q => q.key === key);
+    const question = this.data.questions.find((q) => q.key === key);
     return question ? question.label : key;
   }
 
@@ -278,15 +308,16 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
 
   checkboxSelectionChanged(event: any): void {
     this.labInit();
-    
+
     const selectedEnum = event.value;
-    
+
     this.questionComponents?.forEach((component: DialogQuestionComponent) => {
       if (!component.question.neededEnum) {
         return;
       }
 
-      const isNeeded = component.question.neededEnum.value.includes(selectedEnum);
+      const isNeeded =
+        component.question.neededEnum.value.includes(selectedEnum);
       component.isHidden = !isNeeded;
 
       if (isNeeded) {
@@ -298,14 +329,16 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
   private loadComponentAsyncData(component: DialogQuestionComponent): void {
     if (component.question.asyncData) {
       component.question.asyncData.subscribe((data) => {
-        component.question.options2 = data.map((o: any) => ({ 
-          key: o.vmid, 
-          value: o.name 
+        component.question.options2 = data.map((o: any) => ({
+          key: o.vmid,
+          value: o.name,
         }));
       });
     }
 
-    const remoteServerQuestion = this.questionComponents?.find(q => q.question.key === 'remoteServer');
+    const remoteServerQuestion = this.questionComponents?.find(
+      (q) => q.question.key === 'remoteServer'
+    );
     const remoteServerValue = remoteServerQuestion?.question.options[0]?.value;
 
     if (component.question.function && remoteServerValue) {
@@ -316,14 +349,27 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   buttonQuestionFunction(qKey: string): void {
-    if (qKey !== 'validate') {
-      return;
+    if (qKey === 'dockerFile') {
+      const validateComponent = this.questionComponents?.find(
+        (component) => component.question.key === 'validate'
+      );
+
+      if (validateComponent) {
+        if (this.questionComponents && validateComponent.question.dataBoolean) {
+          validateComponent.question.dataBoolean = false;
+          this.questionComponents.forEach((component) => {
+            component.isValidated = false;
+          });
+        }
+      }
     }
 
-    if (this.data.typeName === 'remoteServer') {
-      this.validateRemoteServer();
-    } else if (this.data.typeName === 'lab') {
-      this.validateLab();
+    if (qKey === 'validate') {
+      if (this.data.typeName === 'remoteServer') {
+        this.validateRemoteServer();
+      } else if (this.data.typeName === 'lab') {
+        this.validateLab();
+      }
     }
   }
 
@@ -332,20 +378,24 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
       return;
     }
 
-    const formData: RemoteServer = Object.fromEntries(this.data.result as Map<string, string>);
-    
+    const formData: RemoteServer = Object.fromEntries(
+      this.data.result as Map<string, string>
+    );
+
     this.remoteServerService.validateServer(formData).subscribe({
       next: (response) => this.handleValidationResponse(response),
       error: (err) => {
         console.error('Validation error:', err);
         this.messageService.snackbar('Validation error occurred.');
-      }
+      },
     });
   }
 
   private validateLab(): void {
     if (!this.data.result.has('dockerFile')) {
-      this.messageService.snackbar('Please upload a Docker Compose file first.');
+      this.messageService.snackbar(
+        'Please upload a Docker Compose file first.'
+      );
       return;
     }
 
@@ -353,16 +403,18 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
       return;
     }
 
-    this.labService.validateDockerComposeFile(this.data.result.get('dockerFile')!).subscribe({
-      next: (response) => this.handleValidationResponse(response)
-    });
+    this.labService
+      .validateDockerComposeFile(this.data.result.get('dockerFile')!)
+      .subscribe({
+        next: (response) => this.handleValidationResponse(response),
+      });
   }
 
   private checkFormValidity(): boolean {
     if (this.dynamicForm!.valid) {
       return true;
     }
-    
+
     this.showValidationErrors();
     return false;
   }
@@ -371,17 +423,19 @@ export class AddDialogFormComponent implements OnInit, AfterViewInit, OnDestroy 
     const isValid = !!response.data;
 
     const validateComponent = this.questionComponents?.find(
-      component => component.question.key === 'validate'
+      (component) => component.question.key === 'validate'
     );
 
     if (validateComponent) {
       validateComponent.question.dataBoolean = isValid;
     }
 
-    this.messageService.snackbar(isValid ? 'Validation successful!' : 'Validation failed.');
+    this.messageService.snackbar(
+      isValid ? 'Validation successful!' : 'Validation failed.'
+    );
 
     if (isValid && this.questionComponents) {
-      this.questionComponents.forEach(component => {
+      this.questionComponents.forEach((component) => {
         component.isValidated = true;
       });
     }

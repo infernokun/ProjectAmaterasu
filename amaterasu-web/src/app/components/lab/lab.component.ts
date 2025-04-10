@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { LabService } from '../../services/lab.service';
 import { Lab, LabDTO, LabFormData } from '../../models/lab.model';
 import { UserService } from '../../services/user.service';
@@ -12,7 +12,6 @@ import { Team } from '../../models/team.model';
 import { LabStatus } from '../../enums/lab-status.enum';
 import { LabActionResult } from '../../models/lab-action-result.model';
 import { MatDialog } from '@angular/material/dialog';
-import { DialogComponent } from '../common/dialog/dialog.component';
 import { EditDialogService } from '../../services/edit-dialog.service';
 import { LabType } from '../../enums/lab-type.enum';
 import { ProxmoxService } from '../../services/proxmox.service';
@@ -23,6 +22,9 @@ import { AuthService } from '../../services/auth.service';
 import { LabRequest } from '../../models/dto/lab-request.model';
 import { HttpErrorResponse } from '@angular/common/http';
 import { trigger, transition, style, animate } from '@angular/animations';
+import { LabDeployComponent } from './lab-deploy/lab-deploy.component';
+import { CommonDialogComponent } from '../common/dialog/common-dialog/common-dialog.component';
+import { LabMainComponent } from './lab-main/lab-main.component';
 
 @Component({
     selector: 'app-lab',
@@ -62,6 +64,9 @@ export class LabComponent implements OnInit {
   trackedLabs$: Observable<LabTracker[] | undefined> | undefined;
   userTeam$: Observable<Team | undefined> = this.userTeamSubject.asObservable();
   isLoading$: Observable<boolean> = this.isLoadingSubject.asObservable();
+
+  @ViewChild(LabDeployComponent) labDeployComponent: LabDeployComponent | undefined;
+  @ViewChild(LabMainComponent) labMainComponent: LabMainComponent | undefined;
 
   constructor(
     private labService: LabService, private userService: UserService,
@@ -220,13 +225,13 @@ export class LabComponent implements OnInit {
         this.labTrackerService.setLabTrackers([...this.trackedLabs]);
 
         if (response.data.output) {
-          this.dialog.open(DialogComponent, {
+          this.dialog.open(CommonDialogComponent, {
             data: {
               title: 'Lab Start',
-              content: JSON.stringify(response.data.output),
+              content: JSON.stringify(response.data, null, 2),
               isCode: true,
               isReadOnly: true,
-              fileType: 'bash'
+              fileType: 'json'
             },
             width: '75rem',
             height: '50rem',
@@ -247,7 +252,7 @@ export class LabComponent implements OnInit {
           errorContent = JSON.stringify({ error: 'Unexpected error format', details: err.message }, null, 2);
         }
 
-        this.dialog.open(DialogComponent, {
+        this.dialog.open(CommonDialogComponent, {
           data: {
             title: 'Lab Start',
             content: errorContent,
@@ -322,7 +327,7 @@ export class LabComponent implements OnInit {
         this.labTrackerService.setLabTrackers([...this.trackedLabs]);
 
         if (response.data.output) {
-          this.dialog.open(DialogComponent, {
+          this.dialog.open(CommonDialogComponent, {
             data: {
               title: 'Lab Start',
               content: response.data.output,
@@ -380,7 +385,7 @@ export class LabComponent implements OnInit {
         const deletedLabTracker = new LabTracker(response.data.labTracker);
 
         if (response.data.output) {
-          this.dialog.open(DialogComponent, {
+          this.dialog.open(CommonDialogComponent, {
             data: {
               title: 'Lab Start',
               content: response.data.output,
@@ -412,6 +417,17 @@ export class LabComponent implements OnInit {
     });
   }
 
+  deployLabStart(lab: Lab) {
+    this.labDeployComponent?.deployLab(lab, this.loggedInUser!);
+  }
+
+  deployLabAction(labId: string) {
+    this.labMainComponent?.deployLabAction(labId);
+  }
+
+  deployLabFinish(response: ApiResponse<LabActionResult>) {
+    //this.labMainComponent.
+  }
   isInTrackedLabs(labId?: string): boolean {
     if (!labId) return false; // Early return if labId is not provided
 
@@ -470,7 +486,7 @@ export class LabComponent implements OnInit {
         return;
       }
       this.dockerComposeData = res.data;
-      this.dialog.open(DialogComponent, {
+      this.dialog.open(CommonDialogComponent, {
         data: {
           title: 'Lab Output',
           isCode: true,

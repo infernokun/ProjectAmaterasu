@@ -25,11 +25,13 @@ public class LabActionService extends BaseService {
                 return new LabActionResult();
             }
             case DOCKER_COMPOSE -> {
-                if (remoteServer.getServerType() != ServerType.DOCKER_HOST) throw new ServerTypeException("Server NOT DockerHost");
+                if (remoteServer.getServerType() != ServerType.DOCKER_HOST)
+                    return new LabActionResult(false, labTracker, "Server NOT DockerHost");
                 return dockerService.startDockerCompose(labTracker, remoteServer);
             }
             case VIRTUAL_MACHINE -> {
-                if (remoteServer.getServerType() != ServerType.PROXMOX) throw new ServerTypeException("Server NOT Proxmox");
+                if (remoteServer.getServerType() != ServerType.PROXMOX)
+                    return new LabActionResult(false, labTracker, "Server NOT Proxmox");
                 return labTracker.getVms().isEmpty() ? proxmoxService.startAndCloneProxmoxLab(labTracker, remoteServer) :
                         proxmoxService.startProxmoxLab(labTracker, remoteServer);
             }
@@ -54,10 +56,10 @@ public class LabActionService extends BaseService {
                 return new LabActionResult();
             }
             case DOCKER_COMPOSE -> {
-                return dockerService.stopDockerCompose(labTracker.getId(), remoteServer);
+                return dockerService.stopDockerCompose(labTracker, remoteServer);
             }
             case VIRTUAL_MACHINE -> {
-                return proxmoxService.stopProxmoxLab(labTracker.getId(), remoteServer);
+                return proxmoxService.stopProxmoxLab(labTracker, remoteServer);
             }
             case KUBERNETES -> {
                 String type = "kubernetes";
@@ -81,7 +83,7 @@ public class LabActionService extends BaseService {
                 return new LabActionResult();
             }
             case DOCKER_COMPOSE -> {
-                return dockerService.stopDockerCompose(labTracker.getId(), remoteServer);
+                return dockerService.stopDockerCompose(labTracker, remoteServer);
             }
             case VIRTUAL_MACHINE -> {
                 return proxmoxService.deleteProxmoxLab(labTracker, remoteServer);

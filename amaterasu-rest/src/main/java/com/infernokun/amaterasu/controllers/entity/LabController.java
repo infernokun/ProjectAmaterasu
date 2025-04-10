@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/labs")
@@ -67,7 +66,7 @@ public class LabController extends BaseController {
 
     @GetMapping("/check/{labId}/{remoteServerId}")
     public ResponseEntity<ApiResponse<Boolean>> checkLabReadiness(@PathVariable String labId, @PathVariable String remoteServerId) {
-        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
+        RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         boolean isLabReady = labService.checkDockerComposeValidity(labId, remoteServer);
 
         return ResponseEntity.ok(
@@ -81,7 +80,7 @@ public class LabController extends BaseController {
 
     @GetMapping("/settings/{labId}/{remoteServerId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getLabFile(@PathVariable String labId, @PathVariable String remoteServerId) {
-        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
+        RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         Map<String, Object> response = labService.getLabFile(labId, remoteServer);
 
         return ResponseEntity.ok(
@@ -96,7 +95,7 @@ public class LabController extends BaseController {
     @PostMapping()
     public ResponseEntity<ApiResponse<Lab>> createLab(@RequestParam String remoteServerId, @RequestBody LabDTO labDTO) {
         if (labDTO == null) throw new RuntimeException("labDTO is null");
-        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
+        RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
 
         Lab createdLab = labService.createLab(labDTO, remoteServer);
         return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -134,7 +133,7 @@ public class LabController extends BaseController {
 
     @PostMapping("/upload/{labId}/{remoteServerId}")
     public ResponseEntity<ApiResponse<String>> uploadLabFile(@PathVariable String labId, @PathVariable String remoteServerId, @RequestBody String content) {
-        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
+        RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         String response = labService.uploadLabFile(labId, content, remoteServer);
 
         return ResponseEntity.ok(
@@ -162,11 +161,10 @@ public class LabController extends BaseController {
 
     @PostMapping("/start")
     public ResponseEntity<ApiResponse<LabActionResult>> startLab(@RequestBody LabRequest labRequest) {
-        RemoteServer remoteServer = remoteServerService.getServerById(labRequest.getRemoteServerId());
+        RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
         LabActionResult startedLabOptional = labService.startLab(labRequest.getLabId(),
                 labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
 
-        LOGGER.error("Completed Start!!!");
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabActionResult>builder()
                         .code(HttpStatus.OK.value())
@@ -177,7 +175,7 @@ public class LabController extends BaseController {
 
     @PostMapping("/stop")
     public ResponseEntity<ApiResponse<LabActionResult>> stopLab(@RequestBody LabRequest labRequest) {
-        RemoteServer remoteServer = remoteServerService.getServerById(labRequest.getRemoteServerId());
+        RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
 
         LabActionResult stoppedLab = labService.stopLab(
                 labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
@@ -192,7 +190,7 @@ public class LabController extends BaseController {
 
     @PostMapping("/delete")
     public ResponseEntity<ApiResponse<LabActionResult>> deleteLab(@RequestBody LabRequest labRequest) {
-        RemoteServer remoteServer = remoteServerService.getServerById(labRequest.getRemoteServerId());
+        RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
 
         LabActionResult deletedLab = labService.deleteLab(
                 labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);

@@ -1,4 +1,5 @@
 export enum ServerType {
   DOCKER_HOST = "DOCKER_HOST",
-  PROXMOX = "PROXMOX"
+  PROXMOX = "PROXMOX",
+  NONE = "NONE"
 }

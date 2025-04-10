@@ -87,17 +87,12 @@ public class DockerService extends BaseService {
                     amaterasuConfig.getUploadDir(),
                     labTracker.getLabStarted().getId(),
                     labTracker.getLabStarted().getDockerFile());
-
             RemoteCommandResponse catOriginalDockerComposeOutput = remoteCommandService.handleRemoteCommand(catOriginalDockerComposeCmd, remoteServer);
             LOGGER.info("Fetched original Docker Compose: {}", catOriginalDockerComposeOutput.getBoth());
 
             if (catOriginalDockerComposeOutput.getExitCode() != 0) {
-                LOGGER.error("Failed to fetch Docker Compose file. Exiting.");
-                return LabActionResult.builder()
-                        .labTracker(labTracker)
-                        .isSuccessful(false)
-                        .output("Failed to fetch Docker Compose file.")
-                        .build();
+                return stopDockerComposeOnFail(labTracker, remoteServer,
+                        "Failed to fetch Docker Compose file. Exiting.");
             }
 
             String composeYAML = catOriginalDockerComposeOutput.getBoth();
@@ -108,45 +103,33 @@ public class DockerService extends BaseService {
             String createLabTrackerBasedFileCmd = String.format("DIR=%s/tracker-compose && mkdir -p $DIR && echo \"%s\" | tee $DIR/%s",
                     amaterasuConfig.getUploadDir(), modifiedYAML, labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
             RemoteCommandResponse createLabTrackerBasedFileOutput = remoteCommandService.handleRemoteCommand(createLabTrackerBasedFileCmd, remoteServer);
-
             LOGGER.info("Docker Compose file creation response: {}", createLabTrackerBasedFileOutput.getBoth());
+
             if (createLabTrackerBasedFileOutput.getExitCode() != 0) {
-                LOGGER.error("Failed to create Docker Compose file for LabTracker. Exiting.");
-                return LabActionResult.builder()
-                        .labTracker(labTracker)
-                        .isSuccessful(false)
-                        .output("Failed to create Docker Compose file.")
-                        .build();
+                return stopDockerComposeOnFail(labTracker, remoteServer,
+                        "Failed to create Docker Compose file for LabTracker. Exiting.");
             }
 
             // Start the Docker Compose container
             String startTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s up -d ",
                     amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
             RemoteCommandResponse startTrackerComposeOutput = remoteCommandService.handleRemoteCommand(startTrackerComposeCmd, remoteServer);
-
             LOGGER.info("Docker Compose start output: {}", startTrackerComposeOutput.getBoth());
+
             if (startTrackerComposeOutput.getExitCode() != 0) {
-                LOGGER.error("Failed to start Docker Compose container. Exiting.");
-                return LabActionResult.builder()
-                        .labTracker(labTracker)
-                        .isSuccessful(false)
-                        .output("Failed to start Docker Compose container.")
-                        .build();
+                return stopDockerComposeOnFail(labTracker, remoteServer,
+                        "Failed to start Docker Compose container. Exiting.");
             }
 
             // Check the Docker process status
             String checkTrackerProcessCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s ps -q | xargs docker inspect",
                     amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
             RemoteCommandResponse checkTrackerProcessOutput = remoteCommandService.handleRemoteCommand(checkTrackerProcessCmd, remoteServer);
-
             LOGGER.info("Docker inspect output: {}", checkTrackerProcessOutput.getBoth());
+
             if (checkTrackerProcessOutput.getExitCode() != 0) {
-                LOGGER.error("Failed to inspect Docker container. Exiting.");
-                return LabActionResult.builder()
-                        .labTracker(labTracker)
-                        .isSuccessful(false)
-                        .output("Failed to inspect Docker container.")
-                        .build();
+                return stopDockerComposeOnFail(labTracker, remoteServer,
+                        "Failed to inspect Docker container. Exiting.");
             }
 
             labTracker.setServices(parseDockerInspectOutput(checkTrackerProcessOutput.getBoth().trim()));
@@ -157,37 +140,56 @@ public class DockerService extends BaseService {
                     .output(labTracker.getServices().toString())
                     .build();
         } catch (Exception e) {
-            LOGGER.error("An error occurred while starting the Docker Compose: ", e);
+            return stopDockerComposeOnFail(labTracker, remoteServer,
+                    "An error occurred while starting the Docker Compose: " + e.getMessage());
+        }
+    }
+
+    public LabActionResult stopDockerComposeOnFail(LabTracker labTracker, RemoteServer remoteServer, String msg) {
+        String stopTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s down",
+                amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
+        RemoteCommandResponse stopTrackerComposeOutput = remoteCommandService.handleRemoteCommand(stopTrackerComposeCmd, remoteServer);
+        if (stopTrackerComposeOutput.getExitCode() != 0) {
+            LOGGER.error("Critical failed: Failed to stop the docker compose!!! ({})", msg);
+            return LabActionResult.builder()
+                    .labTracker(labTracker)
+                    .isSuccessful(false)
+                    .output("Critical failed: Failed to stop the docker compose!!! (" + msg + ")")
+                    .build();
+        }
+        return LabActionResult.builder()
+                .labTracker(labTracker)
+                .isSuccessful(false)
+                .output("Start failure: " + msg)
+                .build();
+    }
+
+    public LabActionResult stopDockerCompose(LabTracker labTracker, RemoteServer remoteServer) {
+        try {
+            String stopTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s down",
+                    amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
+            RemoteCommandResponse stopTrackerComposeOutput = remoteCommandService.handleRemoteCommand(stopTrackerComposeCmd, remoteServer);
+            if (stopTrackerComposeOutput.getExitCode() != 0) {
+                LOGGER.error("Failed to stop the docker compose!!!");
+                return LabActionResult.builder()
+                        .labTracker(labTracker)
+                        .isSuccessful(false)
+                        .output("Failed to stop the docker compose!!!")
+                        .build();
+            }
+            return LabActionResult.builder()
+                    .labTracker(labTracker)
+                    .isSuccessful(true)
+                    .output(stopTrackerComposeCmd + "\n" + stopTrackerComposeOutput.getBoth())
+                    .build();
+        } catch (Exception e) {
+            LOGGER.error("An error occurred while stopping the Docker Compose: ", e);
             return LabActionResult.builder()
                     .labTracker(labTracker)
                     .isSuccessful(false)
                     .output("An error occurred: " + e.getMessage())
                     .build();
         }
-    }
-
-    public LabActionResult stopDockerCompose(String labTrackerId, RemoteServer remoteServer) {
-        Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
-
-        // Check if labTracker exists
-        if (labTrackerOptional.isEmpty()) {
-            return LabActionResult.builder()
-                    .isSuccessful(false)
-                    .output("Lab tracker with ID " + labTrackerId + " not found.")
-                    .build();
-        }
-
-        LabTracker labTracker = labTrackerOptional.get();
-
-        String stopTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s down",
-                amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
-        RemoteCommandResponse stopTrackerComposeOutput = remoteCommandService.handleRemoteCommand(stopTrackerComposeCmd, remoteServer);
-
-        return LabActionResult.builder()
-                .labTracker(labTracker)
-                .isSuccessful(true)
-                .output(stopTrackerComposeCmd + "\n" + stopTrackerComposeOutput.getBoth())
-                .build();
     }
 
     public String modifyDockerComposeYAML(String yaml, String labTrackerId) {

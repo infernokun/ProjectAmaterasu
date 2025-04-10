@@ -22,6 +22,7 @@ import java.util.List;
 @Table(name = "users")
 public class User extends StoredObject implements UserDetails {
     private String username;
+    @JsonIgnore
     private String password;
     @ManyToOne
     @JoinColumn(name = "team_id")

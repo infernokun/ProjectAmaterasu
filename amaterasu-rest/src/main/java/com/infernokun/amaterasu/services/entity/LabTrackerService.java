@@ -7,8 +7,6 @@ import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.repositories.LabTrackerRepository;
 import com.infernokun.amaterasu.services.BaseService;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -17,9 +15,11 @@ import java.util.Optional;
 
 @Service
 public class LabTrackerService extends BaseService {
+    private final TeamService teamService;
     private final LabTrackerRepository labTrackerRepository;
 
-    public LabTrackerService(LabTrackerRepository labTrackerRepository) {
+    public LabTrackerService(TeamService teamService, LabTrackerRepository labTrackerRepository) {
+        this.teamService = teamService;
         this.labTrackerRepository = labTrackerRepository;
     }
 
@@ -28,7 +28,12 @@ public class LabTrackerService extends BaseService {
     }
 
     public Optional<LabTracker> findLabTrackerById(String id) {
-        return this.labTrackerRepository.findById(id);
+        return labTrackerRepository.findById(id);
+    }
+
+    public List<LabTracker> findLabTrackerByTeamId(String teamId) {
+        Team labOwner = teamService.findTeamById(teamId);
+        return labTrackerRepository.findLabTrackersByLabOwner(labOwner);
     }
 
     public Optional<LabTracker> findLabTrackerByLabStartedAndLabOwnerAndStatusNotDeleted(Lab labStarted, Team labOwner) {

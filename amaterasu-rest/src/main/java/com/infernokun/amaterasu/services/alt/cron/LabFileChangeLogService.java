@@ -1,6 +1,5 @@
 package com.infernokun.amaterasu.services.alt.cron;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.RemoteCommandException;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
@@ -16,7 +15,6 @@ import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
 import jakarta.transaction.Transactional;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -24,10 +22,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.AbstractMap;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
@@ -51,19 +46,14 @@ public class LabFileChangeLogService extends BaseService {
     @Transactional
     public void checkLabFileStats() {
         AtomicInteger count = new AtomicInteger();
-        List<RemoteServer> remoteServers =  remoteServerService.getAllServers();
 
-        List<RemoteServer> dockerServers = remoteServers.stream().filter((remoteServer ->
-                remoteServer.getServerType() == ServerType.DOCKER_HOST)).toList();
-
-        dockerServers.forEach(dockerServer -> {
-            LOGGER.info("Starting changelog time check...");
+        remoteServerService.findByServerType(ServerType.DOCKER_HOST).forEach(dockerServer -> {
+            LOGGER.info("Starting changelog time check... for {}", dockerServer.getName());
 
             for (Lab lab : labService.findByLabType(LabType.DOCKER_COMPOSE)) {
                 LabFileChangeLog labFileChangeLog = labFileChangeLogRepository.findByLab(lab)
                         .orElseGet(() -> LabFileChangeLog.builder()
                                 .lab(lab)
-                                .upToDate(false)
                                 .build());
 
                 if (labFileChangeLog.getId() == null) {
@@ -75,26 +65,21 @@ public class LabFileChangeLogService extends BaseService {
 
                 // Update only if remote file is newer
                 if (labFileChangeLog.getUpdatedAt() == null ||
-                        remoteTimestamp.isAfter(labFileChangeLog.getUpdatedAt())) {
-                    LOGGER.info("{} needs to be checked and is not ready: Remote time is {}. Changelog time is {}.",
-                            lab.getName(),
-                            formatTimestamp(remoteTimestamp),
-                            formatTimestamp(labFileChangeLog.getUpdatedAt()));
+                        remoteTimestamp.isAfter(labFileChangeLog.getUpdatedAt()) ||
+                        remoteTimestamp == LocalDateTime.MIN || !lab.isReady()) {
+                    LOGGER.warn("For file {} the timestamp is {}, but db is {}",
+                            lab.getDockerFile(), remoteTimestamp, labFileChangeLog.getUpdatedAt());
 
-                    labFileChangeLog.setUpToDate(false);
 
                     lab.setReady(false);
                     labService.updateLab(lab);
-                    labFileChangeLogRepository.save(labFileChangeLog);
                     count.incrementAndGet();
-                } else {
-                    labFileChangeLog.setUpToDate(true);
-                    labFileChangeLogRepository.save(labFileChangeLog);
                 }
             }
 
             LOGGER.info("{} files that need updating!", count.get());
 
+            // Validate
             AtomicInteger count2 = new AtomicInteger();
             LOGGER.info("Starting file validity check...");
 
@@ -105,11 +90,11 @@ public class LabFileChangeLogService extends BaseService {
                         boolean isLabReady = labService.checkDockerComposeValidity(dockerComposeLog.getLab().getId(), dockerServer);
                         dockerComposeLog.getLab().setReady(isLabReady);
                         dockerComposeLog.setUpdatedAt(LocalDateTime.now());
-                        dockerComposeLog.setUpToDate(isLabReady);
                         labService.updateLab(dockerComposeLog.getLab());
                         labFileChangeLogRepository.save(dockerComposeLog);
 
-                        LOGGER.info("{} readiness updated to: {}", dockerComposeLog.getLab().getName(), dockerComposeLog.isUpToDate());
+                        LOGGER.info("{} readiness updated to: {}", dockerComposeLog.getLab().getName(),
+                                dockerComposeLog.getLab().isReady());
 
                         if (isLabReady) count2.incrementAndGet();
                     });
@@ -126,14 +111,27 @@ public class LabFileChangeLogService extends BaseService {
                     amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile()
             );
 
-            RemoteCommandResponse output = remoteCommandService.handleRemoteCommand(command, remoteServer);
+            RemoteCommandResponse fetchRemoteFileTimestampOutput = remoteCommandService.handleRemoteCommand(
+                    command, remoteServer);
 
-            long timestamp = Long.parseLong(output.getBoth().trim());
+            String cmdOutput = fetchRemoteFileTimestampOutput.getBoth().trim();
+
+            if (fetchRemoteFileTimestampOutput.getExitCode() != 0) {
+                throw new RemoteCommandException("fetchRemoteFileTimestamp: Command exited (" + cmdOutput + ")");
+            }
+
+
+            if (cmdOutput.contains("No such file")) {
+                throw new RemoteCommandException("fetchRemoteFileTimestamp: File not found");
+            }
+
+            long timestamp = Long.parseLong(cmdOutput);
 
             return Instant.ofEpochSecond(timestamp)
                     .atZone(ZoneId.systemDefault())
                     .toLocalDateTime();
         } catch (RemoteCommandException | NumberFormatException e) {
+            LOGGER.error(e.getMessage());
             return LocalDateTime.MIN;
         }
     }

@@ -30,10 +30,11 @@ public class LabReadinessService extends BaseService {
 
             RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(cmd, dockerServer);
 
-            String response = remoteCommandResponse.getBoth();
-
-            return !response.contains("did not find expected key") && !response.contains("not allowed") &&
-                    !response.contains("No such file or directory");
+            int exitCode = remoteCommandResponse.getExitCode();
+            if (exitCode != 0) {
+                LOGGER.error("Error running checkDockerComposeReadiness: {}", remoteCommandResponse.getBoth());
+            }
+            return remoteCommandResponse.getExitCode() == 0;
         } catch (RemoteCommandException e) {
             throw new LabReadinessException(e.getMessage());
         }

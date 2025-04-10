@@ -105,7 +105,7 @@ public class LabService extends BaseService {
                 Lab savedLab = labRepository.save(newLab);
                 uploadLabFile(savedLab.getId(), labDTO.getDockerFile(), remoteServer);
 
-                LabFileChangeLog labFileChangeLog = new LabFileChangeLog(savedLab, false);
+                LabFileChangeLog labFileChangeLog = new LabFileChangeLog(savedLab);
                 labFileChangeLog.setUpdatedAt(LocalDateTime.now().minusYears(10));
                 labFileChangeLogRepository.save(labFileChangeLog);
 
@@ -186,21 +186,17 @@ public class LabService extends BaseService {
         }
 
         LabActionResult labActionResult = labActionService.startLab(labTracker, remoteServer);
-
         labActionResult.getLabTracker().setUpdatedAt(LocalDateTime.now());
         labActionResult.getLabTracker().setUpdatedBy(user.getId());
         labActionResult.getLabTracker().setLabStatus(labActionResult.isSuccessful() ? LabStatus.ACTIVE : LabStatus.FAILED);
         labActionResult.getLabTracker().setRemoteServer(remoteServer);
 
-        LOGGER.error("labActionResult set");
         try {
             labTrackerService.updateLabTracker(labActionResult.getLabTracker());
         } catch (Exception e) {
             labActionResult.setSuccessful(false);
             return labActionResult;
         }
-
-        LOGGER.error("getLabTracker saved");
 
         if (!userTeam.getTeamActiveLabs().contains(labActionResult.getLabTracker().getId())) {
             userTeam.getTeamActiveLabs().add(labActionResult.getLabTracker().getId());
@@ -211,9 +207,6 @@ public class LabService extends BaseService {
                 return labActionResult;
             }
         }
-
-        LOGGER.error("updateTeam saved");
-
         return labActionResult;
     }
 
@@ -230,18 +223,14 @@ public class LabService extends BaseService {
             return new LabActionResult(false, null, "Lab tracker not found");
         }
 
-        Lab lab = this.findLabById(labId);
-        User user = this.userService.findUserById(userId);
-        Team userTeam = user.getTeam();
-
         LOGGER.info("Stopping lab...");
 
         String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy @ hh:mma"));
 
-        LabActionResult labActionResult = labActionService.stopLab(lab, existingLabTracker, remoteServer);
+        LabActionResult labActionResult = labActionService.stopLab(findLabById(labId), existingLabTracker, remoteServer);
 
         labActionResult.getLabTracker().setUpdatedAt(LocalDateTime.now());
-        labActionResult.getLabTracker().setUpdatedBy(user.getId());
+        labActionResult.getLabTracker().setUpdatedBy(userService.findUserById(userId).getId());
         labActionResult.getLabTracker().setLabStatus(labActionResult.isSuccessful() ? LabStatus.STOPPED : LabStatus.ACTIVE);
 
         labTrackerService.updateLabTracker(labActionResult.getLabTracker());
@@ -262,9 +251,7 @@ public class LabService extends BaseService {
             return new LabActionResult(false, null, "Lab tracker not found");
         }
 
-        Lab lab = this.findLabById(labId);
-        User user = this.userService.findUserById(userId);
-        Team userTeam = user.getTeam();
+        Team userTeam = userService.findUserById(userId).getTeam();
 
         LOGGER.info("Deleting lab...");
 

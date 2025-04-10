@@ -15,7 +15,11 @@ export class CodeBlockComponent implements OnInit {
   @Input() versions: number[] = [];
   @Output() onChange = new EventEmitter<string>();
   @Output() onVersionChange = new EventEmitter<number>();
-  @Input() codeModel: CodeModel | undefined;
+  @Input() codeModel: CodeModel | undefined = {
+    language: 'json',
+    uri: 'main.json',
+    value: ''
+  };;
 
   isCopied = false;
   theme = 'vs-dark';
@@ -34,6 +38,7 @@ export class CodeBlockComponent implements OnInit {
   }
 
   ngOnInit() {
+    console.log("codeModel", this.codeModel);
   }
 
   onCodeChanged(value: any) {

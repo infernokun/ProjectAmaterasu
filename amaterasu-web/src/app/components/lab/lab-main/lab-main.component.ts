@@ -1,5 +1,5 @@
 import { trigger, transition, style, animate } from '@angular/animations';
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, EventEmitter, OnInit, Output } from '@angular/core';
 import { Lab } from '../../../models/lab.model';
 import {
   BehaviorSubject,
@@ -19,17 +19,10 @@ import { LabService } from '../../../services/lab.service';
 import { AuthService } from '../../../services/auth.service';
 import { Team } from '../../../models/team.model';
 import { TeamService } from '../../../services/team.service';
-import { HttpErrorResponse } from '@angular/common/http';
-import { LabStatus } from '../../../enums/lab-status.enum';
-import { ApiResponse } from '../../../models/api-response.model';
-import { LabRequest } from '../../../models/dto/lab-request.model';
-import { LabActionResult } from '../../../models/lab-action-result.model';
-import { DialogComponent } from '../../common/dialog/dialog.component';
 import { MatDialog } from '@angular/material/dialog';
-import { EditDialogService } from '../../../services/edit-dialog.service';
-import { ProxmoxService } from '../../../services/proxmox.service';
 import { RemoteServerService } from '../../../services/remote-server.service';
-import { UserService } from '../../../services/user.service';
+import { ApiResponse } from '../../../models/api-response.model';
+import { LabActionResult } from '../../../models/lab-action-result.model';
 
 @Component({
   selector: 'app-lab-main',
@@ -55,13 +48,13 @@ export class LabMainComponent implements OnInit {
     new BehaviorSubject<Team | undefined>(undefined);
   private isLoadingSubject: BehaviorSubject<boolean> =
     new BehaviorSubject<boolean>(false);
-  loadingLabs = new Set<string>();
+  labsLoading = new Set<string>();
 
   isLoading$: Observable<boolean> = this.isLoadingSubject.asObservable();
   trackedLabs$: Observable<LabTracker[] | undefined> | undefined;
 
   labs: Lab[] = [];
-  trackedLabs: LabTracker[] = [];
+  labTrackers: LabTracker[] = [];
   team: Team | undefined;
 
   labs$: Observable<Lab[] | undefined> | undefined;
@@ -71,6 +64,8 @@ export class LabMainComponent implements OnInit {
   isHovered: boolean = false;
 
   LabType = LabType;
+
+  @Output() deployLabStartEmitter: EventEmitter<Lab> = new EventEmitter<Lab>();
 
   constructor(
     private labService: LabService,
@@ -111,7 +106,7 @@ export class LabMainComponent implements OnInit {
           this.loggedInUserSubject.next(this.loggedInUser);
 
           // Handle empty labsTracked array as a valid case
-          this.trackedLabs = labsTracked!;
+          this.labTrackers = labsTracked!;
           this.trackedLabs$ = this.labTrackerService.labTrackers$;
 
           const teamId = user?.team?.id;
@@ -155,8 +150,19 @@ export class LabMainComponent implements OnInit {
     this.isHovered = false;
   }
 
-  deployLab(labId?: string): void {
-    if (!labId) return; // Early return if labId is not provided
+  deployLabAction(labId: string) {
+    console.log('...test')
+    this.labsLoading.add(labId);
+  }
+
+  deployLabFinish(response: ApiResponse<LabActionResult>) {
+    this.labsLoading.delete(response.data.labTracker?.labStarted?.id!);
+    this.labTrackers.push(response.data.labTracker!);
+  }
+
+  deployLabStart(lab: Lab): void {
+    this.deployLabStartEmitter.emit(lab);
+  /*  if (!labId) return; // Early return if labId is not provided
 
     this.loadingLabs.add(labId);
 
@@ -268,6 +274,6 @@ export class LabMainComponent implements OnInit {
         // Remove the labId from the loadingLabs set
         this.loadingLabs.delete(labId);
       },
-    });
+    });*/
   }
 }

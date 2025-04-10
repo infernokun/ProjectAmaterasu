@@ -3,7 +3,6 @@ package com.infernokun.amaterasu.controllers.entity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.exceptions.GlobalExceptionHandler;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
-import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.LabRequest;
 import com.infernokun.amaterasu.models.dto.LabDTO;
@@ -28,7 +27,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -135,7 +133,7 @@ class LabControllerTest {
     @Test
     void checkLabReadiness() throws Exception {
         // Assume labService.checkDockerComposeValidity returns true.
-        when(remoteServerService.getServerById("rs1")).thenReturn(remoteServer);
+        when(remoteServerService.findServerById("rs1")).thenReturn(remoteServer);
         when(labService.checkDockerComposeValidity("1", remoteServer)).thenReturn(true);
 
         mockMvc.perform(get("/api/labs/check/1/rs1"))
@@ -150,7 +148,7 @@ class LabControllerTest {
     void getLabFile() throws Exception {
         Map<String, Object> fileResponse = Collections.singletonMap("key", "value");
 
-        when(remoteServerService.getServerById("rs1")).thenReturn(remoteServer);
+        when(remoteServerService.findServerById("rs1")).thenReturn(remoteServer);
         when(labService.getLabFile("1", remoteServer)).thenReturn(fileResponse);
 
         mockMvc.perform(get("/api/labs/settings/1/rs1"))
@@ -161,7 +159,7 @@ class LabControllerTest {
 
     @Test
     void createLab() throws Exception {
-        when(remoteServerService.getServerById("rs1")).thenReturn(remoteServer);
+        when(remoteServerService.findServerById("rs1")).thenReturn(remoteServer);
         when(labService.createLab(labDTO, remoteServer)).thenReturn(lab);
 
         mockMvc.perform(post("/api/labs")
@@ -209,7 +207,7 @@ class LabControllerTest {
     @Test
     void uploadLabFile() throws Exception {
         String content = "file-content";
-        when(remoteServerService.getServerById("rs1")).thenReturn(remoteServer);
+        when(remoteServerService.findServerById("rs1")).thenReturn(remoteServer);
         when(labService.uploadLabFile("1", content, remoteServer)).thenReturn("upload-success");
 
         mockMvc.perform(post("/api/labs/upload/1/rs1")
@@ -235,7 +233,7 @@ class LabControllerTest {
 
     @Test
     void startLab() throws Exception {
-        when(remoteServerService.getServerById("rs1")).thenReturn(remoteServer);
+        when(remoteServerService.findServerById("rs1")).thenReturn(remoteServer);
         when(labService.startLab("1", "user1", "lt1", remoteServer)).thenReturn(labActionResult);
 
         mockMvc.perform(post("/api/labs/start")
@@ -247,7 +245,7 @@ class LabControllerTest {
 
     @Test
     void stopLab() throws Exception {
-        when(remoteServerService.getServerById("rs1")).thenReturn(remoteServer);
+        when(remoteServerService.findServerById("rs1")).thenReturn(remoteServer);
         when(labService.stopLab("1", "user1", "lt1", remoteServer)).thenReturn(labActionResult);
 
         mockMvc.perform(post("/api/labs/stop")
@@ -259,7 +257,7 @@ class LabControllerTest {
 
     @Test
     void deleteLab() throws Exception {
-        when(remoteServerService.getServerById("rs1")).thenReturn(remoteServer);
+        when(remoteServerService.findServerById("rs1")).thenReturn(remoteServer);
         when(labService.deleteLab("1", "user1", "lt1", remoteServer)).thenReturn(labActionResult);
 
         mockMvc.perform(post("/api/labs/delete")

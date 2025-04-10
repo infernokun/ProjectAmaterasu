@@ -1,1 +1,9 @@
-<p>lab-deploy works!</p>
+<div *ngFor="let labTracker of activeLabTrackers">
+    <p>Id: {{ labTracker.id }}</p>
+    <p>Lab: {{ labTracker.labStarted?.name }}</p>
+    <p>Owner: {{ labTracker.labOwner?.name }}</p>
+    <p>Status: <a [routerLink]="['/lab/settings', formatLabName(labTracker.labStarted?.name!)]"
+            [queryParams]="{ id: labTracker.id }">{{ labTracker.labStatus }}</a></p>
+    <p>Owner: {{ labTracker.labOwner?.name }}</p>
+    <p>RemoteServer: {{ labTracker.remoteServer?.name }}</p>
+</div>

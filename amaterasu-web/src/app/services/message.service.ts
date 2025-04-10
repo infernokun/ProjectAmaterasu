@@ -2,7 +2,7 @@ import { Injectable, TemplateRef } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarConfig, MatSnackBarRef, SimpleSnackBar } from '@angular/material/snack-bar';
 import { Observable } from 'rxjs';
-import { DialogComponent } from '../components/common/dialog/dialog.component';
+import { CommonDialogComponent } from '../components/common/dialog/common-dialog/common-dialog.component';
 
 @Injectable({
   providedIn: 'root',
@@ -37,7 +37,7 @@ export class MessageService {
   }
 
   dialog(title?: string, message?: string): void {
-    this.matDialog.open(DialogComponent, {
+    this.matDialog.open(CommonDialogComponent, {
       data: {
         title: title || 'There was a problem.',
         message: message || 'Sorry',
@@ -49,7 +49,7 @@ export class MessageService {
   dialogAreYouSure(title?: string, message?: string): Observable<any> {
     return (
       this.matDialog
-        .open(DialogComponent, {
+        .open(CommonDialogComponent, {
           data: {
             title: title || 'Are you sure?',
             message:
@@ -65,7 +65,7 @@ export class MessageService {
   dialogAreYouSureClean(title?: string): Observable<any> {
     return (
       this.matDialog
-        .open(DialogComponent, {
+        .open(CommonDialogComponent, {
           data: {
             title: title || 'Are you sure?',
             message: '',
@@ -84,7 +84,7 @@ export class MessageService {
   ): Observable<any> {
     return (
       this.matDialog
-        .open(DialogComponent, {
+        .open(CommonDialogComponent, {
           data: {
             title,
             template,

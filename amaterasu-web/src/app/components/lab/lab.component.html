@@ -4,8 +4,14 @@
     <mat-icon fontIcon="add"></mat-icon>
   </button>
 </div>
+<div class="lab-main-container">
+  <app-lab-main (deployLabStartEmitter)="deployLabStart($event)"></app-lab-main>
+</div>
 
-<app-lab-main></app-lab-main>
+
+<div class="lab-deploy-container">
+  <app-lab-deploy [user]="(loggedInUser$ | async)!" (deployLabActionEmitter)="deployLabAction($event)" (deployLabFinishEmitter)="deployLabFinish($event)"></app-lab-deploy>
+</div>
 
 <div class="lab-container">
   <div class="lab-card" *ngFor="let lab of labs$ | async" @fadeIn (mouseenter)="onMouseEnter()"

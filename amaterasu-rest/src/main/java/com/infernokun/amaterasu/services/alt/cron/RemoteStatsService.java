@@ -62,7 +62,7 @@ public class RemoteStatsService extends BaseService {
 
     @Scheduled(cron = "0 * * * * *")
     public void getRemoteServerStats() {
-        List<RemoteServer> dockerServers = remoteServerService.getAllServers().stream()
+        List<RemoteServer> dockerServers = remoteServerService.findAllServers().stream()
                 .filter(server -> server.getServerType() == ServerType.DOCKER_HOST)
                 .toList();
 
@@ -71,7 +71,7 @@ public class RemoteStatsService extends BaseService {
                 processServerStats(dockerServer);
             } catch (Exception e) {
                 LOGGER.error("Failed to process stats for server {}: {}",
-                        dockerServer.getId(), e.getMessage(), e);
+                        dockerServer.getId(), e.getMessage());
                 // Consider adding a retry mechanism or alert system here
             }
         }

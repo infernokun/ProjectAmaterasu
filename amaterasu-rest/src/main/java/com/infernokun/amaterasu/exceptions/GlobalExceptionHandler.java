@@ -10,7 +10,16 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
-
+    @ExceptionHandler(LabActionException.class)
+    public ResponseEntity<ApiResponse<String>> handleLabActionException(
+            LabActionException ex) {
+        ApiResponse<String> response = ApiResponse.<String>builder()
+                .code(HttpStatus.BAD_REQUEST.value())
+                .message("LabActionException: " + ex.getMessage())
+                .data(null)
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
     @ExceptionHandler(FileUploadException.class)
     public ResponseEntity<ApiResponse<String>> handleFileUploadException(
             FileUploadException ex) {

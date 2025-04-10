@@ -1,7 +1,7 @@
 FROM docker:dind
 
 # Install your additional packages
-RUN apk add --no-cache openssh-server shadow sudo bash
+RUN apk add --no-cache openssh-server shadow sudo bash nano
 
 # Set up SSH server
 RUN mkdir -p /var/run/sshd

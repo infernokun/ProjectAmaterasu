@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,12 +23,20 @@ public class LabTrackerController extends BaseController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<LabTracker>>> getAllLabTrackers() {
-        List<LabTracker> labTrackers = labTrackerService.findAllLabTrackers();
+    public ResponseEntity<ApiResponse<List<LabTracker>>> getAllLabTrackers(@RequestParam(required = false) HashMap<String, String> params) {
+        if (!params.isEmpty()) {
+            if (params.containsKey("teamId")) {
+                return ResponseEntity.ok(ApiResponse.<List<LabTracker>>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Lab trackers by team " + params.get("teamId") + " retrieved successfully.")
+                        .data(labTrackerService.findLabTrackerByTeamId(params.get("teamId")))
+                        .build());
+            }
+        }
         return ResponseEntity.ok(ApiResponse.<List<LabTracker>>builder()
                 .code(HttpStatus.OK.value())
                 .message("Lab trackers retrieved successfully.")
-                .data(labTrackers)
+                .data(labTrackerService.findAllLabTrackers())
                 .build());
     }
 

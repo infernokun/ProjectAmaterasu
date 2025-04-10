@@ -1,26 +1,25 @@
 <div class="lab-container">
-    <ng-container *ngFor="let lab of labs$ | async">
-      <div class="lab-card" @fadeIn (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()"
-        [ngClass]="lab.ready ? 'lab-ready' : 'lab-not-ready'">
-        <div class="lab-icon">
-          <img *ngIf="lab.labType === LabType.DOCKER_COMPOSE" src="assets/compose.png" alt="Docker Compose">
-          <img *ngIf="lab.labType === LabType.DOCKER_CONTAINER" src="assets/container.png" alt="Docker Container">
-        </div>
-        <div class="lab-body">
-          <h2>{{ lab.name }}</h2>
-          <p class="lab-description">{{ lab.description }}</p>
-          <p class="lab-created-by">Created by: {{ lab.createdBy }}</p>
-          <p class="lab-status">{{ lab.ready ? 'Ready' : 'Not Ready' }}</p>
-          <p class="lab-type">Type: {{ lab.labType }}</p>
-          <div class="lab-actions">
-            <button *ngIf="!loggedInUser?.team?.teamActiveLabs?.includes(lab.id!) && !loadingLabs.has(lab.id!)" mat-button
-              (click)="deployLab(lab.id!)">Deploy</button>
-            <button *ngIf="loggedInUser?.team?.teamActiveLabs?.includes(lab.id!) && !loadingLabs.has(lab.id!)" mat-button
-              disabled>Already Deployed</button>
-            <button *ngIf="loadingLabs.has(lab.id!)" mat-button disabled>Deploying...</button>
-          </div>
+  <ng-container *ngFor="let lab of labs$ | async">
+    <div class="lab-card" @fadeIn (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()"
+      [ngClass]="lab.ready ? 'lab-ready' : 'lab-not-ready'">
+      <div class="lab-icon">
+        <img *ngIf="lab.labType === LabType.DOCKER_COMPOSE" src="assets/compose.png" alt="Docker Compose">
+        <img *ngIf="lab.labType === LabType.DOCKER_CONTAINER" src="assets/container.png" alt="Docker Container">
+      </div>
+      <div class="lab-body">
+        <h2>{{ lab.name }}</h2>
+        <p class="lab-description">{{ lab.description }}</p>
+        <p class="lab-created-by">Created by: {{ lab.createdBy }}</p>
+        <p class="lab-status">{{ lab.ready ? 'Ready' : 'Not Ready' }}</p>
+        <p class="lab-type">Type: {{ lab.labType }}</p>
+        <div class="lab-actions">
+          <button *ngIf="!loggedInUser?.team?.teamActiveLabs?.includes(lab.id!) && !labsLoading.has(lab.id!)" mat-button
+            (click)="deployLabStart(lab)">Deploy</button>
+          <button *ngIf="loggedInUser?.team?.teamActiveLabs?.includes(lab.id!) && !labsLoading.has(lab.id!)" mat-button
+            disabled>Already Deployed</button>
+          <button *ngIf="labsLoading.has(lab.id!)" mat-button disabled>Deploying...</button>
         </div>
       </div>
-    </ng-container>
-  </div>
-  
+    </div>
+  </ng-container>
+</div>

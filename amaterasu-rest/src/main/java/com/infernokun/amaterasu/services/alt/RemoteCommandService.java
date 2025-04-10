@@ -96,8 +96,6 @@ public class RemoteCommandService extends BaseService {
             session.setConfig("PreferredAuthentications", "publickey,password,keyboard-interactive");
 
             session.connect(timeout);
-            LOGGER.info("Connected successfully to {}@{} for server: {}",
-                    remoteServer.getUsername(), remoteServer.getIpAddress(), remoteServer.getId());
 
             session.setPassword(""); // Clear the password after use
             return session;
