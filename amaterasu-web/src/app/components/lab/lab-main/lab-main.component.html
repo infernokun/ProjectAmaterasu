@@ -1,1 +1,23 @@
-<p>lab-main works!</p>
+<div class="lab-container">
+    @for (lab of labs$ | async; track lab.id) {
+    <div class="lab-card" @fadeIn (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()" [ngClass]="lab.ready ? 'lab-ready' : 'lab-not-ready'">
+        <img *ngIf="lab.labType == LabType.DOCKER_COMPOSE" src="assets/compose.png" alt="">
+        <img *ngIf="lab.labType == LabType.DOCKER_CONTAINER" src="assets/container.png" alt="">
+        <div class="lab-body">
+            <h2>{{ lab.name }}</h2>
+            <p>{{ lab.description }}</p>
+            <p>{{ lab.createdBy }}</p>
+            <p>{{ lab.ready }}</p>
+            <p>{{ lab.labType }}</p>
+            @if (!loggedInUser?.team?.teamActiveLabs?.includes(lab.id!) && !loadingLabs.has(lab.id!)) {
+                <button mat-button class="button" (click)="deployLab(lab.id!)">Deploy</button>
+            }
+            @else if (loggedInUser?.team?.teamActiveLabs?.includes(lab.id!) && !loadingLabs.has(lab.id!)) {
+                <button mat-button class="button" disabled="">Already Deployed</button>
+            } @else {
+            <button mat-button class="button" disabled="">Deploying...</button>
+            }
+        </div>
+    </div>
+    }
+</div>

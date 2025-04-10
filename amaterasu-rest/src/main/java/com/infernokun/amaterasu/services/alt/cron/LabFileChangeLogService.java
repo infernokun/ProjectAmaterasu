@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.services.alt.cron;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.RemoteCommandException;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
@@ -15,6 +16,7 @@ import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
 import jakarta.transaction.Transactional;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -45,10 +47,9 @@ public class LabFileChangeLogService extends BaseService {
         this.remoteServerService = remoteServerService;
         this.labService = labService;
     }
-
     @Scheduled(cron = "0 * * * * *")
     @Transactional
-    public void updateLabFileStatuses() {
+    public void checkLabFileStats() {
         AtomicInteger count = new AtomicInteger();
         List<RemoteServer> remoteServers =  remoteServerService.getAllServers();
 
@@ -56,14 +57,9 @@ public class LabFileChangeLogService extends BaseService {
                 remoteServer.getServerType() == ServerType.DOCKER_HOST)).toList();
 
         dockerServers.forEach(dockerServer -> {
-
             LOGGER.info("Starting changelog time check...");
-            List<Lab> labs = labService.findByLabType(LabType.DOCKER_COMPOSE);
 
-            List<LabFileChangeLog> logsToUpdate = new ArrayList<>();
-            List<Lab> labsToUpdate = new ArrayList<>();
-
-            for (Lab lab : labs) {
+            for (Lab lab : labService.findByLabType(LabType.DOCKER_COMPOSE)) {
                 LabFileChangeLog labFileChangeLog = labFileChangeLogRepository.findByLab(lab)
                         .orElseGet(() -> LabFileChangeLog.builder()
                                 .lab(lab)
@@ -86,48 +82,37 @@ public class LabFileChangeLogService extends BaseService {
                             formatTimestamp(labFileChangeLog.getUpdatedAt()));
 
                     labFileChangeLog.setUpToDate(false);
-                    logsToUpdate.add(labFileChangeLog);
 
                     lab.setReady(false);
-                    labsToUpdate.add(lab);
+                    labService.updateLab(lab);
+                    labFileChangeLogRepository.save(labFileChangeLog);
                     count.incrementAndGet();
                 } else {
                     labFileChangeLog.setUpToDate(true);
-                    logsToUpdate.add(labFileChangeLog);
+                    labFileChangeLogRepository.save(labFileChangeLog);
                 }
             }
 
-            AtomicInteger count2 = new AtomicInteger();
-
-            labFileChangeLogRepository.saveAll(logsToUpdate);
-            labRepository.saveAll(labsToUpdate);
-
             LOGGER.info("{} files that need updating!", count.get());
 
+            AtomicInteger count2 = new AtomicInteger();
             LOGGER.info("Starting file validity check...");
 
-            labs.stream()
-                    .filter(lab -> lab.getLabType() == LabType.DOCKER_COMPOSE)
-                    .map(lab -> labFileChangeLogRepository.findByLab(lab)
-                            .filter(log -> !log.isUpToDate())
-                            .map(log -> {
-                                boolean isLabReady = labService.checkDockerComposeValidity(lab.getId(), dockerServer);
-                                lab.setReady(isLabReady);
-                                log.setUpdatedAt(LocalDateTime.now());
-                                log.setUpToDate(isLabReady);
-                                return new AbstractMap.SimpleEntry<>(lab, log);
-                            }))
-                    .filter(Optional::isPresent)
-                    .map(Optional::get)
-                    .forEach(entry -> {
-                        labsToUpdate.add(entry.getKey());
-                        logsToUpdate.add(entry.getValue());
-                        LOGGER.info("{} readiness updated to: {}", entry.getKey().getName(), entry.getValue().isUpToDate());
-                        count2.incrementAndGet();
-                    });
+            labFileChangeLogRepository.findAll().stream()
+                    .filter(labFileChangeLog -> labFileChangeLog.getLab().getLabType() == LabType.DOCKER_COMPOSE)
+                    .filter(labFileChangeLog -> !labFileChangeLog.getLab().isReady() )
+                    .forEach(dockerComposeLog -> {
+                        boolean isLabReady = labService.checkDockerComposeValidity(dockerComposeLog.getLab().getId(), dockerServer);
+                        dockerComposeLog.getLab().setReady(isLabReady);
+                        dockerComposeLog.setUpdatedAt(LocalDateTime.now());
+                        dockerComposeLog.setUpToDate(isLabReady);
+                        labService.updateLab(dockerComposeLog.getLab());
+                        labFileChangeLogRepository.save(dockerComposeLog);
 
-            labFileChangeLogRepository.saveAll(logsToUpdate);
-            labRepository.saveAll(labsToUpdate);
+                        LOGGER.info("{} readiness updated to: {}", dockerComposeLog.getLab().getName(), dockerComposeLog.isUpToDate());
+
+                        if (isLabReady) count2.incrementAndGet();
+                    });
 
             LOGGER.info("{} files updated!", count2.get());
         });

@@ -67,8 +67,5 @@ EOF
 )
 
 # Write the JSON result to an output file
-OUTPUT_FILE="server_stats.json"
-echo "$JSON" > "$OUTPUT_FILE" 2>/dev/null
-
-# Optional: Print to console
-echo "$JSON"
+OUTPUT_FILE="server_stats.json"c
+echo "$JSON" | tee $(dirname $0)/$OUTPUT_FILE

@@ -15,11 +15,7 @@ import com.infernokun.amaterasu.services.alt.LabFileUploadService;
 import com.infernokun.amaterasu.services.alt.LabActionService;
 import com.infernokun.amaterasu.services.alt.LabReadinessService;
 import com.infernokun.amaterasu.services.BaseService;
-import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -40,7 +36,6 @@ public class LabService extends BaseService {
     private final LabFileUploadService labFileUploadService;
     private final LabReadinessService labReadinessService;
     private final LabFileChangeLogRepository labFileChangeLogRepository;
-    private final EntityManager entityManager;
 
     private final AmaterasuConfig amaterasuConfig;
 
@@ -48,7 +43,7 @@ public class LabService extends BaseService {
             LabRepository labRepository, UserService userService,
             TeamService teamService, LabTrackerService labTrackerService,
             LabActionService labActionService, LabFileUploadService labFileUploadService,
-            LabReadinessService labReadinessService, LabFileChangeLogRepository labFileChangeLogRepository, EntityManager entityManager,
+            LabReadinessService labReadinessService, LabFileChangeLogRepository labFileChangeLogRepository,
             AmaterasuConfig amaterasuConfig) {
         this.labRepository = labRepository;
         this.userService = userService;
@@ -58,7 +53,6 @@ public class LabService extends BaseService {
         this.labFileUploadService = labFileUploadService;
         this.labReadinessService = labReadinessService;
         this.labFileChangeLogRepository = labFileChangeLogRepository;
-        this.entityManager = entityManager;
         this.amaterasuConfig = amaterasuConfig;
     }
 
@@ -66,13 +60,11 @@ public class LabService extends BaseService {
         return labRepository.findAll();
     }
 
-    @Cacheable(value = "labs", key = "#id")
     public Lab findLabById(String id) {
         return labRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Lab " + id + " not found"));
     }
 
-    @Cacheable(value = "labsByType", key = "#labType")
     public List<Lab> findByLabType(LabType labType) {
         return labRepository.findByLabType(labType);
     }
@@ -89,7 +81,6 @@ public class LabService extends BaseService {
         return labRepository.save(lab);
     }
 
-    @CacheEvict(value = {"labs", "labsByType"}, allEntries = true)
     public Lab createLab(LabDTO labDTO, RemoteServer remoteServer) {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
 
@@ -139,7 +130,6 @@ public class LabService extends BaseService {
         }
     }
 
-    @CacheEvict(value = {"labs", "labsByType"}, allEntries = true)
     public List<Lab> createManyLabs(List<Lab> labs) {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
 
@@ -149,7 +139,6 @@ public class LabService extends BaseService {
         return labRepository.saveAll(labs);
     }
 
-    @CacheEvict(value = "labs", key = "#updatedLabData.id")
     public Lab updateLab(Lab updatedLabData) {
         findLabById(updatedLabData.getId());
         updatedLabData.setUpdatedAt(LocalDateTime.now());
@@ -201,6 +190,7 @@ public class LabService extends BaseService {
         labActionResult.getLabTracker().setUpdatedBy(user.getId());
         labActionResult.getLabTracker().setLabStatus(labActionResult.isSuccessful() ? LabStatus.ACTIVE : LabStatus.FAILED);
         labActionResult.getLabTracker().setRemoteServer(remoteServer);
+
         try {
             labTrackerService.updateLabTracker(labActionResult.getLabTracker());
         } catch (Exception e) {

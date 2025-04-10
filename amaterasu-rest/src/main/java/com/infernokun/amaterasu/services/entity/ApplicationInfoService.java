@@ -18,7 +18,7 @@ public class ApplicationInfoService extends BaseService {
         this.applicationInfoRepository = applicationInfoRepository;
     }
 
-    @Cacheable(value = "applicationInfo", key = "'info'")
+    @Cacheable(value = "applicationInfo", key = "'info'", unless="#result == null")
     public ApplicationInfo getApplicationInfo() {
         List<ApplicationInfo> appInfo = applicationInfoRepository.findAll();
         return appInfo.size() == 1 ? appInfo.getFirst() : null;
