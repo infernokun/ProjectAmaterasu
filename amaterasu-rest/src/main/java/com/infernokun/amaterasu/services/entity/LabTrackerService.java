@@ -23,48 +23,44 @@ public class LabTrackerService extends BaseService {
         this.labTrackerRepository = labTrackerRepository;
     }
 
-    @Cacheable(value = "allLabTrackers")
     public List<LabTracker> findAllLabTrackers() {
         return labTrackerRepository.findAll();
     }
 
-    @Cacheable(value = "labTrackers", key = "#id")
-    public LabTracker findLabTrackerById(String id) {
-        return this.labTrackerRepository.findById(id).orElseThrow(
-                () -> new ResourceNotFoundException("Lab Tracker not found!")
-        );
+    public Optional<LabTracker> findLabTrackerById(String id) {
+        return this.labTrackerRepository.findById(id);
     }
 
-    @Cacheable(value = "activeLabTrackers", key = "#labStarted.id + '_' + #labOwner.id")
     public Optional<LabTracker> findLabTrackerByLabStartedAndLabOwnerAndStatusNotDeleted(Lab labStarted, Team labOwner) {
         return this.labTrackerRepository.findLabTrackerByLabStartedAndLabOwnerAndLabStatusNot(labStarted, labOwner, LabStatus.DELETED);
     }
 
-    @CacheEvict(value = {"labTrackers", "activeLabTrackers", "allLabTrackers"}, allEntries = true)
     public LabTracker createLabTracker(LabTracker labTracker) {
         return labTrackerRepository.save(labTracker);
     }
 
-    @CacheEvict(value = {"labTrackers", "activeLabTrackers", "allLabTrackers"}, allEntries = true)
     public List<LabTracker> createManyLabTrackers(List<LabTracker> labTrackers) {
         return labTrackerRepository.saveAll(labTrackers);
     }
 
-    @CacheEvict(value = {"labTrackers", "activeLabTrackers", "allLabTrackers"}, key = "#id")
     public LabTracker deleteLabTracker(String id) {
-        LabTracker deletedLabTracker = findLabTrackerById(id);
+        Optional<LabTracker> deletedLabTrackerOptional = findLabTrackerById(id);
+
+        if (deletedLabTrackerOptional.isEmpty()) {
+            throw new ResourceNotFoundException("Lab tracker with ID " + id + " not found!");
+        }
+
+        LabTracker deletedLabTracker = deletedLabTrackerOptional.get();
         labTrackerRepository.deleteById(id);
         return deletedLabTracker;
     }
 
-    @CacheEvict(value = {"labTrackers", "activeLabTrackers", "allLabTrackers"}, key = "#labTracker.id")
     public LabTracker updateLabTracker(LabTracker labTracker) {
         findLabTrackerById(labTracker.getId());
         labTracker.setUpdatedAt(LocalDateTime.now());
         return labTrackerRepository.save(labTracker);
     }
 
-    @CacheEvict(value = {"labTrackers", "activeLabTrackers", "allLabTrackers"}, allEntries = true)
     public void deleteAll() {
         this.labTrackerRepository.deleteAll();
     }

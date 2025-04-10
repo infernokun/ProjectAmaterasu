@@ -1,15 +1,12 @@
 package com.infernokun.amaterasu.services.entity;
 
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
-import com.infernokun.amaterasu.models.dto.UserDTO;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.repositories.TeamRepository;
 import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.utils.dto.UserMapper;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -18,7 +15,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class UserService extends BaseService implements UserDetailsService {
@@ -38,7 +34,6 @@ public class UserService extends BaseService implements UserDetailsService {
         return this.userRepository.existsByUsername(user.getUsername());
     }
 
-    @CacheEvict(value = {"users", "usersByUsername"}, allEntries = true)
     public void registerUser(User user) {
         String encodedPassword  = this.passwordEncoder.encode(user.getPassword());
         user.setPassword(encodedPassword);
@@ -46,7 +41,6 @@ public class UserService extends BaseService implements UserDetailsService {
         this.userRepository.save(user);
     }
 
-    @Cacheable(value = "users", key = "'all'")
     public List<User> findAllUsers() {
         return userRepository.findAll();
     }
@@ -56,7 +50,6 @@ public class UserService extends BaseService implements UserDetailsService {
         return userRepository.findById(id).orElseThrow(() -> new UsernameNotFoundException("User not found!"));
     }*/
 
-    @Cacheable(value = "users", key = "#userId")
     public User findUserById(String userId) {
         if (userId == null) {
             throw new IllegalArgumentException("User ID cannot be null");
@@ -64,25 +57,21 @@ public class UserService extends BaseService implements UserDetailsService {
         return userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found!"));
     }
 
-    @CacheEvict(value = {"users", "usersByUsername"}, allEntries = true)
     public User createUser(User user) {
         return userRepository.save(user);
     }
 
 
-    @CacheEvict(value = {"users", "usersByUsername"}, allEntries = true)
     public List<User> createManyUsers(List<User> users) {
         return userRepository.saveAll(users);
     }
 
-    @CacheEvict(value = {"users", "usersByUsername"}, key = "#id")
     public User deleteUser(String id) {
         User deletedUser = findUserById(id);
         userRepository.deleteById(deletedUser.getId());
         return deletedUser;
     }
 
-    @CacheEvict(value = {"users", "usersByUsername"}, key = "#id")
     public User updateUser(String id, User user) {
         User existingUser = findUserById(id);
 
@@ -94,7 +83,6 @@ public class UserService extends BaseService implements UserDetailsService {
 
     }
 
-    @CacheEvict(value = {"users", "usersByUsername"}, key = "#userId")
     public User updateUserTeam(String userId, String teamId) {
         User user = findUserById(userId);
 
@@ -105,7 +93,6 @@ public class UserService extends BaseService implements UserDetailsService {
         return userRepository.save(user);
     }
 
-    @Cacheable(value = "usersByUsername", key = "#username")
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return this.userRepository.findByUsername(username).orElseThrow(() -> new UsernameNotFoundException("user is not valid"));

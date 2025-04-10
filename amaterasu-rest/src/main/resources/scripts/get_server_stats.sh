@@ -8,8 +8,16 @@ safe_command() {
 
 # Gather hostname, OS info, memory, CPU, disk, and uptime, then output JSON.
 HOSTNAME=$(hostname 2>/dev/null || echo "")
-OS_NAME=$(safe_command lsb_release -si || safe_command awk -F= '/^ID=/{print $2}' /etc/os-release || echo "")
-OS_VERSION=$(safe_command lsb_release -sr || safe_command awk -F= '/^VERSION_ID=/{print $2}' /etc/os-release || echo "")
+OS_NAME=$(safe_command lsb_release -si)
+if [ -z "$OS_NAME" ]; then
+    OS_NAME=$(safe_command awk -F= '/^ID=/{gsub(/"/, "", $2); print $2}' /etc/os-release)
+fi
+
+# Get OS version
+OS_VERSION=$(safe_command lsb_release -sr)
+if [ -z "$OS_VERSION" ]; then
+    OS_VERSION=$(safe_command awk -F= '/^VERSION_ID=/{gsub(/"/, "", $2); print $2}' /etc/os-release)
+fi
 
 # Memory: extract total and available memory (in GB with one decimal place)
 TOTAL_RAM=$(awk '/MemTotal/ {printf "%.1f", $2 / 1024 / 1024}' /proc/meminfo 2>/dev/null || echo "0.0")
@@ -67,5 +75,5 @@ EOF
 )
 
 # Write the JSON result to an output file
-OUTPUT_FILE="server_stats.json"c
+OUTPUT_FILE="server_stats.json"
 echo "$JSON" | tee $(dirname $0)/$OUTPUT_FILE

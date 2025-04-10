@@ -3,8 +3,6 @@ package com.infernokun.amaterasu.services.entity;
 import com.infernokun.amaterasu.models.entities.ApplicationInfo;
 import com.infernokun.amaterasu.repositories.ApplicationInfoRepository;
 import com.infernokun.amaterasu.services.BaseService;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -18,20 +16,17 @@ public class ApplicationInfoService extends BaseService {
         this.applicationInfoRepository = applicationInfoRepository;
     }
 
-    @Cacheable(value = "applicationInfo", key = "'info'", unless="#result == null")
     public ApplicationInfo getApplicationInfo() {
         List<ApplicationInfo> appInfo = applicationInfoRepository.findAll();
         return appInfo.size() == 1 ? appInfo.getFirst() : null;
     }
 
-    @CacheEvict(value = "applicationInfo", key = "'info'")
     public ApplicationInfo createApplicationInfo(ApplicationInfo applicationInfo) {
         if (getApplicationInfo() != null) throw new RuntimeException("Application info can only be defined once.");
 
         return applicationInfoRepository.save(applicationInfo);
     }
 
-    @CacheEvict(value = "applicationInfo", key = "'info'")
     public ApplicationInfo updateApplicationInfo(ApplicationInfo applicationInfo) {
         applicationInfo.setUpdatedAt(LocalDateTime.now());
         return applicationInfoRepository.save(applicationInfo);

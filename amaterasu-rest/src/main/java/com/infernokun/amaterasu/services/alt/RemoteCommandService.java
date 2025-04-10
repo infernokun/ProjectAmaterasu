@@ -36,7 +36,7 @@ public class RemoteCommandService extends BaseService {
 
             // Execute the command
             CommandResult result = executeRemoteCommand(session, cmd);
-            return new RemoteCommandResponse(result.output(), result.error());
+            return new RemoteCommandResponse(result.output(), result.error(), result.exitCode());
         } catch (Exception e) {
             LOGGER.error("Exception while running command for server {}: {}", remoteServer.getId(), e.getMessage());
             throw new RemoteCommandException("Exception while running command: " + e.getMessage());
@@ -153,10 +153,11 @@ public class RemoteCommandService extends BaseService {
 
             String output = readStream(inputStream);
             String errorOutput = readStream(errorStream);
+            int exitCode = channel.getExitStatus();
 
             channel.disconnect();
 
-            return new CommandResult(output, errorOutput);
+            return new CommandResult(output, errorOutput, exitCode);
         } catch (JSchException | IOException e) {
             throw new RemoteCommandException("Exception while running command: " + command);
         }
@@ -172,7 +173,7 @@ public class RemoteCommandService extends BaseService {
         return output.toString().trim();
     }
 
-    private record CommandResult(String output, String error) {
+    private record CommandResult(String output, String error, int exitCode) {
         public boolean isSuccess() {
             return error.isEmpty();
         }

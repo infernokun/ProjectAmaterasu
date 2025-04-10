@@ -17,13 +17,16 @@ import com.infernokun.amaterasu.services.alt.LabReadinessService;
 import com.infernokun.amaterasu.services.BaseService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.UnexpectedRollbackException;
 
+import java.rmi.UnexpectedException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.logging.Logger;
 
 @Service
 public class LabService extends BaseService {
@@ -159,29 +162,27 @@ public class LabService extends BaseService {
         }
     }
 
-    @Transactional
+    @Transactional(dontRollbackOn = ResourceNotFoundException.class)
     public LabActionResult startLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
         LOGGER.info("lab id {} user id {}, lab tracker id {}", labId, userId, labTrackerId);
 
-        Lab lab = this.findLabById(labId);
+        Lab lab = findLabById(labId);
         User user = this.userService.findUserById(userId);
         Team userTeam = user.getTeam();
         LOGGER.info("Starting lab...");
-        LabTracker labTracker;
-        try {
-            labTracker = labTrackerService.findLabTrackerById(labTrackerId);
-        } catch (ResourceNotFoundException ex) {
-            labTracker = LabTracker.builder().labStarted(lab).labOwner(userTeam).build();
 
-        }
-        String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy @ hh:mma"));
+        Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
+
+        LabTracker labTracker = labTrackerOptional.orElseGet(() ->
+                LabTracker.builder()
+                        .labStarted(lab)
+                        .labOwner(userTeam)
+                        .build()
+        );
+
 
         if (labTracker.getId() == null) {
-            try {
-                labTracker = labTrackerService.createLabTracker(labTracker);
-            } catch (Exception e) {
-                throw new RuntimeException("createLabTracker: " + e.getMessage());
-            }
+            labTracker = labTrackerService.createLabTracker(labTracker);
         }
 
         LabActionResult labActionResult = labActionService.startLab(labTracker, remoteServer);
@@ -191,20 +192,28 @@ public class LabService extends BaseService {
         labActionResult.getLabTracker().setLabStatus(labActionResult.isSuccessful() ? LabStatus.ACTIVE : LabStatus.FAILED);
         labActionResult.getLabTracker().setRemoteServer(remoteServer);
 
+        LOGGER.error("labActionResult set");
         try {
             labTrackerService.updateLabTracker(labActionResult.getLabTracker());
         } catch (Exception e) {
-            throw new RuntimeException("updateLabTracker: " + e.getMessage());
+            labActionResult.setSuccessful(false);
+            return labActionResult;
         }
+
+        LOGGER.error("getLabTracker saved");
 
         if (!userTeam.getTeamActiveLabs().contains(labActionResult.getLabTracker().getId())) {
             userTeam.getTeamActiveLabs().add(labActionResult.getLabTracker().getId());
             try {
                 teamService.updateTeam(userTeam);
             } catch (Exception e) {
-                throw new RuntimeException("updateTeam: " + e.getMessage());
+                labActionResult.setSuccessful(false);
+                return labActionResult;
             }
         }
+
+        LOGGER.error("updateTeam saved");
+
         return labActionResult;
     }
 
@@ -212,7 +221,14 @@ public class LabService extends BaseService {
     public LabActionResult stopLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
         LOGGER.info("Stopping lab with id {} by user id {} and lab tracker id {}", labId, userId, labTrackerId);
 
-        LabTracker existingLabTracker = labTrackerService.findLabTrackerById(labTrackerId);
+        Optional<LabTracker> existingLabTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
+
+        LabTracker existingLabTracker;
+        if (existingLabTrackerOptional.isPresent()) {
+            existingLabTracker = existingLabTrackerOptional.get();
+        } else {
+            return new LabActionResult(false, null, "Lab tracker not found");
+        }
 
         Lab lab = this.findLabById(labId);
         User user = this.userService.findUserById(userId);
@@ -237,7 +253,14 @@ public class LabService extends BaseService {
     public LabActionResult deleteLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
         LOGGER.info("Deleting lab with id {} by user id {} and lab tracker id {}", labId, userId, labTrackerId);
 
-        LabTracker existingLabTracker = labTrackerService.findLabTrackerById(labTrackerId);
+        Optional<LabTracker> existingLabTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
+
+        LabTracker existingLabTracker;
+        if (existingLabTrackerOptional.isPresent()) {
+            existingLabTracker = existingLabTrackerOptional.get();
+        } else {
+            return new LabActionResult(false, null, "Lab tracker not found");
+        }
 
         Lab lab = this.findLabById(labId);
         User user = this.userService.findUserById(userId);
@@ -292,9 +315,14 @@ public class LabService extends BaseService {
             userTeam.getTeamDeletedLabs().add(labTrackerId);
             userTeam.getTeamActiveLabs().remove(labTrackerId);
 
-            LabTracker labTracker = labTrackerService
+            Optional<LabTracker> labTrackerOptional = labTrackerService
                     .findLabTrackerById(labTrackerId);
 
+            if (labTrackerOptional.isEmpty()) {
+                throw new ResourceNotFoundException("Lab tracker not found!");
+            }
+
+            LabTracker labTracker = labTrackerOptional.get();
             labTracker.setLabStatus(LabStatus.DELETED);
 
             LabTracker updatedLabTracker = labTrackerService.updateLabTracker(labTracker);

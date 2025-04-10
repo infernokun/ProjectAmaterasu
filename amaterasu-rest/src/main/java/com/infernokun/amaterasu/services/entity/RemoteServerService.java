@@ -7,14 +7,11 @@ import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.alt.DockerService;
 import com.infernokun.amaterasu.services.alt.ProxmoxService;
 import com.infernokun.amaterasu.utils.AESUtil;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class RemoteServerService extends BaseService {
@@ -30,18 +27,15 @@ public class RemoteServerService extends BaseService {
         this.aesUtil = aesUtil;
     }
 
-    @Cacheable(value = "servers", key = "'all'")
     public List<RemoteServer> getAllServers() {
         return remoteServerRepository.findAll();
     }
 
-    @Cacheable(value = "servers", key = "#id")
     public RemoteServer getServerById(String id) {
         return remoteServerRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Did not find remote server"));
     }
 
-    @CacheEvict(value = "servers", allEntries = true)
     public RemoteServer addServer(RemoteServer remoteServer) {
         String password = remoteServer.getPassword();
         String apiToken = remoteServer.getApiToken();
@@ -79,13 +73,11 @@ public class RemoteServerService extends BaseService {
         return false;
     }
 
-    @CacheEvict(value = "servers", allEntries = true)
     public RemoteServer modifyStatus(RemoteServer remoteServer) {
         remoteServer.setUpdatedAt(LocalDateTime.now());
         return remoteServerRepository.save(remoteServer);
     }
 
-    @CacheEvict(value = {"servers", "serverValidation"}, allEntries = true)
     public boolean deleteServer(String id) {
         if (remoteServerRepository.existsById(id)) {
             remoteServerRepository.deleteById(id);

@@ -166,6 +166,7 @@ public class LabController extends BaseController {
         LabActionResult startedLabOptional = labService.startLab(labRequest.getLabId(),
                 labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
 
+        LOGGER.error("Completed Start!!!");
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabActionResult>builder()
                         .code(HttpStatus.OK.value())

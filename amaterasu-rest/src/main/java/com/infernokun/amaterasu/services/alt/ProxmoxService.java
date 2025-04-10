@@ -427,7 +427,16 @@ public class ProxmoxService extends BaseService {
             throw new RuntimeException("Invalid server type");
         }
 
-        LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId);
+        Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
+
+        if (labTrackerOptional.isEmpty()) {
+            return LabActionResult.builder()
+                    .isSuccessful(false)
+                    .output("Lab tracker with ID " + labTrackerId + " not found.")
+                    .build();
+        }
+
+        LabTracker labTracker = labTrackerOptional.get();
 
         AtomicInteger failures = new AtomicInteger();
         List<String> responses = new ArrayList<>();

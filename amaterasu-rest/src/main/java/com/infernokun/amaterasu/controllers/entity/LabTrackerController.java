@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/lab-tracker")
@@ -32,12 +33,10 @@ public class LabTrackerController extends BaseController {
 
     @GetMapping("{labTrackerId}")
     public ResponseEntity<ApiResponse<LabTracker>> getLabTrackerById(@PathVariable String labTrackerId) {
-        LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId);
-        return ResponseEntity.ok(ApiResponse.<LabTracker>builder()
-                .code(HttpStatus.OK.value())
-                .message("Lab tracker " + labTrackerId +  " retrieved successfully.")
-                .data(labTracker)
-                .build());
+        Optional<LabTracker> labTracker = labTrackerService.findLabTrackerById(labTrackerId);
+        return labTracker.isPresent()
+                ? createSuccessResponse(labTracker.get(), "Lab tracker " + labTrackerId + " retrieved successfully.")
+                : createNotFoundResponse(LabTracker.class, labTrackerId);
     }
 
     @PostMapping

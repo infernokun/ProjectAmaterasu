@@ -20,9 +20,9 @@ management:
 
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_IP}:${DB_PORT:5432}/${DB_NAME:amaterasu}
-    username: ${DB_USER}
-    password: ${DB_PASS}
+    url: jdbc:postgresql://${DB_IP:localhost}:${DB_PORT:5432}/${DB_NAME:amaterasu}
+    username: ${DB_USER:amaterasu}
+    password: ${DB_PASS:amaterasu}
   jpa:
     hibernate:
       ddl-auto: update 

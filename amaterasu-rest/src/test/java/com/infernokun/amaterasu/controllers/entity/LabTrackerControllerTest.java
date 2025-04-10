@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -75,7 +76,8 @@ class LabTrackerControllerTest {
 
     @Test
     void getLabTrackerById() throws Exception {
-        when(labTrackerService.findLabTrackerById("1")).thenReturn(labTracker);
+        // Update the mock to return an Optional
+        when(labTrackerService.findLabTrackerById("1")).thenReturn(Optional.of(labTracker));
 
         mockMvc.perform(get("/api/lab-tracker/1"))
                 .andExpect(status().isOk())

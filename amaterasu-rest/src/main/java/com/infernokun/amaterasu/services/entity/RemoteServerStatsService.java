@@ -6,13 +6,10 @@ import com.infernokun.amaterasu.models.entities.RemoteServerStats;
 import com.infernokun.amaterasu.repositories.RemoteServerStatsRepository;
 import com.infernokun.amaterasu.services.BaseService;
 import org.hibernate.dialect.lock.OptimisticEntityLockException;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class RemoteServerStatsService extends BaseService {
@@ -24,25 +21,21 @@ public class RemoteServerStatsService extends BaseService {
         this.remoteServerService = remoteServerService;
     }
 
-    @Cacheable(value = "serverStats", key = "'all'")
     public List<RemoteServerStats> findAllStats() {
         return remoteServerStatsRepository.findAll();
     }
 
-    @Cacheable(value = "serverStats", key = "#id")
     public RemoteServerStats findStatsById(String id) {
         return remoteServerStatsRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Remote server stats not found."));
     }
 
-    @CacheEvict(value = "serverStats", allEntries = true)
     public RemoteServerStats createStats(RemoteServerStats stats) {
         stats.setCreatedAt(LocalDateTime.now());
         LOGGER.info("Creating new RemoteServerStats at {}", stats.getCreatedAt());
         return remoteServerStatsRepository.save(stats);
     }
 
-    @CacheEvict(value = "serverStats", key = "#updatedStats.id")
     public RemoteServerStats updateStats(RemoteServerStats updatedStats) {
         findStatsById(updatedStats.getId());
         updatedStats.setUpdatedAt(LocalDateTime.now());
@@ -55,7 +48,6 @@ public class RemoteServerStatsService extends BaseService {
         return savedRemoteServerStats;
     }
 
-    @CacheEvict(value = "serverStats", key = "#id")
     public RemoteServerStats deleteStats(String id) {
         RemoteServerStats remoteServerStats = findStatsById(id);
         try {

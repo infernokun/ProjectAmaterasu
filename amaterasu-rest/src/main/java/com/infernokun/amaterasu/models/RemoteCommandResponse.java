@@ -5,17 +5,18 @@ import lombok.*;
 @Data
 @Getter
 @Setter
-@NoArgsConstructor
 @AllArgsConstructor
 @ToString
 public class RemoteCommandResponse {
-    private String output;
-    private String error;
-    private String both;
+    private final String output;
+    private final String error;
+    private final int exitCode;
+    private final String both;
 
-    public RemoteCommandResponse(String output, String error) {
+    public RemoteCommandResponse(String output, String error, int exitCode) {
         this.output = output;
         this.error = error;
+        this.exitCode = exitCode;
         this.both = this.output + this.error;
     }
 }
