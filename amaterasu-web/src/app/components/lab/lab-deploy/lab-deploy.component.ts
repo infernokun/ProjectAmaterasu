@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { User } from '../../../models/user.model';
 import { LabTracker } from '../../../models/lab-tracker.model';
 import { LabStatus } from '../../../enums/lab-status.enum';
-import { Observable } from 'rxjs';
+import { BehaviorSubject, Observable, of } from 'rxjs';
 import { LabTrackerService } from '../../../services/lab-tracker.service';
 import { LabRequest } from '../../../models/dto/lab-request.model';
 import { EditDialogService } from '../../../services/edit-dialog.service';
@@ -48,16 +48,27 @@ export class RemoteServerSelectData extends SimpleFormData {
   styleUrl: './lab-deploy.component.scss',
 })
 export class LabDeployComponent implements OnInit {
+  private isLoadingSubject: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
+
   labTrackers: LabTracker[] = [];
 
   labsLoading: Set<string> = new Set<string>();
-  labTrackers$: Observable<LabTracker[] | undefined> | undefined;
+  //labTrackers$: Observable<LabTracker[] | undefined> | undefined;
 
   activeLabTrackers: LabTracker[] = [];
 
+  isLoading$: Observable<boolean> = this.isLoadingSubject.asObservable();
+
+
+  console = console;
+  LabType = LabType;
+
   @Input() user: User | undefined;
-  @Output() deployLabActionEmitter: EventEmitter<string> = new EventEmitter<string>();
-  @Output() deployLabFinishEmitter: EventEmitter<ApiResponse<LabActionResult>> = new EventEmitter<ApiResponse<LabActionResult>>();
+  @Input() labTrackers$: Observable<LabTracker[]> = of([]);
+  @Output() deployLabActionEmitter: EventEmitter<string> =
+    new EventEmitter<string>();
+  @Output() deployLabFinishEmitter: EventEmitter<ApiResponse<LabActionResult>> =
+    new EventEmitter<ApiResponse<LabActionResult>>();
 
   constructor(
     private labTrackerService: LabTrackerService,
@@ -68,6 +79,7 @@ export class LabDeployComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    /*this.isLoadingSubject.next(true);
     this.labTrackerService.getLabTrackersByTeam(this.user?.team?.id!);
     this.labTrackerService.labTrackersByTeam$.subscribe(
       (labTrackers: LabTracker[]) => {
@@ -77,7 +89,15 @@ export class LabDeployComponent implements OnInit {
           (labTracker: LabTracker) => labTracker.labStatus !== LabStatus.DELETED
         );
       }
-    );
+    );)
+
+    this.isLoadingSubject.next(false);*/
+
+    this.labTrackerService.labTrackersByTeam$.subscribe((labTrackers: LabTracker[]) => {
+      this.labTrackers = labTrackers;
+      this.activeLabTrackers = labTrackers;
+      this.console.log(this.labTrackers);
+    })
   }
 
   deployLab(lab: Lab, user: User): void {
@@ -115,7 +135,7 @@ export class LabDeployComponent implements OnInit {
           labId: lab.id,
           userId: user?.id,
           labTrackerId: latestLabTracker?.id || '',
-          remoteServerId: response.remoteServer
+          remoteServerId: response.remoteServer,
         };
 
         this.sendStartRequest(labRequest);
@@ -134,7 +154,10 @@ export class LabDeployComponent implements OnInit {
 
         this.user?.setTeam({
           ...this.user.team,
-          teamActiveLabs: [...(this.user.team?.teamActiveLabs ?? []), newTrackedLab.id!]
+          teamActiveLabs: [
+            ...(this.user.team?.teamActiveLabs ?? []),
+            newTrackedLab.id!,
+          ],
         });
 
         if (response.data.output) {
@@ -144,11 +167,11 @@ export class LabDeployComponent implements OnInit {
               content: JSON.stringify(response.data, null, 2),
               isCode: true,
               isReadOnly: true,
-              fileType: 'json'
+              fileType: 'json',
             },
             width: '75rem',
             height: '50rem',
-            disableClose: true
+            disableClose: true,
           });
         }
         this.deployLabFinishEmitter.emit(response);
@@ -164,7 +187,11 @@ export class LabDeployComponent implements OnInit {
           errorContent = JSON.stringify(apiResponse, null, 2); // Pretty-print JSON
           this.deployLabFinishEmitter.emit(apiResponse);
         } catch (e) {
-          errorContent = JSON.stringify({ error: 'Unexpected error format', details: err.message }, null, 2);
+          errorContent = JSON.stringify(
+            { error: 'Unexpected error format', details: err.message },
+            null,
+            2
+          );
         }
 
         this.dialog.open(CommonDialogComponent, {
@@ -173,11 +200,11 @@ export class LabDeployComponent implements OnInit {
             content: errorContent,
             isCode: true,
             isReadOnly: true,
-            fileType: 'json' // Change to JSON since it's structured data
+            fileType: 'json', // Change to JSON since it's structured data
           },
           width: '75rem',
           height: '50rem',
-          disableClose: true
+          disableClose: true,
         });
 
         this.labsLoading.delete(labRequest.labId!);
@@ -186,7 +213,20 @@ export class LabDeployComponent implements OnInit {
         // Remove the labId from the loadingLabs set
         this.labsLoading.delete(labRequest.labId!);
       },
-    })
+    });
+  }
+
+  deleteLab(arg0: string | undefined) {
+    throw new Error('Method not implemented.');
+  }
+  getSettings(arg0: string | undefined, arg1: User | undefined) {
+    throw new Error('Method not implemented.');
+  }
+  viewLogs(arg0: string | undefined) {
+    throw new Error('Method not implemented.');
+  }
+  stopLab(arg0: any, arg1: any) {
+    throw new Error('Method not implemented.');
   }
 
   formatLabName(name: string): string {
@@ -195,5 +235,28 @@ export class LabDeployComponent implements OnInit {
 
   isLabLoading(labId?: string): boolean {
     return this.labsLoading.has(labId!);
+  }
+
+  formatDate(date: Date): string {
+    if (!date) return '';
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    };
+
+    return date.toLocaleString('en-US', options).replace(
+      /,/g,
+      (
+        (count = 0) =>
+        (match: any) => {
+          count++;
+          return count === 2 ? ' @' : match;
+        }
+      )()
+    );
   }
 }

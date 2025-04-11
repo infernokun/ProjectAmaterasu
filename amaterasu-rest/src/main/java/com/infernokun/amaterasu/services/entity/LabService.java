@@ -180,6 +180,11 @@ public class LabService extends BaseService {
                         .build()
         );
 
+        if (remoteServer.getRemoteServerStats().getStatus() != LabStatus.ACTIVE) {
+            return new LabActionResult(false, labTracker,
+                    remoteServer.getName() + " is not ACTIVE!");
+        }
+
 
         if (labTracker.getId() == null) {
             labTracker = labTrackerService.createLabTracker(labTracker);
@@ -322,15 +327,19 @@ public class LabService extends BaseService {
 
     public boolean checkDockerComposeValidity(String labId, RemoteServer remoteServer) {
         Lab lab = findLabById(labId);
-
-        switch (lab.getLabType()) {
-            case DOCKER_COMPOSE -> {
-                return labReadinessService.checkDockerComposeReadiness(lab, remoteServer);
+        try {
+            switch (lab.getLabType()) {
+                case DOCKER_COMPOSE -> {
+                    return labReadinessService.checkDockerComposeReadiness(lab, remoteServer);
+                }
+                case DOCKER_CONTAINER -> {
+                    throw new LabReadinessException("coming one day...");
+                }
+                default -> throw new LabReadinessException("Lab type not implemented...");
             }
-            case DOCKER_CONTAINER -> {
-                throw new LabReadinessException("coming one day...");
-            }
-            default -> throw new LabReadinessException("Lab type not implemented...");
+        } catch (LabReadinessException e) {
+            LOGGER.error(e.getMessage());
+            return false;
         }
     }
 

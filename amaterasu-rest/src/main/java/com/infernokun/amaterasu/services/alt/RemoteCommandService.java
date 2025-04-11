@@ -11,6 +11,7 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -27,8 +28,8 @@ public class RemoteCommandService extends BaseService {
         this.amaterasuConfig = amaterasuConfig;
         this.aesUtil = aesUtil;
     }
-
-    public RemoteCommandResponse handleRemoteCommand(String cmd, RemoteServer remoteServer) {
+    @Transactional(noRollbackFor = RemoteCommandException.class)
+    public RemoteCommandResponse handleRemoteCommand(String cmd, RemoteServer remoteServer) throws RemoteCommandException {
         Session session = null;
         try {
             // Get connected session using the shared method
@@ -37,7 +38,7 @@ public class RemoteCommandService extends BaseService {
             // Execute the command
             CommandResult result = executeRemoteCommand(session, cmd);
             return new RemoteCommandResponse(result.output(), result.error(), result.exitCode());
-        } catch (Exception e) {
+        } catch (RemoteCommandException e) {
             LOGGER.error("Exception while running command for server {}: {}", remoteServer.getId(), e.getMessage());
             throw new RemoteCommandException("Exception while running command: " + e.getMessage());
         } finally {
@@ -100,10 +101,8 @@ public class RemoteCommandService extends BaseService {
             session.setPassword(""); // Clear the password after use
             return session;
         } catch (JSchException e) {
-            LOGGER.error("SSH connection failed for server {}: {}", remoteServer.getId(), e.getMessage());
-            // Cleanup the session if needed
             disconnectSession(session, remoteServer);
-            throw new RemoteCommandException("SSH connection failed: " + e.getMessage());
+            throw new RemoteCommandException("RemoteCommandException: SSH connection failed: " + e.getMessage());
         }
     }
 

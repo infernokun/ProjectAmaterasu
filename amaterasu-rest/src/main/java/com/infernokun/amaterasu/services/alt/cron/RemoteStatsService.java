@@ -13,6 +13,7 @@ import com.infernokun.amaterasu.services.entity.RemoteServerService;
 import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.entity.RemoteServerStatsService;
+import com.jcraft.jsch.JSchException;
 import jakarta.annotation.PostConstruct;
 import org.hibernate.StaleObjectStateException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -61,6 +62,7 @@ public class RemoteStatsService extends BaseService {
     }
 
     @Scheduled(cron = "0 * * * * *")
+    @Transactional(noRollbackFor = { RemoteCommandException.class, JSchException.class })
     public void getRemoteServerStats() {
         List<RemoteServer> dockerServers = remoteServerService.findAllServers().stream()
                 .filter(server -> server.getServerType() == ServerType.DOCKER_HOST)
@@ -91,18 +93,19 @@ public class RemoteStatsService extends BaseService {
             // Parse the JSON response
             RemoteServerStats statsFromJson = objectMapper.readValue(jsonOutput, RemoteServerStats.class);
 
+
             // Update or create stats in a separate transaction
             updateServerStats(dockerServer, statsFromJson);
         } catch (JsonProcessingException e) {
-            LOGGER.error("Error processing JSON from server {}: {}", dockerServer.getId(), e.getMessage(), e);
-            throw new RuntimeException("Error processing JSON from remote server", e);
+            LOGGER.error("Error processing JSON from server {}: {}", dockerServer.getId(), e.getMessage());
+
+            updateServerStats(dockerServer, null);
         } catch (RemoteCommandException e) {
             LOGGER.error("Error executing remote command for server {}: {}", dockerServer.getId(), e.getMessage());
-            throw e; // Re-throw to be caught by the outer exception handler
+            updateServerStats(dockerServer, null);
         }
     }
 
-    @Transactional
     private void updateServerStats(RemoteServer remoteServer, RemoteServerStats statsFromJson) {
         RemoteServerStats existingStats = remoteServer.getRemoteServerStats();
 
@@ -116,7 +119,6 @@ public class RemoteStatsService extends BaseService {
             createNewStats(remoteServer, statsFromJson);
         }
     }
-
 
     private void ensureScriptExists(RemoteServer dockerServer, String scriptRemotePath, String remoteDir) {
         String checkScriptCommand = String.format("[ -f \"%s\" ] && echo \"true\" || echo \"false\"", scriptRemotePath);
@@ -136,28 +138,14 @@ public class RemoteStatsService extends BaseService {
         remoteCommandService.handleRemoteCommand(uploadCommand, dockerServer);
     }
 
-    private void preformStatAction(RemoteServer remoteServer, RemoteServerStats statsFromJson) {
-        RemoteServerStats existingStats = remoteServer.getRemoteServerStats();
-
-        if (existingStats != null && existingStats.getId() != null) {
-            String statsId = existingStats.getId();
-            remoteServerStatsRepository
-                    .findById(statsId)
-                    .ifPresentOrElse(
-                            existing -> {
-                                updateStats(existing, statsFromJson, remoteServer);
-                            },
-                            () -> {
-                                // Else (shouldn't happen in principle), treat as new.
-                                createNewStats(remoteServer, statsFromJson);
-                            });
-        } else {
-            // If no stats yet, create them.
-            createNewStats(remoteServer, statsFromJson);
-        }
-    }
-
     private void updateStats(RemoteServerStats existingStats, RemoteServerStats statsFromJson, RemoteServer remoteServer) {
+        if (statsFromJson == null) {
+            LOGGER.error("Server {} set to OFFLINE!", remoteServer.getName());
+            existingStats.setStatus(LabStatus.OFFLINE);
+            remoteServerStatsService.updateStats(existingStats);
+            return;
+        }
+
         int maxRetries = 3;
         for (int retry = 0; retry < maxRetries; retry++) {
             try {

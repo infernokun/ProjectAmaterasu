@@ -61,7 +61,7 @@ export class LabComponent implements OnInit {
 
   labs$: Observable<Lab[] | undefined> | undefined;
   loggedInUser$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
-  trackedLabs$: Observable<LabTracker[] | undefined> | undefined;
+  labTrackersByTeam$: Observable<LabTracker[]> = of([]);
   userTeam$: Observable<Team | undefined> = this.userTeamSubject.asObservable();
   isLoading$: Observable<boolean> = this.isLoadingSubject.asObservable();
 
@@ -79,30 +79,40 @@ export class LabComponent implements OnInit {
 
     this.labService.fetchLabs();
     this.labTrackerService.fetchLabTrackers();
+    
 
     combineLatest([
       this.labService.labs$,
       this.authService.user$,
-      this.labTrackerService.labTrackers$
+      this.labTrackerService.labTrackers$,
+      this.labTrackerService.labTrackersByTeam$
     ]).pipe(
       // Make sure user exists and labs and labsTracked are arrays (empty arrays are valid)
-      filter(([labs, user, trackedLabs]) =>
-        !!user && Array.isArray(labs) && Array.isArray(trackedLabs)
+      filter(([labs, user, _, labTrackersByTeam]) =>
+        !!user && Array.isArray(labs) && Array.isArray(labTrackersByTeam)
       ),
       // Only react when the team ID changes, not on every emission
       distinctUntilChanged(([_, prevUser, __], [___, currUser, ____]) =>
         prevUser?.team?.id === currUser?.team?.id
       ),
-      switchMap(([labs, user, labsTracked]) => {
+      switchMap(([labs, user, _, labTrackersByTeam]) => {
         // Store values locally
         this.labs = labs!;
         this.labs$ = this.labService.labs$;
         this.loggedInUser = user;
         this.loggedInUserSubject.next(this.loggedInUser);
 
+        this.team = this.loggedInUser?.team;
+        this.userTeamSubject.next(this.loggedInUser?.team);
+
         // Handle empty labsTracked array as a valid case
-        this.trackedLabs = labsTracked!;
-        this.trackedLabs$ = this.labTrackerService.labTrackers$;
+        this.trackedLabs = labTrackersByTeam.filter(
+          (labTracker: LabTracker) => labTracker.labStatus !== LabStatus.DELETED
+        );
+
+        this.labTrackerService.setLabTrackersByTeam(this.trackedLabs);
+        this.labTrackersByTeam$ = this.labTrackerService.labTrackersByTeam$;
+
 
         const teamId = user?.team?.id;
         if (!teamId) {
@@ -426,7 +436,7 @@ export class LabComponent implements OnInit {
   }
 
   deployLabFinish(response: ApiResponse<LabActionResult>) {
-    //this.labMainComponent.
+    this.labMainComponent?.deployLabFinish(response);
   }
   isInTrackedLabs(labId?: string): boolean {
     if (!labId) return false; // Early return if labId is not provided

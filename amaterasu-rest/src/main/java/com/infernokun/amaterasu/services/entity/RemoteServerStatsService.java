@@ -1,12 +1,15 @@
 package com.infernokun.amaterasu.services.entity;
 
+import com.infernokun.amaterasu.exceptions.RemoteCommandException;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.models.entities.RemoteServerStats;
 import com.infernokun.amaterasu.repositories.RemoteServerStatsRepository;
 import com.infernokun.amaterasu.services.BaseService;
+import com.jcraft.jsch.JSchException;
 import org.hibernate.dialect.lock.OptimisticEntityLockException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;

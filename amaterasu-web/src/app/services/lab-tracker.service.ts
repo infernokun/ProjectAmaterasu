@@ -47,4 +47,8 @@ export class LabTrackerService extends BaseService {
   setLabTrackers(labTrackers: LabTracker[]): void {
     this.labTrackersSubject.next(labTrackers);
   }
+
+  setLabTrackersByTeam(labTrackers: LabTracker[]): void {
+    this.labTrackersByTeamSubject.next(labTrackers);
+  }
 }

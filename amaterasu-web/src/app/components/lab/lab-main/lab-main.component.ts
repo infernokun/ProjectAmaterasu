@@ -1,5 +1,5 @@
 import { trigger, transition, style, animate } from '@angular/animations';
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { Lab } from '../../../models/lab.model';
 import {
   BehaviorSubject,
@@ -51,7 +51,7 @@ export class LabMainComponent implements OnInit {
   labsLoading = new Set<string>();
 
   isLoading$: Observable<boolean> = this.isLoadingSubject.asObservable();
-  trackedLabs$: Observable<LabTracker[] | undefined> | undefined;
+  labTrackers$: Observable<LabTracker[] | undefined> | undefined;
 
   labs: Lab[] = [];
   labTrackers: LabTracker[] = [];
@@ -66,6 +66,7 @@ export class LabMainComponent implements OnInit {
   LabType = LabType;
 
   @Output() deployLabStartEmitter: EventEmitter<Lab> = new EventEmitter<Lab>();
+  @Input() user: User | undefined;
 
   constructor(
     private labService: LabService,
@@ -107,7 +108,7 @@ export class LabMainComponent implements OnInit {
 
           // Handle empty labsTracked array as a valid case
           this.labTrackers = labsTracked!;
-          this.trackedLabs$ = this.labTrackerService.labTrackers$;
+          this.labTrackers$ = this.labTrackerService.labTrackers$;
 
           const teamId = user?.team?.id;
           if (!teamId) {
@@ -157,7 +158,12 @@ export class LabMainComponent implements OnInit {
 
   deployLabFinish(response: ApiResponse<LabActionResult>) {
     this.labsLoading.delete(response.data.labTracker?.labStarted?.id!);
-    this.labTrackers.push(response.data.labTracker!);
+
+    console.log("deployLabFinish", response)
+
+    if (response.data.labTracker?.id) {
+      this.labTrackers.push(response.data.labTracker!);
+    }
   }
 
   deployLabStart(lab: Lab): void {

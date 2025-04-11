@@ -8,6 +8,7 @@ import com.infernokun.amaterasu.models.dto.LabDTO;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
+import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.services.alt.LabFileUploadService;
 import com.infernokun.amaterasu.services.entity.LabService;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
@@ -162,14 +163,15 @@ public class LabController extends BaseController {
     @PostMapping("/start")
     public ResponseEntity<ApiResponse<LabActionResult>> startLab(@RequestBody LabRequest labRequest) {
         RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
-        LabActionResult startedLabOptional = labService.startLab(labRequest.getLabId(),
+
+        LabActionResult result = labService.startLab(labRequest.getLabId(),
                 labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
 
-        return ResponseEntity.status(HttpStatus.OK)
+        return ResponseEntity.status(result.isSuccessful() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.<LabActionResult>builder()
-                        .code(HttpStatus.OK.value())
-                        .message("Lab started successfully.")
-                        .data(startedLabOptional)
+                        .code(result.isSuccessful() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
+                        .message(result.isSuccessful() ? "Lab started successfully." : "Lab did not start successfully.")
+                        .data(result)
                         .build());
     }
 

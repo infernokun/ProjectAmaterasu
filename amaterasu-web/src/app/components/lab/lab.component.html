@@ -5,12 +5,12 @@
   </button>
 </div>
 <div class="lab-main-container">
-  <app-lab-main (deployLabStartEmitter)="deployLabStart($event)"></app-lab-main>
+  <app-lab-main [user]="(loggedInUser$ | async)!"  (deployLabStartEmitter)="deployLabStart($event)"></app-lab-main>
 </div>
 
 
 <div class="lab-deploy-container">
-  <app-lab-deploy [user]="(loggedInUser$ | async)!" (deployLabActionEmitter)="deployLabAction($event)" (deployLabFinishEmitter)="deployLabFinish($event)"></app-lab-deploy>
+  <app-lab-deploy [user]="(loggedInUser$ | async)!" [labTrackers$]="labTrackersByTeam$" (deployLabActionEmitter)="deployLabAction($event)" (deployLabFinishEmitter)="deployLabFinish($event)"></app-lab-deploy>
 </div>
 
 <div class="lab-container">

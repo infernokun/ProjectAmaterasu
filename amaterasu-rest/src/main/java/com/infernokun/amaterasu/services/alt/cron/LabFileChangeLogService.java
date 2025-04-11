@@ -14,9 +14,9 @@ import com.infernokun.amaterasu.services.entity.LabService;
 import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
-import jakarta.transaction.Transactional;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -42,8 +42,9 @@ public class LabFileChangeLogService extends BaseService {
         this.remoteServerService = remoteServerService;
         this.labService = labService;
     }
+
     @Scheduled(cron = "0 * * * * *")
-    @Transactional
+    @Transactional(noRollbackFor = {RemoteCommandException.class, NumberFormatException.class})
     public void checkLabFileStats() {
         AtomicInteger count = new AtomicInteger();
 
@@ -85,7 +86,7 @@ public class LabFileChangeLogService extends BaseService {
 
             labFileChangeLogRepository.findAll().stream()
                     .filter(labFileChangeLog -> labFileChangeLog.getLab().getLabType() == LabType.DOCKER_COMPOSE)
-                    .filter(labFileChangeLog -> !labFileChangeLog.getLab().isReady() )
+                    .filter(labFileChangeLog -> !labFileChangeLog.getLab().isReady())
                     .forEach(dockerComposeLog -> {
                         boolean isLabReady = labService.checkDockerComposeValidity(dockerComposeLog.getLab().getId(), dockerServer);
                         dockerComposeLog.getLab().setReady(isLabReady);
@@ -103,7 +104,7 @@ public class LabFileChangeLogService extends BaseService {
         });
     }
 
-
+    @Transactional(noRollbackFor = RemoteCommandException.class)
     private LocalDateTime fetchRemoteFileTimestamp(Lab lab, RemoteServer remoteServer) {
         try {
             String command = String.format(
