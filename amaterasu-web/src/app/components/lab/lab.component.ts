@@ -2,7 +2,16 @@ import { Component, OnInit, ViewChild } from '@angular/core';
 import { LabService } from '../../services/lab.service';
 import { Lab, LabDTO, LabFormData } from '../../models/lab.model';
 import { UserService } from '../../services/user.service';
-import { Observable, BehaviorSubject, switchMap, combineLatest, of, distinctUntilChanged, take, filter } from 'rxjs';
+import {
+  Observable,
+  BehaviorSubject,
+  switchMap,
+  combineLatest,
+  of,
+  distinctUntilChanged,
+  take,
+  filter,
+} from 'rxjs';
 import { User } from '../../models/user.model';
 import { ApiResponse } from '../../models/api-response.model';
 import { LabTrackerService } from '../../services/lab-tracker.service';
@@ -27,23 +36,29 @@ import { CommonDialogComponent } from '../common/dialog/common-dialog/common-dia
 import { LabMainComponent } from './lab-main/lab-main.component';
 
 @Component({
-    selector: 'app-lab',
-    templateUrl: './lab.component.html',
-    styleUrl: './lab.component.scss',
-    animations: [
-        trigger('fadeIn', [
-            transition(':enter', [
-                style({ opacity: 0, transform: 'translateY(10px)' }),
-                animate('300ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
-            ])
-        ])
-    ],
-    standalone: false
+  selector: 'app-lab',
+  templateUrl: './lab.component.html',
+  styleUrl: './lab.component.scss',
+  animations: [
+    trigger('fadeIn', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(10px)' }),
+        animate(
+          '300ms ease-out',
+          style({ opacity: 1, transform: 'translateY(0)' })
+        ),
+      ]),
+    ]),
+  ],
+  standalone: false,
 })
 export class LabComponent implements OnInit {
-  private loggedInUserSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);
-  private userTeamSubject: BehaviorSubject<Team | undefined> = new BehaviorSubject<Team | undefined>(undefined);
-  private isLoadingSubject: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
+  private loggedInUserSubject: BehaviorSubject<User | undefined> =
+    new BehaviorSubject<User | undefined>(undefined);
+  private userTeamSubject: BehaviorSubject<Team | undefined> =
+    new BehaviorSubject<Team | undefined>(undefined);
+  private isLoadingSubject: BehaviorSubject<boolean> =
+    new BehaviorSubject<boolean>(false);
   private loadingLabs = new Set<string>();
 
   labs: Lab[] = [];
@@ -60,124 +75,137 @@ export class LabComponent implements OnInit {
   LabType = LabType;
 
   labs$: Observable<Lab[] | undefined> | undefined;
-  loggedInUser$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
+  loggedInUser$: Observable<User | undefined> =
+    this.loggedInUserSubject.asObservable();
   labTrackersByTeam$: Observable<LabTracker[]> = of([]);
   userTeam$: Observable<Team | undefined> = this.userTeamSubject.asObservable();
   isLoading$: Observable<boolean> = this.isLoadingSubject.asObservable();
 
-  @ViewChild(LabDeployComponent) labDeployComponent: LabDeployComponent | undefined;
+  @ViewChild(LabDeployComponent) labDeployComponent:
+    | LabDeployComponent
+    | undefined;
   @ViewChild(LabMainComponent) labMainComponent: LabMainComponent | undefined;
 
   constructor(
-    private labService: LabService, private userService: UserService,
-    private teamService: TeamService, private labTrackerService: LabTrackerService,
-    private dialog: MatDialog, private editDialogService: EditDialogService,
-    private proxmoxService: ProxmoxService, private remoteServerService: RemoteServerService, private authService: AuthService) { }
+    private labService: LabService,
+    private userService: UserService,
+    private teamService: TeamService,
+    private labTrackerService: LabTrackerService,
+    private dialog: MatDialog,
+    private editDialogService: EditDialogService,
+    private proxmoxService: ProxmoxService,
+    private remoteServerService: RemoteServerService,
+    private authService: AuthService
+  ) {}
 
   ngOnInit(): void {
     this.isLoadingSubject.next(true);
 
     this.labService.fetchLabs();
-    this.labTrackerService.fetchLabTrackers();
-    
 
     combineLatest([
       this.labService.labs$,
       this.authService.user$,
-      this.labTrackerService.labTrackers$,
-      this.labTrackerService.labTrackersByTeam$
-    ]).pipe(
-      // Make sure user exists and labs and labsTracked are arrays (empty arrays are valid)
-      filter(([labs, user, _, labTrackersByTeam]) =>
-        !!user && Array.isArray(labs) && Array.isArray(labTrackersByTeam)
-      ),
-      // Only react when the team ID changes, not on every emission
-      distinctUntilChanged(([_, prevUser, __], [___, currUser, ____]) =>
-        prevUser?.team?.id === currUser?.team?.id
-      ),
-      switchMap(([labs, user, _, labTrackersByTeam]) => {
-        // Store values locally
-        this.labs = labs!;
-        this.labs$ = this.labService.labs$;
-        this.loggedInUser = user;
-        this.loggedInUserSubject.next(this.loggedInUser);
+    ])
+      .pipe(
+        // Make sure user exists and labs and labsTracked are arrays (empty arrays are valid)
+        filter(
+          ([labs, user]) =>
+            !!user && Array.isArray(labs)
+        ),
+        // Only react when the team ID changes, not on every emission
+        distinctUntilChanged(
+          ([_, prevUser], [___, currUser]) =>
+            prevUser?.team?.id === currUser?.team?.id
+        ),
+        switchMap(([labs, user]) => {
+          // Store values locally
+          this.labs = labs!;
+          this.labs$ = this.labService.labs$;
+          this.loggedInUser = user;
+          this.loggedInUserSubject.next(this.loggedInUser);
 
-        this.team = this.loggedInUser?.team;
-        this.userTeamSubject.next(this.loggedInUser?.team);
+          this.team = this.loggedInUser?.team;
+          this.userTeamSubject.next(this.loggedInUser?.team);
 
-        // Handle empty labsTracked array as a valid case
-        this.trackedLabs = labTrackersByTeam.filter(
-          (labTracker: LabTracker) => labTracker.labStatus !== LabStatus.DELETED
-        );
+          const teamId = user?.team?.id;
+          if (!teamId) {
+            console.error('Logged in user does not have a team.');
+            return of(undefined);
+          }
 
-        this.labTrackerService.setLabTrackersByTeam(this.trackedLabs);
-        this.labTrackersByTeam$ = this.labTrackerService.labTrackersByTeam$;
+          console.log(this.loggedInUser)
 
+          // Only fetch team data if necessary
+          return this.labTrackerService.getLabTrackersByTeam(
+            this.loggedInUser?.team?.id!
+          );
+        })
+      )
+      .subscribe({
+        next: (labTrackers: LabTracker[] | undefined) => {
+          if (!labTrackers) {
+            return;
+          }
 
-        const teamId = user?.team?.id;
-        if (!teamId) {
-          console.error("Logged in user does not have a team.");
-          return of(null);
-        }
+          // Handle empty labsTracked array as a valid case
+          this.trackedLabs = labTrackers.filter(
+            (labTracker: LabTracker) =>
+              labTracker.labStatus !== LabStatus.DELETED
+          );
 
-        // Check if we already have the team data with this ID
-        if (this.team && this.team.id === teamId) {
-          return of(this.team); // Reuse existing team data
-        }
+          console.log('labcomp next called')
+          this.labTrackerService.setLabTrackersByTeam(this.trackedLabs);
 
-        // Only fetch team data if necessary
-        return this.teamService.getTeamById(teamId).pipe(take(1));
-      })
-    ).subscribe({
-      next: (team) => {
-        if (team) {
-          this.team = team;
-          this.userTeamSubject.next(this.team);
-        } else {
-          console.warn("No team data available.");
-        }
-
-        this.isLoadingSubject.next(false);
-      },
-      error: (err) => {
-        console.error("Error in data loading process:", err);
-        this.isLoadingSubject.next(false);
-      }
-    });
+          this.isLoadingSubject.next(false);
+        },
+        error: (err) => {
+          console.error('Error in data loading process:', err);
+          this.isLoadingSubject.next(false);
+        },
+      });
   }
 
   addLab(): void {
     const labFormData: LabFormData = new LabFormData();
-    const vmTemplates = this.proxmoxService.getVMTemplates.bind(this.proxmoxService);
-    const remoteServers$: Observable<RemoteServer[]> = this.remoteServerService.getAllServers();
+    const vmTemplates = this.proxmoxService.getVMTemplates.bind(
+      this.proxmoxService
+    );
+    const remoteServers$: Observable<RemoteServer[]> =
+      this.remoteServerService.getAllServers();
 
     const labFormDataWithVMs = new LabFormData(
-      (k: any, v: any) => { },
+      (k: any, v: any) => {},
       {
-        'remoteServer': remoteServers$,
+        remoteServer: remoteServers$,
         //'vms': vmTemplates$
       },
       {
-        'vms': vmTemplates
+        vms: vmTemplates,
       }
     );
 
-    this.editDialogService.openDialog<Lab>(labFormDataWithVMs, (labDTO: LabDTO) => {
-      if (!labDTO) return;
-      this.busy = true;
+    this.editDialogService
+      .openDialog<Lab>(labFormDataWithVMs, (labDTO: LabDTO) => {
+        if (!labDTO) return;
+        this.busy = true;
 
-      labDTO = new LabDTO(labDTO);
-      labDTO.createdBy = this.loggedInUser?.username;
+        labDTO = new LabDTO(labDTO);
+        labDTO.createdBy = this.loggedInUser?.username;
 
-      this.labService.createNewLab(labDTO, this.remoteServerService.getSelectedRemoteServer().id!).subscribe((labResp: ApiResponse<Lab>) => {
-        this.busy = false;
+        this.labService
+          .createNewLab(
+            labDTO,
+            this.remoteServerService.getSelectedRemoteServer().id!
+          )
+          .subscribe((labResp: ApiResponse<Lab>) => {
+            this.busy = false;
 
-        if (!labResp.data) return;
-        this.labs.push(new Lab(labResp.data));
-      });
-    }).subscribe((res: any) => {
-
-    });
+            if (!labResp.data) return;
+            this.labs.push(new Lab(labResp.data));
+          });
+      })
+      .subscribe((res: any) => {});
   }
 
   startLab(labId?: string, user?: User): void {
@@ -189,20 +217,22 @@ export class LabComponent implements OnInit {
 
     // Filter and sort trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
     const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
-      tracker => teamLabTrackerIds.includes(tracker.id!) &&
-        tracker.labStatus !== LabStatus.DELETED && tracker.labStarted?.id === labId
+      (tracker) =>
+        teamLabTrackerIds.includes(tracker.id!) &&
+        tracker.labStatus !== LabStatus.DELETED &&
+        tracker.labStarted?.id === labId
     );
 
-    const latestLabTracker: LabTracker | undefined = filteredTrackedLabs.sort((a, b) =>
-      (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
+    const latestLabTracker: LabTracker | undefined = filteredTrackedLabs.sort(
+      (a, b) => (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
     )[0];
 
     const labRequest: LabRequest = {
       labId: labId,
       userId: user?.id,
-      labTrackerId: latestLabTracker?.id || "",
-      remoteServerId: this.remoteServerService.getSelectedRemoteServer().id
-    }
+      labTrackerId: latestLabTracker?.id || '',
+      remoteServerId: this.remoteServerService.getSelectedRemoteServer().id,
+    };
 
     this.labService.startLab(labRequest).subscribe({
       next: (response: ApiResponse<LabActionResult | undefined>) => {
@@ -216,7 +246,10 @@ export class LabComponent implements OnInit {
           if (latestLabTracker.labStatus === LabStatus.DELETED) {
             this.trackedLabs.splice(index, 1);
             this.trackedLabs.push(newTrackedLab);
-          } else if (latestLabTracker.labStatus === LabStatus.STOPPED || latestLabTracker.labStatus === LabStatus.FAILED) {
+          } else if (
+            latestLabTracker.labStatus === LabStatus.STOPPED ||
+            latestLabTracker.labStatus === LabStatus.FAILED
+          ) {
             this.trackedLabs[index] = newTrackedLab;
           }
         } else {
@@ -227,7 +260,10 @@ export class LabComponent implements OnInit {
         // Update team active labs without mutating the original array
         this.team = {
           ...this.team,
-          teamActiveLabs: [...(this.team?.teamActiveLabs ?? []), newTrackedLab.id!]
+          teamActiveLabs: [
+            ...(this.team?.teamActiveLabs ?? []),
+            newTrackedLab.id!,
+          ],
         };
 
         // Emit updated subjects
@@ -241,11 +277,11 @@ export class LabComponent implements OnInit {
               content: JSON.stringify(response.data, null, 2),
               isCode: true,
               isReadOnly: true,
-              fileType: 'json'
+              fileType: 'json',
             },
             width: '75rem',
             height: '50rem',
-            disableClose: true
+            disableClose: true,
           });
         }
       },
@@ -259,7 +295,11 @@ export class LabComponent implements OnInit {
           const apiResponse: ApiResponse<LabActionResult> = err.error;
           errorContent = JSON.stringify(apiResponse, null, 2); // Pretty-print JSON
         } catch (e) {
-          errorContent = JSON.stringify({ error: 'Unexpected error format', details: err.message }, null, 2);
+          errorContent = JSON.stringify(
+            { error: 'Unexpected error format', details: err.message },
+            null,
+            2
+          );
         }
 
         this.dialog.open(CommonDialogComponent, {
@@ -268,11 +308,11 @@ export class LabComponent implements OnInit {
             content: errorContent,
             isCode: true,
             isReadOnly: true,
-            fileType: 'json' // Change to JSON since it's structured data
+            fileType: 'json', // Change to JSON since it's structured data
           },
           width: '75rem',
           height: '50rem',
-          disableClose: true
+          disableClose: true,
         });
 
         this.loadingLabs.delete(labId);
@@ -293,12 +333,14 @@ export class LabComponent implements OnInit {
 
     // Filter trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
     const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
-      tracker => teamLabTrackerIds.includes(tracker.id!) &&
-        tracker.labStatus !== LabStatus.DELETED && tracker.labStarted?.id === labId
+      (tracker) =>
+        teamLabTrackerIds.includes(tracker.id!) &&
+        tracker.labStatus !== LabStatus.DELETED &&
+        tracker.labStarted?.id === labId
     );
 
-    const latestLabTracker: LabTracker | undefined = filteredTrackedLabs.sort((a, b) =>
-      (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
+    const latestLabTracker: LabTracker | undefined = filteredTrackedLabs.sort(
+      (a, b) => (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
     )[0];
 
     if (!latestLabTracker) {
@@ -309,16 +351,18 @@ export class LabComponent implements OnInit {
     const labRequest: LabRequest = {
       labId: labId,
       userId: user?.id,
-      labTrackerId: latestLabTracker?.id || "",
-      remoteServerId: this.remoteServerService.getSelectedRemoteServer().id
-    }
+      labTrackerId: latestLabTracker?.id || '',
+      remoteServerId: this.remoteServerService.getSelectedRemoteServer().id,
+    };
 
     this.labService.stopLab(labRequest).subscribe({
       next: (response: ApiResponse<LabActionResult | undefined>) => {
         if (!response.data) return;
 
         const stoppedLabTracker = new LabTracker(response.data.labTracker);
-        const index = this.trackedLabs.findIndex(tracker => tracker.id === stoppedLabTracker.id);
+        const index = this.trackedLabs.findIndex(
+          (tracker) => tracker.id === stoppedLabTracker.id
+        );
 
         if (latestLabTracker) {
           const index = this.trackedLabs.indexOf(latestLabTracker);
@@ -326,7 +370,10 @@ export class LabComponent implements OnInit {
           if (latestLabTracker.labStatus === LabStatus.DELETED) {
             this.trackedLabs.splice(index, 1);
             this.trackedLabs.push(stoppedLabTracker);
-          } else if (latestLabTracker.labStatus === LabStatus.ACTIVE || latestLabTracker.labStatus === LabStatus.FAILED) {
+          } else if (
+            latestLabTracker.labStatus === LabStatus.ACTIVE ||
+            latestLabTracker.labStatus === LabStatus.FAILED
+          ) {
             this.trackedLabs[index] = stoppedLabTracker;
           }
         } else {
@@ -343,11 +390,11 @@ export class LabComponent implements OnInit {
               content: response.data.output,
               isCode: true,
               isReadOnly: true,
-              fileType: 'bash'
+              fileType: 'bash',
             },
             width: '75rem',
             height: '50rem',
-            disableClose: true
+            disableClose: true,
           });
         }
       },
@@ -367,13 +414,16 @@ export class LabComponent implements OnInit {
     this.loadingLabs.add(labId);
 
     // Find all labs that match the labId and are stopped
-    const matchingLabs = this.trackedLabs.filter(tracker =>
-      (tracker.labStatus === LabStatus.STOPPED || tracker.labStatus === LabStatus.FAILED) && tracker.labStarted?.id === labId
+    const matchingLabs = this.trackedLabs.filter(
+      (tracker) =>
+        (tracker.labStatus === LabStatus.STOPPED ||
+          tracker.labStatus === LabStatus.FAILED) &&
+        tracker.labStarted?.id === labId
     );
 
     // Sort the matching labs by updatedAt in descending order to get the latest one
-    const latestLabTracker = matchingLabs.sort((a, b) =>
-      (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
+    const latestLabTracker = matchingLabs.sort(
+      (a, b) => (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
     )[0];
 
     if (!latestLabTracker) {
@@ -384,9 +434,9 @@ export class LabComponent implements OnInit {
     const labRequest: LabRequest = {
       labId: labId,
       userId: this.loggedInUser!.id,
-      labTrackerId: latestLabTracker?.id || "",
-      remoteServerId: this.remoteServerService.getSelectedRemoteServer().id
-    }
+      labTrackerId: latestLabTracker?.id || '',
+      remoteServerId: this.remoteServerService.getSelectedRemoteServer().id,
+    };
 
     this.labService.deleteLab(labRequest).subscribe({
       next: (response: ApiResponse<LabActionResult | undefined>) => {
@@ -401,20 +451,24 @@ export class LabComponent implements OnInit {
               content: response.data.output,
               isCode: true,
               isReadOnly: true,
-              fileType: 'bash'
+              fileType: 'bash',
             },
             width: '75rem',
             height: '50rem',
-            disableClose: true
+            disableClose: true,
           });
         }
 
-        const index = this.trackedLabs.findIndex(tracker => tracker.id === deletedLabTracker.id);
+        const index = this.trackedLabs.findIndex(
+          (tracker) => tracker.id === deletedLabTracker.id
+        );
         if (index !== -1) {
           this.trackedLabs[index] = deletedLabTracker;
           this.labTrackerService.setLabTrackers(this.trackedLabs);
         } else {
-          console.warn(`Lab tracker not found in trackedLabs: ${deletedLabTracker.id}`);
+          console.warn(
+            `Lab tracker not found in trackedLabs: ${deletedLabTracker.id}`
+          );
         }
       },
       error: (err) => {
@@ -438,16 +492,18 @@ export class LabComponent implements OnInit {
   deployLabFinish(response: ApiResponse<LabActionResult>) {
     this.labMainComponent?.deployLabFinish(response);
   }
+  
   isInTrackedLabs(labId?: string): boolean {
     if (!labId) return false; // Early return if labId is not provided
 
     const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
 
     // Check if the labId exists in trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
-    return this.trackedLabs.some(tracker =>
-      teamLabTrackerIds.includes(tracker.id!) &&
-      tracker.labStatus !== LabStatus.DELETED &&
-      tracker.labStarted?.id === labId
+    return this.trackedLabs.some(
+      (tracker) =>
+        teamLabTrackerIds.includes(tracker.id!) &&
+        tracker.labStatus !== LabStatus.DELETED &&
+        tracker.labStarted?.id === labId
     );
   }
 
@@ -460,12 +516,15 @@ export class LabComponent implements OnInit {
 
     // Filter trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
     const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
-      tracker => teamLabTrackerIds.includes(tracker.id!) &&
+      (tracker) =>
+        teamLabTrackerIds.includes(tracker.id!) &&
         tracker.labStatus !== LabStatus.DELETED
     );
 
     // Find the specific lab tracker
-    const labTracker = filteredTrackedLabs.find(tracker => tracker.labStarted?.id === labId);
+    const labTracker = filteredTrackedLabs.find(
+      (tracker) => tracker.labStarted?.id === labId
+    );
 
     // Return the lab status or a default value
     return labTracker?.labStatus ?? LabStatus.NONE;
@@ -480,12 +539,14 @@ export class LabComponent implements OnInit {
 
     // Filter and sort trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
     const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
-      tracker => teamLabTrackerIds.includes(tracker.id!) &&
-        tracker.labStatus !== LabStatus.DELETED && tracker.labStarted?.id === labId
+      (tracker) =>
+        teamLabTrackerIds.includes(tracker.id!) &&
+        tracker.labStatus !== LabStatus.DELETED &&
+        tracker.labStarted?.id === labId
     );
 
-    return filteredTrackedLabs.sort((a, b) =>
-      (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
+    return filteredTrackedLabs.sort(
+      (a, b) => (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
     )[0];
   }
 
@@ -502,17 +563,15 @@ export class LabComponent implements OnInit {
           isCode: true,
           content: this.dockerComposeData.yml,
           fileType: 'yaml',
-          isReadOnly: false
+          isReadOnly: false,
         },
         width: '50rem',
-        height: '50rem'
+        height: '50rem',
       });
     });
   }
 
-  viewLogs(labId?: string): void {
-
-  }
+  viewLogs(labId?: string): void {}
 
   formatDate(date: Date): string {
     if (!date) return '';
@@ -522,14 +581,18 @@ export class LabComponent implements OnInit {
       day: '2-digit',
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
     };
 
-    return date.toLocaleString('en-US', options).replace(/,/g, (
-      (count = 0) => (match: any) => {
-        count++;
-        return count === 2 ? ' @' : match;
-      })()
+    return date.toLocaleString('en-US', options).replace(
+      /,/g,
+      (
+        (count = 0) =>
+        (match: any) => {
+          count++;
+          return count === 2 ? ' @' : match;
+        }
+      )()
     );
   }
 
@@ -544,8 +607,9 @@ export class LabComponent implements OnInit {
     reader.onload = (e: any) => {
       const content = e.target.result;
       // Now, post the content to the backend
-      this.labService.uploadDockerComposeFile(labId, content).subscribe((res: ApiResponse<string>) => {
-      })
+      this.labService
+        .uploadDockerComposeFile(labId, content)
+        .subscribe((res: ApiResponse<string>) => {});
     };
     reader.readAsText(file);
   }
@@ -560,7 +624,7 @@ export class LabComponent implements OnInit {
 
   clear(): void {
     if (!this.loggedInUser?.team?.id) {
-      console.error("Team ID is missing");
+      console.error('Team ID is missing');
       return;
     }
 
@@ -569,8 +633,8 @@ export class LabComponent implements OnInit {
         window.location.reload();
       },
       error: (err) => {
-        console.error("Failed to clear labs:", err);
-      }
+        console.error('Failed to clear labs:', err);
+      },
     });
   }
 

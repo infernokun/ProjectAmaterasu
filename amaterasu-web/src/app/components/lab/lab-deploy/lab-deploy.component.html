@@ -1,5 +1,5 @@
 <div class="lab-container">
-    <div class="lab-card" *ngFor="let labTracker of activeLabTrackers">
+    <div class="lab-card" *ngFor="let labTracker of labTrackers$ | async">
         <div class="lab-body">
             <ul class="lab-details">
                 <p>Id: {{ labTracker.id }}</p>

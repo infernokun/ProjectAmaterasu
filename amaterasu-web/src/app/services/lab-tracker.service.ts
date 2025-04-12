@@ -14,7 +14,7 @@ export class LabTrackerService extends BaseService {
   labTrackers$: Observable<LabTracker[]> = this.labTrackersSubject.asObservable();
 
   private labTrackersByTeamSubject = new BehaviorSubject<LabTracker[]>([]);
-  labTrackersByTeam$: Observable<LabTracker[]> = this.labTrackersSubject.asObservable();
+  labTrackersByTeam$: Observable<LabTracker[]> = this.labTrackersByTeamSubject.asObservable();
 
   constructor(
     protected httpClient: HttpClient,
@@ -30,11 +30,12 @@ export class LabTrackerService extends BaseService {
       .subscribe((labTrackers: LabTracker[]) => this.labTrackersSubject.next(labTrackers));
   }
 
-  getLabTrackersByTeam(teamId: string): void {
-    this.get<ApiResponse<LabTracker[]>>(this.environmentService.settings?.restUrl + '/lab-tracker', { params: new HttpParams().set('teamId', teamId) })
+  getLabTrackersByTeam(teamId: string): Observable<LabTracker[]> {
+    const params = new HttpParams().set('teamId', teamId);
+    return this.get<ApiResponse<LabTracker[]>>(this.environmentService.settings?.restUrl + '/lab-tracker', { params })
     .pipe(
       map((response: ApiResponse<LabTracker[]>) => response.data.map((labTracker: LabTracker) => new LabTracker(labTracker)))
-    ).subscribe((labTrackers: LabTracker[]) => this.labTrackersByTeamSubject.next(labTrackers))
+    );
   }
 
   getLabTrackerById(id: string): Observable<LabTracker> {

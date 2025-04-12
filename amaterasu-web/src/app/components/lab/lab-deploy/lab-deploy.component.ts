@@ -55,10 +55,7 @@ export class LabDeployComponent implements OnInit {
   labsLoading: Set<string> = new Set<string>();
   //labTrackers$: Observable<LabTracker[] | undefined> | undefined;
 
-  activeLabTrackers: LabTracker[] = [];
-
   isLoading$: Observable<boolean> = this.isLoadingSubject.asObservable();
-
 
   console = console;
   LabType = LabType;
@@ -79,25 +76,21 @@ export class LabDeployComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    /*this.isLoadingSubject.next(true);
-    this.labTrackerService.getLabTrackersByTeam(this.user?.team?.id!);
+    this.isLoadingSubject.next(true);
+    this.labTrackers$ = this.labTrackerService.labTrackersByTeam$;
     this.labTrackerService.labTrackersByTeam$.subscribe(
       (labTrackers: LabTracker[]) => {
+        
+
         this.labTrackers = labTrackers;
-
-        this.activeLabTrackers = this.labTrackers.filter(
-          (labTracker: LabTracker) => labTracker.labStatus !== LabStatus.DELETED
-        );
       }
-    );)
+    );
 
-    this.isLoadingSubject.next(false);*/
-
-    this.labTrackerService.labTrackersByTeam$.subscribe((labTrackers: LabTracker[]) => {
+    this.isLoadingSubject.next(false);
+    /*this.labTrackerService.labTrackersByTeam$.subscribe((labTrackers: LabTracker[]) => {
       this.labTrackers = labTrackers;
       this.activeLabTrackers = labTrackers;
-      this.console.log(this.labTrackers);
-    })
+    })*/
   }
 
   deployLab(lab: Lab, user: User): void {
@@ -150,7 +143,7 @@ export class LabDeployComponent implements OnInit {
 
         const newTrackedLab = new LabTracker(response.data.labTracker);
 
-        this.activeLabTrackers.push(newTrackedLab);
+        this.labTrackers.push(newTrackedLab);
 
         this.user?.setTeam({
           ...this.user.team,

@@ -23,6 +23,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { RemoteServerService } from '../../../services/remote-server.service';
 import { ApiResponse } from '../../../models/api-response.model';
 import { LabActionResult } from '../../../models/lab-action-result.model';
+import { LabStatus } from '../../../enums/lab-status.enum';
 
 @Component({
   selector: 'app-lab-main',
@@ -80,67 +81,13 @@ export class LabMainComponent implements OnInit {
   ngOnInit(): void {
     this.isLoadingSubject.next(true);
 
-    this.labService.fetchLabs();
-    this.labTrackerService.fetchLabTrackers();
+    this.labs$ = this.labService.labs$;
 
-    combineLatest([
-      this.labService.labs$,
-      this.authService.user$,
-      this.labTrackerService.labTrackers$,
-    ])
-      .pipe(
-        // Make sure user exists and labs and labsTracked are arrays (empty arrays are valid)
-        filter(
-          ([labs, user, trackedLabs]) =>
-            !!user && Array.isArray(labs) && Array.isArray(trackedLabs)
-        ),
-        // Only react when the team ID changes, not on every emission
-        distinctUntilChanged(
-          ([_, prevUser, __], [___, currUser, ____]) =>
-            prevUser?.team?.id === currUser?.team?.id
-        ),
-        switchMap(([labs, user, labsTracked]) => {
-          // Store values locally
-          this.labs = labs!;
-          this.labs$ = this.labService.labs$;
-          this.loggedInUser = user;
-          this.loggedInUserSubject.next(this.loggedInUser);
-
-          // Handle empty labsTracked array as a valid case
-          this.labTrackers = labsTracked!;
-          this.labTrackers$ = this.labTrackerService.labTrackers$;
-
-          const teamId = user?.team?.id;
-          if (!teamId) {
-            console.error('Logged in user does not have a team.');
-            return of(null);
-          }
-
-          // Check if we already have the team data with this ID
-          if (this.team && this.team.id === teamId) {
-            return of(this.team); // Reuse existing team data
-          }
-
-          // Only fetch team data if necessary
-          return this.teamService.getTeamById(teamId).pipe(take(1));
-        })
-      )
-      .subscribe({
-        next: (team) => {
-          if (team) {
-            this.team = team;
-            this.userTeamSubject.next(this.team);
-          } else {
-            console.warn('No team data available.');
-          }
-
-          this.isLoadingSubject.next(false);
-        },
-        error: (err) => {
-          console.error('Error in data loading process:', err);
-          this.isLoadingSubject.next(false);
-        },
-      });
+    this.labTrackerService.labTrackersByTeam$.subscribe(
+      (labTrackers: LabTracker[]) => {
+        this.labTrackers = labTrackers;
+      }
+    );
   }
 
   onMouseEnter(): void {
@@ -151,15 +98,26 @@ export class LabMainComponent implements OnInit {
     this.isHovered = false;
   }
 
+  isInTrackedLabs(labId?: string): boolean {
+    if (!labId) return false; // Early return if labId is not provided
+
+    // Check if the labId exists in trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
+    return this.labTrackers.some(
+      (labTracker: LabTracker) =>
+        this.user?.team?.teamActiveLabs!.includes(labTracker.id!) &&
+        labTracker.labStatus !== LabStatus.DELETED &&
+        labTracker.labStarted?.id === labId
+    );
+  }
+
   deployLabAction(labId: string) {
-    console.log('...test')
     this.labsLoading.add(labId);
   }
 
   deployLabFinish(response: ApiResponse<LabActionResult>) {
     this.labsLoading.delete(response.data.labTracker?.labStarted?.id!);
 
-    console.log("deployLabFinish", response)
+    console.log('deployLabFinish', response);
 
     if (response.data.labTracker?.id) {
       this.labTrackers.push(response.data.labTracker!);
@@ -168,7 +126,7 @@ export class LabMainComponent implements OnInit {
 
   deployLabStart(lab: Lab): void {
     this.deployLabStartEmitter.emit(lab);
-  /*  if (!labId) return; // Early return if labId is not provided
+    /*  if (!labId) return; // Early return if labId is not provided
 
     this.loadingLabs.add(labId);
 
