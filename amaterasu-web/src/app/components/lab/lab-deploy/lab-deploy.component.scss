@@ -99,3 +99,35 @@
     align-items: center;
     height: 60px;
 }
+
+/* Specific styles for button states */
+.button.querying {
+    background-color: #ff9800;
+    /* Orange background for Querying */
+  }
+  
+  .button.start {
+    background-color: #4caf50;
+    /* Green background for Start */
+  }
+  
+  .button.active {
+    background-color: #2196f3;
+    /* Blue background for Already Started */
+  }
+  
+  .button.stop {
+    background-color: #f44336;
+    /* Red background for Offline */
+  }
+  
+  .button.offline {
+    background-color: #f44336;
+    /* Red background for Offline */
+  }
+  
+  .button.stopped {
+    background-color: #9e9e9e;
+    /* Grey background for Stopped */
+  }
+  

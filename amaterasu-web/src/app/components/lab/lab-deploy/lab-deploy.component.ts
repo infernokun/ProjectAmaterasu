@@ -64,10 +64,6 @@ export class LabDeployComponent implements OnInit {
 
   @Input() user: User | undefined;
   @Input() labTrackers$: Observable<LabTracker[]> = of([]);
-  @Output() deployLabActionEmitter: EventEmitter<string> =
-    new EventEmitter<string>();
-  @Output() deployLabFinishEmitter: EventEmitter<ApiResponse<LabActionResult>> =
-    new EventEmitter<ApiResponse<LabActionResult>>();
 
   constructor(
     private labTrackerService: LabTrackerService,
@@ -81,30 +77,23 @@ export class LabDeployComponent implements OnInit {
   ngOnInit(): void {
     this.isLoadingSubject.next(true);
 
-    /*this.labDeploymentService.deployLab$
+    this.labDeploymentService.deployLab$
     .pipe(takeUntil(this.destroy$))
     .subscribe((lab: Lab) => {
-      this.deployLab(lab, this.user!);
-    });*/
+      this.deployLab(lab);
+    });
     
     this.labTrackers$ = this.labTrackerService.labTrackersByTeam$;
     this.labTrackerService.labTrackersByTeam$.subscribe(
       (labTrackers: LabTracker[]) => {
-        
-
         this.labTrackers = labTrackers;
       }
     );
 
     this.isLoadingSubject.next(false);
-    /*this.labTrackerService.labTrackersByTeam$.subscribe((labTrackers: LabTracker[]) => {
-      this.labTrackers = labTrackers;
-      this.activeLabTrackers = labTrackers;
-    })*/
   }
 
-  deployLab(lab: Lab, user: User): void {
-    this.deployLabActionEmitter.emit(lab.id);
+  deployLab(lab: Lab): void {
     const remoteServers$: Observable<RemoteServer[]> =
       this.remoteServerService.getRemoteServerByServerType(
         getServerType(lab.labType!)
@@ -114,9 +103,11 @@ export class LabDeployComponent implements OnInit {
       remoteServer: remoteServers$,
     });
 
+    let cancel = true;
+
     this.editDialogService
       .openDialog<any>(remoteServerSelectFormData, (response: any) => {
-        this.labsLoading.add(lab.id!);
+        cancel = false;
 
         const teamLabTrackerIds: string[] =
           this.user?.team?.teamActiveLabs ?? [];
@@ -136,14 +127,21 @@ export class LabDeployComponent implements OnInit {
 
         const labRequest: LabRequest = {
           labId: lab.id,
-          userId: user?.id,
+          userId: this.user?.id,
           labTrackerId: latestLabTracker?.id || '',
           remoteServerId: response.remoteServer,
         };
 
         this.sendStartRequest(labRequest);
       })
-      .subscribe((res) => this.console.log(res));
+      .subscribe((res) => {
+        if (cancel) {
+          this.console.log(res, "is res ok")
+          this.labsLoading.delete(lab.id!);
+
+          this.labDeploymentService.updateLabsLoading(this.labsLoading);
+        }
+      });
   }
 
   sendStartRequest(labRequest: LabRequest): void {
@@ -154,14 +152,7 @@ export class LabDeployComponent implements OnInit {
         const newTrackedLab = new LabTracker(response.data.labTracker);
 
         this.labTrackers.push(newTrackedLab);
-
-        this.user?.setTeam({
-          ...this.user.team,
-          teamActiveLabs: [
-            ...(this.user.team?.teamActiveLabs ?? []),
-            newTrackedLab.id!,
-          ],
-        });
+        this.labTrackerService.setLabTrackersByTeam(this.labTrackers);
 
         if (response.data.output) {
           this.dialog.open(CommonDialogComponent, {
@@ -177,7 +168,7 @@ export class LabDeployComponent implements OnInit {
             disableClose: true,
           });
         }
-        this.deployLabFinishEmitter.emit(response);
+        this.labDeploymentService.startLabDeploymentFinish(response);
       },
       error: (err: HttpErrorResponse) => {
         console.error(`Failed to start lab ${labRequest.labId}:`, err);
@@ -188,7 +179,8 @@ export class LabDeployComponent implements OnInit {
         try {
           const apiResponse: ApiResponse<LabActionResult> = err.error;
           errorContent = JSON.stringify(apiResponse, null, 2); // Pretty-print JSON
-          this.deployLabFinishEmitter.emit(apiResponse);
+          this.labDeploymentService.startLabDeploymentFinish(apiResponse);
+
         } catch (e) {
           errorContent = JSON.stringify(
             { error: 'Unexpected error format', details: err.message },
@@ -211,27 +203,221 @@ export class LabDeployComponent implements OnInit {
         });
 
         this.labsLoading.delete(labRequest.labId!);
+        this.labDeploymentService.updateLabsLoading(this.labsLoading);
       },
       complete: () => {
         // Remove the labId from the loadingLabs set
         this.labsLoading.delete(labRequest.labId!);
+        this.labDeploymentService.updateLabsLoading(this.labsLoading);
       },
     });
   }
 
-  deleteLab(arg0: string | undefined) {
-    throw new Error('Method not implemented.');
+  redeployLab(labTracker: LabTracker) {
+    this.labsLoading.add(labTracker.id!);
+    this.labDeploymentService.updateLabsLoading(this.labsLoading);
+
+    const labRequest: LabRequest = {
+      labId: labTracker.labStarted?.id,
+      userId: this.user?.id,
+      labTrackerId: labTracker.id,
+      remoteServerId: labTracker.remoteServer?.id,
+    };
+
+    this.labService.startLab(labRequest).subscribe({
+      next: (response: ApiResponse<LabActionResult>) => {
+        if (!response.data) return;
+
+        const updatedLabTracker = new LabTracker(response.data.labTracker);
+        const index = this.labTrackers.indexOf(labTracker);
+
+        this.labTrackers[index] = updatedLabTracker;
+
+        this.labTrackerService.setLabTrackersByTeam(this.labTrackers);
+
+        if (response.data.output) {
+          this.dialog.open(CommonDialogComponent, {
+            data: {
+              title: 'Lab Start',
+              content: JSON.stringify(response.data, null, 2),
+              isCode: true,
+              isReadOnly: true,
+              fileType: 'json',
+            },
+            width: '75rem',
+            height: '50rem',
+            disableClose: true,
+          });
+        }
+        this.labDeploymentService.startLabDeploymentFinish(response);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error(`Failed to start lab ${labRequest.labId}:`, err);
+
+        // Ensure proper extraction of LabActionResult from API response
+        let errorContent: string;
+
+        try {
+          const apiResponse: ApiResponse<LabActionResult> = err.error;
+          errorContent = JSON.stringify(apiResponse, null, 2); // Pretty-print JSON
+          this.labDeploymentService.startLabDeploymentFinish(apiResponse);
+
+        } catch (e) {
+          errorContent = JSON.stringify(
+            { error: 'Unexpected error format', details: err.message },
+            null,
+            2
+          );
+        }
+
+        this.dialog.open(CommonDialogComponent, {
+          data: {
+            title: 'Lab Start',
+            content: errorContent,
+            isCode: true,
+            isReadOnly: true,
+            fileType: 'json', // Change to JSON since it's structured data
+          },
+          width: '75rem',
+          height: '50rem',
+          disableClose: true,
+        });
+
+        this.labsLoading.delete(labTracker.id!);
+        this.labDeploymentService.updateLabsLoading(this.labsLoading);
+      },
+      complete: () => {
+        // Remove the labId from the loadingLabs set
+        this.labsLoading.delete(labTracker.id!);
+        this.labDeploymentService.updateLabsLoading(this.labsLoading);
+      },
+    });
   }
-  getSettings(arg0: string | undefined, arg1: User | undefined) {
-    throw new Error('Method not implemented.');
+
+  stopLab(labTracker: LabTracker) {
+    this.labsLoading.add(labTracker.id!);
+    this.labDeploymentService.updateLabsLoading(this.labsLoading);
+
+    const labRequest: LabRequest = {
+      labId: labTracker.labStarted?.id,
+      userId: this.user?.id,
+      labTrackerId: labTracker.id,
+      remoteServerId: labTracker.remoteServer?.id,
+    };
+
+    this.labService.stopLab(labRequest).subscribe({
+      next: (response: ApiResponse<LabActionResult | undefined>) => {
+        if (!response.data) return;
+
+        const stoppedLabTracker = new LabTracker(response.data.labTracker);
+        const index = this.labTrackers.indexOf(labTracker);
+
+        this.labTrackers[index] = stoppedLabTracker;
+
+        this.labTrackerService.setLabTrackersByTeam(this.labTrackers);
+        if (response.data.output) {
+          this.dialog.open(CommonDialogComponent, {
+            data: {
+              title: 'Lab Start',
+              content: response.data.output,
+              isCode: true,
+              isReadOnly: true,
+              fileType: 'bash',
+            },
+            width: '75rem',
+            height: '50rem',
+            disableClose: true,
+          });
+        }
+      },
+      error: (err) => {
+        console.error(`Failed to stop lab ${labTracker.labStarted?.id!}:`, err);
+        this.labsLoading.delete(labTracker.id!);
+      },
+      complete: () => {
+        this.labsLoading.delete(labTracker.id!);
+      },
+    });
   }
+
+  deleteLab(labTracker: LabTracker) {
+    this.labsLoading.add(labTracker.id!);
+
+    const labRequest: LabRequest = {
+      labId: labTracker.labStarted?.id,
+      userId: this.user?.id,
+      labTrackerId: labTracker.id,
+      remoteServerId: labTracker.remoteServer?.id,
+    };
+
+    this.labService.deleteLab(labRequest).subscribe({
+      next: (response: ApiResponse<LabActionResult | undefined>) => {
+        if (!response.data) return;
+
+        const deletedLabTracker = new LabTracker(response.data.labTracker);
+
+        if (response.data.output) {
+          this.dialog.open(CommonDialogComponent, {
+            data: {
+              title: 'Lab Start',
+              content: response.data.output,
+              isCode: true,
+              isReadOnly: true,
+              fileType: 'bash',
+            },
+            width: '75rem',
+            height: '50rem',
+            disableClose: true,
+          });
+        }
+
+        const index = this.labTrackers.findIndex(
+          (tracker) => tracker.id === deletedLabTracker.id
+        );
+        if (index !== -1) {
+          this.labTrackers = this.labTrackers.filter(tracker => tracker != labTracker);
+          this.labTrackerService.setLabTrackersByTeam(this.labTrackers);
+        } else {
+          console.warn(
+            `Lab tracker not found in trackedLabs: ${deletedLabTracker.id}`
+          );
+        }
+      },
+      error: (err) => {
+        console.error(`Failed to delete lab ${labTracker.labStarted?.id}:`, err);
+        this.labsLoading.delete(labTracker.id!);
+      },
+      complete: () => {
+        this.labsLoading.delete(labTracker.id!);
+      },
+    });
+  }
+
+  getSettings(labTracker: LabTracker) {
+    this.labService.getSettings(labTracker.labStarted?.id!, labTracker.remoteServer?.id!).subscribe((res: ApiResponse<any>) => {
+      if (!res.data || !res.data.yml) {
+        console.error('No YAML data found in response!');
+        return;
+      }
+      
+      const dockerComposeData = res.data;
+      this.dialog.open(CommonDialogComponent, {
+        data: {
+          title: 'Lab Output',
+          isCode: true,
+          content: dockerComposeData.yml,
+          fileType: 'yaml',
+          isReadOnly: false,
+        },
+        width: '50rem',
+        height: '50rem',
+      });
+    });
+  }
+
   viewLogs(arg0: string | undefined) {
     throw new Error('Method not implemented.');
   }
-  stopLab(arg0: any, arg1: any) {
-    throw new Error('Method not implemented.');
-  }
-
   formatLabName(name: string): string {
     return name.toLowerCase().replace(/\s+/g, '-');
   }

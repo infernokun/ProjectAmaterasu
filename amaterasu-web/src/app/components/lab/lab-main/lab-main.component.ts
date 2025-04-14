@@ -1,15 +1,9 @@
 import { trigger, transition, style, animate } from '@angular/animations';
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { Lab } from '../../../models/lab.model';
 import {
   BehaviorSubject,
-  combineLatest,
-  distinctUntilChanged,
-  filter,
   Observable,
-  of,
-  switchMap,
-  take,
 } from 'rxjs';
 import { LabType } from '../../../enums/lab-type.enum';
 import { User } from '../../../models/user.model';
@@ -23,7 +17,6 @@ import { MatDialog } from '@angular/material/dialog';
 import { RemoteServerService } from '../../../services/remote-server.service';
 import { ApiResponse } from '../../../models/api-response.model';
 import { LabActionResult } from '../../../models/lab-action-result.model';
-import { LabStatus } from '../../../enums/lab-status.enum';
 import { LabDeploymentService } from '../../../services/lab-deployment.service';
 
 @Component({
@@ -44,10 +37,6 @@ import { LabDeploymentService } from '../../../services/lab-deployment.service';
   ],
 })
 export class LabMainComponent implements OnInit {
-  private loggedInUserSubject: BehaviorSubject<User | undefined> =
-    new BehaviorSubject<User | undefined>(undefined);
-  private userTeamSubject: BehaviorSubject<Team | undefined> =
-    new BehaviorSubject<Team | undefined>(undefined);
   private isLoadingSubject: BehaviorSubject<boolean> =
     new BehaviorSubject<boolean>(false);
   labsLoading = new Set<string>();
@@ -67,7 +56,6 @@ export class LabMainComponent implements OnInit {
 
   LabType = LabType;
 
-  @Output() deployLabStartEmitter: EventEmitter<Lab> = new EventEmitter<Lab>();
   @Input() user: User | undefined;
 
   constructor(
@@ -90,6 +78,16 @@ export class LabMainComponent implements OnInit {
         this.labTrackers = labTrackers;
       }
     );
+
+    this.labDeploymentService.labsLoading$.subscribe((labsLoading: Set<string>) => {
+      this.labsLoading = labsLoading;
+    });
+
+    this.labDeploymentService.deployLabResponse$.subscribe((response: ApiResponse<LabActionResult>) => {
+      this.labsLoading.delete(response.data.labTracker?.labStarted?.id!);
+
+      this.labDeploymentService.updateLabsLoading(this.labsLoading);
+    })
   }
 
   onMouseEnter(): void {
@@ -103,144 +101,32 @@ export class LabMainComponent implements OnInit {
   isInTrackedLabs(labId?: string): boolean {
     if (!labId) return false; // Early return if labId is not provided
 
+    const labFound = this.labTrackers.find((labTracker: LabTracker) => labTracker.labStarted?.id == labId);
+
     // Check if the labId exists in trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
-    return this.labTrackers.some(
-      (labTracker: LabTracker) =>
-        this.user?.team?.teamActiveLabs!.includes(labTracker.id!) &&
-        labTracker.labStatus !== LabStatus.DELETED &&
-        labTracker.labStarted?.id === labId
-    );
+    return (labFound != undefined);
   }
 
-  deployLabAction(labId: string) {
-    this.labsLoading.add(labId);
-  }
-
-  deployLabFinish(response: ApiResponse<LabActionResult>) {
-    this.labsLoading.delete(response.data.labTracker?.labStarted?.id!);
-
-    console.log('deployLabFinish', response);
-
-    if (response.data.labTracker?.id) {
-      this.labTrackers.push(response.data.labTracker!);
+  dockerComposeUpload(event: Event, labId: string): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) {
+      return;
     }
+    const file = input.files[0];
+    const reader = new FileReader();
+
+    reader.onload = (e: any) => {
+      const content = e.target.result;
+      // Now, post the content to the backend
+      this.labService
+        .uploadDockerComposeFile(labId, content)
+        .subscribe((res: ApiResponse<string>) => {});
+    };
+    reader.readAsText(file);
   }
 
   deployLabStart(lab: Lab): void {
-    this.deployLabStartEmitter.emit(lab);
-    //this.labDeploymentService.startLabDeployment(lab);
-    /*  if (!labId) return; // Early return if labId is not provided
-
-    this.loadingLabs.add(labId);
-
-    const teamLabTrackerIds: string[] = this.team?.teamActiveLabs ?? [];
-
-    // Filter and sort trackedLabs based on matching teamActiveLabs and ensuring the status is not DELETED
-    const filteredTrackedLabs: LabTracker[] = this.trackedLabs.filter(
-      (tracker) =>
-        teamLabTrackerIds.includes(tracker.id!) &&
-        tracker.labStatus !== LabStatus.DELETED &&
-        tracker.labStarted?.id === labId
-    );
-
-    const latestLabTracker: LabTracker | undefined = filteredTrackedLabs.sort(
-      (a, b) => (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)
-    )[0];
-
-    const labRequest: LabRequest = {
-      labId: labId,
-      userId: this.loggedInUser?.id,
-      labTrackerId: latestLabTracker?.id || '',
-      remoteServerId: this.remoteServerService.getSelectedRemoteServer().id,
-    };
-
-    this.labService.startLab(labRequest).subscribe({
-      next: (response: ApiResponse<LabActionResult | undefined>) => {
-        if (!response.data) return;
-
-        const newTrackedLab = new LabTracker(response.data.labTracker);
-
-        if (latestLabTracker) {
-          const index = this.trackedLabs.indexOf(latestLabTracker);
-          // Handle existing lab tracker
-          if (latestLabTracker.labStatus === LabStatus.DELETED) {
-            this.trackedLabs.splice(index, 1);
-            this.trackedLabs.push(newTrackedLab);
-          } else if (
-            latestLabTracker.labStatus === LabStatus.STOPPED ||
-            latestLabTracker.labStatus === LabStatus.FAILED
-          ) {
-            this.trackedLabs[index] = newTrackedLab;
-          }
-        } else {
-          // Create a new lab tracker
-          this.trackedLabs.push(newTrackedLab);
-        }
-
-        // Update team active labs without mutating the original array
-        this.team = {
-          ...this.team,
-          teamActiveLabs: [
-            ...(this.team?.teamActiveLabs ?? []),
-            newTrackedLab.id!,
-          ],
-        };
-
-        // Emit updated subjects
-        this.userTeamSubject.next({ ...this.team });
-        this.labTrackerService.setLabTrackers([...this.trackedLabs]);
-
-        if (response.data.output) {
-          this.dialog.open(DialogComponent, {
-            data: {
-              title: 'Lab Start',
-              content: JSON.stringify(response.data.output),
-              isCode: true,
-              isReadOnly: true,
-              fileType: 'bash',
-            },
-            width: '75rem',
-            height: '50rem',
-            disableClose: true,
-          });
-        }
-      },
-      error: (err: HttpErrorResponse) => {
-        console.error(`Failed to start lab ${labId}:`, err);
-
-        // Ensure proper extraction of LabActionResult from API response
-        let errorContent: string;
-
-        try {
-          const apiResponse: ApiResponse<LabActionResult> = err.error;
-          errorContent = JSON.stringify(apiResponse.data, null, 2); // Pretty-print JSON
-        } catch (e) {
-          errorContent = JSON.stringify(
-            { error: 'Unexpected error format', details: err.message },
-            null,
-            2
-          );
-        }
-
-        this.dialog.open(DialogComponent, {
-          data: {
-            title: 'Lab Start',
-            content: errorContent,
-            isCode: true,
-            isReadOnly: true,
-            fileType: 'json', // Change to JSON since it's structured data
-          },
-          width: '75rem',
-          height: '50rem',
-          disableClose: true,
-        });
-
-        this.loadingLabs.delete(labId);
-      },
-      complete: () => {
-        // Remove the labId from the loadingLabs set
-        this.loadingLabs.delete(labId);
-      },
-    });*/
+    this.labDeploymentService.startLabDeployment(lab);
+    this.labsLoading.add(lab.id!);
   }
 }

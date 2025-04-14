@@ -7,7 +7,6 @@
                 <p>Owner: {{ labTracker.labOwner?.name }}</p>
                 <p>Status: <a [routerLink]="['/lab/settings', formatLabName(labTracker.labStarted?.name!)]"
                         [queryParams]="{ id: labTracker.id }">{{ labTracker.labStatus }}</a></p>
-                <p>Owner: {{ labTracker.labOwner?.name }}</p>
                 <p>RemoteServer: {{ labTracker.remoteServer?.name }}</p>
                 <p><strong>Created:</strong> {{ labTracker.labStarted?.createdAt ?
                     formatDate(labTracker.labStarted?.createdAt!) : 'N/A' }}</p>
@@ -28,22 +27,20 @@
                 </button>
 
                 <!-- Start Button (for specific conditions) -->
-                <button mat-button class="button start" (click)="console.log()"
+                <button mat-button class="button start" (click)="redeployLab(labTracker)"
                     [disabled]="!labTracker.labStarted?.ready" *ngIf="!isLabLoading(labTracker.id) && 
-            (labTracker.labStatus === 'STOPPED' ||
-            labTracker.labStatus === 'NONE') ||
-            labTracker.labStatus === 'FAILED'">
+                    (labTracker.labStatus === 'STOPPED' || labTracker.labStatus === 'NONE') || labTracker.labStatus === 'FAILED'">
                     Redeploy
                 </button>
 
                 <!-- Settings Button (for Docker Compose type labs) -->
-                <button mat-button class="button start" (click)="getSettings(labTracker.labStarted?.id, user)"
+                <button mat-button class="button start" (click)="getSettings(labTracker)"
                     *ngIf="!isLabLoading(labTracker.id) && labTracker.labStarted?.labType === LabType.DOCKER_COMPOSE">
                     Settings
                 </button>
 
                 <!-- Already Started Buttons (Active Lab) -->
-                <button mat-button class="button stop" (click)="stopLab(labTracker.labStarted?.id, user)"
+                <button mat-button class="button stop" (click)="stopLab(labTracker)"
                     *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'ACTIVE'">
                     Stop
                 </button>
@@ -65,11 +62,11 @@
                 </button>
 
                 <!-- Stopped Button (with delete option) -->
-                <button mat-button class="button stopped"
+                <button mat-button class="button stopped" [disabled]="true"
                     *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'STOPPED'">
                     Stopped
                 </button>
-                <button mat-button class="button stop" (click)="deleteLab(labTracker.labStarted?.id)"
+                <button mat-button class="button stop" (click)="deleteLab(labTracker)"
                     *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'STOPPED'">
                     Delete
                 </button>
