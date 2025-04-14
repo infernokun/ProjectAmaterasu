@@ -28,6 +28,7 @@ public class RemoteCommandService extends BaseService {
         this.amaterasuConfig = amaterasuConfig;
         this.aesUtil = aesUtil;
     }
+
     @Transactional(noRollbackFor = RemoteCommandException.class)
     public RemoteCommandResponse handleRemoteCommand(String cmd, RemoteServer remoteServer) throws RemoteCommandException {
         Session session = null;
@@ -40,7 +41,9 @@ public class RemoteCommandService extends BaseService {
             return new RemoteCommandResponse(result.output(), result.error(), result.exitCode());
         } catch (RemoteCommandException e) {
             LOGGER.error("Exception while running command for server {}: {}", remoteServer.getId(), e.getMessage());
-            throw new RemoteCommandException("Exception while running command: " + e.getMessage());
+            return new RemoteCommandResponse("", e.getMessage(), 1);
+        } catch (Exception e) {
+            throw new RemoteCommandException("Unexpected error occurred: " + e.getMessage());
         } finally {
             disconnectSession(session, remoteServer);
         }

@@ -19,4 +19,8 @@ public class RemoteCommandResponse {
         this.exitCode = exitCode;
         this.both = this.output + this.error;
     }
+
+    public boolean isSuccess() {
+        return exitCode == 0;
+    }
 }

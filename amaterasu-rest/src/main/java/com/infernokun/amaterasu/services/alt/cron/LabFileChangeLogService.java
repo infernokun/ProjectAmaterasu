@@ -9,7 +9,6 @@ import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.models.enums.LabType;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.repositories.LabFileChangeLogRepository;
-import com.infernokun.amaterasu.repositories.LabRepository;
 import com.infernokun.amaterasu.services.entity.LabService;
 import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import com.infernokun.amaterasu.services.BaseService;
@@ -23,20 +22,21 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class LabFileChangeLogService extends BaseService {
     private final LabFileChangeLogRepository labFileChangeLogRepository;
-    private final LabRepository labRepository;
     private final AmaterasuConfig amaterasuConfig;
     private final RemoteCommandService remoteCommandService;
     private final RemoteServerService remoteServerService;
     private final LabService labService;
 
-    public LabFileChangeLogService(LabFileChangeLogRepository labFileChangeLogRepository, LabRepository labRepository, AmaterasuConfig amaterasuConfig, RemoteCommandService remoteCommandService, RemoteServerService remoteServerService, LabService labService) {
+    public LabFileChangeLogService(LabFileChangeLogRepository labFileChangeLogRepository,
+                                   AmaterasuConfig amaterasuConfig, RemoteCommandService remoteCommandService,
+                                   RemoteServerService remoteServerService, LabService labService) {
         this.labFileChangeLogRepository = labFileChangeLogRepository;
-        this.labRepository = labRepository;
         this.amaterasuConfig = amaterasuConfig;
         this.remoteCommandService = remoteCommandService;
         this.remoteServerService = remoteServerService;
@@ -44,7 +44,6 @@ public class LabFileChangeLogService extends BaseService {
     }
 
     @Scheduled(cron = "0 * * * * *")
-    @Transactional(noRollbackFor = {RemoteCommandException.class, NumberFormatException.class})
     public void checkLabFileStats() {
         AtomicInteger count = new AtomicInteger();
 
@@ -52,14 +51,14 @@ public class LabFileChangeLogService extends BaseService {
             LOGGER.info("Starting changelog time check... for {}", dockerServer.getName());
 
             for (Lab lab : labService.findByLabType(LabType.DOCKER_COMPOSE)) {
-                LabFileChangeLog labFileChangeLog = labFileChangeLogRepository.findByLab(lab)
+                LabFileChangeLog labFileChangeLog = findByLab(lab)
                         .orElseGet(() -> LabFileChangeLog.builder()
                                 .lab(lab)
                                 .build());
 
                 if (labFileChangeLog.getId() == null) {
                     lab.setUpdatedAt(LocalDateTime.now().minusYears(10));
-                    labFileChangeLog = this.labFileChangeLogRepository.save(labFileChangeLog);
+                    labFileChangeLog = updateLabFileChangeLog(labFileChangeLog);
                 }
 
                 LocalDateTime remoteTimestamp = fetchRemoteFileTimestamp(lab, dockerServer);
@@ -84,7 +83,7 @@ public class LabFileChangeLogService extends BaseService {
             AtomicInteger count2 = new AtomicInteger();
             LOGGER.info("Starting file validity check...");
 
-            labFileChangeLogRepository.findAll().stream()
+            findAllLabFileChangeLogs().stream()
                     .filter(labFileChangeLog -> labFileChangeLog.getLab().getLabType() == LabType.DOCKER_COMPOSE)
                     .filter(labFileChangeLog -> !labFileChangeLog.getLab().isReady())
                     .forEach(dockerComposeLog -> {
@@ -92,7 +91,7 @@ public class LabFileChangeLogService extends BaseService {
                         dockerComposeLog.getLab().setReady(isLabReady);
                         dockerComposeLog.setUpdatedAt(LocalDateTime.now());
                         labService.updateLab(dockerComposeLog.getLab());
-                        labFileChangeLogRepository.save(dockerComposeLog);
+                        updateLabFileChangeLog(dockerComposeLog);
 
                         LOGGER.info("{} readiness updated to: {}", dockerComposeLog.getLab().getName(),
                                 dockerComposeLog.getLab().isReady());
@@ -104,37 +103,46 @@ public class LabFileChangeLogService extends BaseService {
         });
     }
 
-    @Transactional(noRollbackFor = RemoteCommandException.class)
     private LocalDateTime fetchRemoteFileTimestamp(Lab lab, RemoteServer remoteServer) {
         try {
-            String command = String.format(
-                    "stat -c %%Y %s/%s/%s",
+            String statsCmd = String.format("stat -c %%Y %s/%s/%s",
                     amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile()
             );
 
-            RemoteCommandResponse fetchRemoteFileTimestampOutput = remoteCommandService.handleRemoteCommand(
-                    command, remoteServer);
+            RemoteCommandResponse response = remoteCommandService.handleRemoteCommand(
+                    statsCmd, remoteServer);
 
-            String cmdOutput = fetchRemoteFileTimestampOutput.getBoth().trim();
-
-            if (fetchRemoteFileTimestampOutput.getExitCode() != 0) {
-                throw new RemoteCommandException("fetchRemoteFileTimestamp: Command exited (" + cmdOutput + ")");
+            if (!response.isSuccess()) {
+                LOGGER.warn("Failed to execute command on server {}: {}", remoteServer.getId(), response.getError());
+                return LocalDateTime.MIN;
             }
 
-
-            if (cmdOutput.contains("No such file")) {
-                throw new RemoteCommandException("fetchRemoteFileTimestamp: File not found");
+            String output = response.getBoth().trim();
+            if (output.contains("No such file")) {
+                LOGGER.warn("File not found on server {}: {}", remoteServer.getId(), statsCmd);
+                return LocalDateTime.MIN;
             }
 
-            long timestamp = Long.parseLong(cmdOutput);
-
-            return Instant.ofEpochSecond(timestamp)
+            return Instant.ofEpochSecond(Long.parseLong(output))
                     .atZone(ZoneId.systemDefault())
                     .toLocalDateTime();
+
         } catch (RemoteCommandException | NumberFormatException e) {
-            LOGGER.error(e.getMessage());
+            LOGGER.error("fetchRemoteFileTimestamp: {}", e.getMessage());
             return LocalDateTime.MIN;
         }
+    }
+
+    public List<LabFileChangeLog> findAllLabFileChangeLogs() {
+        return labFileChangeLogRepository.findAll();
+    }
+
+    public Optional<LabFileChangeLog> findByLab(Lab lab) {
+        return labFileChangeLogRepository.findByLab(lab);
+    }
+
+    public LabFileChangeLog updateLabFileChangeLog(LabFileChangeLog labFileChangeLog) {
+        return labFileChangeLogRepository.save(labFileChangeLog);
     }
 
     private String formatTimestamp(LocalDateTime timestamp) {

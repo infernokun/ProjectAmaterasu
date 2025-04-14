@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { User } from '../../../models/user.model';
 import { LabTracker } from '../../../models/lab-tracker.model';
 import { LabStatus } from '../../../enums/lab-status.enum';
-import { BehaviorSubject, Observable, of } from 'rxjs';
+import { BehaviorSubject, Observable, of, Subject, takeUntil } from 'rxjs';
 import { LabTrackerService } from '../../../services/lab-tracker.service';
 import { LabRequest } from '../../../models/dto/lab-request.model';
 import { EditDialogService } from '../../../services/edit-dialog.service';
@@ -22,6 +22,7 @@ import { LabActionResult } from '../../../models/lab-action-result.model';
 import { MatDialog } from '@angular/material/dialog';
 import { CommonDialogComponent } from '../../common/dialog/common-dialog/common-dialog.component';
 import { HttpErrorResponse } from '@angular/common/http';
+import { LabDeploymentService } from '../../../services/lab-deployment.service';
 
 export class RemoteServerSelectData extends SimpleFormData {
   constructor(observables?: ObservableMap) {
@@ -49,6 +50,7 @@ export class RemoteServerSelectData extends SimpleFormData {
 })
 export class LabDeployComponent implements OnInit {
   private isLoadingSubject: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
+  private destroy$ = new Subject<void>();
 
   labTrackers: LabTracker[] = [];
 
@@ -72,11 +74,19 @@ export class LabDeployComponent implements OnInit {
     private editDialogService: EditDialogService,
     private remoteServerService: RemoteServerService,
     private labService: LabService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private labDeploymentService: LabDeploymentService
   ) {}
 
   ngOnInit(): void {
     this.isLoadingSubject.next(true);
+
+    /*this.labDeploymentService.deployLab$
+    .pipe(takeUntil(this.destroy$))
+    .subscribe((lab: Lab) => {
+      this.deployLab(lab, this.user!);
+    });*/
+    
     this.labTrackers$ = this.labTrackerService.labTrackersByTeam$;
     this.labTrackerService.labTrackersByTeam$.subscribe(
       (labTrackers: LabTracker[]) => {
@@ -133,7 +143,7 @@ export class LabDeployComponent implements OnInit {
 
         this.sendStartRequest(labRequest);
       })
-      .subscribe();
+      .subscribe((res) => this.console.log(res));
   }
 
   sendStartRequest(labRequest: LabRequest): void {

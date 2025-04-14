@@ -24,6 +24,7 @@ import { RemoteServerService } from '../../../services/remote-server.service';
 import { ApiResponse } from '../../../models/api-response.model';
 import { LabActionResult } from '../../../models/lab-action-result.model';
 import { LabStatus } from '../../../enums/lab-status.enum';
+import { LabDeploymentService } from '../../../services/lab-deployment.service';
 
 @Component({
   selector: 'app-lab-main',
@@ -75,7 +76,8 @@ export class LabMainComponent implements OnInit {
     private labTrackerService: LabTrackerService,
     private dialog: MatDialog,
     private remoteServerService: RemoteServerService,
-    private authService: AuthService
+    private authService: AuthService,
+    private labDeploymentService: LabDeploymentService
   ) {}
 
   ngOnInit(): void {
@@ -126,6 +128,7 @@ export class LabMainComponent implements OnInit {
 
   deployLabStart(lab: Lab): void {
     this.deployLabStartEmitter.emit(lab);
+    //this.labDeploymentService.startLabDeployment(lab);
     /*  if (!labId) return; // Early return if labId is not provided
 
     this.loadingLabs.add(labId);

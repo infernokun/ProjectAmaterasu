@@ -3,7 +3,7 @@ package com.infernokun.amaterasu.services.alt.cron;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
-import com.infernokun.amaterasu.exceptions.RemoteCommandException;
+import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.models.entities.RemoteServerStats;
 import com.infernokun.amaterasu.models.enums.LabStatus;
@@ -13,19 +13,17 @@ import com.infernokun.amaterasu.services.entity.RemoteServerService;
 import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.entity.RemoteServerStatsService;
-import com.jcraft.jsch.JSchException;
 import jakarta.annotation.PostConstruct;
 import org.hibernate.StaleObjectStateException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Base64;
-import java.util.List;
+import java.util.Optional;
 
 @Service
 public class RemoteStatsService extends BaseService {
@@ -62,20 +60,17 @@ public class RemoteStatsService extends BaseService {
     }
 
     @Scheduled(cron = "0 * * * * *")
-    @Transactional(noRollbackFor = { RemoteCommandException.class, JSchException.class })
     public void getRemoteServerStats() {
-        List<RemoteServer> dockerServers = remoteServerService.findAllServers().stream()
-                .filter(server -> server.getServerType() == ServerType.DOCKER_HOST)
-                .toList();
+        remoteServerService.findAllServers().stream()
+                .filter(s -> s.getServerType() == ServerType.DOCKER_HOST)
+                .forEach(this::safeProcessStats);
+    }
 
-        for (RemoteServer dockerServer : dockerServers) {
-            try {
-                processServerStats(dockerServer);
-            } catch (Exception e) {
-                LOGGER.error("Failed to process stats for server {}: {}",
-                        dockerServer.getId(), e.getMessage());
-                // Consider adding a retry mechanism or alert system here
-            }
+    private void safeProcessStats(RemoteServer server) {
+        try {
+            processServerStats(server);
+        } catch (Exception e) {
+            LOGGER.error("Failed to process stats for server {}: {}", server.getId(), e.getMessage());
         }
     }
 
@@ -85,24 +80,49 @@ public class RemoteStatsService extends BaseService {
 
         try {
             // Ensure the script exists before execution
-            ensureScriptExists(dockerServer, scriptRemotePath, remoteDir);
+            Optional<Boolean> scriptExists = ensureRemoteScriptAvailable(dockerServer, scriptRemotePath);
+            if (scriptExists.isEmpty()) {
+                LOGGER.error("Could not determine if the script exists on server {}, skipping stats processing.",
+                        dockerServer.getId());
+                updateServerStats(dockerServer, null);
+                return;
+            }
+
+            if (!scriptExists.get()) {
+                uploadScriptToServer(dockerServer, scriptRemotePath, remoteDir);
+            }
 
             // Execute the remote command and get the output
-            String jsonOutput = remoteCommandService.handleRemoteCommand(scriptRemotePath, dockerServer).getBoth();
+            RemoteCommandResponse produceStatsCmd = remoteCommandService.handleRemoteCommand(
+                    scriptRemotePath, dockerServer);
 
-            // Parse the JSON response
-            RemoteServerStats statsFromJson = objectMapper.readValue(jsonOutput, RemoteServerStats.class);
+            if (!produceStatsCmd.isSuccess()) {
+                updateServerStats(dockerServer, null);
+                return;
+            }
 
+            Optional<RemoteServerStats> stats = executeStatsScriptAndParse(dockerServer, scriptRemotePath);
+            updateServerStats(dockerServer, stats.orElse(null));
+        } catch (Exception e) {
+            LOGGER.error("Some error has occurred {}: {}", dockerServer.getId(), e.getMessage());
+            updateServerStats(dockerServer, null);
+        }
+    }
 
-            // Update or create stats in a separate transaction
-            updateServerStats(dockerServer, statsFromJson);
+    private Optional<RemoteServerStats> executeStatsScriptAndParse(RemoteServer server, String scriptPath) {
+        RemoteCommandResponse response = remoteCommandService.handleRemoteCommand(scriptPath, server);
+
+        if (!response.isSuccess()) {
+            LOGGER.warn("Failed to execute stats script on server {}: {}", server.getId(), response.getError());
+            return Optional.empty();
+        }
+
+        try {
+            String jsonOutput = response.getBoth();
+            return Optional.of(objectMapper.readValue(jsonOutput, RemoteServerStats.class));
         } catch (JsonProcessingException e) {
-            LOGGER.error("Error processing JSON from server {}: {}", dockerServer.getId(), e.getMessage());
-
-            updateServerStats(dockerServer, null);
-        } catch (RemoteCommandException e) {
-            LOGGER.error("Error executing remote command for server {}: {}", dockerServer.getId(), e.getMessage());
-            updateServerStats(dockerServer, null);
+            LOGGER.error("Failed to parse stats JSON from server {}: {}", server.getId(), e.getMessage(), e);
+            return Optional.empty();
         }
     }
 
@@ -112,7 +132,7 @@ public class RemoteStatsService extends BaseService {
         if (existingStats != null && existingStats.getId() != null) {
             remoteServerStatsRepository.findById(existingStats.getId())
                     .ifPresentOrElse(
-                            existing -> updateStats(existing, statsFromJson, remoteServer),
+                            stats -> updateStats(stats, statsFromJson, remoteServer),
                             () -> createNewStats(remoteServer, statsFromJson)
                     );
         } else {
@@ -120,22 +140,27 @@ public class RemoteStatsService extends BaseService {
         }
     }
 
-    private void ensureScriptExists(RemoteServer dockerServer, String scriptRemotePath, String remoteDir) {
-        String checkScriptCommand = String.format("[ -f \"%s\" ] && echo \"true\" || echo \"false\"", scriptRemotePath);
-        String result = remoteCommandService.handleRemoteCommand(checkScriptCommand, dockerServer).getBoth();
+    private Optional<Boolean> ensureRemoteScriptAvailable(RemoteServer server, String scriptPath) {
+        String cmd = String.format("[ -f \"%s\" ] && echo \"true\" || echo \"false\"", scriptPath);
+        RemoteCommandResponse response = remoteCommandService.handleRemoteCommand(cmd, server);
 
-        if (!"true".equals(result.trim())) {
-            LOGGER.info("Script not found on remote system {}. Uploading script to {}", dockerServer.getId(), scriptRemotePath);
-            uploadScript(dockerServer, scriptRemotePath, remoteDir);
+        if (!response.isSuccess()) {
+            LOGGER.warn("Failed to check if script exists on server {}: {}", server.getId(), response.getError());
+            return Optional.empty(); // command failed
         }
+
+        String result = response.getBoth().trim();
+        return Optional.of("true".equals(result)); // script exists or not
     }
 
-    private void uploadScript(RemoteServer dockerServer, String scriptRemotePath, String remoteDir) {
-        String uploadCommand =
-                String.format(
-                        "mkdir -p %s && echo %s | base64 -d > %s && chmod +x %s",
-                        remoteDir + "/scripts", scriptContentBase64, scriptRemotePath, scriptRemotePath);
-        remoteCommandService.handleRemoteCommand(uploadCommand, dockerServer);
+
+    private void uploadScriptToServer(RemoteServer server, String scriptPath, String remoteDir) {
+        String uploadCmd = String.format(
+                "mkdir -p %s && echo %s | base64 -d > %s && chmod +x %s",
+                remoteDir + "/scripts", scriptContentBase64, scriptPath, scriptPath
+        );
+        remoteCommandService.handleRemoteCommand(uploadCmd, server);
+        LOGGER.info("Uploaded script to server {} at {}", server.getId(), scriptPath);
     }
 
     private void updateStats(RemoteServerStats existingStats, RemoteServerStats statsFromJson, RemoteServer remoteServer) {
