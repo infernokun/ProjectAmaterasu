@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { LabService } from '../../services/lab.service';
 import { Lab, LabDTO, LabFormData } from '../../models/lab.model';
 import { UserService } from '../../services/user.service';
@@ -10,6 +10,10 @@ import {
   of,
   distinctUntilChanged,
   filter,
+  takeUntil,
+  catchError,
+  Subject,
+  finalize,
 } from 'rxjs';
 import { User } from '../../models/user.model';
 import { ApiResponse } from '../../models/api-response.model';
@@ -27,29 +31,22 @@ import { RemoteServerService } from '../../services/remote-server.service';
 import { FormControl } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { trigger, transition, style, animate } from '@angular/animations';
+import { DateUtils } from '../../utils/date-utils';
 
 @Component({
   selector: 'app-lab',
   templateUrl: './lab.component.html',
   styleUrl: './lab.component.scss',
-  animations: [
-    trigger('fadeIn', [
-      transition(':enter', [
-        style({ opacity: 0, transform: 'translateY(10px)' }),
-        animate(
-          '300ms ease-out',
-          style({ opacity: 1, transform: 'translateY(0)' })
-        ),
-      ]),
-    ]),
-  ],
+  animations: [],
   standalone: false,
 })
-export class LabComponent implements OnInit {
+export class LabComponent implements OnInit, OnDestroy {
   private loggedInUserSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);
   private userTeamSubject: BehaviorSubject<Team | undefined> = new BehaviorSubject<Team | undefined>(undefined);
   private isLoadingSubject: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
-  private loadingLabs = new Set<string>();
+  private readonly destroy$ = new Subject<void>();
+  private readonly isLoading$ = new BehaviorSubject<boolean>(false);
+  
 
   labs: Lab[] = [];
   team: Team | undefined;
@@ -68,7 +65,6 @@ export class LabComponent implements OnInit {
   loggedInUser$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
   labTrackersByTeam$: Observable<LabTracker[]> = of([]);
   userTeam$: Observable<Team | undefined> = this.userTeamSubject.asObservable();
-  isLoading$: Observable<boolean> = this.isLoadingSubject.asObservable();
 
   constructor(
     private labService: LabService,
@@ -83,62 +79,61 @@ export class LabComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.isLoadingSubject.next(true);
+    this.initializeData();
+  }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private initializeData(): void {
+    this.isLoading$.next(true);
     this.labService.fetchLabs();
 
     combineLatest([this.labService.labs$, this.authService.user$])
       .pipe(
-        // Make sure user exists and labs and labsTracked are arrays (empty arrays are valid)
+        takeUntil(this.destroy$),
         filter(([labs, user]) => !!user && Array.isArray(labs)),
-        // Only react when the team ID changes, not on every emission
-        distinctUntilChanged(
-          ([_, prevUser], [___, currUser]) =>
-            prevUser?.team?.id === currUser?.team?.id
+        distinctUntilChanged(([_, prevUser], [__, currUser]) => 
+          prevUser?.team?.id === currUser?.team?.id
         ),
         switchMap(([labs, user]) => {
-          // Store values locally
-          this.labs = labs!;
-          this.labs$ = this.labService.labs$;
-          this.loggedInUser = user;
-          this.loggedInUserSubject.next(this.loggedInUser);
-
-          this.team = this.loggedInUser?.team;
-          this.userTeamSubject.next(this.loggedInUser?.team);
-
+          this.updateLocalState(labs!, user!);
+          
           const teamId = user?.team?.id;
           if (!teamId) {
-            console.error('Logged in user does not have a team.');
-            return of(undefined);
+            return of([]);
           }
-
-          // Only fetch team data if necessary
-          return this.labTrackerService.getLabTrackersByTeam(
-            this.loggedInUser?.team?.id!
-          );
-        })
+          
+          return this.labTrackerService.getLabTrackersByTeam(teamId)
+            .pipe(
+              catchError(error => {
+                console.error('Failed to load lab trackers:', error);
+                return of([]);
+              })
+            );
+        }),
+        finalize(() => this.isLoading$.next(false))
       )
       .subscribe({
-        next: (labTrackers: LabTracker[] | undefined) => {
-          if (!labTrackers) {
-            return;
-          }
-
-          // Handle empty labsTracked array as a valid case
+        next: (labTrackers: LabTracker[]) => {
           this.trackedLabs = labTrackers.filter(
-            (labTracker: LabTracker) =>
-              labTracker.labStatus !== LabStatus.DELETED
+            tracker => tracker.labStatus !== LabStatus.DELETED
           );
-
           this.labTrackerService.setLabTrackersByTeam(this.trackedLabs);
-
-          this.isLoadingSubject.next(false);
         },
         error: (err) => {
           console.error('Error in data loading process:', err);
-          this.isLoadingSubject.next(false);
-        },
+          this.isLoading$.next(false);
+        }
       });
+  }
+
+  private updateLocalState(labs: Lab[], user: User): void {
+    this.labs = labs;
+    this.loggedInUser = user;
+    this.loggedInUserSubject.next(this.loggedInUser);
   }
 
   addLab(): void {
@@ -182,28 +177,9 @@ export class LabComponent implements OnInit {
       })
       .subscribe((res: any) => {});
   }
-
+  
   formatDate(date: Date): string {
-    if (!date) return '';
-    const options: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    };
-
-    return date.toLocaleString('en-US', options).replace(
-      /,/g,
-      (
-        (count = 0) =>
-        (match: any) => {
-          count++;
-          return count === 2 ? ' @' : match;
-        }
-      )()
-    );
+    return DateUtils.formatDateWithTime(date);
   }
 
   onMouseEnter(): void {
@@ -215,19 +191,24 @@ export class LabComponent implements OnInit {
   }
 
   clear(): void {
-    if (!this.loggedInUser?.team?.id) {
+    const teamId = this.loggedInUser?.team?.id;
+    if (!teamId) {
       console.error('Team ID is missing');
       return;
     }
 
-    this.labService.clear(this.loggedInUser.team.id).subscribe({
-      next: () => {
-        window.location.reload();
-      },
-      error: (err) => {
-        console.error('Failed to clear labs:', err);
-      },
-    });
+    this.labService.clear(teamId)
+      .pipe(
+        takeUntil(this.destroy$),
+        catchError(error => {
+          console.error('Failed to clear labs:', error);
+          return of(null);
+        })
+      )
+      .subscribe({
+        next: () => window.location.reload(),
+        error: (err) => console.error('Failed to clear labs:', err)
+      });
   }
 
   formatLabName(name: string): string {

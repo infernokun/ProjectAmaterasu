@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Subject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { Lab } from '../models/lab.model';
 import { ApiResponse } from '../models/api-response.model';
 import { LabActionResult } from '../models/lab-action-result.model';
@@ -8,26 +8,56 @@ import { LabActionResult } from '../models/lab-action-result.model';
   providedIn: 'root'
 })
 export class LabDeploymentService {
+  // Subjects for events
   private deployLabSubject = new Subject<Lab>();
   deployLab$ = this.deployLabSubject.asObservable();
-
+  
   private deployLabResponseSubject = new Subject<ApiResponse<LabActionResult>>();
   deployLabResponse$ = this.deployLabResponseSubject.asObservable();
-
-  private labsLoadingSubject = new Subject<Set<string>>();
+  
+  // Use BehaviorSubject to maintain loading state
+  private labsLoadingSubject = new BehaviorSubject<Set<string>>(new Set<string>());
   labsLoading$ = this.labsLoadingSubject.asObservable();
-
-
-  startLabDeployment(lab: Lab) {
+  
+  // Start lab deployment
+  startLabDeployment(lab: Lab): void {
+    if (!lab.id) return;
+    
+    // Add lab to loading set
+    const currentLoading = new Set(this.labsLoadingSubject.value);
+    currentLoading.add(lab.id);
+    this.labsLoadingSubject.next(currentLoading);
+    
+    // Emit the lab to trigger deployment
     this.deployLabSubject.next(lab);
   }
-
-  startLabDeploymentFinish(response: ApiResponse<LabActionResult>) {
+  
+  // Handle deployment response from API
+  startLabDeploymentFinish(response: ApiResponse<LabActionResult>): void {
+    // Emit response
     this.deployLabResponseSubject.next(response);
+    
+    // Remove lab from loading state
+    const labId = response.data.labTracker?.labStarted?.id;
+    if (labId) {
+      this.finishLabDeployment(labId);
+    }
   }
-
-  updateLabsLoading(labsLoading: Set<string>) {
+  
+  // Update loading state (may be called from component if needed)
+  updateLabsLoading(labsLoading: Set<string>): void {
     this.labsLoadingSubject.next(labsLoading);
   }
   
+  // Clear a specific lab from loading state
+  finishLabDeployment(labId: string): void {
+    const currentLoading = new Set(this.labsLoadingSubject.value);
+    currentLoading.delete(labId);
+    this.labsLoadingSubject.next(currentLoading);
+  }
+  
+  // Helper to check if a lab is loading
+  isLabLoading(labId: string): boolean {
+    return this.labsLoadingSubject.value.has(labId);
+  }
 }
