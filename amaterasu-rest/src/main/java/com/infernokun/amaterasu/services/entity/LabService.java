@@ -340,12 +340,22 @@ public class LabService extends BaseService {
         }
     }
 
-    public Map<String, Object> getLabFile(String labId, RemoteServer remoteServer) {
-        Lab lab = findLabById(labId);
-
+    public Map<String, Object> getLabFile(Lab lab, RemoteServer remoteServer) {
         switch (lab.getLabType()) {
             case DOCKER_COMPOSE -> {
                 return labReadinessService.getDockerComposeFile(lab, remoteServer);
+            }
+            case DOCKER_CONTAINER -> {
+                throw new LabReadinessException("coming one day...");
+            }
+            default -> throw new LabReadinessException("Lab type not implemented...");
+        }
+    }
+
+    public Map<String, Object> getLabFile(LabTracker labTracker, RemoteServer remoteServer) {
+        switch (labTracker.getLabStarted().getLabType()) {
+            case DOCKER_COMPOSE -> {
+                return labReadinessService.getDockerComposeFile(labTracker, remoteServer);
             }
             case DOCKER_CONTAINER -> {
                 throw new LabReadinessException("coming one day...");

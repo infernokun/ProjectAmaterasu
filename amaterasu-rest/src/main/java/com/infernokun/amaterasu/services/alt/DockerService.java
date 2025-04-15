@@ -192,6 +192,7 @@ public class DockerService extends BaseService {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public String modifyDockerComposeYAML(String yaml, String labTrackerId) {
         Yaml yamlParser = new Yaml();
         Map<String, Object> data = yamlParser.load(yaml);
@@ -211,13 +212,6 @@ public class DockerService extends BaseService {
             });
         }
 
-        /* Ensure volumes section is updated
-        Map<String, Object> volumes = getMap(data, "volumes");
-        if (volumes == null) {
-            volumes = new LinkedHashMap<>();
-            data.put("volumes", volumes);
-        }*/
-
         if (services != null && getMap(data, "volumes") != null) {
             Map<String, Object> finalVolumes = getMap(data, "volumes");;
             services.keySet().forEach(serviceName -> finalVolumes.put(serviceName + "_" + labTrackerId, null));
@@ -225,12 +219,15 @@ public class DockerService extends BaseService {
 
         return new Yaml().dump(data);
     }
+
+    @SuppressWarnings("unchecked")
     private Map<String, Object> getMap(Object obj) {
         return (obj instanceof Map) ? (Map<String, Object>) obj : null;
     }
 
+    @SuppressWarnings("unchecked")
     private Map<String, Object> getMap(Map<String, Object> parent, String key) {
-        return (parent != null && parent.get(key) instanceof Map) ? (Map<String, Object>) parent.get(key) : null;
+        return (parent != null && parent.get(key) instanceof Map<?, ?>) ? (Map<String, Object>) parent.get(key) : null;
     }
 
     public String modifyVolume(String originalVolume, String labTrackerId, String serviceName) {

@@ -52,4 +52,8 @@ export class LabTrackerService extends BaseService {
   setLabTrackersByTeam(labTrackers: LabTracker[]): void {
     this.labTrackersByTeamSubject.next(labTrackers);
   }
+
+  getSettings(labTrackerId: string, remoteServerId: string): Observable<ApiResponse<any>> {
+    return this.get<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/lab-tracker/settings/' + labTrackerId + '/' + remoteServerId);
+  }
 }

@@ -29,9 +29,7 @@ import java.util.Collections;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -149,7 +147,7 @@ class LabControllerTest {
         Map<String, Object> fileResponse = Collections.singletonMap("key", "value");
 
         when(remoteServerService.findServerById("rs1")).thenReturn(remoteServer);
-        when(labService.getLabFile("1", remoteServer)).thenReturn(fileResponse);
+        when(labService.getLabFile(lab, remoteServer)).thenReturn(fileResponse);
 
         mockMvc.perform(get("/api/labs/settings/1/rs1"))
                 .andExpect(status().isOk())

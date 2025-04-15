@@ -1,9 +1,9 @@
-import { trigger, transition, style, animate } from '@angular/animations';
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { Lab } from '../../../models/lab.model';
 import {
-  BehaviorSubject,
+  catchError,
   Observable,
+  of,
   Subject,
   takeUntil,
 } from 'rxjs';
@@ -13,14 +13,16 @@ import { LabTracker } from '../../../models/lab-tracker.model';
 import { LabTrackerService } from '../../../services/lab-tracker.service';
 import { LabService } from '../../../services/lab.service';
 import { AuthService } from '../../../services/auth.service';
-import { Team } from '../../../models/team.model';
 import { TeamService } from '../../../services/team.service';
 import { MatDialog } from '@angular/material/dialog';
 import { RemoteServerService } from '../../../services/remote-server.service';
 import { ApiResponse } from '../../../models/api-response.model';
-import { LabActionResult } from '../../../models/lab-action-result.model';
 import { LabDeploymentService } from '../../../services/lab-deployment.service';
 import { FADE_ANIMATION } from '../../../utils/animations';
+import { CommonDialogComponent } from '../../common/dialog/common-dialog/common-dialog.component';
+import { EditDialogService } from '../../../services/edit-dialog.service';
+import { RemoteServer, RemoteServerSelectData } from '../../../models/remote-server.model';
+import { getServerType } from '../../../utils/server-lab-type';
 
 @Component({
   selector: 'app-lab-main',
@@ -52,7 +54,8 @@ export class LabMainComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private remoteServerService: RemoteServerService,
     private authService: AuthService,
-    private labDeploymentService: LabDeploymentService
+    private labDeploymentService: LabDeploymentService,
+    private editDialogService: EditDialogService
   ) {
     this.labs$ = this.labService.labs$;
     this.labsLoading$ = this.labDeploymentService.labsLoading$;
@@ -109,6 +112,57 @@ export class LabMainComponent implements OnInit, OnDestroy {
     reader.readAsText(file);
   }
 
+  getSettings(lab: Lab): void {
+    if (!lab.id) {
+      console.error('Cannot get settings without required IDs');
+      return;
+    }
+
+    const labId = lab.id;
+
+    const remoteServers$: Observable<RemoteServer[]> =
+      this.remoteServerService.getRemoteServerByServerType(
+        getServerType(lab.labType!)
+      );
+
+    const remoteServerSelectFormData = new RemoteServerSelectData({
+      remoteServer: remoteServers$,
+    });
+
+    let dialogCancelled = true;
+
+    this.editDialogService
+      .openDialog<any>(remoteServerSelectFormData, (response: any) => {
+        if (!response?.remoteServer) {
+          console.error('No remote server selected');
+          return;
+        }
+
+        dialogCancelled = false;
+        this.labService.getSettings(labId, response.remoteServer)
+      .pipe(
+        takeUntil(this.destroy$),
+        catchError(error => {
+          console.error('Failed to get lab settings:', error);
+          return of({ code: 404, data: {}, message: 'Failed to fetch settings' });
+        })
+      )
+      .subscribe((res: ApiResponse<any>) => {
+        if (!res.data || !res.data.yml) {
+          console.error('No YAML data found in response!');
+          return;
+        }
+        
+        this.showOutputDialog('Lab Settings', res.data.yml, 'yaml', false);
+      });
+      })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        if (dialogCancelled && lab.id) {
+        }
+      });
+  }
+
   isInTrackedLabs(labId?: string): boolean {
     if (!labId) return false;
     return this.labTrackers.some(tracker => tracker.labStarted?.id === labId);
@@ -120,5 +174,22 @@ export class LabMainComponent implements OnInit, OnDestroy {
 
   onMouseLeave(): void {
     this.isHovered = false;
+  }
+
+  private showOutputDialog(title: string, content: string | object, fileType: string, isReadOnly: boolean = true): void {
+    const dialogContent = typeof content === 'object' ? JSON.stringify(content, null, 2) : content;
+    
+    this.dialog.open(CommonDialogComponent, {
+      data: {
+        title: title,
+        content: dialogContent,
+        isCode: true,
+        isReadOnly: isReadOnly,
+        fileType: fileType,
+      },
+      width: '75rem',
+      height: '50rem',
+      disableClose: true,
+    });
   }
 }

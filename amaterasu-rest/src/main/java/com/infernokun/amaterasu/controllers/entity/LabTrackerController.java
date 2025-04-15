@@ -4,22 +4,33 @@ import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.LabTracker;
+import com.infernokun.amaterasu.models.entities.RemoteServer;
+import com.infernokun.amaterasu.services.alt.LabReadinessService;
+import com.infernokun.amaterasu.services.entity.LabService;
 import com.infernokun.amaterasu.services.entity.LabTrackerService;
+import com.infernokun.amaterasu.services.entity.RemoteServerService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/lab-tracker")
 public class LabTrackerController extends BaseController {
     private final LabTrackerService labTrackerService;
+    private final RemoteServerService remoteServerService;
+    private final LabService labService;
+    private final LabReadinessService labReadinessService;
 
-    public LabTrackerController(LabTrackerService labTrackerService) {
+    public LabTrackerController(LabTrackerService labTrackerService, RemoteServerService remoteServerService, LabService labService, LabReadinessService labReadinessService) {
         this.labTrackerService = labTrackerService;
+        this.remoteServerService = remoteServerService;
+        this.labService = labService;
+        this.labReadinessService = labReadinessService;
     }
 
     @GetMapping
@@ -88,5 +99,22 @@ public class LabTrackerController extends BaseController {
                 .message( "Lab tracker updated successfully.")
                 .data(updatedLabTracker)
                 .build());
+    }
+
+    @GetMapping("/settings/{labTrackerId}/{remoteServerId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getLabFile(@PathVariable String labTrackerId,
+                                                                       @PathVariable String remoteServerId) {
+        RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
+        Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
+        LabTracker labTracker = labTrackerOptional.orElseThrow();
+        Map<String, Object> response = labService.getLabFile(labTracker, remoteServer);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Map<String, Object>>builder()
+                        .code(HttpStatus.OK.value())
+                        .message(String.format("LabTracker id %s settings retrieved!", labTrackerId))
+                        .data(response)
+                        .build()
+        );
     }
 }

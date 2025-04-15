@@ -2,7 +2,7 @@
   <ng-container *ngFor="let lab of labs$ | async">
     <div class="lab-card" @fadeIn (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()"
       [ngClass]="lab.ready ? 'lab-ready' : 'lab-not-ready'">
-      <div class="lab-icon">
+      <div class="lab-icon" (click)="getSettings(lab)">
         <img *ngIf="lab.labType === LabType.DOCKER_COMPOSE" src="assets/compose.png" alt="Docker Compose">
         <img *ngIf="lab.labType === LabType.DOCKER_CONTAINER" src="assets/container.png" alt="Docker Container">
       </div>

@@ -82,12 +82,13 @@ public class LabController extends BaseController {
     @GetMapping("/settings/{labId}/{remoteServerId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getLabFile(@PathVariable String labId, @PathVariable String remoteServerId) {
         RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
-        Map<String, Object> response = labService.getLabFile(labId, remoteServer);
+        Lab lab = labService.findLabById(labId);
+        Map<String, Object> response = labService.getLabFile(lab, remoteServer);
 
         return ResponseEntity.ok(
                 ApiResponse.<Map<String, Object>>builder()
                         .code(HttpStatus.OK.value())
-                        .message(String.format("Lab id %s successfully uploaded!", labId))
+                        .message(String.format("Lab id %s settings retrieved!", labId))
                         .data(response)
                         .build()
         );

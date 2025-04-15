@@ -6,13 +6,8 @@ import { BehaviorSubject, catchError, finalize, Observable, of, Subject, takeUnt
 import { LabTrackerService } from '../../../services/lab-tracker.service';
 import { LabRequest } from '../../../models/dto/lab-request.model';
 import { EditDialogService } from '../../../services/edit-dialog.service';
-import {
-  DropDownQuestion,
-  ObservableMap,
-  SimpleFormData,
-} from '../../../models/simple-form-data.model';
 import { LabType } from '../../../enums/lab-type.enum';
-import { RemoteServer } from '../../../models/remote-server.model';
+import { RemoteServer, RemoteServerSelectData } from '../../../models/remote-server.model';
 import { RemoteServerService } from '../../../services/remote-server.service';
 import { Lab } from '../../../models/lab.model';
 import { getServerType } from '../../../utils/server-lab-type';
@@ -25,24 +20,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { LabDeploymentService } from '../../../services/lab-deployment.service';
 import { DateUtils } from '../../../utils/date-utils';
 import { FADE_ANIMATION } from '../../../utils/animations';
-
-export class RemoteServerSelectData extends SimpleFormData {
-  constructor(observables?: ObservableMap) {
-    super('remoteServerSelect');
-
-    this.questions.push(
-      new DropDownQuestion({
-        label: 'Remote Server',
-        key: 'remoteServer',
-        options: [],
-        asyncData:
-          observables && observables['remoteServer']
-            ? observables['remoteServer']
-            : undefined,
-      })
-    );
-  }
-}
 
 @Component({
   selector: 'app-lab-deploy',
@@ -312,12 +289,12 @@ export class LabDeployComponent implements OnInit, OnDestroy {
   }
 
   getSettings(labTracker: LabTracker): void {
-    if (!labTracker.labStarted?.id || !labTracker.remoteServer?.id) {
+    if (!labTracker.id || !labTracker.remoteServer?.id) {
       console.error('Cannot get settings without required IDs');
       return;
     }
     
-    this.labService.getSettings(labTracker.labStarted.id, labTracker.remoteServer.id)
+    this.labTrackerService.getSettings(labTracker.id, labTracker.remoteServer.id)
       .pipe(
         takeUntil(this.destroy$),
         catchError(error => {
