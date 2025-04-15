@@ -3,7 +3,7 @@
 
   <!-- Docker Services Section -->
   <div class="service-list" *ngIf="labTracker?.remoteServer?.serverType === ServerType.DOCKER_HOST">
-    <div *ngFor="let service of labTrackerSubject.value?.services" class="service-card">
+    <div *ngFor="let service of labTracker?.services" class="service-card">
       <h2>{{ service.name }}</h2>
       <p><strong>Status:</strong> {{ service.state }}</p>
       <p><strong>IP Addresses:</strong>
@@ -28,6 +28,8 @@
         </li>
       </ul>
     </div>
+  </div>
+  <div *ngIf="labTracker?.labStatus == 'FAILED'">
   </div>
 
   <!-- Proxmox VMs Section -->

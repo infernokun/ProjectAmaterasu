@@ -131,8 +131,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       (labTracker: LabTracker) =>
         teamLabTrackerIds.includes(labTracker.id!) &&
         labTracker.labStatus !== LabStatus.DELETED &&
-        labTracker.labStarted?.id === lab.id
-    );
+        labTracker.labStarted?.id === lab.id);
 
     const latestLabTracker: LabTracker | undefined =
       filteredTrackedLabs.sort(
@@ -147,7 +146,6 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       remoteServerId: remoteServerId,
     };
   }
-
 
   sendStartRequest(labRequest: LabRequest): void {
     if (!labRequest.labId) {
@@ -309,6 +307,32 @@ export class LabDeployComponent implements OnInit, OnDestroy {
         }
         
         this.showOutputDialog('Lab Settings', res.data.yml, 'yaml', false);
+      });
+  }
+
+  getLogs(labTracker: LabTracker): void {
+    if (!labTracker.id || !labTracker.remoteServer?.id) {
+      console.error('Cannot get settings without required IDs');
+      return;
+    }
+    
+    this.labTrackerService.getLogs(labTracker.id, labTracker.remoteServer.id)
+      .pipe(
+        takeUntil(this.destroy$),
+        catchError(error => {
+          console.error('Failed to get lab logs:', error);
+          return of({ code: 404, data: {}, message: 'Failed to fetch logs' });
+        })
+      )
+      .subscribe((res: ApiResponse<any>) => {
+
+        if (!res.data) {
+          console.error('No data found in response!');
+          return;
+        }
+
+        
+        //this.showOutputDialog('Lab Settings', res.data, 'bash', false);
       });
   }
 

@@ -72,16 +72,21 @@
             <mat-icon>settings</mat-icon>
             Settings
           </button>
+
+          <!-- Logs button -->
+          <button mat-flat-button class="action-btn logs" 
+                  (click)="getLogs(labTracker)"
+                  *ngIf="!isLabLoading(labTracker.id) && 
+                         labTracker.labStarted?.labType === LabType.DOCKER_COMPOSE">
+            <mat-icon>description</mat-icon>
+            Logs
+          </button>
           
           <!-- Active lab buttons -->
           <ng-container *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'ACTIVE'">
             <button mat-flat-button class="action-btn stop" (click)="stopLab(labTracker)">
               <mat-icon>stop</mat-icon>
               Stop
-            </button>
-            <button mat-flat-button class="action-btn logs" (click)="viewLogs(labTracker.labStarted?.id)">
-              <mat-icon>description</mat-icon>
-              Logs
             </button>
           </ng-container>
           
