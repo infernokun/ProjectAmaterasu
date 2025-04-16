@@ -332,7 +332,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
         }
 
         
-        //this.showOutputDialog('Lab Settings', res.data, 'bash', false);
+        this.showOutputDialog('Lab Settings', res.data, 'bash', false);
       });
   }
 

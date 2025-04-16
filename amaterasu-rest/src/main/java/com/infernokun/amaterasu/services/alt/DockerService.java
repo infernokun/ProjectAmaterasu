@@ -118,8 +118,8 @@ public class DockerService extends BaseService {
             }
 
             // Check the Docker process status
-            String checkTrackerProcessCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s ps -q | xargs docker inspect",
-                    amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
+            String checkTrackerProcessCmd = String.format("cd %s/tracker-compose && docker-compose -p %s ps -q | xargs docker inspect",
+                    amaterasuConfig.getUploadDir(), labTracker.getId());
             RemoteCommandResponse checkTrackerProcessOutput = remoteCommandService.handleRemoteCommand(checkTrackerProcessCmd, remoteServer);
             LOGGER.info("Docker inspect output: {}", checkTrackerProcessOutput.getBoth());
 
@@ -142,15 +142,15 @@ public class DockerService extends BaseService {
     }
 
     public LabActionResult stopDockerComposeOnFail(LabTracker labTracker, RemoteServer remoteServer, String msg) {
-        String stopTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s down",
-                amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
+        String stopTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s logs && docker-compose -p %s -f %s down",
+                amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId(), labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
         RemoteCommandResponse stopTrackerComposeOutput = remoteCommandService.handleRemoteCommand(stopTrackerComposeCmd, remoteServer);
         if (stopTrackerComposeOutput.getExitCode() != 0) {
             LOGGER.error("Critical failed: Failed to stop the docker compose!!! ({})", msg);
             return LabActionResult.builder()
                     .labTracker(labTracker)
                     .isSuccessful(false)
-                    .output("Critical failed: Failed to stop the docker compose!!! (" + msg + ")")
+                    .output("Critical failed: Failed to stop the docker compose!!! (" + msg + stopTrackerComposeOutput.getBoth() + ")")
                     .build();
         }
         return LabActionResult.builder()
@@ -233,7 +233,7 @@ public class DockerService extends BaseService {
 
         // If it starts with ./, replace it with <serviceName>_<labTrackerId>
         if (sourcePath.startsWith("./") || sourcePath.startsWith("/")) {
-            modifiedVolumePath = amaterasuConfig.getUploadDir() + "/tracker-volume/"+ labTrackerId + "/" + serviceName + sourcePath.substring(1);
+            modifiedVolumePath = amaterasuConfig.getUploadDir() + "/tracker-volume/"+ labTrackerId + "/" + serviceName + "/" + sourcePath.substring(1);
         } else {
             // Otherwise, treat it as a named volume
             modifiedVolumePath = serviceName + "_" + labTrackerId;

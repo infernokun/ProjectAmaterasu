@@ -46,7 +46,7 @@
                 <div class="change-item">
                     <span>{{ change.serviceName }}: {{ change.targetPath }}</span>
                     <span class="arrow">→</span>
-                    <span class="new-value">{{ change.newFile ? change.newFile.name : 'No file selected' }}</span>
+                    <span class="new-value">{{ change.file ? change.file.name : 'No file selected' }}</span>
                     <button type="button" class="btn btn-sm btn-outline-danger"
                         (click)="removeVolumeChange(change.serviceName, change.index)">
                         Remove

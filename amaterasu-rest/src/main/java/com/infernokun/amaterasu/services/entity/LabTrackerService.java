@@ -17,9 +17,11 @@ import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -47,6 +49,10 @@ public class LabTrackerService extends BaseService {
     public List<LabTracker> findLabTrackerByTeamId(String teamId) {
         Team labOwner = teamService.findTeamById(teamId);
         return labTrackerRepository.findLabTrackersByLabOwner(labOwner);
+    }
+
+    public List<LabTracker> findLabTrackerByLabStatus(LabStatus labStatus) {
+        return labTrackerRepository.findByLabStatus(labStatus);
     }
 
     public Optional<LabTracker> findLabTrackerByLabStartedAndLabOwnerAndStatusNotDeleted(Lab labStarted, Team labOwner) {
@@ -93,9 +99,7 @@ public class LabTrackerService extends BaseService {
 
     public String getTrackerLabLogs(LabTracker labTracker, RemoteServer dockerServer) {
         try {
-            String cmd = String.format("DIR=%s/tracker-compose && cd $DIR && docker-compose -f %s logs",
-                    amaterasuConfig.getUploadDir(), labTracker.getId() + "_" + labTracker.getLabStarted()
-                            .getDockerFile());
+            String cmd = String.format("docker-compose -p %s logs", labTracker.getId());
 
             RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(cmd, dockerServer);
 
@@ -112,29 +116,39 @@ public class LabTrackerService extends BaseService {
                     amaterasuConfig.getUploadDir(), ((Lab) object).getId(), ((Lab) object).getDockerFile());
         } else if (object instanceof LabTracker) {
             cmd = String.format("DIR=%s/tracker-compose && cd $DIR && cat %s",
-                    amaterasuConfig.getUploadDir(), ((LabTracker) object).getId() + "_" + ((LabTracker) object).getLabStarted().getDockerFile());
+                    amaterasuConfig.getUploadDir(), ((LabTracker) object).getId() + "_" + ((LabTracker) object)
+                            .getLabStarted().getDockerFile());
         } else {
             throw new IllegalArgumentException("Unsupported lab type: " + object.getClass().getName());
         }
         return cmd;
     }
 
-    public boolean addVolumeFiles(
-            LabTracker labTracker,
-            RemoteServer remoteServer,
-            List<VolumeChangeDTO> volumeChanges,
-            Map<String, MultipartFile> fileMap
-    ) {
-        for (int i = 0; i < volumeChanges.size(); i++) {
-            VolumeChangeDTO change = volumeChanges.get(i);
-            MultipartFile file = fileMap.get("file-" + i);
+    public List<RemoteCommandResponse> addVolumeFiles(LabTracker labTracker, RemoteServer remoteServer,
+                                                      List<VolumeChangeDTO> volumeChanges,
+                                                      List<MultipartFile> files) {
+        List<RemoteCommandResponse> result = new ArrayList<>();
 
-            if (file == null || file.isEmpty()) {
-                continue;
+        volumeChanges.forEach(volumeChange -> {
+            String content = "";
+            try {
+                content = new String(files.get(volumeChange.getIndex()).getBytes(), StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-        }
+            String createFileCmd = "";
+            if (volumeChange.isDirectory()) {
+                createFileCmd = String.format("DIR=%s && cd $DIR && echo \"%s\" | tee %s", volumeChange.getTargetPath(), content, volumeChange.getFileName());
+            } else {
+                createFileCmd = String.format("FILE=%s && rmdir $FILE && echo \"%s\"  | tee $FILE", volumeChange.getTargetPath(), content);
+            }
 
-        return false;
+
+            RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(createFileCmd, remoteServer);
+
+            result.add(remoteCommandResponse);
+        });
+        return result;
     }
 
 

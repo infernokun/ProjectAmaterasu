@@ -31,7 +31,7 @@
   </div>
 
   <div *ngIf="labTracker?.labStatus === 'FAILED' && ymlData">
-    <app-settings-configure [ymlData]="ymlData" [labTrackerId]="labTracker?.id"></app-settings-configure>
+    <app-settings-configure [ymlData]="ymlData" [labTracker]="labTracker"></app-settings-configure>
   </div>
 
   <!-- Proxmox VMs Section -->

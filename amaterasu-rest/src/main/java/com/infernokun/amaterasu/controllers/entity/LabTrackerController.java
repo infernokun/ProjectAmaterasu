@@ -5,9 +5,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
+import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.dto.VolumeChangeDTO;
 import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
+import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.services.entity.LabService;
 import com.infernokun.amaterasu.services.entity.LabTrackerService;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
@@ -16,11 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/lab-tracker")
@@ -43,6 +41,13 @@ public class LabTrackerController extends BaseController {
                         .code(HttpStatus.OK.value())
                         .message("Lab trackers by team " + params.get("teamId") + " retrieved successfully.")
                         .data(labTrackerService.findLabTrackerByTeamId(params.get("teamId")))
+                        .build());
+            }
+            else if (params.containsKey("labStatus")) {
+                return ResponseEntity.ok(ApiResponse.<List<LabTracker>>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Lab trackers by team " + params.get("teamId") + " retrieved successfully.")
+                        .data(labTrackerService.findLabTrackerByLabStatus(LabStatus.valueOf(params.get("labStatus"))))
                         .build());
             }
         }
@@ -120,36 +125,34 @@ public class LabTrackerController extends BaseController {
         );
     }
 
-    @PostMapping("/settings/{labTrackerId}/{remoteServerId}")
-    public ResponseEntity<ApiResponse<Boolean>> addVolumeFiles(@PathVariable String labTrackerId,
+    @PostMapping(value = "/settings/{labTrackerId}/{remoteServerId}")
+    public ResponseEntity<ApiResponse<List<RemoteCommandResponse>>> addVolumeFiles(@PathVariable String labTrackerId,
                                                                @PathVariable String remoteServerId,
-                                                               @RequestPart("volumeChanges") String volumeChangesJson,
-                                                               @RequestPart Map<String, MultipartFile> fileMap) {
+                                                               @RequestParam("volumeChanges") String volumeChangesJson,
+                                                               @RequestParam("files") List<MultipartFile> files) {
+
         // Deserialize volumeChanges JSON
         ObjectMapper objectMapper = new ObjectMapper();
-        List<VolumeChangeDTO> volumeChanges;
 
+        List<VolumeChangeDTO> volumeChanges;
         try {
-            volumeChanges = objectMapper.readValue(
-                    volumeChangesJson,
-                    new TypeReference<>() {
-                    }
-                );
+            volumeChanges = objectMapper.readValue(volumeChangesJson, new TypeReference<>() {
+            });
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
+        LOGGER.error(files.toString());
 
         RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
         LabTracker labTracker = labTrackerOptional.orElseThrow();
-
-        Boolean isSuccessful = labTrackerService.addVolumeFiles(labTracker, remoteServer, volumeChanges, fileMap);
+        List<RemoteCommandResponse> result = labTrackerService.addVolumeFiles(labTracker, remoteServer, volumeChanges, files);
 
         return ResponseEntity.ok(
-                ApiResponse.<Boolean>builder()
+                ApiResponse.<List<RemoteCommandResponse>>builder()
                         .code(HttpStatus.OK.value())
                         .message(String.format("Upload for id %s success!", labTrackerId))
-                        .data(isSuccessful)
+                        .data(result)
                         .build()
         );
     }

@@ -60,4 +60,8 @@ export class LabTrackerService extends BaseService {
   getLogs(labTrackerId: string, remoteServerId: string): Observable<ApiResponse<any>> {
     return this.get<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/lab-tracker/logs/' + labTrackerId + '/' + remoteServerId);
   }
+
+  uploadVolumeFiles(labTrackerId: string, remoteServerId: string, formData: FormData) {
+    return this.post<ApiResponse<boolean>>(this.environmentService.settings?.restUrl + '/lab-tracker/settings/' + labTrackerId + '/' + remoteServerId, formData);
+  }
 }

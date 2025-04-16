@@ -9,6 +9,6 @@ public class VolumeChangeDTO {
     private String serviceName;
     private int index;
     private String targetPath;
-    private boolean isDirectory;
+    private boolean directory;
     private String fileName;
 }

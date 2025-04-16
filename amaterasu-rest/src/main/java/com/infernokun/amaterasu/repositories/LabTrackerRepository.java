@@ -16,4 +16,6 @@ public interface LabTrackerRepository extends JpaRepository<LabTracker, String> 
     Optional<LabTracker> findLabTrackerByLabStartedAndLabOwnerAndLabStatusNot(Lab labStarted, Team labOwner, LabStatus labStatus);
 
     List<LabTracker> findLabTrackersByLabOwner(Team labOwner);
+
+    List<LabTracker> findByLabStatus(LabStatus labStatus);
 }

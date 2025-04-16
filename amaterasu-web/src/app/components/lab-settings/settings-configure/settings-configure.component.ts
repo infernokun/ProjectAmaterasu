@@ -1,15 +1,17 @@
 import { Component, ElementRef, Input, ViewChild } from '@angular/core';
-import { Subject } from 'rxjs';
+import { Subject, takeUntil } from 'rxjs';
 import { ServerType } from '../../../enums/server-type.enum';
 import { LabTracker } from '../../../models/lab-tracker.model';
 import { ComposeFile, Volume } from '../lab-settings.component';
+import { LabTrackerService } from '../../../services/lab-tracker.service';
 
 export interface VolumeChange {
   serviceName: string;
   index: number;
   targetPath: string;
-  newFile: File | null;
-  isDirectory: boolean;
+  directory: boolean;
+  fileName: string;
+  file: File | null;
 }
 
 @Component({
@@ -25,7 +27,7 @@ export class SettingsConfigureComponent {
   labName: string = '';
   admin = false;
   @Input() ymlData?: ComposeFile;
-  @Input() labTrackerId?: string;
+  @Input() labTracker?: LabTracker;
   ServerType = ServerType;
 
   // New properties for volume editing
@@ -36,6 +38,8 @@ export class SettingsConfigureComponent {
   currentUploadIsDirectory = false;
 
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+
+  constructor(private labTrackerService: LabTrackerService) { }
 
   ngOnInit() {}
 
@@ -110,8 +114,9 @@ export class SettingsConfigureComponent {
         serviceName: this.currentEditingService,
         index: this.currentEditingIndex,
         targetPath,
-        newFile: selectedFile,
-        isDirectory,
+        directory: isDirectory,
+        fileName: selectedFile.name,
+        file: selectedFile
       });
     }
 
@@ -120,7 +125,9 @@ export class SettingsConfigureComponent {
   }
 
   private isTargetPathDirectory(volume: string): boolean {
-    const parts = volume.split(':');
+    return !volume.includes('.');
+    const cleanVol = volume.replace(":ro", "");
+    const parts = cleanVol.split(':');
     const target = parts.length > 1 ? parts[1] : '';
 
     // Heuristic: if target ends with slash or doesn't contain a file extension
@@ -129,7 +136,7 @@ export class SettingsConfigureComponent {
 
   private extractTargetPath(volume: string): string {
     const parts = volume.split(':');
-    return parts.length >= 2 ? parts[1] : ''; // source:target[:ro]
+    return parts.length >= 2 ? parts[0] : ''; // source:target[:ro]
   }
 
   isVolumeModified(serviceName: string, index: number): boolean {
@@ -153,33 +160,30 @@ export class SettingsConfigureComponent {
     const changes: VolumeChange[] = Array.from(this.volumeChanges.values());
     const formData = new FormData();
 
-    formData.append('labTrackerId', this.labTrackerId ?? '');
+    formData.append('labTrackerId', this.labTracker?.id ?? '');
 
     // Add volume change metadata as a JSON blob
-    const metadata = changes.map((change) => ({
+    const metadata: any[] = changes.map((change) => ({
       serviceName: change.serviceName,
       index: change.index,
       targetPath: change.targetPath,
-      isDirectory: change.isDirectory,
-      fileName: change.newFile?.name
-    }));
+      directory: change.directory,
+      fileName: change.file?.name
+    } as VolumeChange));
 
-    formData.append(
-      'volumeChanges',
-      new Blob([JSON.stringify(metadata)], { type: 'application/json' })
-    );
+    console.log('metadata', metadata);
 
-    changes.forEach((change, idx) => {
-      if (change.newFile) {
-        // Ensure the file field is predictable and matches backend expectations
-        formData.append(`file-${idx}`, change.newFile);
-      }
-    });
+    formData.append('volumeChanges', JSON.stringify(metadata));
 
-    console.log(formData);
+    //const fileList: File[] = changes.map((change) => (`${change.index}`: change.file))
+
+    changes.forEach((change) => {
+      formData.append("files", change.file!, change.file?.name)
+    })
+
 
     // Call your backend service
-    /*this.labTrackerService.uploadVolumeFiles(formData)
+    this.labTrackerService.uploadVolumeFiles(this.labTracker?.id!, this.labTracker?.remoteServer?.id!, formData)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
@@ -189,12 +193,11 @@ export class SettingsConfigureComponent {
           this.isEditMode = false;
           
           // Optionally reload the lab tracker to reflect changes
-          this.loadLabTracker();
         },
         error: (error) => {
           console.error('Error uploading files', error);
           // Handle error (show message, etc.)
         }
-      });*/
+      });
   }
 }
