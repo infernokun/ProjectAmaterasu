@@ -23,8 +23,10 @@
       </p>
       <p><strong>Volumes:</strong></p>
       <ul>
-        <li *ngFor="let volume of service.volumes | keyvalue">
-          - {{ volume.key }} - {{ volume.value }}<br>
+        <li *ngFor="let volume of service.volumes">
+          <div *ngFor="let vol of volume | keyvalue">
+          - {{ vol.key }} - {{ vol.value}}<br>
+          </div>
         </li>
       </ul>
     </div>

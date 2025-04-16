@@ -285,8 +285,11 @@ public class DockerService extends BaseService {
 
                 // Extract Mounts
                 containerNode.get("Mounts").forEach(mountNode -> {
-                    info.getVolumes().put("hostVolume", mountNode.get("Source").asText());
-                    info.getVolumes().put("containerVolume", mountNode.get("Destination").asText());
+                    Map<String, String> newMap = new HashMap<>();
+                    newMap.put("hostVolume", mountNode.get("Source").asText());
+                    newMap.put("containerVolume", mountNode.get("Destination").asText());
+
+                    info.getVolumes().add(newMap);
                 });
 
                 containerInfos.add(info);
