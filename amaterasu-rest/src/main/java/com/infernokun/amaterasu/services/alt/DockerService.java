@@ -10,14 +10,11 @@ import com.github.dockerjava.core.*;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import com.github.dockerjava.transport.DockerHttpClient;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
-import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.DockerServiceInfo;
 import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
-import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
-import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.entity.LabTrackerService;
 import org.springframework.stereotype.Service;
@@ -31,15 +28,13 @@ import java.util.*;
 @Service
 public class DockerService extends BaseService {
     private final RemoteCommandService remoteCommandService;
-    private final LabTrackerService labTrackerService;
     private final AmaterasuConfig amaterasuConfig;
 
     private DockerClientConfig dockerClientConfig;
     private DockerClient dockerClient;
 
-    public DockerService(RemoteCommandService remoteCommandService, LabTrackerService labTrackerService, AmaterasuConfig amaterasuConfig) {
+    public DockerService(RemoteCommandService remoteCommandService, AmaterasuConfig amaterasuConfig) {
         this.remoteCommandService = remoteCommandService;
-        this.labTrackerService = labTrackerService;
         this.amaterasuConfig = amaterasuConfig;
     }
 
@@ -80,6 +75,7 @@ public class DockerService extends BaseService {
     public boolean dockerHealthCheck(RemoteServer remoteServer) {
         return remoteCommandService.validateConnection(remoteServer);
     }
+
     public LabActionResult startDockerCompose(LabTracker labTracker, RemoteServer remoteServer) {
         try {
             // Fetch the original Docker Compose file content

@@ -5,6 +5,7 @@ import com.infernokun.amaterasu.exceptions.LabReadinessException;
 import com.infernokun.amaterasu.exceptions.RemoteCommandException;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
+import com.infernokun.amaterasu.models.dto.VolumeChangeDTO;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
@@ -14,8 +15,11 @@ import com.infernokun.amaterasu.repositories.LabTrackerRepository;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -114,6 +118,25 @@ public class LabTrackerService extends BaseService {
         }
         return cmd;
     }
+
+    public boolean addVolumeFiles(
+            LabTracker labTracker,
+            RemoteServer remoteServer,
+            List<VolumeChangeDTO> volumeChanges,
+            Map<String, MultipartFile> fileMap
+    ) {
+        for (int i = 0; i < volumeChanges.size(); i++) {
+            VolumeChangeDTO change = volumeChanges.get(i);
+            MultipartFile file = fileMap.get("file-" + i);
+
+            if (file == null || file.isEmpty()) {
+                continue;
+            }
+        }
+
+        return false;
+    }
+
 
     public void deleteAll() {
         this.labTrackerRepository.deleteAll();

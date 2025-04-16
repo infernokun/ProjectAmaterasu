@@ -1,4 +1,4 @@
-<div class="dashboard">
+<div class="dashboard" *ngIf="!isLoading else spinner">
   <h1>Lab Tracker Dashboard</h1>
 
   <!-- Docker Services Section -->
@@ -29,7 +29,9 @@
       </ul>
     </div>
   </div>
-  <div *ngIf="labTracker?.labStatus == 'FAILED'">
+
+  <div *ngIf="labTracker?.labStatus === 'FAILED' && ymlData">
+    <app-settings-configure [ymlData]="ymlData" [labTrackerId]="labTracker?.id"></app-settings-configure>
   </div>
 
   <!-- Proxmox VMs Section -->
@@ -49,3 +51,10 @@
     </div>
   </div>
 </div>
+
+<ng-template #spinner>
+  <div class="spinner-container">
+    <mat-progress-spinner mode="indeterminate" diameter="50" color="primary">
+    </mat-progress-spinner>
+  </div>
+</ng-template>

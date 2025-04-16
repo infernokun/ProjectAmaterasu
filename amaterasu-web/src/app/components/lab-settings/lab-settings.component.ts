@@ -2,9 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { LabService } from '../../services/lab.service';
 import { BehaviorSubject, catchError, combineLatest, of, Subject, takeUntil } from 'rxjs';
-import { Lab } from '../../models/lab.model';
 import { UserService } from '../../services/user.service';
-import { Team } from '../../models/team.model';
 import { LabTrackerService } from '../../services/lab-tracker.service';
 import { LabTracker } from '../../models/lab-tracker.model';
 import { ServerType } from '../../enums/server-type.enum';
@@ -12,21 +10,20 @@ import { ApiResponse } from '../../models/api-response.model';
 
 import { load } from "js-yaml";
 
-export class ComposeFile {
-  services?: Service[]
-
-  constructor(serverResult: any) {
-    this.services = serverResult.services;
-  }
+export interface Volume {
+  source?: string;
+  target?: string;
+  readOnly?: boolean;
+  isDirectory?: boolean;
 }
 
-export class Service {
+export interface Service {
   image?: string;
   volumes?: Volume[];
 }
 
-export class Volume {
-  mappings?: string[];
+export interface ComposeFile {
+  services?: Record<string, Service>;
 }
 
 @Component({
@@ -47,54 +44,89 @@ export class LabSettingsComponent implements OnInit, OnDestroy {
   labTrackerSubject: BehaviorSubject<LabTracker | undefined> = new BehaviorSubject<LabTracker | undefined>(undefined);
   labTracker: LabTracker | undefined;
   ServerType = ServerType;
+
+  isLoading: boolean = true;
   
   constructor(private route: ActivatedRoute, private labService: LabService, private labTrackerService: LabTrackerService, private userService: UserService) { }
 
   ngOnInit(): void {
+    // Use switchMap for better stream handling
     combineLatest([
       this.route.paramMap,
       this.route.queryParamMap
-    ]).subscribe(([paramMap, queryParamMap]) => {
-      this.labName = paramMap.get('name')!;
-      this.labId = queryParamMap.get('id')!;
+    ]).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(([paramMap, queryParamMap]) => {
+      this.labName = paramMap.get('name') || '';
+      this.labId = queryParamMap.get('id') || '';
+      
+      if (!this.labId) {
+        console.error('No lab ID provided');
+        return;
+      }
 
-      this.labTrackerService.getLabTrackerById(this.labId).subscribe((labTracker) => {
-        console.log('labTracker', labTracker);
-        this.labTracker = labTracker;
-
-        if (labTracker.services?.length! < 1) {
-          console.log("Loading additional config loader");
-          this.labTrackerService.getSettings(labTracker.id!, labTracker.remoteServer?.id!)
-          .pipe(
-            takeUntil(this.destroy$),
-            catchError(error => {
-              console.error('Failed to get lab settings:', error);
-              return of({ code: 404, data: {}, message: 'Failed to fetch settings' });
-            })
-          )
-          .subscribe((res: ApiResponse<any>) => {
-            if (res && res.data && res.data.yml) {
-              this.ymlData = load(res.data.yml) as unknown as ComposeFile;
-              
-              console.log(this.ymlData);
-              console.log(this.ymlData.services![0])
-            }
-          });
-        }
-      });
-    });
-
-    this.userService.getLoggedInUser().subscribe((user) => {
-      if (!user) return;
-
-      console.log('user', user);
-
-      let team: Team = user.team!;
+      this.loadLabTracker();
     });
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private loadLabTracker(): void {
+    this.labTrackerService.getLabTrackerById(this.labId).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe((labTracker: LabTracker) => {
+      console.log('labTracker', labTracker);
+      this.labTracker = labTracker;
+      this.labTrackerSubject.next(labTracker);
+      
+      if (!labTracker.services || labTracker.services.length < 1) {
+        this.loadAdditionalSettings(labTracker);
+      } else {
+        this.isLoading = false;
+      }
+    });
+  }
+
+  private loadAdditionalSettings(labTracker: LabTracker): void {
+    if (!labTracker.id || !labTracker.remoteServer?.id) {
+      console.error('Missing required IDs to load settings');
+      this.isLoading = false;
+      return;
+    }
+
+    console.log("Loading additional config loader");
+    this.labTrackerService.getSettings(labTracker.id, labTracker.remoteServer.id)
+      .pipe(
+        takeUntil(this.destroy$),
+        catchError(error => {
+          this.isLoading = false;
+          console.error('Failed to get lab settings:', error);
+          return of({ code: 404, data: {}, message: 'Failed to fetch settings' });
+        })
+      )
+      .subscribe((res: ApiResponse<any>) => {
+        if (res?.data?.yml) {
+          try {
+            // Parse YAML to JavaScript object
+            const parsedYaml = load(res.data.yml) as ComposeFile;
+            this.ymlData = parsedYaml;
+            console.log('Parsed YAML data:', this.ymlData);
+            
+            // Check if services exist in the parsed data
+            if (this.ymlData.services) {
+              console.log('First service:', Object.values(this.ymlData.services)[0]);
+            } else {
+              console.warn('No services found in YAML data');
+            }
+          } catch (e) {
+            console.error('Error parsing YAML:', e);
+          }
+        }
+
+        this.isLoading = false;
+      });
   }
 }
