@@ -3,9 +3,10 @@ import { CodeModel } from '@ngstack/code-editor';
 
 
 @Component({
-  selector: 'app-code-block',
-  templateUrl: './code-block.component.html',
-  styleUrls: ['./code-block.component.scss'],
+    selector: 'app-code-block',
+    templateUrl: './code-block.component.html',
+    styleUrls: ['./code-block.component.scss'],
+    standalone: false
 })
 export class CodeBlockComponent implements OnInit {
   @Input() id: string = '';
@@ -14,7 +15,11 @@ export class CodeBlockComponent implements OnInit {
   @Input() versions: number[] = [];
   @Output() onChange = new EventEmitter<string>();
   @Output() onVersionChange = new EventEmitter<number>();
-  @Input() codeModel: CodeModel | undefined;
+  @Input() codeModel: CodeModel | undefined = {
+    language: 'json',
+    uri: 'main.json',
+    value: ''
+  };;
 
   isCopied = false;
   theme = 'vs-dark';
@@ -33,6 +38,7 @@ export class CodeBlockComponent implements OnInit {
   }
 
   ngOnInit() {
+    console.log("codeModel", this.codeModel);
   }
 
   onCodeChanged(value: any) {

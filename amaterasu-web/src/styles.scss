@@ -1,8 +1,9 @@
+@use "sass:meta";
 // Import the prebuilt Angular Material theme
 @import '@angular/material/prebuilt-themes/deeppurple-amber.css'; // You can choose any pre-built theme here
-@import '../node_modules/material-icons/iconfont/material-icons.scss';
-@import 'styles/material-styles.scss';
-@import 'styles/app-styles.scss';
+@include meta.load-css('../node_modules/material-icons/iconfont/material-icons.scss');
+@include meta.load-css('styles/material-styles.scss');
+@include meta.load-css('styles/app-styles.scss');
 @import 'styles/common/dist/css/common-styles.min.css';
 
 // Define dark mode variables

@@ -2,7 +2,7 @@ export class DockerServiceInfo {
   name: string = 'unknown';
   state: string = 'unknown';
   ports: string[] = [];
-  volumes: Map<string, string> = new Map<string, string>();
+  volumes: Map<string, string>[] = [];
   ipAddresses: string[] = [];
   networks: string[] = [];
 

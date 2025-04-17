@@ -4,11 +4,10 @@ import { TeamService } from '../../services/team.service';
 import { Team } from '../../models/team.model';
 
 @Component({
-  selector: 'app-team-audit-log',
-  standalone: true,
-  imports: [CommonModule],
-  templateUrl: './team-audit-log.component.html',
-  styleUrl: './team-audit-log.component.scss'
+    selector: 'app-team-audit-log',
+    imports: [CommonModule],
+    templateUrl: './team-audit-log.component.html',
+    styleUrl: './team-audit-log.component.scss'
 })
 export class TeamAuditLogComponent {
 

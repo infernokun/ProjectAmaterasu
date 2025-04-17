@@ -8,9 +8,10 @@ import { BehaviorSubject, Observable, take } from 'rxjs';
 import { User } from '../../models/user.model';
 
 @Component({
-  selector: 'app-remote-server',
-  templateUrl: './remote-server.component.html',
-  styleUrls: ['./remote-server.component.scss']
+    selector: 'app-remote-server',
+    templateUrl: './remote-server.component.html',
+    styleUrls: ['./remote-server.component.scss'],
+    standalone: false
 })
 export class RemoteServerComponent implements OnInit {
   remoteServers: RemoteServer[] = [];

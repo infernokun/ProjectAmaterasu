@@ -10,7 +10,8 @@ import lombok.ToString;
 @AllArgsConstructor
 public enum ServerType {
     DOCKER_HOST("DOCKER_HOST"),
-    PROXMOX("PROXMOX");
+    PROXMOX("PROXMOX"),
+    NONE("NONE");
 
     private final String value;
 

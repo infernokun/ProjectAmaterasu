@@ -9,9 +9,10 @@ import { MessageService } from '../../services/message.service';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
-  selector: 'app-users',
-  templateUrl: './users.component.html',
-  styleUrl: './users.component.scss'
+    selector: 'app-users',
+    templateUrl: './users.component.html',
+    styleUrl: './users.component.scss',
+    standalone: false
 })
 export class UsersComponent implements OnInit {
   users: User[] = [];

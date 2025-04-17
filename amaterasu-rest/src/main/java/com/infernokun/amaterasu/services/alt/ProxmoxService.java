@@ -422,13 +422,10 @@ public class ProxmoxService extends BaseService {
                 .build();
     }
 
-    public LabActionResult stopProxmoxLab(String labTrackerId, RemoteServer remoteServer) {
+    public LabActionResult stopProxmoxLab(LabTracker labTracker, RemoteServer remoteServer) {
         if (remoteServer.getServerType() != ServerType.PROXMOX) {
             throw new RuntimeException("Invalid server type");
         }
-
-        LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId)
-                .orElseThrow(() -> new ResourceNotFoundException("LabTracker not found"));
 
         AtomicInteger failures = new AtomicInteger();
         List<String> responses = new ArrayList<>();

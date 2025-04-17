@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { BehaviorSubject, map, Observable } from 'rxjs';
 import { ApiResponse } from '../models/api-response.model';
 import { LabTracker } from '../models/lab-tracker.model';
@@ -10,8 +10,11 @@ import { EnvironmentService } from './environment.service';
   providedIn: 'root'
 })
 export class LabTrackerService extends BaseService {
-  private labTrackersSubject = new BehaviorSubject<LabTracker[] | undefined>(undefined);
-  labTrackers$: Observable<LabTracker[] | undefined> = this.labTrackersSubject.asObservable();
+  private labTrackersSubject = new BehaviorSubject<LabTracker[]>([]);
+  labTrackers$: Observable<LabTracker[]> = this.labTrackersSubject.asObservable();
+
+  private labTrackersByTeamSubject = new BehaviorSubject<LabTracker[]>([]);
+  labTrackersByTeam$: Observable<LabTracker[]> = this.labTrackersByTeamSubject.asObservable();
 
   constructor(
     protected httpClient: HttpClient,
@@ -24,7 +27,15 @@ export class LabTrackerService extends BaseService {
       .pipe(
         map(response => response.data.map(labTracker => new LabTracker(labTracker)))
       )
-      .subscribe(labTracker => this.labTrackersSubject.next(labTracker));
+      .subscribe((labTrackers: LabTracker[]) => this.labTrackersSubject.next(labTrackers));
+  }
+
+  getLabTrackersByTeam(teamId: string): Observable<LabTracker[]> {
+    const params = new HttpParams().set('teamId', teamId);
+    return this.get<ApiResponse<LabTracker[]>>(this.environmentService.settings?.restUrl + '/lab-tracker', { params })
+    .pipe(
+      map((response: ApiResponse<LabTracker[]>) => response.data.map((labTracker: LabTracker) => new LabTracker(labTracker)))
+    );
   }
 
   getLabTrackerById(id: string): Observable<LabTracker> {
@@ -36,5 +47,21 @@ export class LabTrackerService extends BaseService {
 
   setLabTrackers(labTrackers: LabTracker[]): void {
     this.labTrackersSubject.next(labTrackers);
+  }
+
+  setLabTrackersByTeam(labTrackers: LabTracker[]): void {
+    this.labTrackersByTeamSubject.next(labTrackers);
+  }
+
+  getSettings(labTrackerId: string, remoteServerId: string): Observable<ApiResponse<any>> {
+    return this.get<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/lab-tracker/settings/' + labTrackerId + '/' + remoteServerId);
+  }
+
+  getLogs(labTrackerId: string, remoteServerId: string): Observable<ApiResponse<any>> {
+    return this.get<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/lab-tracker/logs/' + labTrackerId + '/' + remoteServerId);
+  }
+
+  uploadVolumeFiles(labTrackerId: string, remoteServerId: string, formData: FormData) {
+    return this.post<ApiResponse<boolean>>(this.environmentService.settings?.restUrl + '/lab-tracker/settings/' + labTrackerId + '/' + remoteServerId, formData);
   }
 }

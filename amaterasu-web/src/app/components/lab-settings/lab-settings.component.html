@@ -1,9 +1,9 @@
-<div class="dashboard">
+<div class="dashboard" *ngIf="!isLoading else spinner">
   <h1>Lab Tracker Dashboard</h1>
 
   <!-- Docker Services Section -->
   <div class="service-list" *ngIf="labTracker?.remoteServer?.serverType === ServerType.DOCKER_HOST">
-    <div *ngFor="let service of labTrackerSubject.value?.services" class="service-card">
+    <div *ngFor="let service of labTracker?.services" class="service-card">
       <h2>{{ service.name }}</h2>
       <p><strong>Status:</strong> {{ service.state }}</p>
       <p><strong>IP Addresses:</strong>
@@ -23,11 +23,17 @@
       </p>
       <p><strong>Volumes:</strong></p>
       <ul>
-        <li *ngFor="let volume of service.volumes | keyvalue">
-          - {{ volume.key }} - {{ volume.value }}<br>
+        <li *ngFor="let volume of service.volumes">
+          <div *ngFor="let vol of volume | keyvalue">
+          - {{ vol.key }} - {{ vol.value}}<br>
+          </div>
         </li>
       </ul>
     </div>
+  </div>
+
+  <div *ngIf="labTracker?.labStatus === 'FAILED' && ymlData">
+    <app-settings-configure [ymlData]="ymlData" [labTracker]="labTracker"></app-settings-configure>
   </div>
 
   <!-- Proxmox VMs Section -->
@@ -47,3 +53,10 @@
     </div>
   </div>
 </div>
+
+<ng-template #spinner>
+  <div class="spinner-container">
+    <mat-progress-spinner mode="indeterminate" diameter="50" color="primary">
+    </mat-progress-spinner>
+  </div>
+</ng-template>

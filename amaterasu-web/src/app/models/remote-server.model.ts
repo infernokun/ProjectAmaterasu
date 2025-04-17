@@ -1,6 +1,6 @@
 import { StoredObject } from './stored-object.model';
 import { RemoteServerStats } from './remote-server-stats.model';
-import { RadioQuestion, PasswordQuestion, SimpleFormData, TextQuestion, ButtonQuestion } from './simple-form-data.model';
+import { RadioQuestion, PasswordQuestion, SimpleFormData, TextQuestion, ButtonQuestion, ObservableMap, DropDownQuestion } from './simple-form-data.model';
 import { ServerType } from '../enums/server-type.enum';
 
 export class RemoteServer extends StoredObject {
@@ -84,5 +84,23 @@ export class RemoteServerFormData extends SimpleFormData {
       }),
     );
     this.questions.forEach((e) => (e.cb = updateResultsCB));
+  }
+}
+
+export class RemoteServerSelectData extends SimpleFormData {
+  constructor(observables?: ObservableMap) {
+    super('remoteServerSelect');
+
+    this.questions.push(
+      new DropDownQuestion({
+        label: 'Remote Server',
+        key: 'remoteServer',
+        options: [],
+        asyncData:
+          observables && observables['remoteServer']
+            ? observables['remoteServer']
+            : undefined,
+      })
+    );
   }
 }

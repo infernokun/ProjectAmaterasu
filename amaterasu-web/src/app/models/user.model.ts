@@ -17,6 +17,10 @@ export class User extends StoredObject {
       this.role = serverResult.role as Role;
     }
   }
+
+  setTeam(team: Team): void {
+    this.team = team;
+  }
 }
 
 export class UserFormData extends SimpleFormData {

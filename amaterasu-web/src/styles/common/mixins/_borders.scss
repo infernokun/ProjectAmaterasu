@@ -1,12 +1,17 @@
+@use "sass:color";
+@use "../themes/theme-settings";
+@use "../variables/style";
+@use "themify";
+
 $border-sides: bottom, left, right, top;
 
-@mixin border-radius($radius: $border-radius) {
+@mixin border-radius($radius: style.$border-radius) {
     -webkit-border-radius: $radius;
     -moz-border-radius: $radius;
     border-radius: $radius;
 }
 
-@mixin border-top-radius($radius: $border-radius) {
+@mixin border-top-radius($radius: style.$border-radius) {
     -webkit-border-top-left-radius: $radius;
     -webkit-border-top-right-radius: $radius;
     -moz-border-radius-topleft: $radius;
@@ -15,7 +20,7 @@ $border-sides: bottom, left, right, top;
     border-top-left-radius: $radius;
 }
 
-@mixin border-right-radius($radius: $border-radius) {
+@mixin border-right-radius($radius: style.$border-radius) {
     -webkit-border-top-right-radius: $radius;
     -webkit-border-bottom-right-radius: $radius;
     -moz-border-radius-topright: $radius;
@@ -24,7 +29,7 @@ $border-sides: bottom, left, right, top;
     border-bottom-right-radius: $radius;
 }
 
-@mixin border-bottom-radius($radius: $border-radius) {
+@mixin border-bottom-radius($radius: style.$border-radius) {
     -webkit-border-bottom-right-radius: $radius;
     -webkit-border-bottom-left-radius: $radius;
     -moz-border-radius-bottomright: $radius;
@@ -33,7 +38,7 @@ $border-sides: bottom, left, right, top;
     border-bottom-left-radius: $radius;
 }
 
-@mixin border-left-radius($radius: $border-radius) {
+@mixin border-left-radius($radius: style.$border-radius) {
     -webkit-border-top-left-radius: $radius;
     -webkit-border-bottom-left-radius: $radius;
     -moz-border-radius-topleft: $radius;
@@ -50,20 +55,20 @@ $border-sides: bottom, left, right, top;
     }
 
     .border {
-        @include themify($themes) {
-            border-color:       themed('borderColor')                   !important;
+        @include themify.themify(theme-settings.$themes) {
+            border-color:       themify.themed('borderColor')                   !important;
         }
     }
 
     .border-dark {
-        @include themify($themes) {
-            border-color:       darken(themed('borderColor'), 12%)       !important;
+        @include themify.themify(theme-settings.$themes) {
+            border-color:       color.adjust(themify.themed('borderColor'), $lightness: -12%)       !important;
         }
     }
 
     .border-light {
-        @include themify($themes) {
-            border-color:       lighten(themed('borderColor'), 5%)      !important;
+        @include themify.themify(theme-settings.$themes) {
+            border-color:       color.adjust(themify.themed('borderColor'), $lightness: 5%)      !important;
         }
     }
 
@@ -73,20 +78,20 @@ $border-sides: bottom, left, right, top;
         .border-#{$side}-none   { border-#{$side}: none                 !important }
 
         .border-#{$side} {
-            @include themify($themes) {
-                border-color:       themed('borderColor')               !important;
+            @include themify.themify(theme-settings.$themes) {
+                border-color:       themify.themed('borderColor')               !important;
             }
         }
 
         .border-#{$side}-dark {
-            @include themify($themes) {
-                border-color:       darken(themed('borderColor'), 12%)   !important;
+            @include themify.themify(theme-settings.$themes) {
+                border-color:       color.adjust(themify.themed('borderColor'), $lightness: -12%)   !important;
             }
         }
 
         .border-#{$side}-light {
-            @include themify($themes) {
-                border-color:       lighten(themed('borderColor'), 3%)  !important;
+            @include themify.themify(theme-settings.$themes) {
+                border-color:       color.adjust(themify.themed('borderColor'), $lightness: 3%)  !important;
             }
         }
     }

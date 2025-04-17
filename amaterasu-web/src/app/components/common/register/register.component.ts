@@ -3,9 +3,10 @@ import { MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { LoginService } from '../../../services/login.service';
 @Component({
-  selector: 'app-register',
-  templateUrl: './register.component.html',
-  styleUrl: './register.component.scss'
+    selector: 'app-register',
+    templateUrl: './register.component.html',
+    styleUrl: './register.component.scss',
+    standalone: false
 })
 export class RegisterComponent implements OnInit {
   username: string = '';

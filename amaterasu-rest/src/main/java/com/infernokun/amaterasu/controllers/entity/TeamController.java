@@ -9,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/team")
@@ -32,12 +31,12 @@ public class TeamController extends BaseController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Team>> getTeamById(@PathVariable String id) {
-        Optional<Team> foundTeamOptional = teamService.findTeamById(id);
-        return ResponseEntity.status(foundTeamOptional.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+        Team foundTeam = teamService.findTeamById(id);
+        return ResponseEntity.status( HttpStatus.OK)
                 .body(ApiResponse.<Team>builder()
-                        .code(foundTeamOptional.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
-                        .message(foundTeamOptional.isPresent() ? "Found a team." : "Failed to find a team.")
-                        .data(foundTeamOptional.orElse(null))
+                        .code(HttpStatus.OK.value())
+                        .message("Found a team.")
+                        .data(foundTeam)
                         .build());
     }
 
@@ -62,39 +61,22 @@ public class TeamController extends BaseController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteTeam(@PathVariable String id) {
-        boolean isDeleted = teamService.deleteTeam(id);
-
-        if (isDeleted) {
-            return ResponseEntity.ok(ApiResponse.<Void>builder()
-                    .code(HttpStatus.OK.value())
-                    .message("Team deleted successfully.")
-                    .data(null) // No additional data for delete operation
-                    .build());
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.<Void>builder()
-                    .code(HttpStatus.NOT_FOUND.value())
-                    .message("Team not found or a conflict occurred.")
-                    .data(null)
-                    .build());
-        }
+    public ResponseEntity<ApiResponse<Team>> deleteTeam(@PathVariable String id) {
+        Team deletedTeam = teamService.deleteTeam(id);
+        return ResponseEntity.ok(ApiResponse.<Team>builder()
+                .code(HttpStatus.OK.value())
+                .message("Team deleted successfully.")
+                .data(deletedTeam)
+                .build());
     }
 
     @PutMapping()
     public ResponseEntity<ApiResponse<Team>> updateTeam(@RequestBody Team team) {
         Team updatedTeam = teamService.updateTeam(team);
-        if (updatedTeam != null) {
-            return ResponseEntity.ok(ApiResponse.<Team>builder()
-                    .code(HttpStatus.OK.value())
-                    .message("Team updated successfully.")
-                    .data(updatedTeam)
-                    .build());
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.<Team>builder()
-                    .code(HttpStatus.NOT_FOUND.value())
-                    .message("Team not found.")
-                    .data(null)
-                    .build());
-        }
+        return ResponseEntity.ok(ApiResponse.<Team>builder()
+                .code(HttpStatus.OK.value())
+                .message("Team updated successfully.")
+                .data(updatedTeam)
+                .build());
     }
 }

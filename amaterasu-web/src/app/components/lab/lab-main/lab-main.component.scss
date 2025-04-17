@@ -1,0 +1,104 @@
+.lab-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.lab-card {
+    width: 100%;
+    max-width: 320px;
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+    &:hover {
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+        transform: scale(1.05);
+    }
+
+    .lab-icon {
+        padding: 1rem;
+        background-color: #f1f1f1;
+        border-bottom: 1px solid #ddd;
+
+        img {
+            height: 60px;
+            width: auto;
+        }
+    }
+
+    .lab-body {
+        padding: 1rem;
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .lab-id {
+            font-size: 0.8rem;
+            color: #777;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .lab-description {
+            font-size: 1rem;
+            color: #777;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .lab-created-by {
+            font-size: 0.9rem;
+            color: #555;
+            margin-bottom: 1rem;
+        }
+
+        .lab-status,
+        .lab-type {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .lab-actions {
+            margin-top: 1rem;
+
+            button {
+                background-color: #004d03;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                cursor: pointer;
+                transition: background-color 0.3s;
+
+                &:hover {
+                    background-color: #003a02;
+                }
+
+                &:disabled {
+                    background-color: #bbb;
+                    cursor: not-allowed;
+                }
+            }
+        }
+    }
+
+    &.lab-ready {
+        border: 2px solid #4caf50;
+    }
+
+    &.lab-not-ready {
+        border: 2px solid #f44336;
+    }
+}

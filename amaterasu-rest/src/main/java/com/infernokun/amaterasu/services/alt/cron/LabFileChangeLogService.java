@@ -9,21 +9,18 @@ import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.models.enums.LabType;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.repositories.LabFileChangeLogRepository;
-import com.infernokun.amaterasu.repositories.LabRepository;
 import com.infernokun.amaterasu.services.entity.LabService;
 import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
-import jakarta.transaction.Transactional;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.AbstractMap;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,15 +28,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Service
 public class LabFileChangeLogService extends BaseService {
     private final LabFileChangeLogRepository labFileChangeLogRepository;
-    private final LabRepository labRepository;
     private final AmaterasuConfig amaterasuConfig;
     private final RemoteCommandService remoteCommandService;
     private final RemoteServerService remoteServerService;
     private final LabService labService;
 
-    public LabFileChangeLogService(LabFileChangeLogRepository labFileChangeLogRepository, LabRepository labRepository, AmaterasuConfig amaterasuConfig, RemoteCommandService remoteCommandService, RemoteServerService remoteServerService, LabService labService) {
+    public LabFileChangeLogService(LabFileChangeLogRepository labFileChangeLogRepository,
+                                   AmaterasuConfig amaterasuConfig, RemoteCommandService remoteCommandService,
+                                   RemoteServerService remoteServerService, LabService labService) {
         this.labFileChangeLogRepository = labFileChangeLogRepository;
-        this.labRepository = labRepository;
         this.amaterasuConfig = amaterasuConfig;
         this.remoteCommandService = remoteCommandService;
         this.remoteServerService = remoteServerService;
@@ -47,110 +44,105 @@ public class LabFileChangeLogService extends BaseService {
     }
 
     @Scheduled(cron = "0 * * * * *")
-    @Transactional
-    public void updateLabFileStatuses() {
+    public void checkLabFileStats() {
         AtomicInteger count = new AtomicInteger();
-        List<RemoteServer> remoteServers =  remoteServerService.getAllServers();
 
-        List<RemoteServer> dockerServers = remoteServers.stream().filter((remoteServer ->
-                remoteServer.getServerType() == ServerType.DOCKER_HOST)).toList();
+        remoteServerService.findByServerType(ServerType.DOCKER_HOST).forEach(dockerServer -> {
+            LOGGER.info("Starting changelog time check... for {}", dockerServer.getName());
 
-        dockerServers.forEach(dockerServer -> {
-
-            LOGGER.info("Starting changelog time check...");
-            List<Lab> labs = labService.findByLabType(LabType.DOCKER_COMPOSE);
-
-            List<LabFileChangeLog> logsToUpdate = new ArrayList<>();
-            List<Lab> labsToUpdate = new ArrayList<>();
-
-            for (Lab lab : labs) {
-                LabFileChangeLog labFileChangeLog = labFileChangeLogRepository.findByLab(lab)
+            for (Lab lab : labService.findByLabType(LabType.DOCKER_COMPOSE)) {
+                LabFileChangeLog labFileChangeLog = findByLab(lab)
                         .orElseGet(() -> LabFileChangeLog.builder()
                                 .lab(lab)
-                                .upToDate(false)
                                 .build());
 
                 if (labFileChangeLog.getId() == null) {
                     lab.setUpdatedAt(LocalDateTime.now().minusYears(10));
-                    labFileChangeLog = this.labFileChangeLogRepository.save(labFileChangeLog);
+                    labFileChangeLog = updateLabFileChangeLog(labFileChangeLog);
                 }
 
                 LocalDateTime remoteTimestamp = fetchRemoteFileTimestamp(lab, dockerServer);
 
                 // Update only if remote file is newer
                 if (labFileChangeLog.getUpdatedAt() == null ||
-                        remoteTimestamp.isAfter(labFileChangeLog.getUpdatedAt())) {
-                    LOGGER.info("{} needs to be checked and is not ready: Remote time is {}. Changelog time is {}.",
-                            lab.getName(),
-                            formatTimestamp(remoteTimestamp),
-                            formatTimestamp(labFileChangeLog.getUpdatedAt()));
+                        remoteTimestamp.isAfter(labFileChangeLog.getUpdatedAt()) ||
+                        remoteTimestamp == LocalDateTime.MIN || !lab.isReady()) {
+                    LOGGER.warn("For file {} the timestamp is {}, but db is {}",
+                            lab.getDockerFile(), remoteTimestamp, labFileChangeLog.getUpdatedAt());
 
-                    labFileChangeLog.setUpToDate(false);
-                    logsToUpdate.add(labFileChangeLog);
 
                     lab.setReady(false);
-                    labsToUpdate.add(lab);
+                    labService.updateLab(lab);
                     count.incrementAndGet();
-                } else {
-                    labFileChangeLog.setUpToDate(true);
-                    logsToUpdate.add(labFileChangeLog);
                 }
             }
 
-            AtomicInteger count2 = new AtomicInteger();
-
-            labFileChangeLogRepository.saveAll(logsToUpdate);
-            labRepository.saveAll(labsToUpdate);
-
             LOGGER.info("{} files that need updating!", count.get());
 
+            // Validate
+            AtomicInteger count2 = new AtomicInteger();
             LOGGER.info("Starting file validity check...");
 
-            labs.stream()
-                    .filter(lab -> lab.getLabType() == LabType.DOCKER_COMPOSE)
-                    .map(lab -> labFileChangeLogRepository.findByLab(lab)
-                            .filter(log -> !log.isUpToDate())
-                            .map(log -> {
-                                boolean isLabReady = labService.checkDockerComposeValidity(lab.getId(), dockerServer);
-                                lab.setReady(isLabReady);
-                                log.setUpdatedAt(LocalDateTime.now());
-                                log.setUpToDate(isLabReady);
-                                return new AbstractMap.SimpleEntry<>(lab, log);
-                            }))
-                    .filter(Optional::isPresent)
-                    .map(Optional::get)
-                    .forEach(entry -> {
-                        labsToUpdate.add(entry.getKey());
-                        logsToUpdate.add(entry.getValue());
-                        LOGGER.info("{} readiness updated to: {}", entry.getKey().getName(), entry.getValue().isUpToDate());
-                        count2.incrementAndGet();
-                    });
+            findAllLabFileChangeLogs().stream()
+                    .filter(labFileChangeLog -> labFileChangeLog.getLab().getLabType() == LabType.DOCKER_COMPOSE)
+                    .filter(labFileChangeLog -> !labFileChangeLog.getLab().isReady())
+                    .forEach(dockerComposeLog -> {
+                        boolean isLabReady = labService.checkDockerComposeValidity(dockerComposeLog.getLab().getId(), dockerServer);
+                        dockerComposeLog.getLab().setReady(isLabReady);
+                        dockerComposeLog.setUpdatedAt(LocalDateTime.now());
+                        labService.updateLab(dockerComposeLog.getLab());
+                        updateLabFileChangeLog(dockerComposeLog);
 
-            labFileChangeLogRepository.saveAll(logsToUpdate);
-            labRepository.saveAll(labsToUpdate);
+                        LOGGER.info("{} readiness updated to: {}", dockerComposeLog.getLab().getName(),
+                                dockerComposeLog.getLab().isReady());
+
+                        if (isLabReady) count2.incrementAndGet();
+                    });
 
             LOGGER.info("{} files updated!", count2.get());
         });
     }
 
-
     private LocalDateTime fetchRemoteFileTimestamp(Lab lab, RemoteServer remoteServer) {
         try {
-            String command = String.format(
-                    "stat -c %%Y %s/%s/%s",
+            String statsCmd = String.format("stat -c %%Y %s/%s/%s",
                     amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile()
             );
 
-            RemoteCommandResponse output = remoteCommandService.handleRemoteCommand(command, remoteServer);
+            RemoteCommandResponse response = remoteCommandService.handleRemoteCommand(
+                    statsCmd, remoteServer);
 
-            long timestamp = Long.parseLong(output.getBoth().trim());
+            if (!response.isSuccess()) {
+                LOGGER.warn("Failed to execute command on server {}: {}", remoteServer.getId(), response.getError());
+                return LocalDateTime.MIN;
+            }
 
-            return Instant.ofEpochSecond(timestamp)
+            String output = response.getBoth().trim();
+            if (output.contains("No such file")) {
+                LOGGER.warn("File not found on server {}: {}", remoteServer.getId(), statsCmd);
+                return LocalDateTime.MIN;
+            }
+
+            return Instant.ofEpochSecond(Long.parseLong(output))
                     .atZone(ZoneId.systemDefault())
                     .toLocalDateTime();
+
         } catch (RemoteCommandException | NumberFormatException e) {
+            LOGGER.error("fetchRemoteFileTimestamp: {}", e.getMessage());
             return LocalDateTime.MIN;
         }
+    }
+
+    public List<LabFileChangeLog> findAllLabFileChangeLogs() {
+        return labFileChangeLogRepository.findAll();
+    }
+
+    public Optional<LabFileChangeLog> findByLab(Lab lab) {
+        return labFileChangeLogRepository.findByLab(lab);
+    }
+
+    public LabFileChangeLog updateLabFileChangeLog(LabFileChangeLog labFileChangeLog) {
+        return labFileChangeLogRepository.save(labFileChangeLog);
     }
 
     private String formatTimestamp(LocalDateTime timestamp) {

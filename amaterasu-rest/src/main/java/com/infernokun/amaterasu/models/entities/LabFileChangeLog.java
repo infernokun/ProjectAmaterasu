@@ -15,5 +15,4 @@ public class LabFileChangeLog extends StoredObject {
     @ManyToOne
     @JoinColumn(name = "lab_id")
     Lab lab;
-    boolean upToDate;
 }

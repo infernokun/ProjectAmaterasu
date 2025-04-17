@@ -9,14 +9,15 @@ import {
 } from '@angular/core';
 import { FormControl, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
-import { QuestionBase } from '../../../models/simple-form-data.model';
 import { MatRadioChange } from '@angular/material/radio';
 import { MatSelectChange } from '@angular/material/select';
+import { QuestionBase } from '../../../../models/simple-form-data.model';
 
 @Component({
-  selector: 'app-dialog-question',
-  templateUrl: './dialog-question.component.html',
-  styleUrls: ['./dialog-question.component.scss'],
+    selector: 'app-dialog-question',
+    templateUrl: './dialog-question.component.html',
+    styleUrls: ['./dialog-question.component.scss'],
+    standalone: false
 })
 export class DialogQuestionComponent implements OnInit {
   @Input() question!: QuestionBase;
@@ -144,6 +145,9 @@ export class DialogQuestionComponent implements OnInit {
   removeFile() {
     this.file = undefined;
     this.formControl.setValue({ file: undefined, content: undefined });
+    this.question.dataBoolean = false;
+    this.buttonClicked.emit(this.question);
+
   }
 
   validateYaml() {

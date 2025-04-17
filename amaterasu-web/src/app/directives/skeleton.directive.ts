@@ -7,7 +7,10 @@ import {
 } from '@angular/core';
 import { SkeletonRectComponent } from '../components/common/skeleton-rect/skeleton-rect.component';
 
-@Directive({ selector: '[skeleton]' })
+@Directive({
+    selector: '[skeleton]',
+    standalone: false
+})
 export class SkeletonDirective {
   @Input('skeleton') isLoading = false;
   @Input('skeletonRepeat') size = 1;

@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.models.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.infernokun.amaterasu.models.auth.SimpleGrantedAuthority;
 import com.infernokun.amaterasu.models.enums.Role;
 import jakarta.persistence.*;
@@ -21,6 +22,7 @@ import java.util.List;
 @Table(name = "users")
 public class User extends StoredObject implements UserDetails {
     private String username;
+    @JsonIgnore
     private String password;
     @ManyToOne
     @JoinColumn(name = "team_id")
@@ -35,6 +37,7 @@ public class User extends StoredObject implements UserDetails {
         this.password = password;
     }
 
+    @JsonIgnore
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         if (this.role == null) {

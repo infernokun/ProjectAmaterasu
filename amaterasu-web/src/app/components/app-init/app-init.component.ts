@@ -7,9 +7,10 @@ import { Router } from '@angular/router';
 import { Observable, of } from 'rxjs';
 
 @Component({
-  selector: 'app-app-init',
-  templateUrl: './app-init.component.html',
-  styleUrls: ['./app-init.component.scss']
+    selector: 'app-app-init',
+    templateUrl: './app-init.component.html',
+    styleUrls: ['./app-init.component.scss'],
+    standalone: false
 })
 export class AppInitComponent implements OnInit {
   formGroup: FormGroup;

@@ -1,7 +1,8 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
 @Pipe({
-  name: 'bashColoring'
+    name: 'bashColoring',
+    standalone: false
 })
 export class BashColoringPipe implements PipeTransform {
 

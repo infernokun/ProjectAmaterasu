@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.services.entity;
 
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
+import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.repositories.RemoteServerRepository;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.alt.DockerService;
@@ -10,8 +11,8 @@ import com.infernokun.amaterasu.utils.AESUtil;
 import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class RemoteServerService extends BaseService {
@@ -27,12 +28,17 @@ public class RemoteServerService extends BaseService {
         this.aesUtil = aesUtil;
     }
 
-    public List<RemoteServer> getAllServers() {
+    public List<RemoteServer> findAllServers() {
         return remoteServerRepository.findAll();
     }
 
-    public RemoteServer getServerById(String id) {
-        return remoteServerRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Did not find remote server"));
+    public RemoteServer findServerById(String id) {
+        return remoteServerRepository.findById(id).orElseThrow(
+                () -> new ResourceNotFoundException("Did not find remote server"));
+    }
+
+    public List<RemoteServer> findByServerType(ServerType serverType) {
+        return remoteServerRepository.findByServerType(serverType);
     }
 
     public RemoteServer addServer(RemoteServer remoteServer) {
@@ -71,7 +77,9 @@ public class RemoteServerService extends BaseService {
         }
         return false;
     }
+
     public RemoteServer modifyStatus(RemoteServer remoteServer) {
+        remoteServer.setUpdatedAt(LocalDateTime.now());
         return remoteServerRepository.save(remoteServer);
     }
 

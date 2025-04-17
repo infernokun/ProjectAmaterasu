@@ -1,4 +1,4 @@
-import { APP_INITIALIZER, NgModule } from '@angular/core';
+import { NgModule, inject, provideAppInitializer } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
@@ -12,15 +12,13 @@ import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { LabComponent } from './components/lab/lab.component';
 import { CommonModule } from '@angular/common';
 import { AuditLogComponent } from './components/audit-log/audit-log.component';
-import { DialogComponent } from './components/common/dialog/dialog.component';
+import { CommonDialogComponent } from './components/common/dialog/common-dialog/common-dialog.component';
 import { BashColoringPipe } from './pipes/bash-coloring.pipe';
 import { CodeBlockComponent } from './components/common/code-block/code-block.component';
-
 import { CodeEditorModule, provideCodeEditor } from '@ngstack/code-editor';
 import { RemoteServerComponent } from './components/remote-server/remote-server.component';
 import { DurationPipe } from './pipes/duration.pipe';
-import { DialogQuestionComponent } from './components/common/dialog-question/dialog-question.component';
-import { AddDialogFormComponent } from './components/common/add-dialog-form/add-dialog-form.component';
+import { DialogQuestionComponent } from './components/common/dialog/dialog-question/dialog-question.component';
 import { SkeletonRectComponent } from './components/common/skeleton-rect/skeleton-rect.component';
 import { SkeletonDirective } from './directives/skeleton.directive';
 import { LabSettingsComponent } from './components/lab-settings/lab-settings.component';
@@ -32,6 +30,10 @@ import { UsersComponent } from './components/users/users.component';
 import { AppInitService } from './services/app-init.service';
 import { TeamsComponent } from './components/teams/teams.component';
 import { VMLabBuilderComponent } from './components/vm-lab-builder/vm-lab-builder.component';
+import { LabMainComponent } from './components/lab/lab-main/lab-main.component';
+import { LabDeployComponent } from './components/lab/lab-deploy/lab-deploy.component';
+import { AddDialogFormComponent } from './components/common/dialog/add-dialog-form/add-dialog-form.component';
+import { SettingsConfigureComponent } from './components/lab-settings/settings-configure/settings-configure.component';
 
 export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
   return () => {
@@ -49,7 +51,7 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     HomeComponent,
     LabComponent,
     AuditLogComponent,
-    DialogComponent,
+    CommonDialogComponent,
     CodeBlockComponent,
     BashColoringPipe,
     RemoteServerComponent,
@@ -65,7 +67,10 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     RegisterComponent,
     UsersComponent,
     TeamsComponent,
-    VMLabBuilderComponent
+    VMLabBuilderComponent,
+    LabMainComponent,
+    LabDeployComponent,
+    SettingsConfigureComponent
   ],
   imports: [
     BrowserModule,
@@ -80,12 +85,10 @@ export function init_app(environmentService: EnvironmentService, appInitService:
   providers: [
     EnvironmentService,
     AppInitService,
-    {
-      provide: APP_INITIALIZER,
-      useFactory: init_app,
-      deps: [EnvironmentService, AppInitService],
-      multi: true,
-    },
+    provideAppInitializer(() => {
+        const initializerFn = (init_app)(inject(EnvironmentService), inject(AppInitService));
+        return initializerFn();
+      }),
     provideHttpClient(withInterceptorsFromDi()),
     provideCodeEditor({
       editorVersion: '0.44.0',

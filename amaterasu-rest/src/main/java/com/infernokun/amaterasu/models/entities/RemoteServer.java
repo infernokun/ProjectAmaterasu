@@ -1,5 +1,7 @@
 package com.infernokun.amaterasu.models.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -8,19 +10,22 @@ import lombok.*;
 @Getter
 @Setter
 @Builder
-@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "remote_server")
+@ToString(exclude = "remoteServerStats")
 public class RemoteServer extends StoredObject {
     private String name;
     private String ipAddress;
+    @JsonIgnore
     private String username;
+    @JsonIgnore
     private String password;
+    @JsonIgnore
     private String apiToken;
     private ServerType serverType;
     private String nodeName;
-    @OneToOne
+    @OneToOne(mappedBy = "remoteServer", cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "stats_id", referencedColumnName = "id")
     private RemoteServerStats remoteServerStats;
 }

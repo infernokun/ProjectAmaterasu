@@ -9,7 +9,7 @@
 </div>
 
 <mat-dialog-content class="dialog-content">
-  <app-code-block *ngIf="true" id="code-editor" type="fileType" [codeModel]="output" [readonly]="isReadOnly"
+  <app-code-block *ngIf="isCode" id="code-editor" type="fileType" [codeModel]="output" [readonly]="isReadOnly"
     [versions]="[1, 2, 3]" (onChange)="onCodeChange($event)" (onVersionChange)="onVersionSelected($event)">
   </app-code-block>
 

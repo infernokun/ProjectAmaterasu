@@ -8,6 +8,7 @@ import com.infernokun.amaterasu.models.dto.LabDTO;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
+import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.services.alt.LabFileUploadService;
 import com.infernokun.amaterasu.services.entity.LabService;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
@@ -17,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/labs")
@@ -67,7 +67,7 @@ public class LabController extends BaseController {
 
     @GetMapping("/check/{labId}/{remoteServerId}")
     public ResponseEntity<ApiResponse<Boolean>> checkLabReadiness(@PathVariable String labId, @PathVariable String remoteServerId) {
-        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
+        RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         boolean isLabReady = labService.checkDockerComposeValidity(labId, remoteServer);
 
         return ResponseEntity.ok(
@@ -79,15 +79,16 @@ public class LabController extends BaseController {
         );
     }
 
-    @GetMapping("/settings/{labId}")
+    @GetMapping("/settings/{labId}/{remoteServerId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getLabFile(@PathVariable String labId, @PathVariable String remoteServerId) {
-        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
-        Map<String, Object> response = labService.getLabFile(labId, remoteServer);
+        RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
+        Lab lab = labService.findLabById(labId);
+        Map<String, Object> response = labService.getLabFile(lab, remoteServer);
 
         return ResponseEntity.ok(
                 ApiResponse.<Map<String, Object>>builder()
                         .code(HttpStatus.OK.value())
-                        .message(String.format("Lab id %s successfully uploaded!", labId))
+                        .message(String.format("Lab id %s settings retrieved!", labId))
                         .data(response)
                         .build()
         );
@@ -96,7 +97,7 @@ public class LabController extends BaseController {
     @PostMapping()
     public ResponseEntity<ApiResponse<Lab>> createLab(@RequestParam String remoteServerId, @RequestBody LabDTO labDTO) {
         if (labDTO == null) throw new RuntimeException("labDTO is null");
-        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
+        RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
 
         Lab createdLab = labService.createLab(labDTO, remoteServer);
         return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -123,28 +124,18 @@ public class LabController extends BaseController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Lab>> updateLab(@RequestBody Lab lab) {
         Lab updatedLab = labService.updateLab(lab);
-        if (updatedLab != null) {
-            return ResponseEntity.ok(
-                    ApiResponse.<Lab>builder()
-                            .code(HttpStatus.OK.value())
-                            .message("Lab updated successfully.")
-                            .data(updatedLab)
-                            .build()
-            );
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                    ApiResponse.<Lab>builder()
-                            .code(HttpStatus.NOT_FOUND.value())
-                            .message("Lab not found.")
-                            .data(null)
-                            .build()
-            );
-        }
+        return ResponseEntity.ok(
+                ApiResponse.<Lab>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Lab updated successfully.")
+                        .data(updatedLab)
+                        .build()
+        );
     }
 
     @PostMapping("/upload/{labId}/{remoteServerId}")
     public ResponseEntity<ApiResponse<String>> uploadLabFile(@PathVariable String labId, @PathVariable String remoteServerId, @RequestBody String content) {
-        RemoteServer remoteServer = remoteServerService.getServerById(remoteServerId);
+        RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         String response = labService.uploadLabFile(labId, content, remoteServer);
 
         return ResponseEntity.ok(
@@ -159,6 +150,7 @@ public class LabController extends BaseController {
     @PostMapping("/validate")
     public ResponseEntity<ApiResponse<Boolean>> validateDockerComposeYml(@RequestBody String content) {
         boolean isValid = labFileUploadService.validateDockerComposeFile(content);
+
         return ResponseEntity.ok(
                 ApiResponse.<Boolean>builder()
                         .code(HttpStatus.OK.value())
@@ -171,24 +163,26 @@ public class LabController extends BaseController {
 
     @PostMapping("/start")
     public ResponseEntity<ApiResponse<LabActionResult>> startLab(@RequestBody LabRequest labRequest) {
-        RemoteServer remoteServer = remoteServerService.getServerById(labRequest.getRemoteServerId());
-        LabActionResult startedLabOptional = labService.startLab(labRequest.getLabId(),
+        RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
+
+        LabActionResult result = labService.startLab(labRequest.getLabId(),
                 labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
 
-        return ResponseEntity.status(HttpStatus.OK)
+        return ResponseEntity.status(result.isSuccessful() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.<LabActionResult>builder()
-                        .code(HttpStatus.OK.value())
-                        .message("Lab started successfully.")
-                        .data(startedLabOptional)
+                        .code(result.isSuccessful() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
+                        .message(result.isSuccessful() ? "Lab started successfully." : "Lab did not start successfully.")
+                        .data(result)
                         .build());
     }
 
     @PostMapping("/stop")
     public ResponseEntity<ApiResponse<LabActionResult>> stopLab(@RequestBody LabRequest labRequest) {
-        RemoteServer remoteServer = remoteServerService.getServerById(labRequest.getRemoteServerId());
+        RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
 
         LabActionResult stoppedLab = labService.stopLab(
                 labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
+
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabActionResult>builder()
                         .code(HttpStatus.OK.value())
@@ -199,10 +193,11 @@ public class LabController extends BaseController {
 
     @PostMapping("/delete")
     public ResponseEntity<ApiResponse<LabActionResult>> deleteLab(@RequestBody LabRequest labRequest) {
-        RemoteServer remoteServer = remoteServerService.getServerById(labRequest.getRemoteServerId());
+        RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
 
         LabActionResult deletedLab = labService.deleteLab(
                 labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
+
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabActionResult>builder()
                         .code(HttpStatus.OK.value())
@@ -216,16 +211,14 @@ public class LabController extends BaseController {
         LOGGER.info("Deleting lab with details {}, {}, and {}",
                 labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
 
-        Optional<LabTracker> deletedLab =
-                labService.deleteLabFromTeam(labRequest.getLabId(),
-                        labRequest.getUserId(),
+        LabTracker deletedLab = labService.deleteLabFromTeam(labRequest.getLabId(), labRequest.getUserId(),
                         labRequest.getLabTrackerId());
 
-        return ResponseEntity.status(deletedLab.isPresent() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+        return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabTracker>builder()
-                        .code(deletedLab.isPresent() ? HttpStatus.OK.value() : HttpStatus.BAD_REQUEST.value())
-                        .message(deletedLab.isPresent() ? "Lab deleted successfully." : "Failed to delete the lab.")
-                        .data(deletedLab.orElse(null))
+                        .code(HttpStatus.OK.value())
+                        .message("Lab deleted successfully.")
+                        .data(deletedLab)
                         .build());
     }
 

@@ -11,6 +11,7 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -28,7 +29,8 @@ public class RemoteCommandService extends BaseService {
         this.aesUtil = aesUtil;
     }
 
-    public RemoteCommandResponse handleRemoteCommand(String cmd, RemoteServer remoteServer) {
+    @Transactional(noRollbackFor = RemoteCommandException.class)
+    public RemoteCommandResponse handleRemoteCommand(String cmd, RemoteServer remoteServer) throws RemoteCommandException {
         Session session = null;
         try {
             // Get connected session using the shared method
@@ -36,10 +38,12 @@ public class RemoteCommandService extends BaseService {
 
             // Execute the command
             CommandResult result = executeRemoteCommand(session, cmd);
-            return new RemoteCommandResponse(result.output(), result.error());
-        } catch (Exception e) {
+            return new RemoteCommandResponse(result.output(), result.error(), result.exitCode());
+        } catch (RemoteCommandException e) {
             LOGGER.error("Exception while running command for server {}: {}", remoteServer.getId(), e.getMessage());
-            throw new RemoteCommandException("Exception while running command: " + e.getMessage());
+            return new RemoteCommandResponse("", e.getMessage(), 1);
+        } catch (Exception e) {
+            throw new RemoteCommandException("Unexpected error occurred: " + e.getMessage());
         } finally {
             disconnectSession(session, remoteServer);
         }
@@ -57,7 +61,7 @@ public class RemoteCommandService extends BaseService {
             // Verify the output contains our test string
             boolean isValid = result.output().contains("CONNECTION_TEST_SUCCESSFUL");
 
-            LOGGER.info("Connection validation for server {}: {}", remoteServer.getId(),
+            LOGGER.info("Connection validation for server {}: {}", remoteServer.getName(),
                     isValid ? "SUCCESSFUL" : "FAILED");
 
             return isValid;
@@ -96,16 +100,12 @@ public class RemoteCommandService extends BaseService {
             session.setConfig("PreferredAuthentications", "publickey,password,keyboard-interactive");
 
             session.connect(timeout);
-            LOGGER.info("Connected successfully to {}@{} for server: {}",
-                    remoteServer.getUsername(), remoteServer.getIpAddress(), remoteServer.getId());
 
             session.setPassword(""); // Clear the password after use
             return session;
         } catch (JSchException e) {
-            LOGGER.error("SSH connection failed for server {}: {}", remoteServer.getId(), e.getMessage());
-            // Cleanup the session if needed
             disconnectSession(session, remoteServer);
-            throw new RemoteCommandException("SSH connection failed: " + e.getMessage());
+            throw new RemoteCommandException("RemoteCommandException: SSH connection failed: " + e.getMessage());
         }
     }
 
@@ -153,10 +153,11 @@ public class RemoteCommandService extends BaseService {
 
             String output = readStream(inputStream);
             String errorOutput = readStream(errorStream);
+            int exitCode = channel.getExitStatus();
 
             channel.disconnect();
 
-            return new CommandResult(output, errorOutput);
+            return new CommandResult(output, errorOutput, exitCode);
         } catch (JSchException | IOException e) {
             throw new RemoteCommandException("Exception while running command: " + command);
         }
@@ -172,7 +173,7 @@ public class RemoteCommandService extends BaseService {
         return output.toString().trim();
     }
 
-    private record CommandResult(String output, String error) {
+    private record CommandResult(String output, String error, int exitCode) {
         public boolean isSuccess() {
             return error.isEmpty();
         }

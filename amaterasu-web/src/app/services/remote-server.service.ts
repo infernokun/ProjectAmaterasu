@@ -1,10 +1,11 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { EnvironmentService } from './environment.service';
 import { BaseService } from './base.service';
 import { BehaviorSubject, Observable, map } from 'rxjs';
 import { ApiResponse } from '../models/api-response.model';
 import { RemoteServer } from '../models/remote-server.model';
+import { ServerType } from '../enums/server-type.enum';
 
 @Injectable({
   providedIn: 'root'
@@ -52,6 +53,13 @@ export class RemoteServerService extends BaseService {
 
         return servers;
       })
+    );
+  }
+
+  getRemoteServerByServerType(serverType: ServerType): Observable<RemoteServer[]> {
+    return this.get<ApiResponse<RemoteServer[]>>(this.environmentService.settings?.restUrl + '/remote-server', { params: new HttpParams().set('serverType', serverType) })
+    .pipe(
+      map((response: ApiResponse<RemoteServer[]>) => response.data.map((remoteServer: RemoteServer) => new RemoteServer(remoteServer)))
     );
   }
 
