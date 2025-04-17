@@ -15,6 +15,7 @@ export class CodeBlockComponent implements OnInit {
   @Input() readonly: boolean = false;
   @Output() onChange = new EventEmitter<string>();
   @Output() onVersionChange = new EventEmitter<number>();
+  @Input() versions: number[] = [];
   @Input() codeModel: CodeModel | undefined = {
     language: 'json',
     uri: 'main.json',
