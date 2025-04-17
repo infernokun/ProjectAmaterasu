@@ -13,3 +13,11 @@ platformBrowserDynamic()
     return '/assets/monaco-editor/min/vs/base/worker/workerMain.js';
   },
 };
+
+const originalConsoleError = console.error;
+console.error = function (...args: any[]) {
+  if (args[1] && args[1].toString().includes("L is null")) {
+    return; // Suppress the Monaco bug message
+  }
+  originalConsoleError.apply(console, args);
+};
