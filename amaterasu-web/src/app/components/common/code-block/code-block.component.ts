@@ -1,5 +1,5 @@
-import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectorRef } from '@angular/core';
-import { CodeModel } from '@ngstack/code-editor';
+import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectorRef, ViewChild } from '@angular/core';
+import { CodeEditorComponent, CodeModel } from '@ngstack/code-editor';
 
 
 @Component({
@@ -9,10 +9,10 @@ import { CodeModel } from '@ngstack/code-editor';
     standalone: false
 })
 export class CodeBlockComponent implements OnInit {
+  @ViewChild(CodeEditorComponent, { static: false }) _codeEditor: CodeEditorComponent | undefined;
   @Input() id: string = '';
   @Input() placeholder: string = '';
   @Input() readonly: boolean = false;
-  @Input() versions: number[] = [];
   @Output() onChange = new EventEmitter<string>();
   @Output() onVersionChange = new EventEmitter<number>();
   @Input() codeModel: CodeModel | undefined = {
@@ -38,7 +38,7 @@ export class CodeBlockComponent implements OnInit {
   }
 
   ngOnInit() {
-    console.log("codeModel", this.codeModel);
+    console.log('editor', this._codeEditor);
   }
 
   onCodeChanged(value: any) {
