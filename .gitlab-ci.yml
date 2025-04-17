@@ -45,7 +45,7 @@ deploy:
     - echo "$STAGE_SERVER_PRIVATE_KEY" | base64 --decode > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
     - ssh-keyscan -H "$STAGE_SERVER_HOST" > ~/.ssh/known_hosts
-    - export DEPLOY_PATH="~/amaterasu"
+    - export DEPLOY_PATH="/home/$STAGE_SERVER_USER/amaterasu"
   script:
     - ssh "$STAGE_SERVER_USER@$STAGE_SERVER_HOST" "mkdir -p $DEPLOY_PATH"
     - scp -r docker-compose.yml "$STAGE_SERVER_USER@$STAGE_SERVER_HOST:$DEPLOY_PATH/."
