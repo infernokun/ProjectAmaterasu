@@ -48,7 +48,7 @@ server:
   use-forward-headers: true
 
 amaterasu:
-  applicationName: Amaterasu
+  applicationName: "Amaterasu Rest"
   defaultAdminUsername: admin
   defaultAdminPassword: password
   uploadDir: "${DOCKER_COMPOSE_PATH:/var/tmp/amaterasu}"

@@ -22,6 +22,12 @@ LABEL maintainer="infernokun@infernokun.com" \
 
 VOLUME ["/data/certs"]
 
+RUN apt-get update && apt-get install -y \
+    tini \
+    curl \
+    bash \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 RUN set -eux; \
     groupadd -g 1000 java; \
     useradd -m -r -u 1000 -g java java; \

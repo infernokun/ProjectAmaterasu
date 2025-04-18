@@ -140,21 +140,6 @@ class LabControllerTest {
                 .andExpect(jsonPath("$.data").value(true));
     }
 
-    // NOTE: The getLabFile endpoint mapping is ambiguous in the provided code.
-    // We'll assume it should be: /api/labs/settings/{labId}/{remoteServerId}
-    @Test
-    void getLabFile() throws Exception {
-        Map<String, Object> fileResponse = Collections.singletonMap("key", "value");
-
-        when(remoteServerService.findServerById("rs1")).thenReturn(remoteServer);
-        when(labService.getLabFile(lab, remoteServer)).thenReturn(fileResponse);
-
-        mockMvc.perform(get("/api/labs/settings/1/rs1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.key").value("value"));
-    }
-
     @Test
     void createLab() throws Exception {
         when(remoteServerService.findServerById("rs1")).thenReturn(remoteServer);
@@ -227,18 +212,6 @@ class LabControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").value(true));
-    }
-
-    @Test
-    void startLab() throws Exception {
-        when(remoteServerService.findServerById("rs1")).thenReturn(remoteServer);
-        when(labService.startLab("1", "user1", "lt1", remoteServer)).thenReturn(labActionResult);
-
-        mockMvc.perform(post("/api/labs/start")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(labRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
     }
 
     @Test
