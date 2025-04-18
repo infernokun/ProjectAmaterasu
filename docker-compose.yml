@@ -9,7 +9,7 @@ services:
     ports:
       - "8764:80"
     volumes:
-      - data/amaterasu/logs:/var/log/nginx
+      - amaterasu-web:/var/log/nginx
     depends_on:
       amaterasu-db:
         condition: service_healthy
@@ -54,3 +54,4 @@ services:
 volumes:
   amaterasu-db:
     driver: local
+  amaterasu-web:
