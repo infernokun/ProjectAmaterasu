@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.services.alt.cron;
+package com.infernokun.amaterasu.services.cron;
 
 import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.RemoteCommandException;

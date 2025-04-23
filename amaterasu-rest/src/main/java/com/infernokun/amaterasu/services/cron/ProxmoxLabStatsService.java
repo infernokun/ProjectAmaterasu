@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.services.alt.cron;
+package com.infernokun.amaterasu.services.cron;
 
 import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
 import com.infernokun.amaterasu.models.entities.LabTracker;

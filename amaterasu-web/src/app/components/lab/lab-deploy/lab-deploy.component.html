@@ -1,121 +1,127 @@
 <!-- HTML Component -->
 <div class="lab-container">
-    <div class="lab-card" *ngFor="let labTracker of labTrackers$ | async" @fadeIn>
-      <div class="card-header">
-        <h3>{{ labTracker.labStarted?.name }}</h3>
-        <span class="status-badge" [ngClass]="labTracker.labStatus?.toLowerCase()">
-          {{ labTracker.labStatus }}
-        </span>
-      </div>
-      
-      <div class="card-content">
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="label">ID:</span>
-            <span class="value">{{ labTracker.id }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Owner:</span>
-            <span class="value">{{ labTracker.labOwner?.name }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Remote Server:</span>
-            <span class="value">{{ labTracker.remoteServer?.name || 'N/A' }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Created:</span>
-            <span class="value">{{ labTracker.labStarted?.createdAt ? formatDate(labTracker.labStarted?.createdAt!) : 'N/A' }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Last Modified:</span>
-            <span class="value">{{ labTracker.labStarted?.updatedAt ? formatDate(labTracker.labStarted?.updatedAt!) : 'N/A' }}</span>
-          </div>
-        </div>
-        
-        <div class="settings-link" *ngIf="labTracker.labStatus !== 'NONE'">
-          <a [routerLink]="['/lab/settings', formatLabName(labTracker.labStarted?.name!)]" [queryParams]="{ id: labTracker.id }">
-            <mat-icon>settings</mat-icon> Configure
-          </a>
-        </div>
-      </div>
-      
-      <div class="card-actions">
-        <div *ngIf="isLoadingState$ | async" class="loading-spinner">
-          <mat-spinner diameter="24"></mat-spinner>
-          <span>Processing...</span>
-        </div>
-        
-        <ng-container *ngIf="!(isLoadingState$ | async) && user">
-          <!-- Querying state -->
-          <button mat-flat-button class="action-btn querying" *ngIf="isLabLoading(labTracker.id)">
-            <mat-icon>hourglass_empty</mat-icon>
-            Querying
-          </button>
-          
-          <!-- Redeploy button -->
-          <button mat-flat-button class="action-btn start" 
-                  (click)="redeployLab(labTracker)"
-                  [disabled]="!labTracker.labStarted?.ready" 
-                  *ngIf="!isLabLoading(labTracker.id) && 
-                        (labTracker.labStatus === 'STOPPED' || 
-                         labTracker.labStatus === 'NONE' || 
-                         labTracker.labStatus === 'FAILED')">
-            <mat-icon>play_arrow</mat-icon>
-            Start
-          </button>
-          
-          <!-- Settings button -->
-          <button mat-flat-button class="action-btn settings" 
-                  (click)="getSettings(labTracker)"
-                  *ngIf="!isLabLoading(labTracker.id) && 
-                         labTracker.labStarted?.labType === LabType.DOCKER_COMPOSE">
-            <mat-icon>settings</mat-icon>
-            Settings
-          </button>
+  <div class="lab-card" *ngFor="let labTracker of labTrackers$ | async" @fadeIn>
+    <div class="card-header">
+      <h3>{{ labTracker.labStarted?.name }}</h3>
+      <span class="status-badge" [ngClass]="labTracker.labStatus?.toLowerCase()">
+        @if (labTracker.remoteServer?.remoteServerStats?.status != LabStatus.OFFLINE)
+        { {{ labTracker.labStatus }} } @else { {{ labTracker.remoteServer?.remoteServerStats?.status }} }
+      </span>
+    </div>
 
-          <!-- Logs button -->
-          <button mat-flat-button class="action-btn logs" 
-                  (click)="getLogs(labTracker)"
-                  *ngIf="!isLabLoading(labTracker.id) && 
-                         labTracker.labStarted?.labType === LabType.DOCKER_COMPOSE">
-            <mat-icon>description</mat-icon>
-            Logs
-          </button>
-          
-          <!-- Active lab buttons -->
-          <ng-container *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'ACTIVE'">
-            <button mat-flat-button class="action-btn stop" (click)="stopLab(labTracker)">
-              <mat-icon>stop</mat-icon>
-              Stop
-            </button>
-          </ng-container>
-          
-          <!-- Offline button -->
-          <button mat-flat-button class="action-btn offline" disabled
-                  *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'OFFLINE'">
-            <mat-icon>cloud_off</mat-icon>
-            Offline
-          </button>
-          
-          <!-- Failed button -->
-          <button mat-flat-button class="action-btn failed" disabled
-                  *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'FAILED'">
-            <mat-icon>error</mat-icon>
-            Failed
-          </button>
-          
-          <!-- Stopped state buttons -->
-          <ng-container *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'STOPPED'">
-            <button mat-flat-button class="action-btn stopped" disabled>
-              <mat-icon>pause</mat-icon>
-              Stopped
-            </button>
-            <button mat-flat-button class="action-btn delete" (click)="deleteLab(labTracker)">
-              <mat-icon>delete</mat-icon>
-              Delete
-            </button>
-          </ng-container>
-        </ng-container>
+    <div class="card-content">
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="label">ID:</span>
+          <span class="value">{{ labTracker.id }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Owner:</span>
+          <span class="value">{{ labTracker.labOwner?.name }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Remote Server:</span>
+          <span class="value">{{ labTracker.remoteServer?.name || 'N/A' }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Created:</span>
+          <span class="value">{{ labTracker.labStarted?.createdAt ? formatDate(labTracker.labStarted?.createdAt!) :
+            'N/A' }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Last Modified:</span>
+          <span class="value">{{ labTracker.labStarted?.updatedAt ? formatDate(labTracker.labStarted?.updatedAt!) :
+            'N/A' }}</span>
+        </div>
+      </div>
+
+      <div class="settings-link" *ngIf="labTracker.labStatus !== 'NONE'">
+        <a [routerLink]="['/lab/settings', formatLabName(labTracker.labStarted?.name!)]"
+          [queryParams]="{ id: labTracker.id }">
+          <mat-icon>settings</mat-icon> Configure
+        </a>
       </div>
     </div>
+
+    <div class="card-actions">
+      <div *ngIf="isLoadingState$ | async" class="loading-spinner">
+        <mat-spinner diameter="24"></mat-spinner>
+        <span>Processing...</span>
+      </div>
+
+      <ng-container *ngIf="!(isLoadingState$ | async) && user">
+        @if (labTracker.remoteServer?.remoteServerStats?.status != LabStatus.OFFLINE) {
+        <!-- Querying state -->
+        <button mat-flat-button class="action-btn querying" *ngIf="isLabLoading(labTracker.id)">
+          <mat-icon>hourglass_empty</mat-icon>
+          Querying
+        </button>
+
+        <!-- Redeploy button -->
+        <button mat-flat-button class="action-btn start" (click)="redeployLab(labTracker)"
+          [disabled]="!labTracker.labStarted?.ready" *ngIf="!isLabLoading(labTracker.id) && 
+              (labTracker.labStatus === 'STOPPED' || 
+               labTracker.labStatus === 'NONE' || 
+               labTracker.labStatus === 'FAILED')">
+          <mat-icon>play_arrow</mat-icon>
+          Start
+        </button>
+
+        <!-- Settings button -->
+        <button mat-flat-button class="action-btn settings" (click)="getSettings(labTracker)" *ngIf="!isLabLoading(labTracker.id) && 
+               labTracker.labStarted?.labType === LabType.DOCKER_COMPOSE">
+          <mat-icon>settings</mat-icon>
+          Settings
+        </button>
+
+        <!-- Logs button -->
+        <button mat-flat-button class="action-btn logs" (click)="getLogs(labTracker)" *ngIf="!isLabLoading(labTracker.id) && 
+               labTracker.labStarted?.labType === LabType.DOCKER_COMPOSE">
+          <mat-icon>description</mat-icon>
+          Logs
+        </button>
+
+        <!-- Active lab buttons -->
+        <ng-container *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'ACTIVE'">
+          <button mat-flat-button class="action-btn stop" (click)="stopLab(labTracker)">
+            <mat-icon>stop</mat-icon>
+            Stop
+          </button>
+        </ng-container>
+
+        <!-- Offline button -->
+        <button mat-flat-button class="action-btn offline" disabled
+          *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'OFFLINE'">
+          <mat-icon>cloud_off</mat-icon>
+          Offline
+        </button>
+
+        <!-- Failed button -->
+        <button mat-flat-button class="action-btn failed" disabled
+          *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'FAILED'">
+          <mat-icon>error</mat-icon>
+          Failed
+        </button>
+
+        <!-- Stopped state buttons -->
+        <ng-container *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'STOPPED'">
+          <button mat-flat-button class="action-btn stopped" disabled>
+            <mat-icon>pause</mat-icon>
+            Stopped
+          </button>
+          <button mat-flat-button class="action-btn delete" (click)="deleteLab(labTracker)">
+            <mat-icon>delete</mat-icon>
+            Delete
+          </button>
+        </ng-container>
+        } @else {
+        <!-- Failed button -->
+        <button mat-flat-button class="action-btn failed" disabled>
+          <mat-icon>error</mat-icon>
+          SERVER {{ labTracker.remoteServer?.name }} OFFLINE
+        </button>
+        }
+      </ng-container>
+    </div>
   </div>
+</div>

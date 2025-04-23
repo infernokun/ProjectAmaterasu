@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.services.alt.cron;
+package com.infernokun.amaterasu.services.cron;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

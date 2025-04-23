@@ -16,7 +16,6 @@ import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.services.BaseService;
-import com.infernokun.amaterasu.services.entity.LabTrackerService;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
 
@@ -209,7 +208,7 @@ public class DockerService extends BaseService {
         }
 
         if (services != null && getMap(data, "volumes") != null) {
-            Map<String, Object> finalVolumes = getMap(data, "volumes");;
+            Map<String, Object> finalVolumes = getMap(data, "volumes");
             services.keySet().forEach(serviceName -> finalVolumes.put(serviceName + "_" + labTrackerId, null));
         }
 

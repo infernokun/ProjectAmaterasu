@@ -39,6 +39,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
   
   // Enums exposed to template
   readonly LabType = LabType;
+  readonly LabStatus = LabStatus;
 
   @Input() user: User | undefined;
   @Input() labTrackers$: Observable<LabTracker[]> = of([]);
