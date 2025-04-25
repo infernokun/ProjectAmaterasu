@@ -30,14 +30,15 @@
         <label for="email">Email</label>
         <div class="input-wrapper">
           <i class="material-icons icon-prefix">email</i>
-          <input 
+          <input
             type="email" 
             class="form-control" 
             id="email" 
             formControlName="email"
-            placeholder="Enter your email"
+            placeholder="DISABLED"
             [class.is-invalid]="emailControl?.invalid && (emailControl?.touched || formSubmitted)"
-            autocomplete="email">
+            autocomplete="email"
+            [disabled]="true">
         </div>
         <div *ngIf="emailControl?.invalid && (emailControl?.touched || formSubmitted)" class="error-message">
           <small *ngIf="emailControl?.errors?.['required']">Email is required</small>
@@ -124,20 +125,5 @@
         <mat-spinner diameter="20"></mat-spinner>
       </div>
     </button>
-    
-    <div class="or-divider">
-      <span>or</span>
-    </div>
-    
-    <div class="social-register">
-      <button type="button" class="btn btn-google">
-        <img src="assets/images/google-icon.svg" alt="Google">
-        Sign up with Google
-      </button>
-      <button type="button" class="btn btn-microsoft">
-        <img src="assets/images/microsoft-icon.svg" alt="Microsoft">
-        Sign up with Microsoft
-      </button>
-    </div>
   </form>
 </div>

@@ -29,7 +29,7 @@ export class RegisterComponent implements OnInit {
   ngOnInit(): void {
     this.registerForm = this.fb.group({
       username: ['', [Validators.required, Validators.minLength(3)]],
-      email: ['', [Validators.required, Validators.email]],
+      email: ['', [Validators.email]],
       password: ['', [
         Validators.required, 
         Validators.minLength(8),
@@ -39,6 +39,8 @@ export class RegisterComponent implements OnInit {
     }, { 
       validators: this.passwordMatchValidator 
     });
+
+    this.emailControl!.disable();
   }
 
   // Custom validator for password strength
