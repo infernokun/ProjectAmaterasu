@@ -31,11 +31,11 @@ public class AuthenticationController extends BaseController {
     }
 
     @PostMapping(value = "/register", consumes = "application/json")
-    public ResponseEntity<ApiResponse<Boolean>> registerUser(@RequestBody User user) {
+    public ResponseEntity<ApiResponse<Boolean>> registerUser(@RequestBody RegistrationDTO registrationDTO) {
         return ResponseEntity.ok(ApiResponse.<Boolean>builder()
                 .code(HttpStatus.OK.value())
                 .message("User registered successfully.")
-                .data(authenticationService.registerUser(user))
+                .data(authenticationService.registerUser(registrationDTO))
                 .build());
     }
 

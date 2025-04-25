@@ -3,6 +3,7 @@ package com.infernokun.amaterasu.services.alt;
 import com.infernokun.amaterasu.exceptions.AuthFailedException;
 import com.infernokun.amaterasu.exceptions.WrongPasswordException;
 import com.infernokun.amaterasu.models.dto.LoginResponseDTO;
+import com.infernokun.amaterasu.models.dto.RegistrationDTO;
 import com.infernokun.amaterasu.models.entities.RefreshToken;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.enums.Role;
@@ -41,22 +42,23 @@ public class AuthenticationService extends BaseService {
         this.userService = userService;
     }
 
-    public boolean registerUser(User user) {
+    public boolean registerUser(RegistrationDTO user) {
         if (user == null || user.getUsername() == null || user.getPassword() == null) {
             throw new AuthFailedException("Username and password required!");
         }
 
-        if (userService.existsByUsername(user)) {
+        if (userService.existsByUsername(user.getUsername())) {
             throw new AuthFailedException("Username already exists!");
         }
 
         String encodedPassword = this.passwordEncoder.encode(user.getPassword());
         user.setPassword(encodedPassword);
-        user.setRole(Role.MEMBER);
+        User newUser = new User(user.getUsername(), user.getPassword());
+        newUser.setRole(Role.MEMBER);
 
-        userRepository.save(user);
+        userRepository.save(newUser);
 
-        LOGGER.info("User registered: {}", user.getUsername());
+        LOGGER.info("User registered: {}", newUser.getUsername());
         return true;
     }
 
@@ -66,10 +68,7 @@ public class AuthenticationService extends BaseService {
                     new UsernamePasswordAuthenticationToken(username, password)
             );
 
-            UserDetails userDetails = (UserDetails) auth.getPrincipal();
-
-            User user = userRepository.findByUsername(username).orElseThrow(()
-                    -> new UsernameNotFoundException("User not found!"));
+            User user = (User) auth.getPrincipal();
 
             String token = tokenService.generateJwt(user);
             return new LoginResponseDTO(token, user);

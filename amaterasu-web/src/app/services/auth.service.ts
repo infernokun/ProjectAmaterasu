@@ -174,7 +174,7 @@ export class AuthService {
         if (!payload) {
           return;
         }
-        console.log('Logging out user: ', payload.user.username);
+        console.log('Logging out user: ', payload);
         this.loginService.logout(payload.user.id!).subscribe(
           () => {
             localStorage.removeItem('jwt');

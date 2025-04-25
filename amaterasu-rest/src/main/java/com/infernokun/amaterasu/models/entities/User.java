@@ -16,7 +16,6 @@ import java.util.List;
 @Getter
 @Setter
 @Builder
-@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "users")
@@ -64,5 +63,24 @@ public class User extends StoredObject implements UserDetails {
     @Override
     public boolean isEnabled() {
         return UserDetails.super.isEnabled();
+    }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id='" + getId() + '\'' +
+                ", username='" + username + '\'' +
+                ", role=" + role +
+                ", team=" + (team != null ? team.getId() : "null") +
+                ", createdBy='" + getCreatedBy() + '\'' +
+                ", updatedBy='" + getUpdatedBy() + '\'' +
+                ", createdAt=" + getCreatedAt() +
+                ", updatedAt=" + getUpdatedAt() +
+                ", versioning=" + getVersioning() +
+                ", accountNonExpired=" + isAccountNonExpired() +
+                ", accountNonLocked=" + isAccountNonLocked() +
+                ", credentialsNonExpired=" + isCredentialsNonExpired() +
+                ", enabled=" + isEnabled() +
+                '}';
     }
 }

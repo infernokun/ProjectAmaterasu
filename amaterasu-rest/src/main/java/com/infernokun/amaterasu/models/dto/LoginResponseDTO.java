@@ -17,6 +17,7 @@ public class LoginResponseDTO {
     public LoginResponseDTO(String jwt, User user) {
         this.jwt = jwt;
         this.user = UserDTO.builder()
+                .id(user.getId())
                 .role(user.getRole())
                 .team(user.getTeam())
                 .username(user.getUsername())

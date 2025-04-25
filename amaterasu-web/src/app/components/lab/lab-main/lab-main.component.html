@@ -20,8 +20,9 @@
         <p class="lab-status">{{ lab.ready ? 'Ready' : 'Not Ready' }}</p>
         <p class="lab-type">Type: {{ lab.labType }}</p>
         <div class="lab-actions">
-          <button *ngIf="!isInTrackedLabs(lab.id!) && !(labsLoading$ | async)?.has(lab.id!) && lab.ready" mat-button
+          <button *ngIf="!isInTrackedLabs(lab.id!) && !(labsLoading$ | async)?.has(lab.id!) && lab.ready && user?.team" mat-button
             (click)="deployLabStart(lab)" [disabled]="!user">Deploy</button>
+            <button *ngIf="!user?.team" mat-button disabled="">No Team Assigned</button>
           <button *ngIf="isInTrackedLabs(lab.id!) && !(labsLoading$ | async)?.has(lab.id!)" mat-button disabled>Already
             Deployed</button>
           <button *ngIf="!lab.ready" mat-button disabled>Validating</button>

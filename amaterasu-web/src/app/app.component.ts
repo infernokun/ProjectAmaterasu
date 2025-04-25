@@ -34,7 +34,6 @@ export class AppComponent {
   appReady$: Observable<boolean> | undefined;
 
   Role = Role;
-  protected users: User[] = [];
   remoteServers: RemoteServer[] = [];
 
   remoteServerControl: FormControl = new FormControl('');
@@ -97,6 +96,10 @@ export class AppComponent {
     this.dialogService.openRegisterDialog().subscribe((res: any) => {
     });
   }
+
+  openProfileModal() {}
+
+  openUserSettingsModal() {}
 
   logoutButton(): void {
     this.authService.logout();

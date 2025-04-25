@@ -30,8 +30,8 @@ public class UserService extends BaseService implements UserDetailsService {
         this.userMapper = userMapper;
     }
 
-    public boolean existsByUsername(User user) {
-        return this.userRepository.existsByUsername(user.getUsername());
+    public boolean existsByUsername(String username) {
+        return this.userRepository.existsByUsername(username);
     }
 
     public void registerUser(User user) {
