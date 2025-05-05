@@ -33,14 +33,6 @@
       <a routerLink="/teams" class="nav-link">Teams</a>
       <a routerLink="/vm-lab-builder" class="nav-link">VM Lab Builder</a>
     </nav>
-    <mat-form-field floatLabel="always" class="remote-server-select">
-      <mat-label>Remote Server</mat-label>
-      <mat-select [formControl]="remoteServerControl" (selectionChange)="selectedRemoteServerChange($event.value)">
-        <mat-option *ngFor="let remoteServer of remoteServers" class="option" [value]="remoteServer.id">
-          {{ remoteServer.name }}
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
     <div class="display-flex flex-row width-100-percent justify-content-end">
       <article class="user-info">
         <div *ngIf="(loggedInUser$ | async) as user; else login" class="user-details">
@@ -97,18 +89,17 @@
   </footer>
 </div>
 
-<ng-template #loading>
-  <div class="spinner-border" role="status">
-    <span class="visually-hidden">Loading...</span>
-    <mat-spinner></mat-spinner>
-  </div>
-</ng-template>
-
 <ng-template #login>
   <div *ngIf="!(loadingUser$ | async) else loading" style="display: flex;">
     <button class="user-button" [disabled]="!(isInitialized$ | async)" mat-button
       (click)="openLoginModal()">Login</button>
     <button class="user-button" [disabled]="!(isInitialized$ | async)" mat-button
       (click)="openRegisterModal()">Register</button>
+  </div>
+</ng-template>
+
+<ng-template #loading>
+  <div class="loading-container">
+    <span class="visually-hidden">Loading application content...</span>
   </div>
 </ng-template>

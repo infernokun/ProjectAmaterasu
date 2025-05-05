@@ -1,35 +1,89 @@
 <div class="lab-container">
-  <ng-container *ngFor="let lab of labs$ | async">
-    <div class="lab-card" @fadeIn (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()"
-      [ngClass]="lab.ready ? 'lab-ready' : 'lab-not-ready'">
-      <div class="lab-icon" (click)="getSettings(lab)">
-        <img *ngIf="lab.labType === LabType.DOCKER_COMPOSE" src="assets/compose.png" alt="Docker Compose">
-        <img *ngIf="lab.labType === LabType.DOCKER_CONTAINER" src="assets/container.png" alt="Docker Container">
-      </div>
-      <div class="lab-body">
-        <h2>{{ lab.name }}</h2>
-        <p class="lab-id" *ngIf="isHovered">{{ lab.id }}</p>
-        <!-- YAML Upload Box -->
-        <div class="upload-box" *ngIf="lab.labType === LabType.DOCKER_COMPOSE">
-          <label for="dockerComposeUpload">Upload Docker Compose YAML File:</label>
-          <input type="file" id="dockerComposeUpload" accept=".yml,.yaml"
-            (change)="dockerComposeUpload($event, lab.id!)" *ngIf="user" />
+  <!-- Lab cards grid -->
+  <div class="labs-grid">
+    <ng-container *ngFor="let lab of labs$ | async">
+      <div class="lab-card" @fadeIn 
+          (mouseenter)="onMouseEnter()" 
+          (mouseleave)="onMouseLeave()"
+          [ngClass]="{'lab-ready': lab.ready, 'lab-not-ready': !lab.ready}">
+        
+        <button class="delete-button" 
+                matTooltip="Delete Lab" 
+                (click)="deleteLab(lab); $event.stopPropagation()">
+          <mat-icon>close</mat-icon>
+        </button>
+        
+        <div class="lab-header">
+          <div class="lab-icon" (click)="getSettings(lab)">
+            <img *ngIf="lab.labType === LabType.DOCKER_COMPOSE" src="assets/compose.png" alt="Docker Compose">
+            <img *ngIf="lab.labType === LabType.DOCKER_CONTAINER" src="assets/container.png" alt="Docker Container">
+          </div>
+          <div class="lab-status-badge" [ngClass]="lab.ready ? 'ready' : 'not-ready'">
+            {{ lab.ready ? 'Ready' : 'Validating' }}
+          </div>
         </div>
-        <p class="lab-description">{{ lab.description }}</p>
-        <p class="lab-created-by">Created by: {{ lab.createdBy }}</p>
-        <p class="lab-status">{{ lab.ready ? 'Ready' : 'Not Ready' }}</p>
-        <p class="lab-type">Type: {{ lab.labType }}</p>
-        <div class="lab-actions">
-          <button *ngIf="!isInTrackedLabs(lab.id!) && !(labsLoading$ | async)?.has(lab.id!) && lab.ready && user?.team" mat-button
-            (click)="deployLabStart(lab)" [disabled]="!user">Deploy</button>
-            <button *ngIf="!user?.team" mat-button disabled="">No Team Assigned</button>
-          <button *ngIf="isInTrackedLabs(lab.id!) && !(labsLoading$ | async)?.has(lab.id!)" mat-button disabled>Already
-            Deployed</button>
-          <button *ngIf="!lab.ready" mat-button disabled>Validating</button>
-          <button *ngIf="(labsLoading$ | async)?.has(lab.id!) && !isInTrackedLabs(lab.id!)" mat-button
-            disabled>Deploying...</button>
+        
+        <div class="lab-body">
+          <h2 class="lab-title">{{ lab.name }}</h2>
+          <p class="lab-id" *ngIf="isHovered">ID: {{ lab.id }}</p>
+          <p class="lab-description">{{ lab.description }}</p>
+          
+          <div class="lab-meta">
+            <div class="lab-meta-item">
+              <mat-icon>person</mat-icon>
+              <span>{{ lab.createdBy }}</span>
+            </div>
+            <div class="lab-meta-item">
+              <mat-icon>category</mat-icon>
+              <span>{{ lab.labType }}</span>
+            </div>
+          </div>
+          
+          <!-- YAML Upload Box for Docker Compose labs -->
+          <div class="upload-box" *ngIf="lab.labType === LabType.DOCKER_COMPOSE">
+            <label for="dockerComposeUpload-{{lab.id}}">
+              <mat-icon>upload_file</mat-icon>
+              Docker Compose YAML:
+            </label>
+            <input type="file" id="dockerComposeUpload-{{lab.id}}" accept=".yml,.yaml"
+                  (change)="dockerComposeUpload($event, lab.id!)" 
+                  *ngIf="user" />
+          </div>
+          
+          <div class="lab-actions">
+            <!-- Add loading state indicator -->
+            <div *ngIf="isLoading" class="loading-wrapper">
+              <mat-spinner diameter="30"></mat-spinner>
+            </div>
+            
+            <!-- Only show buttons when initial loading is complete -->
+            <ng-container *ngIf="!isLoading && (labTrackers$ | async)">
+              <button mat-raised-button color="primary"
+                *ngIf="!isInTrackedLabs(lab.id!) && !(labsLoading$ | async)?.has(lab.id!) && lab.ready && user?.team"
+                (click)="deployLabStart(lab)"
+                [disabled]="!user">
+                <mat-icon>rocket_launch</mat-icon> Deploy
+              </button>
+              
+              <button mat-raised-button disabled *ngIf="!user?.team">
+                <mat-icon>group_off</mat-icon> No Team Assigned
+              </button>
+              
+              <button mat-raised-button color="accent" disabled *ngIf="isInTrackedLabs(lab.id!) && !(labsLoading$ | async)?.has(lab.id!)">
+                <mat-icon>check_circle</mat-icon> Deployed
+              </button>
+              
+              <button mat-raised-button disabled *ngIf="!lab.ready">
+                <mat-icon>hourglass_empty</mat-icon> Validating
+              </button>
+              
+              <button mat-raised-button disabled *ngIf="(labsLoading$ | async)?.has(lab.id!) && !isInTrackedLabs(lab.id!)">
+                <mat-icon>pending</mat-icon> Deploying...
+              </button>
+            </ng-container>
+          </div>
         </div>
       </div>
-    </div>
-  </ng-container>
+    </ng-container>
+  </div>
 </div>

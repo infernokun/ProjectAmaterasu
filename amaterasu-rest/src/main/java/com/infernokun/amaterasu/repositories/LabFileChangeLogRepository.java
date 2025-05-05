@@ -10,4 +10,5 @@ import java.util.Optional;
 @Repository
 public interface LabFileChangeLogRepository extends JpaRepository<LabFileChangeLog, String> {
     Optional<LabFileChangeLog> findByLab(Lab lab);
+    void deleteByLabId(String labId);
 }

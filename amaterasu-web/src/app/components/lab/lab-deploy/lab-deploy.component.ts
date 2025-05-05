@@ -333,7 +333,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
         }
 
         
-        this.showOutputDialog('Lab Settings', res.data, 'bash', false);
+        this.showOutputDialog('Lab Settings', res.data, 'bash');
       });
   }
 
@@ -349,7 +349,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
         fileType: fileType,
       },
       width: '75rem',
-      height: '50rem',
+      height: '62rem',
       disableClose: true,
     });
   }
@@ -419,10 +419,6 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       };
     }
     return of(apiResponse);
-  }
-
-  viewLogs(id: string | undefined): void {
-    console.warn('viewLogs method not implemented yet');
   }
 
   formatLabName(name: string): string {

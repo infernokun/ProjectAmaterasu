@@ -17,6 +17,7 @@ import lombok.*;
 public class RemoteServer extends StoredObject {
     private String name;
     private String ipAddress;
+    private int port;
     @JsonIgnore
     private String username;
     @JsonIgnore

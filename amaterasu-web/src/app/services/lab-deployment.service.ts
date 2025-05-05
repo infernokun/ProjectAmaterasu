@@ -60,4 +60,8 @@ export class LabDeploymentService {
   isLabLoading(labId: string): boolean {
     return this.labsLoadingSubject.value.has(labId);
   }
+
+  getLabsLoading() {
+    return this.labsLoadingSubject.value;
+  }
 }

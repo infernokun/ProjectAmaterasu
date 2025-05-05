@@ -1,11 +1,12 @@
 import { StoredObject } from './stored-object.model';
 import { RemoteServerStats } from './remote-server-stats.model';
-import { RadioQuestion, PasswordQuestion, SimpleFormData, TextQuestion, ButtonQuestion, ObservableMap, DropDownQuestion } from './simple-form-data.model';
+import { RadioQuestion, PasswordQuestion, SimpleFormData, TextQuestion, ButtonQuestion, ObservableMap, DropDownQuestion, NumberQuestion } from './simple-form-data.model';
 import { ServerType } from '../enums/server-type.enum';
 
 export class RemoteServer extends StoredObject {
   name?: string;
   ipAddress?: string;
+  port?: number;
   serverType?: ServerType;
   remoteServerStats?: RemoteServerStats;
   nodeName?: string;
@@ -15,6 +16,7 @@ export class RemoteServer extends StoredObject {
     if (serverResult) {
       this.name = serverResult.name;
       this.ipAddress = serverResult.ipAddress;
+      this.port = serverResult.port;
       this.serverType = serverResult.serverType;
       this.remoteServerStats = serverResult.remoteServerStats ? new RemoteServerStats(serverResult.remoteServerStats) : undefined;
       this.nodeName = serverResult.nodeName;
@@ -48,6 +50,11 @@ export class RemoteServerFormData extends SimpleFormData {
         label: 'IPAddress',
         key: 'ipAddress',
         neededEnum: { key: 'serverType', value: Object.values(ServerType) }
+      }),
+      new NumberQuestion({
+        label: 'Port',
+        key: 'port',
+        neededEnum: { key: "serverType", value: [ServerType.DOCKER_HOST] }
       }),
       new TextQuestion({
         label: "Username",

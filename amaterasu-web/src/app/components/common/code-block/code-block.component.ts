@@ -1,26 +1,37 @@
-import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectorRef, ViewChild } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  OnInit,
+  ChangeDetectorRef,
+  ViewChild,
+} from '@angular/core';
 import { CodeEditorComponent, CodeModel } from '@ngstack/code-editor';
 
-
 @Component({
-    selector: 'app-code-block',
-    templateUrl: './code-block.component.html',
-    styleUrls: ['./code-block.component.scss'],
-    standalone: false
+  selector: 'app-code-block',
+  templateUrl: './code-block.component.html',
+  styleUrls: ['./code-block.component.scss'],
+  standalone: false,
 })
 export class CodeBlockComponent implements OnInit {
-  @ViewChild(CodeEditorComponent, { static: false }) _codeEditor: CodeEditorComponent | undefined;
+  @ViewChild(CodeEditorComponent, { static: false }) _codeEditor:
+    | CodeEditorComponent
+    | undefined;
   @Input() id: string = '';
   @Input() placeholder: string = '';
   @Input() readonly: boolean = false;
-  @Output() onChange = new EventEmitter<string>();
-  @Output() onVersionChange = new EventEmitter<number>();
   @Input() versions: number[] = [];
+  @Input() fileType: string = '';
   @Input() codeModel: CodeModel | undefined = {
     language: 'json',
     uri: 'main.json',
-    value: ''
-  };;
+    value: '',
+  };
+
+  @Output() onVersionChange = new EventEmitter<number>();
+  @Output() onChange = new EventEmitter<string>();
 
   isCopied = false;
   theme = 'vs-dark';
@@ -28,23 +39,27 @@ export class CodeBlockComponent implements OnInit {
   options = {
     contextmenu: true,
     minimap: {
-      enabled: true
-    }
+      enabled: true,
+    },
   };
 
-  constructor(private cdr: ChangeDetectorRef) { }
+  constructor(private cdr: ChangeDetectorRef) {}
 
   ngOnChanges() {
+    if (this.codeModel && this.fileType) {
+      this.codeModel.language = this.fileType;
+    }
+    
     this.cdr.detectChanges();
   }
 
   ngOnInit() {
-    console.log('editor', this._codeEditor);
+    if (this.codeModel) {
+      this.codeModel.language = this.fileType;
+    }
   }
 
-  onCodeChanged(value: any) {
-    console.log('CODE', value);
-  }
+  onCodeChanged(value: any) {}
 
   copyToClipboard() {
     navigator.clipboard.writeText(this.codeModel!.value).then(() => {
@@ -55,5 +70,4 @@ export class CodeBlockComponent implements OnInit {
       }, 2000);
     });
   }
-
 }

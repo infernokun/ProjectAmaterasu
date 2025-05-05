@@ -20,7 +20,7 @@
 <div *ngIf="question.type === 'password' && !isHidden" class="row width-100-percent form-field-container">
   <mat-form-field floatLabel="always">
     <mat-label>{{ question.label }}</mat-label>
-    <input type="password" [formControl]="formControl" matInput maxlength="{{ question.size }}" [disabled]="isDisabled || isValidated">
+    <input type="password" [formControl]="formControl" matInput maxlength="{{ question.size }}" [readonly]="isDisabled || isValidated">
   </mat-form-field>
   <p class="character-count"
     [ngClass]="formControl.value.length === question.size ? 'character-count-max' : 'character-count-min'">{{

@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { User } from './models/user.model';
 import { UserService } from './services/user.service';
-import { Observable, BehaviorSubject, filter, Subject, switchMap, takeUntil, of, combineLatest, map, startWith } from 'rxjs';
+import { Observable, Subject, takeUntil, of, map, startWith } from 'rxjs';
 import { AuthService } from './services/auth.service';
 import { EditDialogService } from './services/edit-dialog.service';
 
@@ -42,7 +42,7 @@ export class AppComponent {
 
   constructor(private userService: UserService,
     private authService: AuthService, private dialogService: EditDialogService,
-    private appInitService: AppInitService, private remoteServerService: RemoteServerService
+    private appInitService: AppInitService, private remoteServerService: RemoteServerService,
   ) {
 
   }
@@ -103,9 +103,5 @@ export class AppComponent {
 
   logoutButton(): void {
     this.authService.logout();
-  }
-
-  selectedRemoteServerChange(remoteServerId: string): void {
-    this.remoteServerService.setSelectedRemoteServer(this.remoteServers.find(s => s.id == remoteServerId)!);
   }
 }

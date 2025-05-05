@@ -4,16 +4,14 @@ import { Lab, LabDTO, LabFormData } from '../../models/lab.model';
 import { UserService } from '../../services/user.service';
 import {
   Observable,
-  BehaviorSubject,
   switchMap,
-  combineLatest,
   of,
-  distinctUntilChanged,
   filter,
   takeUntil,
   catchError,
   Subject,
-  finalize,
+  tap,
+  timer,
 } from 'rxjs';
 import { User } from '../../models/user.model';
 import { ApiResponse } from '../../models/api-response.model';
@@ -28,9 +26,7 @@ import { LabType } from '../../enums/lab-type.enum';
 import { ProxmoxService } from '../../services/proxmox.service';
 import { RemoteServer } from '../../models/remote-server.model';
 import { RemoteServerService } from '../../services/remote-server.service';
-import { FormControl } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
-import { trigger, transition, style, animate } from '@angular/animations';
 import { DateUtils } from '../../utils/date-utils';
 
 @Component({
@@ -41,19 +37,14 @@ import { DateUtils } from '../../utils/date-utils';
   standalone: false,
 })
 export class LabComponent implements OnInit, OnDestroy {
-  private loggedInUserSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);
-  private userTeamSubject: BehaviorSubject<Team | undefined> = new BehaviorSubject<Team | undefined>(undefined);
-  private isLoadingSubject: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   private readonly destroy$ = new Subject<void>();
-  private readonly isLoading$ = new BehaviorSubject<boolean>(false);
-  
 
   labs: Lab[] = [];
   team: Team | undefined;
   trackedLabs: LabTracker[] = [];
   loggedInUser: User | undefined;
 
-  remoteServerControl: FormControl = new FormControl('');
+  labsCount: number = 0;
 
   isHovered: boolean = false;
   busy: boolean = false;
@@ -62,9 +53,10 @@ export class LabComponent implements OnInit, OnDestroy {
   LabType = LabType;
 
   labs$: Observable<Lab[] | undefined> | undefined;
-  loggedInUser$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
+  loggedInUser$: Observable<User | undefined>
   labTrackersByTeam$: Observable<LabTracker[]> = of([]);
-  userTeam$: Observable<Team | undefined> = this.userTeamSubject.asObservable();
+
+  isLoading: boolean = false;
 
   constructor(
     private labService: LabService,
@@ -76,7 +68,9 @@ export class LabComponent implements OnInit, OnDestroy {
     private proxmoxService: ProxmoxService,
     private remoteServerService: RemoteServerService,
     private authService: AuthService
-  ) {}
+  ) {
+    this.loggedInUser$ = this.authService.user$;
+  }
 
   ngOnInit(): void {
     this.initializeData();
@@ -88,52 +82,51 @@ export class LabComponent implements OnInit, OnDestroy {
   }
 
   private initializeData(): void {
-    this.isLoading$.next(true);
-    this.labService.fetchLabs();
+    this.isLoading = true;
+  
+    
+    // Set up subscription to labs
+    this.labService.labs$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe((labs: Lab[] | undefined) => {
+      if (!labs) return;
 
-    combineLatest([this.labService.labs$, this.authService.user$])
-      .pipe(
-        takeUntil(this.destroy$),
-        filter(([labs, user]) => !!user && Array.isArray(labs)),
-        distinctUntilChanged(([_, prevUser], [__, currUser]) => 
-          prevUser?.team?.id === currUser?.team?.id
-        ),
-        switchMap(([labs, user]) => {
-          this.updateLocalState(labs!, user!);
-          
-          const teamId = user?.team?.id;
-          if (!teamId) {
-            return of([]);
-          }
-          
-          return this.labTrackerService.getLabTrackersByTeam(teamId)
-            .pipe(
-              catchError(error => {
-                console.error('Failed to load lab trackers:', error);
-                return of([]);
-              })
-            );
-        }),
-        finalize(() => this.isLoading$.next(false))
-      )
-      .subscribe({
-        next: (labTrackers: LabTracker[]) => {
-          this.trackedLabs = labTrackers.filter(
-            tracker => tracker.labStatus !== LabStatus.DELETED
-          );
-          this.labTrackerService.setLabTrackersByTeam(this.trackedLabs);
-        },
-        error: (err) => {
-          console.error('Error in data loading process:', err);
-          this.isLoading$.next(false);
-        }
-      });
-  }
+      this.labs = labs;
+      this.labsCount = this.labs.length;
+      console.log('Labs loaded:', labs);
+    });
+  
+    // Handle user and trackers separately
+    this.loggedInUser$.pipe(
+      takeUntil(this.destroy$),
+      filter(user => !!user), // Only proceed if user exists
+      tap((user) => {
+        // Fetch labs only when we have an authenticated user
+        this.labService.fetchLabs();
+      }),
+      switchMap(user => this.labTrackerService.getLabTrackersByTeam(user?.team?.id!)),
+      catchError(error => {
+        console.error('Error fetching lab trackers:', error);
+        return of([]);
+      })
+    ).subscribe(labTrackers => {
+      this.trackedLabs = labTrackers.filter(
+        tracker => tracker.labStatus !== LabStatus.DELETED
+      );
+      this.labTrackerService.setLabTrackersByTeam(this.trackedLabs);
 
-  private updateLocalState(labs: Lab[], user: User): void {
-    this.labs = labs;
-    this.loggedInUser = user;
-    this.loggedInUserSubject.next(this.loggedInUser);
+      this.isLoading = false;
+    });
+
+    timer(1000).pipe(
+      takeUntil(this.destroy$),
+      takeUntil(this.loggedInUser$.pipe(filter(user => !!user)))
+    ).subscribe(() => {
+      // If after 2 seconds we still don't have a user, stop showing loading indicator
+      if (this.isLoading) {
+        this.isLoading = false;
+      }
+    });
   }
 
   addLab(): void {
@@ -173,6 +166,7 @@ export class LabComponent implements OnInit, OnDestroy {
 
             if (!labResp.data) return;
             this.labs.push(new Lab(labResp.data));
+            this.labService.addNewLab(new Lab(labResp.data));
           });
       })
       .subscribe((res: any) => {});

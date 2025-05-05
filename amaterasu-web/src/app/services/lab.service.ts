@@ -21,18 +21,57 @@ export class LabService extends BaseService {
   private labsSubject = new BehaviorSubject<Lab[] | undefined>(undefined);
   labs$: Observable<Lab[] | undefined> = this.labsSubject.asObservable();
 
+  private labsFetched = false;
+
   constructor(
     protected httpClient: HttpClient,
     private environmentService: EnvironmentService) {
     super(httpClient);
   }
 
+  setLabs(labs: Lab[]): void {
+    this.labsSubject.next(labs);
+  }
+
+  addNewLab(lab: Lab): void {
+    if (!this.labsSubject.value) return;
+
+    const updatedLabs = [...this.labsSubject.value, lab]; 
+    this.labsSubject.next(updatedLabs);
+  }
+
+  removeLab(lab: Lab): void {
+    if (!this.labsSubject.value) return;
+
+    const updatedLabs = this.labsSubject.value.filter(l => l.id !== lab.id);
+    this.labsSubject.next(updatedLabs);
+  }
+
   fetchLabs(): void {
-    this.get<ApiResponse<Lab[]>>(`${this.environmentService.settings?.restUrl}/labs`)
-      .pipe(
-        map(response => response.data.map(lab => new Lab(lab)).sort((a, b) => a.name!.localeCompare(b.name!)))
-      )
-      .subscribe(labs => this.labsSubject.next(labs));
+    // Only fetch if not already fetched or force refresh is needed
+    if (!this.labsFetched) {
+      this.get<ApiResponse<Lab[]>>(`${this.environmentService.settings?.restUrl}/labs`)
+        .pipe(
+          map(response => response.data.map(lab => new Lab(lab))
+                                     .sort((a, b) => a.name!.localeCompare(b.name!)))
+        )
+        .subscribe({
+          next: labs => {
+            this.labsSubject.next(labs);
+            this.labsFetched = true;
+          },
+          error: error => {
+            console.error('Failed to fetch labs:', error);
+            // Reset flag to allow retrying
+            this.labsFetched = false;
+          }
+        });
+    }
+  }
+  
+  refreshLabs(): void {
+    this.labsFetched = false;
+    this.fetchLabs();
   }
 
   getLabById(labId: string): Observable<Lab> {
@@ -91,6 +130,10 @@ export class LabService extends BaseService {
 
   getSettings(labId: string, remoteServerId: string): Observable<ApiResponse<any>> {
     return this.get<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/settings/' + labId + '/' + remoteServerId);
+  }
+
+  deleteLabItem(labId: string) {
+    return this.delete<ApiResponse<boolean>>(this.environmentService.settings?.restUrl + '/labs/delete-item/' + labId);
   }
 
   clear(teamId: string): Observable<ApiResponse<any>> {

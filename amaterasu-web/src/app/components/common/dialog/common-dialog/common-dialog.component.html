@@ -1,22 +1,37 @@
-<div class="bg-alert padding-1x border border-radius">
-  <h1 class="enable-crlf dialog-title" mat-dialog-title>{{ data.title }}</h1>
-</div>
-
-<div class="text-lg">
-  <div *ngIf="!isCode" mat-dialog-content class="enable-crlf">
-    {{ data.content }}
+<div class="dialog-container">
+  <!-- Header with Title -->
+  <div class="bg-alert">
+    <h1 class="dialog-title" mat-dialog-title>{{ data.title }}</h1>
   </div>
+  
+  <!-- Content Section -->
+  <mat-dialog-content class="dialog-content">
+    <!-- Regular content display -->
+    <div *ngIf="!isCode" class="text-lg enable-crlf">
+      {{ data.content }}
+    </div>
+    
+    <!-- Code editor display -->
+    <div *ngIf="isCode" class="code-editor-wrapper">
+      <app-code-block 
+        id="code-editor" 
+        [codeModel]="output" 
+        [fileType]="fileType"
+        [readonly]="isReadOnly"
+        [versions]="[1, 2, 3]" 
+        (onChange)="onCodeChange($event)" 
+        (onVersionChange)="onVersionSelected($event)">
+      </app-code-block>
+    </div>
+  </mat-dialog-content>
+  
+  <!-- Action Buttons -->
+  <mat-dialog-actions align="end" class="dialog-actions">
+    <button mat-button class="mat-raised-button mat-cancel" (click)="close()">
+      <span class="button-text">Cancel</span>
+    </button>
+    <button mat-button class="mat-raised-button mat-accent" (click)="close()">
+      <span class="button-text">Confirm</span>
+    </button>
+  </mat-dialog-actions>
 </div>
-
-<mat-dialog-content class="dialog-content">
-  <app-code-block *ngIf="isCode" id="code-editor" type="fileType" [codeModel]="output" [readonly]="isReadOnly"
-    [versions]="[1, 2, 3]" (onChange)="onCodeChange($event)" (onVersionChange)="onVersionSelected($event)">
-  </app-code-block>
-
-  <p *ngIf="!isCode">{{ data.content }}</p>
-</mat-dialog-content>
-
-<mat-dialog-actions align="end" class="dialog-actions">
-  <button mat-button class="mat-raised-button transparent-button" (click)="close()">Close</button>
-  <button mat-button class="mat-raised-button mat-accent margin-left" (click)="close()">OK</button>
-</mat-dialog-actions>

@@ -364,6 +364,16 @@ public class LabService extends BaseService {
         }
     }
 
+    public boolean deleteLabItem(String labId) {
+        if (!labRepository.existsById(labId)) {
+            return false;
+        }
+
+        labFileChangeLogRepository.deleteByLabId(labId);
+        labRepository.deleteById(labId);
+        return true;
+    }
+
     public void clear(String teamId) {
         Team team = teamService.findTeamById(teamId);
 

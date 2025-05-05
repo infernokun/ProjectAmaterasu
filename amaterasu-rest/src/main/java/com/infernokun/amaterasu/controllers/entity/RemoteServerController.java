@@ -2,10 +2,12 @@ package com.infernokun.amaterasu.controllers.entity;
 
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
+import com.infernokun.amaterasu.models.dto.RemoteServerDTO;
 import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
+import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,9 +19,11 @@ import java.util.List;
 @RequestMapping("/api/remote-server")
 public class RemoteServerController extends BaseController {
     private final RemoteServerService remoteServerService;
+    private final ModelMapper modelMapper;
 
-    public RemoteServerController(RemoteServerService remoteServerService) {
+    public RemoteServerController(RemoteServerService remoteServerService, ModelMapper modelMapper) {
         this.remoteServerService = remoteServerService;
+        this.modelMapper = modelMapper;
     }
 
     @GetMapping
@@ -54,8 +58,8 @@ public class RemoteServerController extends BaseController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<RemoteServer>> createRemoteServer(@RequestBody RemoteServer remoteServer) {
-        RemoteServer createdServer = remoteServerService.addServer(remoteServer);
+    public ResponseEntity<ApiResponse<RemoteServer>> createRemoteServer(@RequestBody RemoteServerDTO remoteServer) {
+        RemoteServer createdServer = remoteServerService.addServer(modelMapper.map(remoteServer, RemoteServer.class));
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse.<RemoteServer>builder()
                         .code(HttpStatus.CREATED.value())
@@ -66,8 +70,8 @@ public class RemoteServerController extends BaseController {
     }
 
     @PostMapping("/validate")
-    public ResponseEntity<ApiResponse<Boolean>> validateRemoteServer(@RequestBody RemoteServer remoteServer) {
-        boolean isRemoteServerValid = remoteServerService.validateRemoteServer(remoteServer);
+    public ResponseEntity<ApiResponse<Boolean>> validateRemoteServer(@RequestBody RemoteServerDTO remoteServer) {
+        boolean isRemoteServerValid = remoteServerService.validateRemoteServer(modelMapper.map(remoteServer, RemoteServer.class));
         return ResponseEntity.status(HttpStatus.OK).body(
                 ApiResponse.<Boolean>builder()
                     .code(HttpStatus.OK.value())
@@ -76,6 +80,7 @@ public class RemoteServerController extends BaseController {
                     .build()
         );
     }
+
     @DeleteMapping("{id}")
     public ResponseEntity<ApiResponse<Boolean>> deleteRemoteServer(@PathVariable String id) {
         boolean remoteServerDeleted = remoteServerService.deleteServer(id);

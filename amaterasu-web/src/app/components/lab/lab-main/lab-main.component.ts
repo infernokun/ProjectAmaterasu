@@ -2,8 +2,10 @@ import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { Lab } from '../../../models/lab.model';
 import {
   catchError,
+  combineLatest,
   Observable,
   of,
+  startWith,
   Subject,
   takeUntil,
 } from 'rxjs';
@@ -21,8 +23,13 @@ import { LabDeploymentService } from '../../../services/lab-deployment.service';
 import { FADE_ANIMATION } from '../../../utils/animations';
 import { CommonDialogComponent } from '../../common/dialog/common-dialog/common-dialog.component';
 import { EditDialogService } from '../../../services/edit-dialog.service';
-import { RemoteServer, RemoteServerSelectData } from '../../../models/remote-server.model';
+import {
+  RemoteServer,
+  RemoteServerSelectData,
+} from '../../../models/remote-server.model';
 import { getServerType } from '../../../utils/server-lab-type';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { ConfirmationDialogComponent } from '../../common/dialog/confirmation-dialog/confirmation-dialog.component';
 
 @Component({
   selector: 'app-lab-main',
@@ -34,15 +41,18 @@ import { getServerType } from '../../../utils/server-lab-type';
 export class LabMainComponent implements OnInit, OnDestroy {
   readonly LabType = LabType;
   isHovered = false;
-  
+
   // Observables for async pipe
-  labs$: Observable<Lab[] | undefined> | undefined;
+  labs$: Observable<Lab[] | undefined>;
   labTrackers$: Observable<LabTracker[] | undefined> | undefined;
   isLoading$: Observable<boolean> | undefined;
   labsLoading$: Observable<Set<string>> | undefined;
-  
+
+  isLoading = true;
+
   // Private properties
-  private labTrackers: LabTracker[] = [];
+  private labTrackers: LabTracker[] | undefined = undefined;
+  private labs: Lab[] = [];
   private destroy$ = new Subject<void>();
 
   @Input() user: User | undefined;
@@ -55,10 +65,12 @@ export class LabMainComponent implements OnInit, OnDestroy {
     private remoteServerService: RemoteServerService,
     private authService: AuthService,
     private labDeploymentService: LabDeploymentService,
-    private editDialogService: EditDialogService
+    private editDialogService: EditDialogService,
+    private snackBar: MatSnackBar
   ) {
     this.labs$ = this.labService.labs$;
     this.labsLoading$ = this.labDeploymentService.labsLoading$;
+    this.labTrackers$ = this.labTrackerService.labTrackersByTeam$;
   }
 
   ngOnInit(): void {
@@ -71,11 +83,23 @@ export class LabMainComponent implements OnInit, OnDestroy {
   }
 
   private setupSubscriptions(): void {
-    // Store lab trackers for isInTrackedLabs method
-    this.labTrackerService.labTrackersByTeam$
+    // Combine both observables to wait for both to emit
+    combineLatest([
+      this.labTrackerService.labTrackersByTeam$.pipe(startWith(null)),
+      this.labs$.pipe(startWith(null)),
+    ])
       .pipe(takeUntil(this.destroy$))
-      .subscribe(trackers => {
+      .subscribe(([trackers, labs]) => {
+        // Handle trackers
         this.labTrackers = trackers || [];
+
+        // Handle labs
+        if (labs) {
+          this.labs = labs;
+        }
+
+        // Set loading to false only after both have emitted
+        this.isLoading = false;
       });
   }
 
@@ -87,15 +111,16 @@ export class LabMainComponent implements OnInit, OnDestroy {
   dockerComposeUpload(event: Event, labId: string): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
-    
+
     const file = input.files[0];
     const reader = new FileReader();
 
     reader.onload = (e: ProgressEvent<FileReader>) => {
       const content = e.target?.result as string;
       if (!content) return;
-      
-      this.labService.uploadDockerComposeFile(labId, content)
+
+      this.labService
+        .uploadDockerComposeFile(labId, content)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (res: ApiResponse<string>) => {
@@ -105,10 +130,10 @@ export class LabMainComponent implements OnInit, OnDestroy {
           error: (err) => {
             // Handle error
             console.error('Upload failed:', err);
-          }
+          },
         });
     };
-    
+
     reader.readAsText(file);
   }
 
@@ -139,22 +164,27 @@ export class LabMainComponent implements OnInit, OnDestroy {
         }
 
         dialogCancelled = false;
-        this.labService.getSettings(labId, response.remoteServer)
-      .pipe(
-        takeUntil(this.destroy$),
-        catchError(error => {
-          console.error('Failed to get lab settings:', error);
-          return of({ code: 404, data: {}, message: 'Failed to fetch settings' });
-        })
-      )
-      .subscribe((res: ApiResponse<any>) => {
-        if (!res.data || !res.data.yml) {
-          console.error('No YAML data found in response!');
-          return;
-        }
-        
-        this.showOutputDialog('Lab Settings', res.data.yml, 'yaml', false);
-      });
+        this.labService
+          .getSettings(labId, response.remoteServer)
+          .pipe(
+            takeUntil(this.destroy$),
+            catchError((error) => {
+              console.error('Failed to get lab settings:', error);
+              return of({
+                code: 404,
+                data: {},
+                message: 'Failed to fetch settings',
+              });
+            })
+          )
+          .subscribe((res: ApiResponse<any>) => {
+            if (!res.data || !res.data.yml) {
+              console.error('No YAML data found in response!');
+              return;
+            }
+
+            this.showOutputDialog('Lab Settings', res.data.yml, 'yaml', false);
+          });
       })
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
@@ -165,7 +195,8 @@ export class LabMainComponent implements OnInit, OnDestroy {
 
   isInTrackedLabs(labId?: string): boolean {
     if (!labId) return false;
-    return this.labTrackers.some(tracker => tracker.labStarted?.id === labId);
+    if (!this.labTrackers || this.labTrackers.length === 0) return false;
+    return this.labTrackers.some((tracker) => tracker.labStarted?.id === labId);
   }
 
   onMouseEnter(): void {
@@ -176,9 +207,15 @@ export class LabMainComponent implements OnInit, OnDestroy {
     this.isHovered = false;
   }
 
-  private showOutputDialog(title: string, content: string | object, fileType: string, isReadOnly: boolean = true): void {
-    const dialogContent = typeof content === 'object' ? JSON.stringify(content, null, 2) : content;
-    
+  private showOutputDialog(
+    title: string,
+    content: string | object,
+    fileType: string,
+    isReadOnly: boolean = true
+  ): void {
+    const dialogContent =
+      typeof content === 'object' ? JSON.stringify(content, null, 2) : content;
+
     this.dialog.open(CommonDialogComponent, {
       data: {
         title: title,
@@ -190,6 +227,55 @@ export class LabMainComponent implements OnInit, OnDestroy {
       width: '75rem',
       height: '50rem',
       disableClose: true,
+    });
+  }
+
+  deleteLab(lab: Lab): void {
+    // Show confirmation dialog before deleting
+    const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+      width: '350px',
+      data: {
+        title: 'Delete Lab',
+        message: `Are you sure you want to delete "${lab.name}"? This action cannot be undone.`,
+        confirmButtonText: 'Delete',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: 'warn',
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        this.labService
+          .deleteLabItem(lab.id!)
+          .subscribe((res: ApiResponse<any>) => {
+            if (res.data === true) {
+              this.showNotification(
+                `Lab "${lab.name}" successfully deleted`,
+                'success'
+              );
+
+              this.labService.removeLab(lab);
+            }
+          });
+      }
+    });
+  }
+
+  private showNotification(
+    message: string,
+    type: 'success' | 'error' | 'warning'
+  ): void {
+    const panelClass = {
+      success: ['notification-success'],
+      error: ['notification-error'],
+      warning: ['notification-warning'],
+    }[type];
+
+    this.snackBar.open(message, 'Close', {
+      duration: 5000,
+      horizontalPosition: 'end',
+      verticalPosition: 'top',
+      panelClass,
     });
   }
 }

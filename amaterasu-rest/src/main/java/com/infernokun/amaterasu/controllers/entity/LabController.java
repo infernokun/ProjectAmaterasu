@@ -222,6 +222,16 @@ public class LabController extends BaseController {
                         .build());
     }
 
+    @DeleteMapping("delete-item/{labId}")
+    public ResponseEntity<ApiResponse<Boolean>> deleteLabItem(@PathVariable String labId) {
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.<Boolean>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Lab item deleted successfully.")
+                        .data(this.labService.deleteLabItem(labId))
+                        .build());
+    }
+
     @PostMapping("dev")
     public void clear(@RequestBody LabRequest labRequest) {
         labService.clear(labRequest.getTeamId());

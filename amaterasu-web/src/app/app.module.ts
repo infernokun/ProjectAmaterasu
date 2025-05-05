@@ -34,6 +34,7 @@ import { LabMainComponent } from './components/lab/lab-main/lab-main.component';
 import { LabDeployComponent } from './components/lab/lab-deploy/lab-deploy.component';
 import { AddDialogFormComponent } from './components/common/dialog/add-dialog-form/add-dialog-form.component';
 import { SettingsConfigureComponent } from './components/lab-settings/settings-configure/settings-configure.component';
+import { ConfirmationDialogComponent } from './components/common/dialog/confirmation-dialog/confirmation-dialog.component';
 
 export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
   return () => {
@@ -70,7 +71,8 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     VMLabBuilderComponent,
     LabMainComponent,
     LabDeployComponent,
-    SettingsConfigureComponent
+    SettingsConfigureComponent,
+    ConfirmationDialogComponent
   ],
   imports: [
     BrowserModule,

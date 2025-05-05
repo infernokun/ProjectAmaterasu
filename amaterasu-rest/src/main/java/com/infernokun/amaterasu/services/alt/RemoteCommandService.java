@@ -66,7 +66,7 @@ public class RemoteCommandService extends BaseService {
 
             return isValid;
         } catch (Exception e) {
-            LOGGER.error("Connection validation failed for server {}: {}", remoteServer.getId(), e.getMessage());
+            LOGGER.error("Connection validation failed for server {} ({}:{}): {}", remoteServer.getName(), remoteServer.getIpAddress(), remoteServer.getPort(), e.getMessage());
             return false;
         } finally {
             disconnectSession(session, remoteServer);
@@ -90,7 +90,7 @@ public class RemoteCommandService extends BaseService {
         Session session = null;
 
         try {
-            session = jSch.getSession(remoteServer.getUsername(), remoteServer.getIpAddress(), amaterasuConfig.getSshPort());
+            session = jSch.getSession(remoteServer.getUsername(), remoteServer.getIpAddress(), remoteServer.getPort());
 
             String decryptedPassword = remoteServer.getId() != null ? decryptPassword(remoteServer) : remoteServer.getPassword();
 
