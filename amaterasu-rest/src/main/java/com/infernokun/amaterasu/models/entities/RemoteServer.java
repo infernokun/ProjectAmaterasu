@@ -1,7 +1,6 @@
 package com.infernokun.amaterasu.models.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -17,7 +16,7 @@ import lombok.*;
 public class RemoteServer extends StoredObject {
     private String name;
     private String ipAddress;
-    private int port;
+    private Integer port;
     @JsonIgnore
     private String username;
     @JsonIgnore

@@ -85,10 +85,10 @@ public class LabTrackerService extends BaseService {
         return labTrackerRepository.save(labTracker);
     }
 
-    public String getLabLogs(LabTracker labTracker, RemoteServer remoteServer) {
+    public String getLabLogs(LabTracker labTracker, RemoteServer remoteServer, String service) {
         switch (labTracker.getLabStarted().getLabType()) {
             case DOCKER_COMPOSE -> {
-                return getTrackerLabLogs(labTracker, remoteServer);
+                return getTrackerLabLogs(labTracker, remoteServer, service);
             }
             case DOCKER_CONTAINER -> {
                 throw new LabReadinessException("coming one day...");
@@ -97,9 +97,10 @@ public class LabTrackerService extends BaseService {
         }
     }
 
-    public String getTrackerLabLogs(LabTracker labTracker, RemoteServer dockerServer) {
+    public String getTrackerLabLogs(LabTracker labTracker, RemoteServer dockerServer, String service) {
         try {
-            String cmd = String.format("docker-compose -p %s logs", labTracker.getId());
+            String cmd = service.isEmpty() ? String.format("docker-compose -p %s logs", labTracker.getId()) :
+                    String.format("docker logs %s", service);
 
             RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(cmd, dockerServer);
 

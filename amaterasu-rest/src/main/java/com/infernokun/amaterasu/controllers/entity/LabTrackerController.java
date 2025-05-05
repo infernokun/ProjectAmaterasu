@@ -158,13 +158,14 @@ public class LabTrackerController extends BaseController {
     }
 
 
-    @GetMapping("/logs/{labTrackerId}/{remoteServerId}")
+    @GetMapping("/logs/{labTrackerId}/{remoteServerId}/{service}")
     public ResponseEntity<ApiResponse<String>> getLabLogs(@PathVariable String labTrackerId,
-                                                                       @PathVariable String remoteServerId) {
+                                                                       @PathVariable String remoteServerId,
+                                                          @PathVariable String service) {
         RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
         LabTracker labTracker = labTrackerOptional.orElseThrow();
-        String response = labTrackerService.getLabLogs(labTracker, remoteServer);
+        String response = labTrackerService.getLabLogs(labTracker, remoteServer, service);
 
         return ResponseEntity.ok(
                 ApiResponse.<String>builder()

@@ -103,6 +103,8 @@ export class LabComponent implements OnInit, OnDestroy {
       tap((user) => {
         // Fetch labs only when we have an authenticated user
         this.labService.fetchLabs();
+
+        this.loggedInUser = user;
       }),
       switchMap(user => this.labTrackerService.getLabTrackersByTeam(user?.team?.id!)),
       catchError(error => {
@@ -165,7 +167,7 @@ export class LabComponent implements OnInit, OnDestroy {
             this.busy = false;
 
             if (!labResp.data) return;
-            this.labs.push(new Lab(labResp.data));
+
             this.labService.addNewLab(new Lab(labResp.data));
           });
       })

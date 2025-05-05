@@ -3,6 +3,7 @@ import { DockerServiceInfo } from "./docker-service-info.model";
 import { Lab } from "./lab.model";
 import { ProxmoxVM } from "./proxmox-vm.model";
 import { RemoteServer } from "./remote-server.model";
+import { SimpleFormData, RadioQuestion } from "./simple-form-data.model";
 import { StoredObject } from "./stored-object.model";
 import { Team } from "./team.model";
 
@@ -25,5 +26,26 @@ export class LabTracker extends StoredObject {
       this.vms = serverResult.vms ?? [];
       this.remoteServer = serverResult.remoteServer;
     }
+  }
+}
+
+export class LabTrackerServicesForm extends SimpleFormData {
+  constructor(
+    updateResultsCB: Function = (k: any, v: any) => { },
+    services?: DockerServiceInfo[]
+  ) {
+    super('labTrackerServicesForm');
+
+    this.preFilledData = new Map<string, string>([
+    ]);
+
+    this.questions.push(
+      new RadioQuestion({
+        label: 'Service',
+        key: 'service',
+        options: services!.map((service: DockerServiceInfo) =>  ({ key: service.name, value: service.name, disabled: false })),
+      }),
+    );
+    this.questions.forEach((e) => (e.cb = updateResultsCB));
   }
 }

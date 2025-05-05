@@ -1,6 +1,6 @@
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { User } from '../../../models/user.model';
-import { LabTracker } from '../../../models/lab-tracker.model';
+import { LabTracker, LabTrackerServicesForm } from '../../../models/lab-tracker.model';
 import { LabStatus } from '../../../enums/lab-status.enum';
 import { BehaviorSubject, catchError, finalize, Observable, of, Subject, takeUntil } from 'rxjs';
 import { LabTrackerService } from '../../../services/lab-tracker.service';
@@ -316,7 +316,40 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       console.error('Cannot get settings without required IDs');
       return;
     }
+
+    const servicesForm = new LabTrackerServicesForm(
+      (k: any, v: any) => {}, labTracker.services
+    );
+
+
+    if (labTracker.services && labTracker.services.length > 1) {
+      this.editDialogService.openDialog<any>(servicesForm, (res: { service: string }) => {
+        if (!res) return;
+
+        this.labTrackerService.getLogs(labTracker.id!, labTracker.remoteServer!.id!, res.service)
+        .pipe(
+          takeUntil(this.destroy$),
+          catchError(error => {
+            console.error('Failed to get lab logs:', error);
+            return of({ code: 404, data: {}, message: 'Failed to fetch logs' });
+          })
+        )
+        .subscribe((res: ApiResponse<any>) => {
+  
+          if (!res.data) {
+            console.error('No data found in response!');
+            return;
+          }
+  
+          
+          this.showOutputDialog('Lab Settings', res.data, 'bash');
+        });
+      }).subscribe();
+      
+      return;
+    }
     
+    console.log(labTracker.services)
     this.labTrackerService.getLogs(labTracker.id, labTracker.remoteServer.id)
       .pipe(
         takeUntil(this.destroy$),
