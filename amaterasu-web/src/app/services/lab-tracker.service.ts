@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { BehaviorSubject, map, Observable } from 'rxjs';
+import { BehaviorSubject, map, Observable, of } from 'rxjs';
 import { ApiResponse } from '../models/api-response.model';
 import { LabTracker } from '../models/lab-tracker.model';
 import { BaseService } from './base.service';
@@ -31,6 +31,7 @@ export class LabTrackerService extends BaseService {
   }
 
   getLabTrackersByTeam(teamId: string): Observable<LabTracker[]> {
+    if (!teamId) return of([]);
     const params = new HttpParams().set('teamId', teamId);
     return this.get<ApiResponse<LabTracker[]>>(this.environmentService.settings?.restUrl + '/lab-tracker', { params })
     .pipe(
@@ -57,11 +58,22 @@ export class LabTrackerService extends BaseService {
     return this.get<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/lab-tracker/settings/' + labTrackerId + '/' + remoteServerId);
   }
 
-  getLogs(labTrackerId: string, remoteServerId: string, service: string = ""): Observable<ApiResponse<any>> {
+  getLogs(labTrackerId: string, remoteServerId: string, service: string = "all"): Observable<ApiResponse<any>> {
     return this.get<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/lab-tracker/logs/' + labTrackerId + '/' + remoteServerId + '/' + service);
   }
 
-  uploadVolumeFiles(labTrackerId: string, remoteServerId: string, formData: FormData) {
+  uploadVolumeFiles(labTrackerId: string, remoteServerId: string, formData: FormData): Observable<ApiResponse<boolean>> {
     return this.post<ApiResponse<boolean>>(this.environmentService.settings?.restUrl + '/lab-tracker/settings/' + labTrackerId + '/' + remoteServerId, formData);
+  }
+
+  refreshLabTracker(labTracker: LabTracker): Observable<ApiResponse<LabTracker>> {
+    return this.get<ApiResponse<LabTracker>>(this.environmentService.settings?.restUrl + '/lab-tracker/refresh/' + labTracker.id);
+  }
+
+  updateSingleLabTrackerByTeam(labTracker: LabTracker) {
+    const ltList: LabTracker[] = this.labTrackersByTeamSubject.value.filter((lt: LabTracker) => lt.id != labTracker.id);
+    ltList.push(labTracker);
+
+    this.labTrackersByTeamSubject.next(ltList);
   }
 }

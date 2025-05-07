@@ -3,6 +3,20 @@
   <div class="bg-alert">
     <h1 class="dialog-title" mat-dialog-title>{{ data.title }}</h1>
   </div>
+
+  <ng-container *ngIf="options">
+    <div class="row width-100-percent"  *ngFor="let question of options.questions">
+      <mat-form-field floatLabel="always">
+        <mat-label>{{ question.label }}</mat-label>
+        <mat-select [formControl]="formControl" #dropdownMenu (selectionChange)="handleMatSelect($event)" [(value)]="options.current">
+          <mat-option *ngFor="let ent of question.options" class="option" [value]="ent.value">
+            {{ ent.key }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+  </ng-container>
+
   
   <!-- Content Section -->
   <mat-dialog-content class="dialog-content">

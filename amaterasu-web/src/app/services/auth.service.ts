@@ -189,4 +189,10 @@ export class AuthService {
         );
       });
   }
+
+  setUser(user: User) {
+    if (this.userSubject.value?.id == user.id) {
+      this.userSubject.next(user);
+    }
+  }
 }

@@ -175,4 +175,20 @@ public class LabTrackerController extends BaseController {
                         .build()
         );
     }
+
+    @GetMapping("/refresh/{labTrackerId}")
+    public ResponseEntity<ApiResponse<LabTracker>> refreshLabTracker(@PathVariable String labTrackerId) {
+        Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
+        LabTracker labTracker = labTrackerOptional.orElseThrow();
+
+        LabTracker refreshedLabTracker = labTrackerService.refreshLabTracker(labTracker);
+        return ResponseEntity.ok(
+                ApiResponse.<LabTracker>builder()
+                        .code(HttpStatus.OK.value())
+                        .message(labTracker.equals(refreshedLabTracker) ?
+                                String.format("No updates to the lab tracker: %s", labTrackerId) : String.format("LabTracker id %s updated!", labTrackerId) )
+                        .data(refreshedLabTracker)
+                        .build()
+        );
+    }
 }

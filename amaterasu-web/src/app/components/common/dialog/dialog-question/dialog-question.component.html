@@ -80,7 +80,7 @@
 
     <div class="dropzone-content" *ngIf="!file">
       <input type="file" #fileInput id="file-input" (change)="onFileSelected($event)" accept=".yml,.yaml" [disabled]="isDisabled || isValidated" />
-      <img src="assets/upload-file.svg" alt="Upload Icon">
+      <mat-icon style="transform: scale(5);">upload_file</mat-icon>
       <h3 class="file-text">Drag and drop file here</h3>
       <h3 class="file-text">or</h3>
       <label id="file-label" for="file-input">Browse for file</label>

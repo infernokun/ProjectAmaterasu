@@ -4,6 +4,7 @@ import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.LabReadinessException;
 import com.infernokun.amaterasu.exceptions.RemoteCommandException;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
+import com.infernokun.amaterasu.models.DockerServiceInfo;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.dto.VolumeChangeDTO;
 import com.infernokun.amaterasu.models.entities.Lab;
@@ -23,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import static com.infernokun.amaterasu.services.alt.DockerService.parseDockerInspectOutput;
 
 @Service
 public class LabTrackerService extends BaseService {
@@ -99,7 +101,7 @@ public class LabTrackerService extends BaseService {
 
     public String getTrackerLabLogs(LabTracker labTracker, RemoteServer dockerServer, String service) {
         try {
-            String cmd = service.isEmpty() ? String.format("docker-compose -p %s logs", labTracker.getId()) :
+            String cmd = service.equals("all") ? String.format("docker-compose -p %s logs", labTracker.getId()) :
                     String.format("docker logs %s", service);
 
             RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(cmd, dockerServer);
@@ -152,6 +154,30 @@ public class LabTrackerService extends BaseService {
         return result;
     }
 
+    public LabTracker refreshLabTracker(LabTracker labTracker) {
+        // Check the Docker process status
+        String checkTrackerProcessCmd = String.format("cd %s/tracker-compose && docker-compose -p %s ps -qa | xargs docker inspect",
+                amaterasuConfig.getUploadDir(), labTracker.getId());
+        RemoteCommandResponse checkTrackerProcessOutput = remoteCommandService.handleRemoteCommand(checkTrackerProcessCmd, labTracker.getRemoteServer());
+
+        if (checkTrackerProcessOutput.getExitCode() != 0) {
+            return labTracker;
+        }
+
+        labTracker.setServices(parseDockerInspectOutput(checkTrackerProcessOutput.getBoth().trim()));
+
+        List<DockerServiceInfo> services = labTracker.getServices().stream().filter(service -> !service.getState().equals("running")).toList();
+
+        if (services.size() == labTracker.getServices().size()) {
+            labTracker.setLabStatus(LabStatus.FAILED);
+        } else if (services.size() < labTracker.getServices().size() && !services.isEmpty()) {
+            labTracker.setLabStatus(LabStatus.DEGRADED);
+        } else {
+            labTracker.setLabStatus(LabStatus.ACTIVE);
+        }
+        
+        return labTrackerRepository.save(labTracker);
+    }
 
     public void deleteAll() {
         this.labTrackerRepository.deleteAll();

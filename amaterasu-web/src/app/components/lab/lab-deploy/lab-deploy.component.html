@@ -1,10 +1,13 @@
 <div class="lab-container">
   <div class="lab-card" *ngFor="let labTracker of labTrackers$ | async" @fadeIn>
-    <div class="card-header">
+    <div class="card-header" (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()">
       <h3>{{ labTracker.labStarted?.name }}</h3>
       <span class="status-badge" [ngClass]="labTracker.labStatus?.toLowerCase()">
-        @if (labTracker.remoteServer?.remoteServerStats?.status != LabStatus.OFFLINE)
-        { {{ labTracker.labStatus }} } @else { {{ labTracker.remoteServer?.remoteServerStats?.status }} }
+        @if (labTracker.remoteServer?.remoteServerStats?.status != LabStatus.OFFLINE) {
+        {{ labTracker.labStatus }}
+        } @else {
+        {{ labTracker.remoteServer?.remoteServerStats?.status }}
+        }
       </span>
     </div>
 
@@ -32,6 +35,16 @@
           <span class="value">{{ labTracker.labStarted?.updatedAt ? formatDate(labTracker.labStarted?.updatedAt!) :
             'N/A' }}</span>
         </div>
+        <div class="info-item" *ngIf="labTracker.labStatus != LabStatus.STOPPED">
+          <span class="label">Services ({{runningServices(labTracker).length}}/{{ labTracker.services?.length
+            }}):</span>
+          <ul>
+            <li class="value" *ngFor="let service of labTracker.services"
+              [ngClass]="service.state == 'running' ? 'running' : 'exited'"> {{ service.name.replace(labTracker.id +
+              "-", "") }} - {{ service.state }} <button class="restart-service" *ngIf="service.state != 'running'" (click)="restartService(service)"
+                matTooltip="Delete Lab"><mat-icon>replay</mat-icon></button></li>
+          </ul>
+        </div>
       </div>
 
       <div class="settings-link" *ngIf="labTracker.labStatus !== 'NONE'">
@@ -39,6 +52,8 @@
           [queryParams]="{ id: labTracker.id }">
           <mat-icon>settings</mat-icon> Configure
         </a>
+        <a *ngIf="labTracker.labStatus != LabStatus.STOPPED"
+          (click)="refreshLabTracker(labTracker)"><mat-icon>refresh</mat-icon> Refresh</a>
       </div>
     </div>
 
@@ -74,14 +89,17 @@
         </button>
 
         <!-- Logs button -->
-        <button mat-flat-button class="action-btn logs" (click)="getLogs(labTracker)" *ngIf="!isLabLoading(labTracker.id) && 
-               labTracker.labStarted?.labType === LabType.DOCKER_COMPOSE">
-          <mat-icon>description</mat-icon>
-          Logs
-        </button>
+        <ng-container *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus !== 'STOPPED'">
+          <button mat-flat-button class="action-btn logs" (click)="getLogs(labTracker)" *ngIf="!isLabLoading(labTracker.id) && 
+              labTracker.labStarted?.labType === LabType.DOCKER_COMPOSE">
+            <mat-icon>description</mat-icon>
+            Logs
+          </button>
+        </ng-container>
 
         <!-- Active lab buttons -->
-        <ng-container *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'ACTIVE'">
+        <ng-container
+          *ngIf="!isLabLoading(labTracker.id) && (labTracker.labStatus === 'ACTIVE' || labTracker.labStatus === 'DEGRADED')">
           <button mat-flat-button class="action-btn stop" (click)="stopLab(labTracker)">
             <mat-icon>stop</mat-icon>
             Stop
@@ -104,10 +122,6 @@
 
         <!-- Stopped state buttons -->
         <ng-container *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'STOPPED'">
-          <button mat-flat-button class="action-btn stopped" disabled>
-            <mat-icon>pause</mat-icon>
-            Stopped
-          </button>
           <button mat-flat-button class="action-btn delete" (click)="deleteLab(labTracker)">
             <mat-icon>delete</mat-icon>
             Delete

@@ -71,12 +71,10 @@ export class AuditLogComponent {
   }
 
   ngAfterViewInit(): void {
-    // Use setTimeout to avoid ExpressionChangedAfterItHasBeenCheckedError
     setTimeout(() => {
       this.auditLogDataSource.sort = this.auditLogSort;
       this.auditLogDataSource.paginator = this.paginator;
       this.showPaginationInfo = true;
-      console.log('huh')
     });
   }
 

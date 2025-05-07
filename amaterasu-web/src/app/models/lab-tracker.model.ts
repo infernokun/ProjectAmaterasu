@@ -32,7 +32,8 @@ export class LabTracker extends StoredObject {
 export class LabTrackerServicesForm extends SimpleFormData {
   constructor(
     updateResultsCB: Function = (k: any, v: any) => { },
-    services?: DockerServiceInfo[]
+    services?: DockerServiceInfo[],
+    labTracker?: LabTracker
   ) {
     super('labTrackerServicesForm');
 
@@ -43,7 +44,7 @@ export class LabTrackerServicesForm extends SimpleFormData {
       new RadioQuestion({
         label: 'Service',
         key: 'service',
-        options: services!.map((service: DockerServiceInfo) =>  ({ key: service.name, value: service.name, disabled: false })),
+        options: services!.map((service: DockerServiceInfo) =>  ({ key: service.name.replace(labTracker!.id + "-", ""), value: service.name, disabled: false })),
       }),
     );
     this.questions.forEach((e) => (e.cb = updateResultsCB));

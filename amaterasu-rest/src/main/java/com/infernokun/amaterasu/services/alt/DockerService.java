@@ -117,10 +117,9 @@ public class DockerService extends BaseService {
             }
 
             // Check the Docker process status
-            String checkTrackerProcessCmd = String.format("cd %s/tracker-compose && docker-compose -p %s ps -q | xargs docker inspect",
+            String checkTrackerProcessCmd = String.format("cd %s/tracker-compose && docker-compose -p %s ps -qa | xargs docker inspect",
                     amaterasuConfig.getUploadDir(), labTracker.getId());
             RemoteCommandResponse checkTrackerProcessOutput = remoteCommandService.handleRemoteCommand(checkTrackerProcessCmd, remoteServer);
-            LOGGER.info("Docker inspect output: {}", checkTrackerProcessOutput.getBoth());
 
             if (checkTrackerProcessOutput.getExitCode() != 0) {
                 return stopDockerComposeOnFail(labTracker, remoteServer,
@@ -250,7 +249,7 @@ public class DockerService extends BaseService {
         return modifiedVolumePath;
     }
 
-    public List<DockerServiceInfo> parseDockerInspectOutput(String jsonOutput) {
+    public static List<DockerServiceInfo> parseDockerInspectOutput(String jsonOutput) {
         List<DockerServiceInfo> containerInfos = new ArrayList<>();
         ObjectMapper objectMapper = new ObjectMapper();
 

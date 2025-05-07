@@ -17,9 +17,8 @@ import { AuthService } from '../../services/auth.service';
 export class UsersComponent implements OnInit {
   users: User[] = [];
   busy: boolean = false;
-  private loggedInUserSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);
 
-  loggedInUser$: Observable<User | undefined> = this.loggedInUserSubject.asObservable();
+  loggedInUser$: Observable<User | undefined> | undefined;
 
   constructor(private userService: UserService,
     private teamService: TeamService, private dialog: EditDialogService,
@@ -49,10 +48,9 @@ export class UsersComponent implements OnInit {
       this.busy = true;
       if (!data) return;
 
-      console.log(data.user, data.team);
       this.userService.setUserTeam(data.user, data.team).subscribe((updatedUser: User) => {
         this.users = this.users.map(u => u.id === updatedUser.id ? updatedUser : u);
-        console.log(updatedUser)
+        this.authService.setUser(updatedUser);
         this.messageService.snackbar(`User ${updatedUser.username} updated team to ${updatedUser.team!.name ?? ''}`);
       });
     }).subscribe((res: any) => {

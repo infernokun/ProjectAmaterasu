@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class LabService extends BaseService {
@@ -191,6 +192,20 @@ public class LabService extends BaseService {
         labActionResult.getLabTracker().setUpdatedAt(LocalDateTime.now());
         labActionResult.getLabTracker().setUpdatedBy(user.getId());
         labActionResult.getLabTracker().setLabStatus(labActionResult.isSuccessful() ? LabStatus.ACTIVE : LabStatus.FAILED);
+
+        if (labActionResult.getLabTracker().getLabStatus().equals(LabStatus.ACTIVE)) {
+            AtomicBoolean inactiveService = new AtomicBoolean(false);
+            labActionResult.getLabTracker().getServices().forEach((service -> {
+                if (!service.getState().equals("running")) {
+                    inactiveService.set(true);
+                }
+            }));
+
+            if (inactiveService.get()) {
+                labActionResult.getLabTracker().setLabStatus(LabStatus.DEGRADED);
+            }
+        }
+
         labActionResult.getLabTracker().setRemoteServer(remoteServer);
 
         try {

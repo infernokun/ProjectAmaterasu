@@ -111,7 +111,7 @@ export class LabComponent implements OnInit, OnDestroy {
         console.error('Error fetching lab trackers:', error);
         return of([]);
       })
-    ).subscribe(labTrackers => {
+    ).subscribe((labTrackers: LabTracker[]) => {
       this.trackedLabs = labTrackers.filter(
         tracker => tracker.labStatus !== LabStatus.DELETED
       );

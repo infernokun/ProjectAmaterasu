@@ -20,6 +20,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { LabDeploymentService } from '../../../services/lab-deployment.service';
 import { DateUtils } from '../../../utils/date-utils';
 import { FADE_ANIMATION } from '../../../utils/animations';
+import { QuestionBase } from '../../../models/simple-form-data.model';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { DockerServiceInfo } from '../../../models/docker-service-info.model';
 
 @Component({
   selector: 'app-lab-deploy',
@@ -41,6 +44,8 @@ export class LabDeployComponent implements OnInit, OnDestroy {
   readonly LabType = LabType;
   readonly LabStatus = LabStatus;
 
+  isHovered = false;
+
   @Input() user: User | undefined;
   @Input() labTrackers$: Observable<LabTracker[]> = of([]);
 
@@ -50,7 +55,8 @@ export class LabDeployComponent implements OnInit, OnDestroy {
     private remoteServerService: RemoteServerService,
     private labService: LabService,
     private dialog: MatDialog,
-    private labDeploymentService: LabDeploymentService
+    private labDeploymentService: LabDeploymentService,
+    private snackbar: MatSnackBar
   ) {}
 
   ngOnInit(): void {
@@ -74,9 +80,10 @@ export class LabDeployComponent implements OnInit, OnDestroy {
     
     // Subscribe to lab trackers from service
     this.labTrackers$ = this.labTrackerService.labTrackersByTeam$;
-    this.labTrackerService.labTrackersByTeam$
+    this.labTrackers$
       .pipe(takeUntil(this.destroy$))
       .subscribe((labTrackers: LabTracker[]) => {
+        console.log(labTrackers)
         this.labTrackers = labTrackers;
       });
 
@@ -318,15 +325,15 @@ export class LabDeployComponent implements OnInit, OnDestroy {
     }
 
     const servicesForm = new LabTrackerServicesForm(
-      (k: any, v: any) => {}, labTracker.services
+      (k: any, v: any) => {}, labTracker.services, labTracker
     );
 
 
     if (labTracker.services && labTracker.services.length > 1) {
-      this.editDialogService.openDialog<any>(servicesForm, (res: { service: string }) => {
-        if (!res) return;
+      this.editDialogService.openDialog<any>(servicesForm, (dialogResult: { service: string }) => {
+        if (!dialogResult) return;
 
-        this.labTrackerService.getLogs(labTracker.id!, labTracker.remoteServer!.id!, res.service)
+        this.labTrackerService.getLogs(labTracker.id!, labTracker.remoteServer!.id!, dialogResult.service)
         .pipe(
           takeUntil(this.destroy$),
           catchError(error => {
@@ -334,22 +341,26 @@ export class LabDeployComponent implements OnInit, OnDestroy {
             return of({ code: 404, data: {}, message: 'Failed to fetch logs' });
           })
         )
-        .subscribe((res: ApiResponse<any>) => {
+        .subscribe((logsResult: ApiResponse<any>) => {
   
-          if (!res.data) {
+          if (!logsResult.data) {
             console.error('No data found in response!');
             return;
           }
-  
           
-          this.showOutputDialog('Lab Settings', res.data, 'bash');
+          this.showOutputDialog('Lab Settings', logsResult.data, 'bash', true,
+            {
+              questions: servicesForm.questions,
+              current: dialogResult.service,
+              async: this.labTrackerService.getLogs.bind(this.labTrackerService),
+              labTracker: labTracker
+            });
         });
       }).subscribe();
       
       return;
     }
     
-    console.log(labTracker.services)
     this.labTrackerService.getLogs(labTracker.id, labTracker.remoteServer.id)
       .pipe(
         takeUntil(this.destroy$),
@@ -370,7 +381,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       });
   }
 
-  private showOutputDialog(title: string, content: string | object, fileType: string, isReadOnly: boolean = true): void {
+  private showOutputDialog(title: string, content: string | object, fileType: string, isReadOnly: boolean = true, options: { questions: QuestionBase[], current: string, async: Function, labTracker: LabTracker } | undefined = undefined): void {
     const dialogContent = typeof content === 'object' ? JSON.stringify(content, null, 2) : content;
     
     this.dialog.open(CommonDialogComponent, {
@@ -380,10 +391,11 @@ export class LabDeployComponent implements OnInit, OnDestroy {
         isCode: true,
         isReadOnly: isReadOnly,
         fileType: fileType,
+        options: options
       },
       width: '75rem',
       height: '62rem',
-      disableClose: true,
+      disableClose: false,
     });
   }
 
@@ -465,5 +477,29 @@ export class LabDeployComponent implements OnInit, OnDestroy {
   formatDate(date: Date): string {
     if (!date) return '';
     return DateUtils.formatDateWithTime(date);
+  }
+
+  runningServices(labTracker: LabTracker) {
+    return labTracker.services?.filter((service) => service.state == "running") || [];
+  }
+
+  onMouseEnter(): void {
+    this.isHovered = true;
+  }
+
+  onMouseLeave(): void {
+    this.isHovered = false;
+  }
+
+  refreshLabTracker(labTracker: LabTracker) {
+    this.labTrackerService.refreshLabTracker(labTracker).subscribe((res: ApiResponse<LabTracker>) => {
+      if (!res.data) return;
+      this.labTrackerService.updateSingleLabTrackerByTeam(res.data);
+      this.snackbar.open(res.message, 'Undo', { duration: 2000 });
+    })
+  }
+
+  restartService(service: DockerServiceInfo) {
+    console.log(service);
   }
 }
