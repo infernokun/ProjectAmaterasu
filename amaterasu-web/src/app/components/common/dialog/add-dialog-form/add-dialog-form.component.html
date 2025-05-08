@@ -1,10 +1,9 @@
 <div class="container">
   <h2 mat-dialog-title class="dialog-title" *skeleton="!data || !data.questions || !(data.questions.length > 0)">
-    {{ data.typeName }}
+    {{ formatCamelCase(data.typeName) }}
   </h2>
   <br />
-  <div class="questions-container"
-    *skeleton="!data || !data.questions || !(data.questions.length > 0); height: '100px'">
+  <div class="questions-container" *skeleton="!data || !data.questions || !(data.questions.length > 0); height: '100px'">
     <div *ngFor="let q of data.questions; let i = index" class="question-row">
       <app-dialog-question [question]="q"
         (checkboxSelectionChanged)="checkboxSelectionChanged($event)" (buttonClicked)="q.action!(this.buttonQuestionFunction.bind(this)(q.key))"></app-dialog-question>

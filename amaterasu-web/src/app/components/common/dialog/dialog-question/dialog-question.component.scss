@@ -1,21 +1,52 @@
-/* Form Design System CSS - Red Theme */
+// ===============================
+// Variables
+// ===============================
 
-/* Global form styles */
-.form-element-container {
-  margin: 10px 0; /* Reduced from 16px to 10px */
-  width: 100%;
+$red-light: #fff5f5;
+$red-mid: #f56565;
+$red: #e53e3e;
+$red-dark: #c53030;
+$red-darker: #9b2c2c;
+$red-border: #feb2b2;
+$red-shadow: rgba(229, 62, 62, 0.3);
+$red-shadow-hover: rgba(229, 62, 62, 0.4);
+$gray-dark: #2d3748;
+$gray-medium: #718096;
+$gray-light: #e2e8f0;
+$text-dark: #333333;
+$text-muted: #888888;
+
+// ===============================
+// Mixins
+// ===============================
+
+@mixin red-gradient {
+  background: linear-gradient(to right, $red-dark, $red);
 }
 
-.form-element-container mat-form-field {
+@mixin red-hover-gradient {
+  background: linear-gradient(to right, $red-darker, $red-dark);
+}
+
+// ===============================
+// Base Layout Styles
+// ===============================
+
+.form-element-container {
+  margin: 10px 0;
   width: 100%;
+
+  mat-form-field {
+    width: 100%;
+  }
 }
 
 .form-label {
   display: block;
   font-size: 16px;
   font-weight: 500;
-  color: #333333;
-  margin-bottom: 8px; /* Reduced from 12px to 8px */
+  color: $text-dark;
+  margin-bottom: 8px;
 }
 
 .text-center {
@@ -23,56 +54,60 @@
   width: 100%;
 }
 
-/* Character counter styles */
+// ===============================
+// Character Counter
+// ===============================
+
 .character-counter {
   display: flex;
   justify-content: flex-end;
   font-size: 12px;
-  color: #888888;
-  margin-top: -6px; /* Reduced from -8px to -6px */
+  color: $text-muted;
+  margin-top: -6px;
   transition: color 0.2s ease;
+
+  &.counter-limit {
+    color: #d32f2f;
+  }
 }
 
-.counter-limit {
-  color: #d32f2f;
-}
+// ===============================
+// Radio Buttons & Checkboxes
+// ===============================
 
-/* Radio button styles */
-.radio-group {
+.radio-group,
+.checkbox-group {
   display: flex;
   flex-direction: column;
-  gap: 8px; /* Reduced from 12px to 8px */
+  gap: 8px;
 }
 
 .radio-button {
   margin-right: 16px;
 }
 
-/* Checkbox styles */
-.checkbox-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px; /* Reduced from 12px to 8px */
-}
-
 .checkbox-item {
-  margin-bottom: 6px; /* Reduced from 8px to 6px */
+  margin-bottom: 6px;
 }
 
-/* File upload styles */
+// ===============================
+// File Upload
+// ===============================
+
 .upload-container {
   width: 100%;
-  padding: 16px; /* Reduced from 20px to 16px */
+  padding: 16px;
   border-radius: 12px;
-  background-color: #fff5f5; /* Lighter red background */
-  border: 2px dashed #f56565; /* Red border */
+  background-color: $red-light;
+  border: 2px dashed $red-mid;
   transition: all 0.3s ease;
   position: relative;
-}
 
-.upload-container:hover, .upload-container.drag-over {
-  border-color: #e53e3e; /* Darker red on hover */
-  background-color: #fed7d7; /* Slightly darker red background on hover */
+  &:hover,
+  &.drag-over {
+    border-color: $red;
+    background-color: lighten($red-light, 10%);
+  }
 }
 
 .upload-area {
@@ -80,66 +115,65 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 24px 0; /* Reduced from 32px to 24px */
+  padding: 24px 0;
   cursor: pointer;
-}
 
-#file-input {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
-  opacity: 0;
-  cursor: pointer;
-  z-index: 2;
+  #file-input {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+  }
 }
 
 .upload-icon-wrapper {
-  position: relative;
   display: flex;
   justify-content: center;
-  margin-bottom: 12px; /* Reduced from 16px to 12px */
-}
+  margin-bottom: 12px;
 
-.upload-icon {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #e53e3e, #c53030); /* Red gradient */
-  box-shadow: 0 4px 14px rgba(229, 62, 62, 0.4); /* Red shadow */
-}
+  .upload-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, $red, $red-dark);
+    box-shadow: 0 4px 14px $red-shadow;
 
-.upload-icon mat-icon {
-  font-size: 36px;
-  height: 36px;
-  width: 36px;
-  color: white;
+    mat-icon {
+      font-size: 36px;
+      height: 36px;
+      width: 36px;
+      color: white;
+    }
+  }
 }
 
 .upload-text {
   text-align: center;
-}
 
-.upload-primary-text {
-  font-size: 16px;
-  font-weight: 500;
-  color: #2d3748;
-  margin: 6px 0; /* Reduced from 8px to 6px */
-}
+  .upload-primary-text {
+    font-size: 16px;
+    font-weight: 500;
+    color: $gray-dark;
+    margin: 6px 0;
+  }
 
-.upload-secondary-text {
-  font-size: 14px;
-  color: #718096;
-  margin: 4px 0 10px; /* Reduced from 12px to 10px */
+  .upload-secondary-text {
+    font-size: 14px;
+    color: $gray-medium;
+    margin: 4px 0 10px;
+  }
 }
 
 .upload-button {
-  padding: 10px 24px; /* Reduced from 12px to 10px */
-  background: linear-gradient(to right, #c53030, #e53e3e); /* Red gradient */
+  padding: 10px 24px;
+  @include red-gradient;
   color: white;
   border: none;
   border-radius: 8px;
@@ -147,66 +181,69 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 10px rgba(229, 62, 62, 0.3); /* Red shadow */
-}
+  box-shadow: 0 2px 10px $red-shadow;
 
-.upload-button:hover {
-  background: linear-gradient(to right, #9b2c2c, #c53030); /* Darker red gradient on hover */
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(229, 62, 62, 0.4); /* Increased red shadow on hover */
+  &:hover {
+    @include red-hover-gradient;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px $red-shadow-hover;
+  }
 }
 
 .file-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px; /* Reduced from 14px 18px to 12px 16px */
-  background-color: #fed7d7; /* Light red background */
+  padding: 12px 16px;
+  background-color: lighten($red-light, 5%);
   border-radius: 8px;
-  margin-top: 10px; /* Reduced from 12px to 10px */
-  border: 1px solid #feb2b2; /* Light red border */
-  box-shadow: 0 2px 8px rgba(229, 62, 62, 0.15); /* Red shadow */
+  margin-top: 10px;
+  border: 1px solid $red-border;
+  box-shadow: 0 2px 8px rgba(229, 62, 62, 0.15);
+
+  .file-details {
+    display: flex;
+    align-items: center;
+
+    .file-icon {
+      color: $red;
+      margin-right: 12px;
+    }
+
+    .file-name {
+      font-size: 15px;
+      color: $gray-dark;
+      font-weight: 500;
+    }
+  }
+
+  .file-remove-button {
+    background-color: $gray-light;
+    border: none;
+    color: $gray-medium;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background-color: $red-mid;
+      color: white;
+    }
+  }
 }
 
-.file-details {
-  display: flex;
-  align-items: center;
-}
+// ===============================
+// Action Buttons
+// ===============================
 
-.file-icon {
-  color: #e53e3e; /* Red color */
-  margin-right: 12px;
-}
-
-.file-name {
-  font-size: 15px;
-  color: #2d3748;
-  font-weight: 500;
-}
-
-.file-remove-button {
-  background-color: #e2e8f0;
-  border: none;
-  color: #718096;
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.file-remove-button:hover {
-  background-color: #f56565; /* Red background on hover */
-  color: white;
-}
-
-/* Button styles */
 .action-button {
-  padding: 9px 22px; /* Reduced from 10px 24px to 9px 22px */
-  background: linear-gradient(to right, #c53030, #e53e3e); /* Red gradient */
+  padding: 9px 22px;
+  @include red-gradient;
   color: white;
   border: none;
   border-radius: 8px;
@@ -214,61 +251,65 @@
   font-weight: 500;
   transition: all 0.2s ease;
   min-width: 120px;
-  box-shadow: 0 2px 10px rgba(229, 62, 62, 0.3); /* Red shadow */
-}
+  box-shadow: 0 2px 10px $red-shadow;
 
-.action-button:hover:not([disabled]) {
-  background: linear-gradient(to right, #9b2c2c, #c53030); /* Darker red gradient on hover */
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(229, 62, 62, 0.4); /* Increased red shadow on hover */
-}
+  &:hover:not([disabled]) {
+    @include red-hover-gradient;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px $red-shadow-hover;
+  }
 
-.action-button[disabled] {
-  opacity: 0.6;
-  cursor: not-allowed;
+  &[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 }
 
 .validation-status {
   font-size: 14px;
-  color: #718096;
-  margin-top: 6px; /* Reduced from 8px to 6px */
+  color: $gray-medium;
+  margin-top: 6px;
 }
 
-/* Material form field customization */
-::ng-deep .mat-form-field-appearance-outline .mat-form-field-outline {
-  color: #fc8181; /* Light red color */
-}
+// ===============================
+// Angular Material Overrides
+// ===============================
 
-::ng-deep .mat-form-field-appearance-outline.mat-focused .mat-form-field-outline-thick {
-  color: #e53e3e; /* Red color when focused */
-}
+::ng-deep {
+  .mat-form-field-appearance-outline .mat-form-field-outline {
+    color: lighten($red, 30%);
+  }
 
-::ng-deep .mat-form-field-appearance-outline.mat-form-field-invalid .mat-form-field-outline-thick {
-  color: #9b2c2c; /* Dark red for invalid */
-}
+  .mat-form-field-appearance-outline.mat-focused .mat-form-field-outline-thick {
+    color: $red;
+  }
 
-::ng-deep .mat-form-field-label {
-  color: #718096 !important;
-}
+  .mat-form-field-appearance-outline.mat-form-field-invalid .mat-form-field-outline-thick {
+    color: $red-darker;
+  }
 
-::ng-deep .mat-focused .mat-form-field-label {
-  color: #e53e3e !important; /* Red color when focused */
-}
+  .mat-form-field-label {
+    color: $gray-medium !important;
+  }
 
-::ng-deep .mat-form-field-invalid .mat-input-element,
-::ng-deep .mat-form-field-invalid .mat-form-field-label {
-  color: #9b2c2c !important; /* Dark red for invalid */
-}
+  .mat-focused .mat-form-field-label {
+    color: $red !important;
+  }
 
-/* Red theme specific styles */
-::ng-deep .mat-checkbox-checked .mat-checkbox-background {
-  background-color: #e53e3e !important; /* Red checkbox when checked */
-}
+  .mat-form-field-invalid .mat-input-element,
+  .mat-form-field-invalid .mat-form-field-label {
+    color: $red-darker !important;
+  }
 
-::ng-deep .mat-radio-button.mat-accent .mat-radio-inner-circle {
-  background-color: #e53e3e !important; /* Red radio button inner circle */
-}
+  .mat-checkbox-checked .mat-checkbox-background {
+    background-color: $red !important;
+  }
 
-::ng-deep .mat-radio-button.mat-accent.mat-radio-checked .mat-radio-outer-circle {
-  border-color: #e53e3e !important; /* Red radio button outer circle when checked */
+  .mat-radio-button.mat-accent .mat-radio-inner-circle {
+    background-color: $red !important;
+  }
+
+  .mat-radio-button.mat-accent.mat-radio-checked .mat-radio-outer-circle {
+    border-color: $red !important;
+  }
 }

@@ -39,8 +39,8 @@ public class LabActionService extends BaseService {
                 String type = "kubernetes";
                 return new LabActionResult();
             }
-            case NONE -> {
-                String type = "none";
+            case UNKNOWN -> {
+                String type = "unknown";
                 return new LabActionResult();
             }
             default -> {
@@ -66,8 +66,8 @@ public class LabActionService extends BaseService {
                 return new LabActionResult();
 
             }
-            case NONE -> {
-                String type = "none";
+            case UNKNOWN -> {
+                String type = "unknown";
                 return new LabActionResult();
             }
             default -> {
@@ -92,8 +92,8 @@ public class LabActionService extends BaseService {
                 String type = "kubernetes";
                 return new LabActionResult();
             }
-            case NONE -> {
-                String type = "none";
+            case UNKNOWN -> {
+                String type = "unknown";
                 return new LabActionResult();
             }
             default -> {

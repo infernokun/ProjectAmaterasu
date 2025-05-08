@@ -9,7 +9,7 @@ import lombok.ToString;
 @ToString
 @AllArgsConstructor
 public enum LabType {
-    NONE("NONE"),
+    UNKNOWN("UNKNOWN"),
     DOCKER_CONTAINER("DOCKER_CONTAINER"),
     DOCKER_COMPOSE("DOCKER_COMPOSE"),
     VIRTUAL_MACHINE("VIRTUAL_MACHINE"),

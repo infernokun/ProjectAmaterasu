@@ -81,28 +81,28 @@ export class LabFormData extends SimpleFormData {
       new RadioQuestion({
         label: 'Lab Type',
         key: 'labType',
-        options: Object.values(LabType).map(value => ({ key: value, value: value, disabled: false })),
+        options: Object.values(LabType).filter(e => e !== LabType.UNKNOWN).map(value => ({ key: value, value: value, disabled: false })),
         neededEnum: { key: 'labType', value: Object.values(LabType) },
       }),
       new TextQuestion({
         label: 'Name',
         key: 'name',
-        neededEnum: { key: 'labType', value: Object.values(LabType).filter(e => e !== LabType.NONE) },
+        neededEnum: { key: 'labType', value: Object.values(LabType) },
       }),
       new TextQuestion({
         label: 'Description',
         key: 'description',
-        neededEnum: { key: 'labType', value: Object.values(LabType).filter(e => e !== LabType.NONE) },
+        neededEnum: { key: 'labType', value: Object.values(LabType) },
       }),
       new TextQuestion({
         label: "Version",
         key: "version",
-        neededEnum: { key: 'labType', value: Object.values(LabType).filter(e => e !== LabType.NONE) },
+        neededEnum: { key: 'labType', value: Object.values(LabType) },
       }),
       new NumberQuestion({
         label: "Capacity",
         key: "capacity",
-        neededEnum: { key: 'labType', value: Object.values(LabType).filter(e => e !== LabType.NONE) },
+        neededEnum: { key: 'labType', value: Object.values(LabType) },
       }),
       new UploadBoxQuestion({
         label: "DockerCompose",
@@ -121,7 +121,7 @@ export class LabFormData extends SimpleFormData {
         label: "Validate",
         key: "validate",
         dataBoolean: false,
-        neededEnum: { key: 'labType', value: Object.values(LabType).filter(e => e !== LabType.NONE) },
+        neededEnum: { key: 'labType', value: Object.values(LabType) },
         action: (func: () => void) => {
           if (!func) return; 
           func();

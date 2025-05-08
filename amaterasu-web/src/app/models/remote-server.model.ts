@@ -38,8 +38,8 @@ export class RemoteServerFormData extends SimpleFormData {
       new RadioQuestion({
         label: 'Server Type',
         key: 'serverType',
-        options: Object.values(ServerType).map(value => ({ key: value, value: value, disabled: false })),
-        neededEnum: { key: 'serverType', value: Object.values(ServerType) }
+        options: Object.values(ServerType).filter((e) => e !== ServerType.UNKNOWN).map(value => ({ key: value, value: value, disabled: false })),
+        neededEnum: { key: 'serverType', value: Object.values(ServerType) },
       }),
       new TextQuestion({
         label: 'Name',

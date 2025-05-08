@@ -36,6 +36,8 @@ export class AddDialogFormComponent
   dynamicForm!: FormGroup;
   private subscriptions = new Subscription();
 
+  isLoading = false;
+
   // Constants
   private readonly REQUIRED_VALIDATION_TYPES = ['remoteServer', 'lab'];
 
@@ -48,7 +50,7 @@ export class AddDialogFormComponent
         LabType.KUBERNETES,
       ],
       [ServerType.PROXMOX]: [LabType.VIRTUAL_MACHINE],
-      [ServerType.NONE]: [LabType.NONE],
+      [ServerType.UNKNOWN]: [],
     };
 
   constructor(
@@ -61,6 +63,7 @@ export class AddDialogFormComponent
   ) {}
 
   ngOnInit(): void {
+    this.isLoading = true;
     this.initializeFormData();
     this.dynamicForm = this.fb.group({});
   }
@@ -83,10 +86,13 @@ export class AddDialogFormComponent
         question.value = this.data.preFilledData.get(question.key);
       }
     });
+
+    this.isLoading = false;
   }
 
   private setupFormControls(): void {
     if (!this.questionComponents) {
+      this.isLoading = false;
       return;
     }
 
@@ -200,16 +206,6 @@ export class AddDialogFormComponent
     }
 
     const labTypeValue = this.dynamicForm.value['labType'];
-    const hideFields = labTypeValue === LabType.NONE;
-
-    this.questionComponents?.forEach((component) => {
-      if (
-        component.question.key !== 'labType' &&
-        component.question.key !== 'remoteServer'
-      ) {
-        component.isHidden = hideFields;
-      }
-    });
   }
 
   checkForRemoteServer(): void {
@@ -368,6 +364,7 @@ export class AddDialogFormComponent
       if (this.data.typeName === 'remoteServer') {
         this.validateRemoteServer();
       } else if (this.data.typeName === 'lab') {
+        console.log();
         this.validateLab();
       }
     }
@@ -392,22 +389,56 @@ export class AddDialogFormComponent
   }
 
   private validateLab(): void {
-    if (!this.data.result.has('dockerFile')) {
-      this.messageService.snackbar(
-        'Please upload a Docker Compose file first.'
-      );
-      return;
-    }
+    switch (this.dynamicForm.value['labType']) {
+      case LabType.DOCKER_COMPOSE:
+        if (!this.data.result.has('dockerFile')) {
+          this.messageService.snackbar(
+            'Please upload a Docker Compose file first.'
+          );
+          return;
+        }
 
-    if (!this.checkFormValidity()) {
-      return;
-    }
+        if (!this.checkFormValidity()) {
+          return;
+        }
 
-    this.labService
-      .validateDockerComposeFile(this.data.result.get('dockerFile')!)
-      .subscribe({
-        next: (response) => this.handleValidationResponse(response),
-      });
+        this.labService
+          .validateDockerComposeFile(this.data.result.get('dockerFile')!)
+          .subscribe({
+            next: (response) => this.handleValidationResponse(response),
+          });
+        break;
+      case LabType.VIRTUAL_MACHINE:
+        /*if (!this.data.result.has('vms')) {
+          this.messageService.snackbar('Please select a VM template first.');
+          return;
+        }
+        if (!this.checkFormValidity()) {
+          return;
+        }
+        this.labService
+          .validateVMTemplate(this.data.result.get('vms')!)
+          .subscribe({
+            next: (response) => this.handleValidationResponse(response),
+          });*/
+        break;
+      case LabType.DOCKER_CONTAINER:
+        if (!this.data.result.has('containers')) {
+          this.messageService.snackbar(
+            'Please select a Docker container first.'
+          );
+          return;
+        }
+        if (!this.checkFormValidity()) {
+          return;
+        }
+        break;
+      default:
+        this.messageService.snackbar(
+          'Validation not supported for this lab type.'
+        );
+        return;
+    }
   }
 
   private checkFormValidity(): boolean {
@@ -439,5 +470,13 @@ export class AddDialogFormComponent
         component.isValidated = true;
       });
     }
+  }
+
+  formatCamelCase(text: string): string {
+    if (!text) return '';
+
+    const spaced = text.replace(/([A-Z])/g, ' $1');
+
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1).trim();
   }
 }

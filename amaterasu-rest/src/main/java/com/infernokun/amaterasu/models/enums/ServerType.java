@@ -11,7 +11,7 @@ import lombok.ToString;
 public enum ServerType {
     DOCKER_HOST("DOCKER_HOST"),
     PROXMOX("PROXMOX"),
-    NONE("NONE");
+    UNKNOWN("UNKNOWN");
 
     private final String value;
 

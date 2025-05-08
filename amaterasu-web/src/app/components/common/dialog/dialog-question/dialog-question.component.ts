@@ -99,7 +99,6 @@ export class DialogQuestionComponent implements OnInit {
       this.formControl = new FormControl(this.question.value || []);
     }
 
-
     this.isHidden = this.question.isHiddenByDefault!;
   }
 
@@ -155,15 +154,6 @@ export class DialogQuestionComponent implements OnInit {
   validateYaml() {
     // Your validation logic here
     console.log('Validating YAML file:', this.file);
-  }
-
-  isQuestionVisible(question: QuestionBase): boolean {
-    if (!question.neededEnum) {
-      return true; // No condition, always show
-    }
-
-    const relatedControl = this.formControl.get(question.neededEnum.key)!;
-    return relatedControl && relatedControl.value === question.neededEnum.value;
   }
 
   checkboxChange(event: any, value: string) {
