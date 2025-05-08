@@ -272,7 +272,11 @@ export class AddDialogFormComponent
     Object.keys(this.dynamicForm!.controls).forEach((key) => {
       const control = this.dynamicForm!.get(key);
       if (control && !control.valid) {
-        invalidControls.push(this.getQuestionLabelByKey(key));
+        this.data.questions.find((q) => q.key === key)
+        const component: DialogQuestionComponent | undefined = this.questionComponents.find((comp) => comp.question.key === key);
+        if (component && !component.isHidden) {
+          invalidControls.push(this.getQuestionLabelByKey(key));
+        }
       }
     });
 
@@ -371,14 +375,19 @@ export class AddDialogFormComponent
   }
 
   private validateRemoteServer(): void {
+    console.log("Checking validity");
     if (!this.checkFormValidity()) {
+      console.log("Form not valid ", this.dynamicForm!.valid, this.dynamicForm!);
       return;
     }
+
+    console.log("Form is valid");
 
     const formData: RemoteServer = Object.fromEntries(
       this.data.result as Map<string, string>
     );
 
+    console.log("attempting backend validation");
     this.remoteServerService.validateServer(formData).subscribe({
       next: (response) => this.handleValidationResponse(response),
       error: (err) => {
