@@ -1,92 +1,274 @@
-.character-count {
-  position: relative;
-  bottom: 20px;
-  text-align: right;
-}
+/* Form Design System CSS - Red Theme */
 
-.character-count-max {
-  color: #fd5d5d;
-}
-
-.character-count-min {
-  color: #d3d3d3;
-}
-
-.file-name {
-  color: #000;
-}
-
-.dropzone {
-  text-align: center;
-  border: dashed 2px #fa4949;
-  position: relative;
-  margin: 20px auto;
-  padding: 20px;
-  width: 90%;
-  max-width: 400px; /* Adjust for consistency */
-  border-radius: 10px; /* Rounded corners for a smoother look */
-  background-color: #f9f9f9; /* Soft background for dropzone */
-}
-
-.dropzone-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+/* Global form styles */
+.form-element-container {
+  margin: 10px 0; /* Reduced from 16px to 10px */
   width: 100%;
 }
 
+.form-element-container mat-form-field {
+  width: 100%;
+}
+
+.form-label {
+  display: block;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333333;
+  margin-bottom: 8px; /* Reduced from 12px to 8px */
+}
+
+.text-center {
+  text-align: center;
+  width: 100%;
+}
+
+/* Character counter styles */
+.character-counter {
+  display: flex;
+  justify-content: flex-end;
+  font-size: 12px;
+  color: #888888;
+  margin-top: -6px; /* Reduced from -8px to -6px */
+  transition: color 0.2s ease;
+}
+
+.counter-limit {
+  color: #d32f2f;
+}
+
+/* Radio button styles */
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* Reduced from 12px to 8px */
+}
+
+.radio-button {
+  margin-right: 16px;
+}
+
+/* Checkbox styles */
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* Reduced from 12px to 8px */
+}
+
+.checkbox-item {
+  margin-bottom: 6px; /* Reduced from 8px to 6px */
+}
+
+/* File upload styles */
+.upload-container {
+  width: 100%;
+  padding: 16px; /* Reduced from 20px to 16px */
+  border-radius: 12px;
+  background-color: #fff5f5; /* Lighter red background */
+  border: 2px dashed #f56565; /* Red border */
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.upload-container:hover, .upload-container.drag-over {
+  border-color: #e53e3e; /* Darker red on hover */
+  background-color: #fed7d7; /* Slightly darker red background on hover */
+}
+
+.upload-area {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0; /* Reduced from 32px to 24px */
+  cursor: pointer;
+}
+
 #file-input {
-  opacity: 0;
   position: absolute;
-  z-index: 2;
   width: 100%;
   height: 100%;
   top: 0;
   left: 0;
-}
-
-#file-label {
-  margin-top: 15px;
-  color: white;
-  border-radius: 21.5px;
-  background-color: #ff6f7b;
-  padding: 10px 20px;
-  font-size: 16px;
+  opacity: 0;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  z-index: 2;
 }
 
-#file-label:hover {
-  background-color: #ff4d60;
+.upload-icon-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px; /* Reduced from 16px to 12px */
 }
 
-.file-text {
-  font-size: 18px;
-  font-weight: 600;
-  color: #38424c;
-  margin: 10px 0;
+.upload-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e53e3e, #c53030); /* Red gradient */
+  box-shadow: 0 4px 14px rgba(229, 62, 62, 0.4); /* Red shadow */
 }
 
-img {
-  width: 50px;
-  height: 50px;
-  margin-bottom: 20px;
+.upload-icon mat-icon {
+  font-size: 36px;
+  height: 36px;
+  width: 36px;
+  color: white;
+}
+
+.upload-text {
+  text-align: center;
+}
+
+.upload-primary-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #2d3748;
+  margin: 6px 0; /* Reduced from 8px to 6px */
+}
+
+.upload-secondary-text {
+  font-size: 14px;
+  color: #718096;
+  margin: 4px 0 10px; /* Reduced from 12px to 10px */
+}
+
+.upload-button {
+  padding: 10px 24px; /* Reduced from 12px to 10px */
+  background: linear-gradient(to right, #c53030, #e53e3e); /* Red gradient */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 10px rgba(229, 62, 62, 0.3); /* Red shadow */
+}
+
+.upload-button:hover {
+  background: linear-gradient(to right, #9b2c2c, #c53030); /* Darker red gradient on hover */
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(229, 62, 62, 0.4); /* Increased red shadow on hover */
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px; /* Reduced from 14px 18px to 12px 16px */
+  background-color: #fed7d7; /* Light red background */
+  border-radius: 8px;
+  margin-top: 10px; /* Reduced from 12px to 10px */
+  border: 1px solid #feb2b2; /* Light red border */
+  box-shadow: 0 2px 8px rgba(229, 62, 62, 0.15); /* Red shadow */
+}
+
+.file-details {
+  display: flex;
+  align-items: center;
+}
+
+.file-icon {
+  color: #e53e3e; /* Red color */
+  margin-right: 12px;
 }
 
 .file-name {
-  margin-top: 10px;
-  font-size: 14px;
-  color: #5a5a5a;
+  font-size: 15px;
+  color: #2d3748;
+  font-weight: 500;
 }
 
-button {
-  margin-top: 20px;
-  background-color: #fa4949;
+.file-remove-button {
+  background-color: #e2e8f0;
+  border: none;
+  color: #718096;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.file-remove-button:hover {
+  background-color: #f56565; /* Red background on hover */
   color: white;
-  font-weight: bold;
 }
 
-button:hover {
-  background-color: #e44040;
+/* Button styles */
+.action-button {
+  padding: 9px 22px; /* Reduced from 10px 24px to 9px 22px */
+  background: linear-gradient(to right, #c53030, #e53e3e); /* Red gradient */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  min-width: 120px;
+  box-shadow: 0 2px 10px rgba(229, 62, 62, 0.3); /* Red shadow */
+}
+
+.action-button:hover:not([disabled]) {
+  background: linear-gradient(to right, #9b2c2c, #c53030); /* Darker red gradient on hover */
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(229, 62, 62, 0.4); /* Increased red shadow on hover */
+}
+
+.action-button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.validation-status {
+  font-size: 14px;
+  color: #718096;
+  margin-top: 6px; /* Reduced from 8px to 6px */
+}
+
+/* Material form field customization */
+::ng-deep .mat-form-field-appearance-outline .mat-form-field-outline {
+  color: #fc8181; /* Light red color */
+}
+
+::ng-deep .mat-form-field-appearance-outline.mat-focused .mat-form-field-outline-thick {
+  color: #e53e3e; /* Red color when focused */
+}
+
+::ng-deep .mat-form-field-appearance-outline.mat-form-field-invalid .mat-form-field-outline-thick {
+  color: #9b2c2c; /* Dark red for invalid */
+}
+
+::ng-deep .mat-form-field-label {
+  color: #718096 !important;
+}
+
+::ng-deep .mat-focused .mat-form-field-label {
+  color: #e53e3e !important; /* Red color when focused */
+}
+
+::ng-deep .mat-form-field-invalid .mat-input-element,
+::ng-deep .mat-form-field-invalid .mat-form-field-label {
+  color: #9b2c2c !important; /* Dark red for invalid */
+}
+
+/* Red theme specific styles */
+::ng-deep .mat-checkbox-checked .mat-checkbox-background {
+  background-color: #e53e3e !important; /* Red checkbox when checked */
+}
+
+::ng-deep .mat-radio-button.mat-accent .mat-radio-inner-circle {
+  background-color: #e53e3e !important; /* Red radio button inner circle */
+}
+
+::ng-deep .mat-radio-button.mat-accent.mat-radio-checked .mat-radio-outer-circle {
+  border-color: #e53e3e !important; /* Red radio button outer circle when checked */
 }

@@ -33,6 +33,8 @@ export class DialogQuestionComponent implements OnInit {
   isDisabled: boolean = false;
   isValidated: boolean = false;
 
+  hidePassword = true;
+
   required: string[] = [
     'name',
     'description',
@@ -182,5 +184,9 @@ export class DialogQuestionComponent implements OnInit {
 
   clickedButtonQuestion(question: QuestionBase) {
     this.buttonClicked.emit(question);
+  }
+
+  togglePasswordVisibility() {
+    this.hidePassword = !this.hidePassword;
   }
 }
