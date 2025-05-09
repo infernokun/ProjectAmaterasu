@@ -1,0 +1,25 @@
+{
+    "success": true,
+    "data": [
+      {
+        "id": "node1",
+        "node": "pve1",
+        "status": "online",
+        "cpu": 0.12,
+        "maxcpu": 8,
+        "mem": 2048000000,
+        "maxmem": 16000000000,
+        "uptime": 1234567
+      },
+      {
+        "id": "node2",
+        "node": "pve2",
+        "status": "online",
+        "cpu": 0.05,
+        "maxcpu": 4,
+        "mem": 1024000000,
+        "maxmem": 8000000000,
+        "uptime": 2345678
+      }
+    ]
+  }

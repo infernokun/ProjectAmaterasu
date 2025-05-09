@@ -1,0 +1,21 @@
+{
+    "success": true,
+    "data": [
+      {
+        "storage": "local",
+        "type": "dir",
+        "content": "images,rootdir",
+        "used": 10000000000,
+        "avail": 90000000000,
+        "total": 100000000000
+      },
+      {
+        "storage": "local-lvm",
+        "type": "lvmthin",
+        "content": "images,rootdir",
+        "used": 20000000000,
+        "avail": 80000000000,
+        "total": 100000000000
+      }
+    ]
+  }

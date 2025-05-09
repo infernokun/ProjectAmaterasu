@@ -1,7 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { LabService } from '../../services/lab.service';
 import { Lab, LabDTO, LabFormData } from '../../models/lab.model';
-import { UserService } from '../../services/user.service';
 import {
   Observable,
   switchMap,
@@ -17,10 +16,8 @@ import { User } from '../../models/user.model';
 import { ApiResponse } from '../../models/api-response.model';
 import { LabTrackerService } from '../../services/lab-tracker.service';
 import { LabTracker } from '../../models/lab-tracker.model';
-import { TeamService } from '../../services/team.service';
 import { Team } from '../../models/team.model';
 import { LabStatus } from '../../enums/lab-status.enum';
-import { MatDialog } from '@angular/material/dialog';
 import { EditDialogService } from '../../services/edit-dialog.service';
 import { LabType } from '../../enums/lab-type.enum';
 import { ProxmoxService } from '../../services/proxmox.service';
@@ -60,10 +57,7 @@ export class LabComponent implements OnInit, OnDestroy {
 
   constructor(
     private labService: LabService,
-    private userService: UserService,
-    private teamService: TeamService,
     private labTrackerService: LabTrackerService,
-    private dialog: MatDialog,
     private editDialogService: EditDialogService,
     private proxmoxService: ProxmoxService,
     private remoteServerService: RemoteServerService,
@@ -136,6 +130,7 @@ export class LabComponent implements OnInit, OnDestroy {
     const vmTemplates = this.proxmoxService.getVMTemplates.bind(
       this.proxmoxService
     );
+    
     const remoteServers$: Observable<RemoteServer[]> =
       this.remoteServerService.getAllServers();
 

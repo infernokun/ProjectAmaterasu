@@ -769,8 +769,8 @@ public class ProxmoxService extends BaseService {
             return mapper.readValue(json, new TypeReference<List<ProxmoxVM>>() {});
         } catch (Exception e) {
             System.err.println("Error deserializing JSON: " + e.getMessage());
-            e.printStackTrace(); // VERY important for debugging
-            return null; // Or throw an exception, depending on your needs
+            e.printStackTrace();
+            return null;
         }
     }
 

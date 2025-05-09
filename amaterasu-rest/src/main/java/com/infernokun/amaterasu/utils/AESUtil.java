@@ -58,8 +58,14 @@ public class AESUtil {
     }
 
     /** Encrypts a given string using AES-GCM. */
-    public String encrypt(String value) {
+    public String encrypt(String encryptedValue) {
         try {
+
+            if (encryptedValue == null) {
+                LOGGER.warn("Attempted to decrypt null value");
+                return null; // or throw a specific exception
+            }
+
             // Generate a random salt
             byte[] salt = new byte[SALT_LENGTH];
             SecureRandom random = new SecureRandom();
@@ -72,7 +78,7 @@ public class AESUtil {
             SecretKeySpec secretKey = new SecretKeySpec(key, ALGORITHM);
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, new GCMParameterSpec(GCM_TAG_LENGTH, iv));
-            byte[] encrypted = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
+            byte[] encrypted = cipher.doFinal(encryptedValue.getBytes(StandardCharsets.UTF_8));
 
             // Concatenate salt, IV, and encrypted data
             byte[] combined = new byte[SALT_LENGTH + IV_LENGTH + encrypted.length];

@@ -92,10 +92,10 @@ public class LabService extends BaseService {
 
                 newLab = Lab.builder()
                         .name(labDTO.getName())
+                        .description(labDTO.getDescription())
                         .labType(labDTO.getLabType())
                         .ready(false)
                         .dockerFile(labDTO.getName().toLowerCase().replace(" ", "-") + "_" + timestamp + ".yml")
-                        .description(labDTO.getDescription())
                         .version(labDTO.getVersion())
                         .capacity(labDTO.getCapacity())
                         .build();
@@ -113,9 +113,9 @@ public class LabService extends BaseService {
             case VIRTUAL_MACHINE -> {
                 newLab = Lab.builder()
                         .name(labDTO.getName())
+                        .description(labDTO.getDescription())
                         .labType(labDTO.getLabType())
                         .ready(true)
-                        .description(labDTO.getDescription())
                         .version(labDTO.getVersion())
                         .capacity(labDTO.getCapacity())
                         .vmIds(labDTO.getVms())

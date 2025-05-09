@@ -1,4 +1,5 @@
 import {
+  ChangeDetectorRef,
   Component,
   ElementRef,
   EventEmitter,
@@ -10,8 +11,9 @@ import {
 import { FormControl, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { MatRadioChange } from '@angular/material/radio';
-import { MatSelectChange } from '@angular/material/select';
+import { MatFormField } from '@angular/material/select';
 import { QuestionBase } from '../../../../models/simple-form-data.model';
+import { REQUIRED } from '../../../../utils/amaterasu.const';
 
 @Component({
     selector: 'app-dialog-question',
@@ -24,31 +26,23 @@ export class DialogQuestionComponent implements OnInit {
 
   @ViewChild('dropdownMenu') dropdownMenu!: ElementRef;
   @ViewChild('textInput') textInput!: ElementRef;
+  @ViewChild(MatFormField) matFormField!: MatFormField;
 
   formControl: FormControl = new FormControl('');
   @Output() labType = new EventEmitter<boolean>();
-  @Output() checkboxSelectionChanged = new EventEmitter<{ key: string, value: any }>();
+  @Output() radioSelectionChanged = new EventEmitter<{ key: string, value: any }>();
   @Output() buttonClicked = new EventEmitter<{ key: string, value: any }>();
+  @Output() dropdownSelectionChanged = new EventEmitter<{ key: string, value: string }>();
+
   isHidden: boolean = false;
   isDisabled: boolean = false;
   isValidated: boolean = false;
 
   hidePassword = true;
 
-  required: string[] = [
-    'name',
-    'description',
-    'labType',
-    'username',
-    'password',
-    'apiToken',
-    'ipAddress',
-    'nodeName'
-  ];
-
   file: File | undefined;
 
-  constructor(private dialog: MatDialog) { }
+  constructor(private dialog: MatDialog, public cdr: ChangeDetectorRef) { }
 
   ngOnInit(): void {
     this.formControl.valueChanges.subscribe((value) => {
@@ -66,7 +60,7 @@ export class DialogQuestionComponent implements OnInit {
       }
     }
 
-    if (this.required.includes(this.question.key)) {
+    if (REQUIRED.includes(this.question.key)) {
       this.formControl.setValidators([Validators.required]);
     }
 
@@ -105,14 +99,15 @@ export class DialogQuestionComponent implements OnInit {
   handleAction(event: Event, value?: string): void {
   }
 
-  handleMatSelect(event: MatSelectChange) {
-    console.log(event.value);
+  dropdownSelect(event: any): void {
+    this.formControl.setValue(event.value);
+    this.dropdownSelectionChanged.emit({ key: this.question.key, value: this.formControl.value });
   }
 
   handleMatRadioSelect(event: MatRadioChange, value?: string): void {
     if (!value) return;
     this.formControl.setValue(event.value);
-    this.checkboxSelectionChanged.emit({ key: this.question.key, value: this.formControl.value });
+    this.radioSelectionChanged.emit({ key: this.question.key, value: this.formControl.value });
   }
 
   onFileSelected(event: Event) {
@@ -148,7 +143,6 @@ export class DialogQuestionComponent implements OnInit {
     this.formControl.setValue({ file: undefined, content: undefined });
     this.question.dataBoolean = false;
     this.buttonClicked.emit(this.question);
-
   }
 
   validateYaml() {

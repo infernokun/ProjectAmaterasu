@@ -1,5 +1,6 @@
 import {
   AfterViewInit,
+  ChangeDetectorRef,
   Component,
   Inject,
   OnDestroy,
@@ -20,6 +21,7 @@ import { SimpleFormData } from '../../../../models/simple-form-data.model';
 import { LabService } from '../../../../services/lab.service';
 import { MessageService } from '../../../../services/message.service';
 import { RemoteServerService } from '../../../../services/remote-server.service';
+import { REQUIRED } from '../../../../utils/amaterasu.const';
 
 @Component({
   selector: 'app-add-dialog-form',
@@ -53,13 +55,16 @@ export class AddDialogFormComponent
       [ServerType.UNKNOWN]: [],
     };
 
+  private asyncDataMap: Map<string, any[]> = new Map();
+
   constructor(
     public dialogRef: MatDialogRef<AddDialogFormComponent>,
     @Inject(MAT_DIALOG_DATA) public data: SimpleFormData,
     private fb: FormBuilder,
     private messageService: MessageService,
     private remoteServerService: RemoteServerService,
-    private labService: LabService
+    private labService: LabService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -113,7 +118,6 @@ export class AddDialogFormComponent
 
     const subscription = forkJoin(formSetupObservables).subscribe({
       next: () => {
-        this.labInit();
         if (this.data.typeName === 'lab') {
           this.checkForRemoteServer();
         }
@@ -124,9 +128,7 @@ export class AddDialogFormComponent
     this.subscriptions.add(subscription);
   }
 
-  private processAsyncData(
-    component: DialogQuestionComponent
-  ): Observable<DialogQuestionComponent> {
+  private processAsyncData(component: DialogQuestionComponent): Observable<DialogQuestionComponent> {
     return component.question.asyncData!.pipe(
       take(1),
       map((data: any[]) => {
@@ -154,13 +156,30 @@ export class AddDialogFormComponent
     component: DialogQuestionComponent,
     data: any[]
   ): void {
+    data.sort((a, b) => a.name.localeCompare(b.name));
+
+    this.asyncDataMap.set('remoteServer', data);
+
     component.question.options = data
       .filter((r) => r.name && r.id)
       .map((r) => ({ key: r.name, value: r.id, disabled: false }));
 
     if (component.question.options.length > 0) {
       component.formControl.setValue(component.question.options[0].value);
-      this.labLock(data[0]);
+    }
+
+    this.labLock(data[0]);
+  }
+
+  dropdownSelectionChanged(event: { key: string; value: string }) {
+    console.log('Dropdown selection changed:', event);
+
+    if (event.key === 'remoteServer') {
+      this.asyncDataMap.get(event.key)?.forEach((item) => {
+        if (item.id === event.value) {
+          this.labLock(item);
+        }
+      });
     }
   }
 
@@ -168,6 +187,10 @@ export class AddDialogFormComponent
     component: DialogQuestionComponent,
     data: any[]
   ): void {
+    data.sort((a, b) => a.name.localeCompare(b.name));
+
+    this.asyncDataMap.set('team', data);
+
     component.question.options = data
       .filter((t) => t.name && t.id)
       .map((t) => ({ key: t.name, value: t.id, disabled: false }));
@@ -181,6 +204,7 @@ export class AddDialogFormComponent
     const labTypeQuestion = this.questionComponents?.find(
       (q) => q.question.key === 'labType'
     );
+
     if (!labTypeQuestion) {
       return;
     }
@@ -193,19 +217,41 @@ export class AddDialogFormComponent
     // Apply constraints based on server type
     const allowedLabTypes =
       this.SERVER_TYPE_LAB_CONSTRAINTS[remoteServer.serverType!];
+
     if (allowedLabTypes) {
       labTypeQuestion.question.options.forEach((option) => {
         option.disabled = !allowedLabTypes.includes(option.value as LabType);
       });
-    }
-  }
 
-  labInit(): void {
-    if (this.data.typeName !== 'lab') {
-      return;
-    }
+      // Get current selection
+      const currentValue = labTypeQuestion.formControl?.value;
 
-    const labTypeValue = this.dynamicForm.value['labType'];
+      // Check if current selection is now disabled
+      const isCurrentSelectionDisabled = labTypeQuestion.question.options.find(
+        (option) => option.value === currentValue
+      )?.disabled;
+
+      // If current selection is disabled or undefined, select the first non-disabled option
+      if (isCurrentSelectionDisabled || currentValue === undefined) {
+        const firstEnabledOption = labTypeQuestion.question.options.find(
+          (option) => !option.disabled
+        );
+
+        if (firstEnabledOption) {
+          // Update form control with new value
+          labTypeQuestion.formControl?.setValue(firstEnabledOption.value);
+
+          // If you have a callback for value changes, trigger it
+          if (labTypeQuestion.question.cb) {
+            labTypeQuestion.question.cb('labType', firstEnabledOption.value);
+          }
+
+          this.radioSelectionChanged({key: 'labType', value: firstEnabledOption.value});
+        } else {
+          console.warn('No enabled options available for labType');
+        }
+      }
+    }
   }
 
   checkForRemoteServer(): void {
@@ -228,31 +274,46 @@ export class AddDialogFormComponent
       this.data.typeName
     );
 
-    if (this.dynamicForm.valid || requiresSpecialValidation) {
-      if (requiresSpecialValidation) {
-        this.handleSpecialValidation();
-      } else {
-        console.log(this.data);
+    if (requiresSpecialValidation) {
+      this.handleSpecialValidation();
+      return;
+    }
 
-        this.dialogRef.close(this.data);
-      }
+    if (this.dynamicForm.valid) {
+      this.dialogRef.close(this.data);
     } else {
       this.showValidationErrors();
     }
   }
 
   private handleSpecialValidation(): void {
-    if (this.checkQuestionsValidation()) {
-      if (this.dynamicForm!.valid) {
-        this.dialogRef.close(this.data);
-      } else {
-        this.showValidationErrors();
+    switch(this.dynamicForm.value['labType']) {
+      case LabType.DOCKER_COMPOSE:
+        if (this.dynamicForm.valid) {
+          if (this.checkQuestionsValidation()) {
+            this.dialogRef.close(this.data);
+          } else {
+            this.messageService.snackbar('Form must be validated via the validate button.');
+          }
+        } else {
+          this.showValidationErrors();
+        }
+      break;
+      case LabType.VIRTUAL_MACHINE:
+        if (this.dynamicForm.valid) {
+          if (this.dynamicForm.value['vms'] < 1) {
+            this.messageService.snackbar('Please select at least one VM template.');
+          } else {
+            this.dialogRef.close(this.data);
+          }
+        } else {
+          this.showValidationErrors();
+        }
+      break;
+      default:
+        this.messageService.snackbar('Unknown lab type.');
+        return;
       }
-    } else {
-      this.messageService.snackbar(
-        'Form not validated! Please validate first.'
-      );
-    }
   }
 
   private showValidationErrors(): void {
@@ -271,12 +332,10 @@ export class AddDialogFormComponent
 
     Object.keys(this.dynamicForm!.controls).forEach((key) => {
       const control = this.dynamicForm!.get(key);
-      if (control && !control.valid) {
-        this.data.questions.find((q) => q.key === key)
-        const component: DialogQuestionComponent | undefined = this.questionComponents.find((comp) => comp.question.key === key);
-        if (component && !component.isHidden) {
-          invalidControls.push(this.getQuestionLabelByKey(key));
-        }
+      const component: DialogQuestionComponent | undefined = this.questionComponents.find((q) => q.question.key === key);
+
+      if (control && !control.valid && component && !component.isHidden && REQUIRED.includes(key)) {
+        invalidControls.push(this.getQuestionLabelByKey(key));
       }
     });
 
@@ -306,44 +365,69 @@ export class AddDialogFormComponent
     this.data.result.set(key, value);
   }
 
-  checkboxSelectionChanged(event: any): void {
-    this.labInit();
+  private originalValidatorsMap = new Map<string, any>();
 
+  radioSelectionChanged(event: {key: string, value: string }): void {
     const selectedEnum = event.value;
 
     this.questionComponents?.forEach((component: DialogQuestionComponent) => {
+      component.isValidated = false;
       if (!component.question.neededEnum) {
         return;
       }
 
-      const isNeeded =
-        component.question.neededEnum.value.includes(selectedEnum);
+      const isNeeded = component.question.neededEnum.value.includes(selectedEnum);
       component.isHidden = !isNeeded;
 
-      if (isNeeded) {
-        this.loadComponentAsyncData(component);
+      if (component.formControl) {
+        const control = this.dynamicForm.controls[component.question.key];
+        const key = component.question.key;
+
+        if (isNeeded) {
+          // Restore original validators if they exist
+          if (this.originalValidatorsMap.has(key)) {
+            control.setValidators(this.originalValidatorsMap.get(key));
+            control.updateValueAndValidity();
+          }
+          this.loadComponentAsyncData(component);
+        } else {
+          // Store original validators before clearing
+          if (control.validator && !this.originalValidatorsMap.has(key)) {
+            this.originalValidatorsMap.set(key, control.validator);
+          }
+
+          // Clear validators temporarily
+          control.setValidators(null);
+          control.updateValueAndValidity();
+        }
       }
     });
   }
 
   private loadComponentAsyncData(component: DialogQuestionComponent): void {
-    if (component.question.asyncData) {
+    /*if (component.question.asyncData) {
+      console.log('Async data:', component.question);
+
       component.question.asyncData.subscribe((data) => {
+        console.log('Async data:', data);
         component.question.options2 = data.map((o: any) => ({
           key: o.vmid,
           value: o.name,
         }));
       });
-    }
+    }*/
 
-    const remoteServerQuestion = this.questionComponents?.find(
+    const remoteServerQuestion: DialogQuestionComponent | undefined = this.questionComponents?.find(
       (q) => q.question.key === 'remoteServer'
     );
-    const remoteServerValue = remoteServerQuestion?.question.options[0]?.value;
+    const remoteServerValue = remoteServerQuestion?.formControl?.value;
 
     if (component.question.function && remoteServerValue) {
       component.question.function(remoteServerValue).subscribe((data: any) => {
-        // Process the data as needed
+        component.question.options2 = data.map((o: any) => ({
+          key: o.name,
+          value: o.vmid,
+        }));
       });
     }
   }
@@ -353,6 +437,9 @@ export class AddDialogFormComponent
       const validateComponent = this.questionComponents?.find(
         (component) => component.question.key === 'validate'
       );
+
+      this.dynamicForm.get(qKey)!.setValue(null);
+      this.dynamicForm.get(qKey)!.markAsUntouched();
 
       if (validateComponent) {
         if (this.questionComponents && validateComponent.question.dataBoolean) {
@@ -368,26 +455,20 @@ export class AddDialogFormComponent
       if (this.data.typeName === 'remoteServer') {
         this.validateRemoteServer();
       } else if (this.data.typeName === 'lab') {
-        console.log();
         this.validateLab();
       }
     }
   }
 
   private validateRemoteServer(): void {
-    console.log("Checking validity");
     if (!this.checkFormValidity()) {
-      console.log("Form not valid ", this.dynamicForm!.valid, this.dynamicForm!);
       return;
     }
-
-    console.log("Form is valid");
 
     const formData: RemoteServer = Object.fromEntries(
       this.data.result as Map<string, string>
     );
 
-    console.log("attempting backend validation");
     this.remoteServerService.validateServer(formData).subscribe({
       next: (response) => this.handleValidationResponse(response),
       error: (err) => {

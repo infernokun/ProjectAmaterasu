@@ -1,0 +1,13 @@
+{
+    "success": true,
+    "data": {
+      "id": "placeholder",
+      "node": "placeholder",
+      "status": "online",
+      "cpu": 0.12,
+      "maxcpu": 8,
+      "mem": 2048000000,
+      "maxmem": 16000000000,
+      "uptime": 1234567
+    }
+  }

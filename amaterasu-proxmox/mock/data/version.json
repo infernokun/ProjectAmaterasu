@@ -1,5 +1,9 @@
 {
-  "release": "1",
-  "repoid": "1",
-  "version": "1"
+  "success": true,
+  "data": {
+    "version": "7.4-13",
+    "release": "7.4",
+    "repoid": "7b2cd5d5",
+    "apiVersion": "2.0"
+  }
 }

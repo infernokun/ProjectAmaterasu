@@ -1,0 +1,12 @@
+{
+    "success": true,
+    "data": {
+      "vmid": 100,
+      "name": "vm-placeholder",
+      "status": "running",
+      "cpus": 2,
+      "mem": 2048,
+      "maxmem": 4096,
+      "node": "placeholder"
+    }
+  }

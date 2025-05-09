@@ -121,7 +121,7 @@ export class LabFormData extends SimpleFormData {
         label: "Validate",
         key: "validate",
         dataBoolean: false,
-        neededEnum: { key: 'labType', value: Object.values(LabType) },
+        neededEnum: { key: 'labType', value: [LabType.DOCKER_COMPOSE] },
         action: (func: () => void) => {
           if (!func) return; 
           func();
