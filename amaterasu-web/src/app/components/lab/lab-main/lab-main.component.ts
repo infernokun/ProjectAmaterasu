@@ -14,8 +14,6 @@ import { User } from '../../../models/user.model';
 import { LabTracker } from '../../../models/lab-tracker.model';
 import { LabTrackerService } from '../../../services/lab-tracker.service';
 import { LabService } from '../../../services/lab.service';
-import { AuthService } from '../../../services/auth.service';
-import { TeamService } from '../../../services/team.service';
 import { MatDialog } from '@angular/material/dialog';
 import { RemoteServerService } from '../../../services/remote-server.service';
 import { ApiResponse } from '../../../models/api-response.model';
@@ -59,11 +57,9 @@ export class LabMainComponent implements OnInit, OnDestroy {
 
   constructor(
     private labService: LabService,
-    private teamService: TeamService,
     private labTrackerService: LabTrackerService,
     private dialog: MatDialog,
     private remoteServerService: RemoteServerService,
-    private authService: AuthService,
     private labDeploymentService: LabDeploymentService,
     private editDialogService: EditDialogService,
     private snackBar: MatSnackBar

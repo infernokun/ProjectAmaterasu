@@ -29,10 +29,10 @@ public class RemoteServerController extends BaseController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<RemoteServer>>> getAllRemoteServers(@RequestParam(required = false) HashMap<String, String> params) {
         if (!params.isEmpty()) {
-            if (params.containsKey("teamId")) {
+            if (params.containsKey("serverType")) {
                 return ResponseEntity.ok(ApiResponse.<List<RemoteServer>>builder()
                         .code(HttpStatus.OK.value())
-                        .message("Lab trackers by team " + params.get("teamId") + " retrieved successfully.")
+                        .message("Server by type " + params.get("serverType") + " retrieved successfully.")
                         .data(remoteServerService.findByServerType(ServerType.valueOf(params.get("serverType"))))
                         .build());
             }

@@ -7,8 +7,8 @@ import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.models.entities.RemoteServerStats;
 import com.infernokun.amaterasu.models.enums.LabStatus;
-import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.repositories.RemoteServerStatsRepository;
+import com.infernokun.amaterasu.services.alt.ProxmoxService;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
 import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import com.infernokun.amaterasu.services.BaseService;
@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Optional;
 
@@ -35,6 +36,7 @@ public class RemoteStatsService extends BaseService {
     private final RemoteServerStatsRepository remoteServerStatsRepository;
     private final ObjectMapper objectMapper;
     private final AmaterasuConfig amaterasuConfig;
+    private final ProxmoxService proxmoxService;
     private String scriptContentBase64;
 
     public RemoteStatsService(
@@ -42,13 +44,14 @@ public class RemoteStatsService extends BaseService {
             RemoteCommandService remoteCommandService,
             RemoteServerStatsRepository remoteServerStatsRepository,
             ObjectMapper objectMapper,
-            AmaterasuConfig amaterasuConfig) {
+            AmaterasuConfig amaterasuConfig, ProxmoxService proxmoxService) {
         this.remoteServerService = remoteServerService;
         this.remoteServerStatsService = remoteServerStatsService;
         this.remoteCommandService = remoteCommandService;
         this.remoteServerStatsRepository = remoteServerStatsRepository;
         this.objectMapper = objectMapper;
         this.amaterasuConfig = amaterasuConfig;
+        this.proxmoxService = proxmoxService;
     }
 
     @PostConstruct
@@ -61,20 +64,43 @@ public class RemoteStatsService extends BaseService {
 
     @Scheduled(cron = "0 * * * * *")
     public void getRemoteServerStats() {
-        remoteServerService.findAllServers().stream()
-                .filter(s -> s.getServerType() == ServerType.DOCKER_HOST)
+        remoteServerService.findAllServers()
                 .forEach(this::safeProcessStats);
     }
 
     private void safeProcessStats(RemoteServer server) {
         try {
-            processServerStats(server);
+            switch(server.getServerType()) {
+                case DOCKER_HOST -> processDockerServerStats(server);
+                case PROXMOX -> processProxmoxServerStats(server);
+                default -> LOGGER.error("Server {} not supported!", server.getServerType());
+            }
         } catch (Exception e) {
             LOGGER.error("Failed to process stats for server {}: {}", server.getId(), e.getMessage());
         }
     }
 
-    private void processServerStats(RemoteServer dockerServer) {
+    private void processProxmoxServerStats(RemoteServer proxmoxServer) {
+        Optional<RemoteServerStats> existingStats = remoteServerStatsRepository.findByRemoteServerId(proxmoxServer.getId());
+
+        if (existingStats.isPresent()) {
+            if (proxmoxService.proxmoxHealthCheck(proxmoxServer)) {
+                RemoteServerStats stats = existingStats.get();
+                stats.setUpdatedAt(LocalDateTime.now());
+                stats.setStatus(LabStatus.ACTIVE);
+                remoteServerStatsService.updateStats(stats);
+            } else {
+                RemoteServerStats stats = existingStats.get();
+                stats.setUpdatedAt(LocalDateTime.now());
+                stats.setStatus(LabStatus.OFFLINE);
+                remoteServerStatsService.updateStats(stats);
+            }
+        } else {
+            updateServerStats(proxmoxServer, null);
+        }
+    }
+
+    private void processDockerServerStats(RemoteServer dockerServer) {
         String remoteDir = amaterasuConfig.getUploadDir();
         String scriptRemotePath = remoteDir + "/scripts/" + SCRIPT_FILENAME;
 
@@ -136,7 +162,7 @@ public class RemoteStatsService extends BaseService {
                             () -> createNewStats(remoteServer, statsFromJson)
                     );
         } else {
-            createNewStats(remoteServer, statsFromJson);
+            createNewStats(remoteServer, new RemoteServerStats());
         }
     }
 

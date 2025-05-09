@@ -287,33 +287,45 @@ export class AddDialogFormComponent
   }
 
   private handleSpecialValidation(): void {
-    switch(this.dynamicForm.value['labType']) {
-      case LabType.DOCKER_COMPOSE:
-        if (this.dynamicForm.valid) {
-          if (this.checkQuestionsValidation()) {
-            this.dialogRef.close(this.data);
+    if (this.data.typeName == 'lab') {
+      switch(this.dynamicForm.value['labType']) {
+        case LabType.DOCKER_COMPOSE:
+          if (this.dynamicForm.valid) {
+            if (this.checkQuestionsValidation()) {
+              this.dialogRef.close(this.data);
+            } else {
+              this.messageService.snackbar('Form must be validated via the validate button.');
+            }
           } else {
-            this.messageService.snackbar('Form must be validated via the validate button.');
+            this.showValidationErrors();
           }
-        } else {
-          this.showValidationErrors();
-        }
-      break;
-      case LabType.VIRTUAL_MACHINE:
-        if (this.dynamicForm.valid) {
-          if (this.dynamicForm.value['vms'] < 1) {
-            this.messageService.snackbar('Please select at least one VM template.');
+        break;
+        case LabType.VIRTUAL_MACHINE:
+          if (this.dynamicForm.valid) {
+            if (this.dynamicForm.value['vms'] < 1) {
+              this.messageService.snackbar('Please select at least one VM template.');
+            } else {
+              this.dialogRef.close(this.data);
+            }
           } else {
-            this.dialogRef.close(this.data);
+            this.showValidationErrors();
           }
-        } else {
-          this.showValidationErrors();
+        break;
+        default:
+          this.messageService.snackbar('Unknown lab type.');
+          return;
         }
-      break;
-      default:
-        this.messageService.snackbar('Unknown lab type.');
-        return;
+    } else if ( this.data.typeName == 'remoteServer') {
+      if (this.dynamicForm.valid) {
+        if (this.checkQuestionsValidation()) {
+          this.dialogRef.close(this.data);
+        } else {
+          this.messageService.snackbar('Form must be validated via the validate button.');
+        }
+      } else {
+        this.showValidationErrors();
       }
+    }
   }
 
   private showValidationErrors(): void {
