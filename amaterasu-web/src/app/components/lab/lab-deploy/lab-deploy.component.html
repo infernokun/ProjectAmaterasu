@@ -113,15 +113,8 @@
           Offline
         </button>
 
-        <!-- Failed button -->
-        <button mat-flat-button class="action-btn failed" disabled
-          *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'FAILED'">
-          <mat-icon>error</mat-icon>
-          Failed
-        </button>
-
         <!-- Stopped state buttons -->
-        <ng-container *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus === 'STOPPED'">
+        <ng-container *ngIf="!isLabLoading(labTracker.id) && (labTracker.labStatus === 'STOPPED' || labTracker.labStatus === 'FAILED')">
           <button mat-flat-button class="action-btn delete" (click)="deleteLab(labTracker)">
             <mat-icon>delete</mat-icon>
             Delete

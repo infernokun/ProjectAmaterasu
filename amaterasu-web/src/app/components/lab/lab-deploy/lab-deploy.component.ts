@@ -123,7 +123,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
         this.sendStartRequest(labRequest);
       })
       .pipe(takeUntil(this.destroy$))
-      .subscribe(() => {
+      .subscribe((res: any) => {
         if (dialogCancelled && lab.id) {
           this.labsLoading.delete(lab.id);
           this.labDeploymentService.updateLabsLoading(this.labsLoading);
@@ -272,6 +272,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$),
         catchError((err: HttpErrorResponse) => {
           console.error(`Failed to delete lab ${labTracker.labStarted?.id}:`, err);
+          this.showOutputDialog('Lab Delete', err.error.message, 'bash');
           return of({ code: 404, data: {}, message: 'Failed to delete lab' });
         }),
         finalize(() => {
@@ -282,7 +283,9 @@ export class LabDeployComponent implements OnInit, OnDestroy {
         })
       )
       .subscribe((response: ApiResponse<LabActionResult>) => {
-        if (!response.data) return;
+        if (!response.data || response.code >= 400) return;
+
+        console.error('Lab deletion response:', response);
 
         if (response.data.output) {
           this.showOutputDialog('Lab Delete', response.data.output, 'bash');
@@ -291,7 +294,8 @@ export class LabDeployComponent implements OnInit, OnDestroy {
         // Remove the lab tracker from the array
         this.labTrackers = this.labTrackers.filter(tracker => tracker.id !== labTracker.id);
         this.labTrackerService.setLabTrackersByTeam(this.labTrackers);
-      });
+      }
+    );
   }
 
   getSettings(labTracker: LabTracker): void {
@@ -402,6 +406,11 @@ export class LabDeployComponent implements OnInit, OnDestroy {
   private handleLabActionResponse(response: ApiResponse<LabActionResult>): void {
     if (!response.data) return;
 
+    if (response.code >= 400) {
+      this.snackbar.open(response.message, 'Close', { duration: 3000 });
+      return;
+    }
+
     const newTrackedLab = new LabTracker(response.data.labTracker);
     this.labTrackers.push(newTrackedLab);
     this.labTrackerService.setLabTrackersByTeam(this.labTrackers);
@@ -415,6 +424,11 @@ export class LabDeployComponent implements OnInit, OnDestroy {
 
   private handleLabRedeployResponse(response: ApiResponse<LabActionResult>, originalLabTracker: LabTracker): void {
     if (!response.data) return;
+
+    if (response.code >= 400) {
+      this.snackbar.open(response.message, 'Close', { duration: 3000 });
+      return;
+    }
 
     const updatedLabTracker = new LabTracker(response.data.labTracker);
     this.updateLabTrackerInArray(originalLabTracker, updatedLabTracker);
@@ -450,6 +464,13 @@ export class LabDeployComponent implements OnInit, OnDestroy {
     try {
       apiResponse = err.error;
       errorContent = JSON.stringify(apiResponse, null, 2);
+
+      if (apiResponse.data.labTracker) {
+        const newTrackedLab = new LabTracker(apiResponse.data.labTracker);
+        this.labTrackers.push(newTrackedLab);
+        this.labTrackerService.setLabTrackersByTeam(this.labTrackers);
+      }
+
       this.labDeploymentService.startLabDeploymentFinish(apiResponse);
     } catch (e) {
       errorContent = JSON.stringify(

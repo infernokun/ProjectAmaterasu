@@ -73,10 +73,10 @@ public class RemoteStatsService extends BaseService {
             switch(server.getServerType()) {
                 case DOCKER_HOST -> processDockerServerStats(server);
                 case PROXMOX -> processProxmoxServerStats(server);
-                default -> LOGGER.error("Server {} not supported!", server.getServerType());
+                default -> LOGGER.error("Unsupported server type: {}", server.getServerType());
             }
         } catch (Exception e) {
-            LOGGER.error("Failed to process stats for server {}: {}", server.getId(), e.getMessage());
+            LOGGER.error("Failed to process stats for server {}: {}", server.getId(), e.getMessage(), e);
         }
     }
 
@@ -84,18 +84,18 @@ public class RemoteStatsService extends BaseService {
         Optional<RemoteServerStats> existingStats = remoteServerStatsRepository.findByRemoteServerId(proxmoxServer.getId());
 
         if (existingStats.isPresent()) {
-            if (proxmoxService.proxmoxHealthCheck(proxmoxServer)) {
-                RemoteServerStats stats = existingStats.get();
-                stats.setUpdatedAt(LocalDateTime.now());
-                stats.setStatus(LabStatus.ACTIVE);
-                remoteServerStatsService.updateStats(stats);
-            } else {
-                RemoteServerStats stats = existingStats.get();
-                stats.setUpdatedAt(LocalDateTime.now());
-                stats.setStatus(LabStatus.OFFLINE);
-                remoteServerStatsService.updateStats(stats);
-            }
+            RemoteServerStats stats = existingStats.get();
+            stats.setUpdatedAt(LocalDateTime.now());
+
+            boolean isServerHealthy = proxmoxService.proxmoxHealthCheck(proxmoxServer);
+            stats.setStatus(isServerHealthy ? LabStatus.ACTIVE : LabStatus.OFFLINE);
+
+            LOGGER.debug("Updating stats for Proxmox server {}: status={}",
+                    proxmoxServer.getId(), stats.getStatus());
+            remoteServerStatsService.updateStats(stats);
         } else {
+            LOGGER.debug("No existing stats found for Proxmox server {}, creating new",
+                    proxmoxServer.getId());
             updateServerStats(proxmoxServer, null);
         }
     }
@@ -204,8 +204,6 @@ public class RemoteStatsService extends BaseService {
                 statsFromJson.setId(existingStats.getId());
                 statsFromJson.setRemoteServer(remoteServer);
                 statsFromJson.setStatus(LabStatus.ACTIVE);
-                LOGGER.info("Updated stats for server new_stats: {}", statsFromJson);
-                LOGGER.info("Updated stats for server existing_stats: {}", existingStats);
 
                 // Use objectMapper to update the existingStats object
                 objectMapper.readerForUpdating(existingStats).readValue(objectMapper.writeValueAsString(statsFromJson));

@@ -23,6 +23,7 @@ const vms = require("./data/vms.json");
 const vmDetails = require("./data/vmDetails.json");
 const storage = require("./data/storage.json");
 const tickets = require("./data/tickets.json");
+const networkInterfaces = require("./data/networkInterfaces.json");
 
 // Version endpoint
 app.get("/api2/json/version", (req, res) => {
@@ -87,6 +88,15 @@ app.get("/api2/json/nodes/:node/qemu/:vmid/status/current", (req, res) => {
   customResponse.data.vmid = parseInt(vmid);
 
   res.json(customResponse);
+});
+
+// Network interfaces for a node
+app.get("/api2/json/nodes/:node/network", (req, res) => {
+  const { node } = req.params;
+  console.log(`Network interfaces for node ${node} requested`);
+
+
+  res.json(JSON.parse(JSON.stringify(networkInterfaces)));
 });
 
 // Storage endpoints

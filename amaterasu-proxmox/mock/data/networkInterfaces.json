@@ -1,0 +1,48 @@
+{
+    "data": [
+      {
+        "active": 1,
+        "address": "192.168.1.100",
+        "autostart": 1,
+        "bridge_ports": "",
+        "bridge_vlan_aware": 0,
+        "cidr": "192.168.1.100/24",
+        "comments": "",
+        "exists": 1,
+        "families": ["inet"],
+        "gateway": "192.168.1.1",
+        "iface": "eth0",
+        "method": "static",
+        "netmask": "255.255.255.0",
+        "priority": 3,
+        "type": "eth"
+      },
+      {
+        "active": 1,
+        "address": "10.0.0.100",
+        "autostart": 1,
+        "bridge_ports": "eth1",
+        "bridge_vlan_aware": 0,
+        "cidr": "10.0.0.100/24",
+        "comments": "VM Network",
+        "exists": 1,
+        "families": ["inet"],
+        "gateway": "10.0.0.1",
+        "iface": "vmbr0",
+        "method": "static",
+        "netmask": "255.255.255.0",
+        "priority": 4,
+        "type": "bridge"
+      },
+      {
+        "active": 1,
+        "address": null,
+        "autostart": 1,
+        "comments": "",
+        "exists": 1,
+        "iface": "lo",
+        "method": "loopback",
+        "type": "loopback"
+      }
+    ]
+  }

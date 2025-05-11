@@ -48,8 +48,6 @@ public class LabFileChangeLogService extends BaseService {
         AtomicInteger count = new AtomicInteger();
 
         remoteServerService.findByServerType(ServerType.DOCKER_HOST).forEach(dockerServer -> {
-            LOGGER.info("Starting changelog time check... for {}", dockerServer.getName());
-
             for (Lab lab : labService.findByLabType(LabType.DOCKER_COMPOSE)) {
                 LabFileChangeLog labFileChangeLog = findByLab(lab)
                         .orElseGet(() -> LabFileChangeLog.builder()
@@ -81,7 +79,6 @@ public class LabFileChangeLogService extends BaseService {
 
             // Validate
             AtomicInteger count2 = new AtomicInteger();
-            LOGGER.info("Starting file validity check...");
 
             findAllLabFileChangeLogs().stream()
                     .filter(labFileChangeLog -> labFileChangeLog.getLab().getLabType() == LabType.DOCKER_COMPOSE)

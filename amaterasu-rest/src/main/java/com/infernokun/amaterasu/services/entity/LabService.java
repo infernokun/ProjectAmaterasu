@@ -286,6 +286,7 @@ public class LabService extends BaseService {
             }
         } else {
             LOGGER.warn("Lab deletion failed for lab {}", labId);
+            throw new RuntimeException("Lab deletion failed for lab " + labId + "\n" + labActionResult.getOutput());
         }
 
         return labActionResult;
