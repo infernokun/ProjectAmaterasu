@@ -2,6 +2,7 @@
   <div class="lab-card" *ngFor="let labTracker of labTrackers$ | async" @fadeIn>
     <div class="card-header" (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()">
       <h3>{{ labTracker.labStarted?.name }}</h3>
+      <h5>{{ labTracker.labStarted?.labType }}</h5>
       <span class="status-badge" [ngClass]="labTracker.labStatus?.toLowerCase()">
         @if (labTracker.remoteServer?.remoteServerStats?.status != LabStatus.OFFLINE) {
         {{ labTracker.labStatus }}

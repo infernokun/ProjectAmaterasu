@@ -1,5 +1,4 @@
 {
-    "success": true,
     "data": {
       "CSRFPreventionToken": "csrftoken123456789",
       "ticket": "pveticket123456789",

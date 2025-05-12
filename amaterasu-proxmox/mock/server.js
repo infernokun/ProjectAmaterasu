@@ -24,6 +24,7 @@ const vmDetails = require("./data/vmDetails.json");
 const storage = require("./data/storage.json");
 const tickets = require("./data/tickets.json");
 const networkInterfaces = require("./data/networkInterfaces.json");
+const vmConfigs = require("./data/vmConfigs.json");
 
 // Version endpoint
 app.get("/api2/json/version", (req, res) => {
@@ -90,6 +91,16 @@ app.get("/api2/json/nodes/:node/qemu/:vmid/status/current", (req, res) => {
   res.json(customResponse);
 });
 
+
+app.get("/api2/json/nodes/:node/qemu/:vmid/config", (req, res) => {
+  const { node, vmid } = req.params;
+  console.log(`CONFIG get ${node} for ${vmid} requested`);
+
+  const vmConfig = vmConfigs.find(v => v.vmid == vmid);
+
+  res.json(JSON.parse(JSON.stringify(vmConfig)));
+});
+
 // Network interfaces for a node
 app.get("/api2/json/nodes/:node/network", (req, res) => {
   const { node } = req.params;
@@ -97,6 +108,49 @@ app.get("/api2/json/nodes/:node/network", (req, res) => {
 
 
   res.json(JSON.parse(JSON.stringify(networkInterfaces)));
+});
+
+app.post("/api2/json/nodes/:node/network", (req, res) => {
+  const { node } = req.params;
+  console.log(`Network interfaces POST node ${node} requested`);
+
+  res.status(200).send();
+});
+
+
+app.put("/api2/json/nodes/:node/network", (req, res) => {
+  const { node } = req.params;
+  console.log(`Network interfaces PUT node ${node} requested`);
+
+  res.status(200).send();
+});
+
+app.post("/api2/json/nodes/:node/qemu/:vmid/clone", (req, res) => {
+  const { node, vmid } = req.params;
+  console.log(`CLONE post ${node} for ${vmid} requested`);
+
+  res.status(200).send();
+});
+
+app.post("/api2/json/nodes/:node/qemu/:vmid/status/start", (req, res) => {
+  const { node, vmid } = req.params;
+  console.log(`POST start ${node} for ${vmid} requested`);
+
+  res.status(200).send();
+});
+
+app.post("/api2/json/nodes/:node/qemu/:vmid/status/stop", (req, res) => {
+  const { node, vmid } = req.params;
+  console.log(`POST stop ${node} for ${vmid} requested`);
+
+  res.status(200).send();
+});
+
+app.delete("/api2/json/nodes/:node/qemu/:vmid", (req, res) => {
+  const { node, vmid } = req.params;
+  console.log(`DELETE delete ${node} for ${vmid} requested`);
+
+  res.status(200).send();
 });
 
 // Storage endpoints

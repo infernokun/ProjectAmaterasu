@@ -38,6 +38,15 @@
         text-overflow: ellipsis;
         max-width: 65%;
       }
+
+      h5 {
+        font-size: 0.5rem;
+        font-weight: 600;
+        color: #343a40;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
     }
     
     .status-badge {
