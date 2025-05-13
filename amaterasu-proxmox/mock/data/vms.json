@@ -303,7 +303,7 @@
     {
       "vmid": 9000,
       "name": "ubuntu-20.04-template",
-      "status": "stopped",
+      "status": "running",
       "uptime": 0,
       "mem": 1024,
       "maxmem": 2048,
@@ -315,7 +315,7 @@
     {
       "vmid": 9001,
       "name": "centos-8-template",
-      "status": "stopped",
+      "status": "running",
       "uptime": 0,
       "mem": 1024,
       "maxmem": 2048,
@@ -327,7 +327,7 @@
     {
       "vmid": 9002,
       "name": "debian-11-template",
-      "status": "stopped",
+      "status": "running",
       "uptime": 0,
       "mem": 1024,
       "maxmem": 2048,
@@ -339,7 +339,7 @@
     {
       "vmid": 9003,
       "name": "windows-server-2022-template",
-      "status": "stopped",
+      "status": "running",
       "uptime": 0,
       "mem": 4096,
       "maxmem": 8192,
@@ -351,7 +351,7 @@
     {
       "vmid": 9004,
       "name": "alpine-minimal-template",
-      "status": "stopped",
+      "status": "running",
       "uptime": 0,
       "mem": 512,
       "maxmem": 1024,

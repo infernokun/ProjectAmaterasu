@@ -1,6 +1,5 @@
 package com.infernokun.amaterasu.services.alt;
 
-import com.infernokun.amaterasu.exceptions.ServerTypeException;
 import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.entities.Lab;
 import com.infernokun.amaterasu.models.entities.LabTracker;

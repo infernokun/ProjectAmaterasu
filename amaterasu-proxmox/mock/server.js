@@ -71,10 +71,7 @@ app.get("/api2/json/nodes/:node/qemu", (req, res) => {
       return false;
     });
   }
-
-  console.log(
-    `Sending ${customResponse.data.length} VMs for node ${requestedNode}`
-  );
+  
   res.status(200).json(customResponse);
 });
 
@@ -96,9 +93,11 @@ app.get("/api2/json/nodes/:node/qemu/:vmid/config", (req, res) => {
   const { node, vmid } = req.params;
   console.log(`CONFIG get ${node} for ${vmid} requested`);
 
-  const vmConfig = vmConfigs.find(v => v.vmid == vmid);
+  const vmConfigsJSON = JSON.parse(JSON.stringify(vmConfigs));
 
-  res.json(JSON.parse(JSON.stringify(vmConfig)));
+  console.log(vmConfigsJSON[0]);
+
+  res.status(200).json(JSON.parse(JSON.stringify(vmConfigsJSON[0])));
 });
 
 // Network interfaces for a node
