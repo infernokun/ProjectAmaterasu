@@ -25,6 +25,7 @@ const storage = require("./data/storage.json");
 const tickets = require("./data/tickets.json");
 const networkInterfaces = require("./data/networkInterfaces.json");
 const vmConfigs = require("./data/vmConfigs.json");
+const clonedVMs = require("./data/clonedVMs.json")
 
 // Version endpoint
 app.get("/api2/json/version", (req, res) => {
@@ -61,7 +62,7 @@ app.get("/api2/json/nodes/:node/qemu", (req, res) => {
   const requestedNode = req.params.node;
   console.log(`${req.originalUrl}: VMs for node ${requestedNode} request`);
 
-  const customResponse = JSON.parse(JSON.stringify(vms));
+  const customResponse = JSON.parse(JSON.stringify(clonedVMs));
 
   if (customResponse.data && Array.isArray(customResponse.data)) {
     customResponse.data = customResponse.data.filter((vm) => {
@@ -71,7 +72,7 @@ app.get("/api2/json/nodes/:node/qemu", (req, res) => {
       return false;
     });
   }
-  
+
   res.status(200).json(customResponse);
 });
 
@@ -126,8 +127,23 @@ app.put("/api2/json/nodes/:node/network", (req, res) => {
 
 app.post("/api2/json/nodes/:node/qemu/:vmid/clone", (req, res) => {
   const { node, vmid } = req.params;
-  console.log(`CLONE post ${node} for ${vmid} requested`);
+  const { name, newid, description } = req.body;
 
+  const theVMs = JSON.parse(JSON.stringify(vms)).data;
+
+  var theVM = theVMs.find(vm => vm.vmid == vmid);
+  if (theVM) {
+    theVM.vmid = newid;
+    theVM.description = description;
+  }
+
+  console.log(`the new vm ${theVM.name} and id = ${theVM.vmid}`)
+
+  console.log(`1: ${typeof(clonedVMs.data)}`)
+  clonedVMs.data.push(theVM);
+  console.log(`2: ${clonedVMs}`)
+
+  fs.writeFileSync('./data/clonedVMs.json', JSON.stringify(clonedVMs, null, 2));
   res.status(200).send();
 });
 

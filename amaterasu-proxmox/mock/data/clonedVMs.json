@@ -1,0 +1,121 @@
+{
+  "data": [
+    {
+      "vmid": 780339533,
+      "name": "centos-8-template",
+      "status": "running",
+      "uptime": 0,
+      "mem": 1024,
+      "maxmem": 2048,
+      "cpu": 1,
+      "maxcpu": 2,
+      "node": "inferno",
+      "template": 1,
+      "description": "lab_cool created for 195cpt"
+    },
+    {
+      "vmid": 533256609,
+      "name": "centos-8-template",
+      "status": "running",
+      "uptime": 0,
+      "mem": 1024,
+      "maxmem": 2048,
+      "cpu": 1,
+      "maxcpu": 2,
+      "node": "inferno",
+      "template": 1,
+      "description": "lab_cool created for 195cpt"
+    },
+    {
+      "vmid": 248843761,
+      "name": "debian-11-template",
+      "status": "running",
+      "uptime": 0,
+      "mem": 1024,
+      "maxmem": 2048,
+      "cpu": 1,
+      "maxcpu": 2,
+      "node": "inferno",
+      "template": 1,
+      "description": "lab_cool created for 195cpt"
+    },
+    {
+      "vmid": 338754581,
+      "name": "windows-server-2022-template",
+      "status": "running",
+      "uptime": 0,
+      "mem": 4096,
+      "maxmem": 8192,
+      "cpu": 2,
+      "maxcpu": 4,
+      "node": "inferno",
+      "template": 1,
+      "description": "lab_cool created for 195cpt"
+    },
+    {
+      "vmid": 46703854,
+      "name": "alpine-minimal-template",
+      "status": "running",
+      "uptime": 0,
+      "mem": 512,
+      "maxmem": 1024,
+      "cpu": 1,
+      "maxcpu": 1,
+      "node": "inferno",
+      "template": 1,
+      "description": "lab_cool created for 195cpt"
+    },
+    {
+      "vmid": 214383665,
+      "name": "centos-8-template",
+      "status": "running",
+      "uptime": 0,
+      "mem": 1024,
+      "maxmem": 2048,
+      "cpu": 1,
+      "maxcpu": 2,
+      "node": "inferno",
+      "template": 1,
+      "description": "lab_cool created for 195cpt"
+    },
+    {
+      "vmid": 307883090,
+      "name": "debian-11-template",
+      "status": "running",
+      "uptime": 0,
+      "mem": 1024,
+      "maxmem": 2048,
+      "cpu": 1,
+      "maxcpu": 2,
+      "node": "inferno",
+      "template": 1,
+      "description": "lab_cool created for 195cpt"
+    },
+    {
+      "vmid": 59772483,
+      "name": "windows-server-2022-template",
+      "status": "running",
+      "uptime": 0,
+      "mem": 4096,
+      "maxmem": 8192,
+      "cpu": 2,
+      "maxcpu": 4,
+      "node": "inferno",
+      "template": 1,
+      "description": "lab_cool created for 195cpt"
+    },
+    {
+      "vmid": 268059910,
+      "name": "alpine-minimal-template",
+      "status": "running",
+      "uptime": 0,
+      "mem": 512,
+      "maxmem": 1024,
+      "cpu": 1,
+      "maxcpu": 1,
+      "node": "inferno",
+      "template": 1,
+      "description": "lab_cool created for 195cpt"
+    }
+  ]
+}

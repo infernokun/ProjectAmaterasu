@@ -39,11 +39,19 @@
         <div class="info-item" *ngIf="labTracker.labStatus != LabStatus.STOPPED">
           <span class="label">Services ({{runningServices(labTracker).length}}/{{ labTracker.services?.length
             }}):</span>
-          <ul>
+          <ul *ngIf="labTracker.labStarted?.labType == LabType.DOCKER_COMPOSE">
             <li class="value" *ngFor="let service of labTracker.services"
               [ngClass]="service.state == 'running' ? 'running' : 'exited'"> {{ service.name.replace(labTracker.id +
               "-", "") }} - {{ service.state }} <button class="restart-service" *ngIf="service.state != 'running'" (click)="restartService(service)"
-                matTooltip="Delete Lab"><mat-icon>replay</mat-icon></button></li>
+                matTooltip="Delete Lab"><mat-icon>replay</mat-icon></button>
+            </li>
+          </ul>
+          <ul *ngIf="labTracker.labStarted?.labType == LabType.VIRTUAL_MACHINE">
+            <li class="value" *ngFor="let vm of labTracker.vms"
+              [ngClass]="vm.status == 'running' ? 'running' : 'exited'"> {{ vm.name!.replace(labTracker.id +
+              "-", "") }} - {{ vm.status }} <button class="restart-service" *ngIf="vm.status != 'running'" (click)="('')"
+                matTooltip="Delete Lab"><mat-icon>replay</mat-icon></button>
+            </li>
           </ul>
         </div>
       </div>

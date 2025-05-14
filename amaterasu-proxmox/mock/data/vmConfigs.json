@@ -1,22 +1,172 @@
 [
   {
     "data": {
-        "vmid": 100
+        "vmid": 9000,
+        "net0": {
+            "description": "Specify network devices.",
+            "format": {
+                "bridge": {
+                    "description": "Bridge to attach the network device to. The Proxmox VE standard bridge\nis called 'vmbr0'.\n\nIf you do not specify a bridge, we create a kvm user (NATed) network\ndevice, which provides DHCP and DNS services. The following addresses\nare used:\n\n 10.0.2.2   Gateway\n 10.0.2.3   DNS Server\n 10.0.2.4   SMB Server\n\nThe DHCP server assign addresses to the guest starting from 10.0.2.15.\n",
+                    "format": "pve-bridge-id",
+                    "format_description": "bridge",
+                    "optional": 1,
+                    "type": "string"
+                },
+                "e1000": {
+                    "alias": "macaddr",
+                    "keyAlias": "model"
+                },
+                "e1000-82540em": {
+                    "alias": "macaddr",
+                    "keyAlias": "model"
+                },
+                "e1000-82544gc": {
+                    "alias": "macaddr",
+                    "keyAlias": "model"
+                },
+                "e1000-82545em": {
+                    "alias": "macaddr",
+                    "keyAlias": "model"
+                },
+                "e1000e": {
+                    "alias": "macaddr",
+                    "keyAlias": "model"
+                },
+                "firewall": {
+                    "description": "Whether this interface should be protected by the firewall.",
+                    "optional": 1,
+                    "type": "boolean"
+                },
+                "i82551": {
+                    "alias": "macaddr",
+                    "keyAlias": "model"
+                },
+                "i82557b": {
+                    "alias": "macaddr",
+                    "keyAlias": "model"
+                },
+                "i82559er": {
+                    "alias": "macaddr",
+                    "keyAlias": "model"
+                },
+                "link_down": {
+                    "description": "Whether this interface should be disconnected (like pulling the plug).",
+                    "optional": 1,
+                    "type": "boolean"
+                },
+                "macaddr": {
+                    "description": "MAC address. That address must be unique within your network. This is automatically generated if not specified.",
+                    "format": "mac-addr",
+                    "format_description": "XX:XX:XX:XX:XX:XX",
+                    "optional": 1,
+                    "type": "string",
+                    "verbose_description": "A common MAC address with the I/G (Individual/Group) bit not set."
+                },
+                "model": {
+                    "default_key": 1,
+                    "description": "Network Card Model. The 'virtio' model provides the best performance with very low CPU overhead. If your guest does not support this driver, it is usually best to use 'e1000'.",
+                    "enum": [
+                        "e1000",
+                        "e1000-82540em",
+                        "e1000-82544gc",
+                        "e1000-82545em",
+                        "e1000e",
+                        "i82551",
+                        "i82557b",
+                        "i82559er",
+                        "ne2k_isa",
+                        "ne2k_pci",
+                        "pcnet",
+                        "rtl8139",
+                        "virtio",
+                        "vmxnet3"
+                    ],
+                    "type": "string"
+                },
+                "mtu": {
+                    "description": "Force MTU, for VirtIO only. Set to '1' to use the bridge MTU",
+                    "maximum": 65520,
+                    "minimum": 1,
+                    "optional": 1,
+                    "type": "integer"
+                },
+                "ne2k_isa": {
+                    "alias": "macaddr",
+                    "keyAlias": "model"
+                },
+                "ne2k_pci": {
+                    "alias": "macaddr",
+                    "keyAlias": "model"
+                },
+                "pcnet": {
+                    "alias": "macaddr",
+                    "keyAlias": "model"
+                },
+                "queues": {
+                    "description": "Number of packet queues to be used on the device.",
+                    "maximum": 64,
+                    "minimum": 0,
+                    "optional": 1,
+                    "type": "integer"
+                },
+                "rate": {
+                    "description": "Rate limit in mbps (megabytes per second) as floating point number.",
+                    "minimum": 0,
+                    "optional": 1,
+                    "type": "number"
+                },
+                "rtl8139": {
+                    "alias": "macaddr",
+                    "keyAlias": "model"
+                },
+                "tag": {
+                    "description": "VLAN tag to apply to packets on this interface.",
+                    "maximum": 4094,
+                    "minimum": 1,
+                    "optional": 1,
+                    "type": "integer"
+                },
+                "trunks": {
+                    "description": "VLAN trunks to pass through this interface.",
+                    "format_description": "vlanid[;vlanid...]",
+                    "optional": 1,
+                    "pattern": "(?^:\\d+(?:-\\d+)?(?:;\\d+(?:-\\d+)?)*)",
+                    "type": "string"
+                },
+                "virtio": {
+                    "alias": "macaddr",
+                    "keyAlias": "model"
+                },
+                "vmxnet3": {
+                    "alias": "macaddr",
+                    "keyAlias": "model"
+                }
+            }
+        },
+        "optional": true,
+        "type": "string",
+        "name": "net[n]",
+        "id": "pmx-param-schema-79"
     }
   },
   {
     "data": {
-        "vmid": 100
+        "vmid": 9001
     }
   },
   {
     "data": {
-        "vmid": 100
+        "vmid": 9002
     }
   },
   {
     "data": {
-        "vmid": 100
+        "vmid": 9003
+    }
+  },
+  {
+    "data": {
+        "vmid": 9004
     }
   }
 ]
