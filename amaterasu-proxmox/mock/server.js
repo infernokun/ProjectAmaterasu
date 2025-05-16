@@ -25,7 +25,7 @@ const storage = require("./data/storage.json");
 const tickets = require("./data/tickets.json");
 const networkInterfaces = require("./data/networkInterfaces.json");
 const vmConfigs = require("./data/vmConfigs.json");
-const clonedVMs = require("./data/clonedVMs.json")
+let clonedVMs = require("./data/clonedVMs.json");
 
 // Version endpoint
 app.get("/api2/json/version", (req, res) => {
@@ -62,7 +62,9 @@ app.get("/api2/json/nodes/:node/qemu", (req, res) => {
   const requestedNode = req.params.node;
   console.log(`${req.originalUrl}: VMs for node ${requestedNode} request`);
 
-  const customResponse = JSON.parse(JSON.stringify(clonedVMs));
+  const fileData = fs.readFileSync('./data/clonedVMs.json', 'utf-8');
+
+  const customResponse = JSON.parse(fileData);
 
   if (customResponse.data && Array.isArray(customResponse.data)) {
     customResponse.data = customResponse.data.filter((vm) => {
@@ -139,9 +141,7 @@ app.post("/api2/json/nodes/:node/qemu/:vmid/clone", (req, res) => {
 
   console.log(`the new vm ${theVM.name} and id = ${theVM.vmid}`)
 
-  console.log(`1: ${typeof(clonedVMs.data)}`)
   clonedVMs.data.push(theVM);
-  console.log(`2: ${clonedVMs}`)
 
   fs.writeFileSync('./data/clonedVMs.json', JSON.stringify(clonedVMs, null, 2));
   res.status(200).send();
@@ -157,8 +157,27 @@ app.post("/api2/json/nodes/:node/qemu/:vmid/status/start", (req, res) => {
 app.post("/api2/json/nodes/:node/qemu/:vmid/status/stop", (req, res) => {
   const { node, vmid } = req.params;
   console.log(`POST stop ${node} for ${vmid} requested`);
-
-  res.status(200).send();
+  
+  const fileData = fs.readFileSync('./data/clonedVMs.json', 'utf-8');
+  const theVMs = JSON.parse(fileData);
+  
+  // Find and update VM in the main array
+  if (Array.isArray(theVMs.data)) {
+    // If theVMs.data is the array of VMs
+    const theVM = theVMs.data.find(vm => vm.vmid == vmid);
+    if (theVM) {
+      theVM.status = "stopped";
+      console.log(`VM ${vmid} status updated to stopped`);
+      fs.writeFileSync('./data/clonedVMs.json', JSON.stringify(theVMs, null, 2));
+    } else {
+      console.log(`VM ${vmid} not found in data array`);
+    }
+  } else {
+    console.log("woops")
+  }  
+  setTimeout(() => {
+    res.status(200).send();
+  }, 4000)
 });
 
 app.delete("/api2/json/nodes/:node/qemu/:vmid", (req, res) => {

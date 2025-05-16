@@ -68,7 +68,7 @@
     {
       "vmid": 214383665,
       "name": "centos-8-template",
-      "status": "running",
+      "status": "stopped",
       "uptime": 0,
       "mem": 1024,
       "maxmem": 2048,
@@ -81,7 +81,7 @@
     {
       "vmid": 307883090,
       "name": "debian-11-template",
-      "status": "running",
+      "status": "stopped",
       "uptime": 0,
       "mem": 1024,
       "maxmem": 2048,
@@ -94,7 +94,7 @@
     {
       "vmid": 59772483,
       "name": "windows-server-2022-template",
-      "status": "running",
+      "status": "stopped",
       "uptime": 0,
       "mem": 4096,
       "maxmem": 8192,
@@ -107,7 +107,7 @@
     {
       "vmid": 268059910,
       "name": "alpine-minimal-template",
-      "status": "running",
+      "status": "stopped",
       "uptime": 0,
       "mem": 512,
       "maxmem": 1024,

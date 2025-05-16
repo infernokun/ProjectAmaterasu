@@ -39,7 +39,7 @@
   <!-- Proxmox VMs Section -->
   <div class="proxmox-list" *ngIf="labTracker?.remoteServer?.serverType === ServerType.PROXMOX">
     <h2>Proxmox Virtual Machines</h2>
-    <div *ngFor="let vm of labTrackerSubject.value?.vms" class="vm-card">
+    <div *ngFor="let vm of labTracker?.vms" class="vm-card">
       <h3>{{ vm.name }}</h3>
       <p><strong>VM ID:</strong> {{ vm.vmid }}</p>
       <p><strong>Status:</strong> {{ vm.status }}</p>
