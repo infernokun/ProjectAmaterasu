@@ -17,7 +17,7 @@ RUN gradle build --no-daemon -x test
 FROM openjdk:21-jdk-slim AS runtime-stage
 LABEL maintainer="infernokun@infernokun.com" \
       description="Java service Docker image" \
-      source="https://gitlab.corp.icr-team.com/Unicorn" \
+      source="https://github.com/infernokun/ProjectAmaterasu" \
       run="docker run -p 8080:8080 <docker image> -d"
 
 VOLUME ["/data/certs"]
