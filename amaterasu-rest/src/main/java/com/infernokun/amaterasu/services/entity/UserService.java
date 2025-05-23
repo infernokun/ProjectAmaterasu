@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class UserService extends BaseService implements UserDetailsService {
@@ -45,10 +46,10 @@ public class UserService extends BaseService implements UserDetailsService {
         return userRepository.findAll();
     }
 
-    /*@Cacheable(value = "users", key = "#userId")
-    public User findUserById(String id) {
-        return userRepository.findById(id).orElseThrow(() -> new UsernameNotFoundException("User not found!"));
-    }*/
+    public User findUserByUsername(String username) {
+        return userRepository.findByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+    }
 
     public User findUserById(String userId) {
         if (userId == null) {
@@ -95,6 +96,15 @@ public class UserService extends BaseService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return this.userRepository.findByUsername(username).orElseThrow(() -> new UsernameNotFoundException("user is not valid"));
+        return userRepository.findByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+    }
+
+    public boolean existsByUsernameIgnoreCase(String username) {
+        return userRepository.existsByUsernameIgnoreCase(username);
+    }
+
+    public Optional<User> findByUsernameIgnoreCase(String username) {
+        return userRepository.findByUsernameIgnoreCase(username);
     }
 }

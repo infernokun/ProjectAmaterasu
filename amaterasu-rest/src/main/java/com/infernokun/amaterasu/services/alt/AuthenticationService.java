@@ -47,12 +47,13 @@ public class AuthenticationService extends BaseService {
             throw new AuthFailedException("Username and password required!");
         }
 
-        if (userService.existsByUsername(user.getUsername())) {
+        if (userService.existsByUsernameIgnoreCase(user.getUsername())) {
             throw new AuthFailedException("Username already exists!");
         }
 
         String encodedPassword = this.passwordEncoder.encode(user.getPassword());
         user.setPassword(encodedPassword);
+
         User newUser = new User(user.getUsername(), user.getPassword());
         newUser.setRole(Role.MEMBER);
 
@@ -64,14 +65,17 @@ public class AuthenticationService extends BaseService {
 
     public LoginResponseDTO loginUser(String username, String password) {
         try {
+            User user = userService.findByUsernameIgnoreCase(username)
+                    .orElseThrow(() -> new BadCredentialsException("Invalid username or password"));
+
             Authentication auth = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(username, password)
+                    new UsernamePasswordAuthenticationToken(user.getUsername(), password)
             );
 
-            User user = (User) auth.getPrincipal();
+            User authenticatedUser = (User) auth.getPrincipal();
+            String token = tokenService.generateJwt(authenticatedUser);
+            return new LoginResponseDTO(token, authenticatedUser);
 
-            String token = tokenService.generateJwt(user);
-            return new LoginResponseDTO(token, user);
         } catch (BadCredentialsException e) {
             throw new WrongPasswordException("Invalid username or password");
         } catch (AuthenticationException e) {
