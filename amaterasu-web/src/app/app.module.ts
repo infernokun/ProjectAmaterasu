@@ -35,6 +35,8 @@ import { LabDeployComponent } from './components/lab/lab-deploy/lab-deploy.compo
 import { AddDialogFormComponent } from './components/common/dialog/add-dialog-form/add-dialog-form.component';
 import { SettingsConfigureComponent } from './components/lab-settings/settings-configure/settings-configure.component';
 import { ConfirmationDialogComponent } from './components/common/dialog/confirmation-dialog/confirmation-dialog.component';
+import { AdminActionsComponent } from './admin/admin-actions.component';
+import { AgGridAngular } from 'ag-grid-angular';
 
 export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
   return () => {
@@ -72,7 +74,8 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     LabMainComponent,
     LabDeployComponent,
     SettingsConfigureComponent,
-    ConfirmationDialogComponent
+    ConfirmationDialogComponent,
+    AdminActionsComponent
   ],
   imports: [
     BrowserModule,
@@ -82,7 +85,8 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     FormsModule,
     MaterialModule,
     CommonModule,
-    CodeEditorModule
+    CodeEditorModule,
+    AgGridAngular,
   ],
   providers: [
     EnvironmentService,
