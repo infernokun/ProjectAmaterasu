@@ -18,7 +18,7 @@ import {
 } from 'ag-grid-community';
 import { AdminActionsComponent } from '../../admin/admin-actions.component';
 
-ModuleRegistry.registerModules([ AllCommunityModule ]);
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 @Component({
   selector: 'app-users',
@@ -69,6 +69,7 @@ export class UsersComponent implements OnInit {
     this.userService.getAllUsers().subscribe((users: User[]) => {
       console.log(users);
       this.users = users;
+      this.gridApi?.setGridOption('rowData', this.users);
       this.gridApi?.sizeColumnsToFit();
     });
   }
@@ -96,7 +97,11 @@ export class UsersComponent implements OnInit {
       },
       { headerName: 'id', field: 'id', sort: 'asc' },
       { headerName: 'Name', field: 'username' },
-      { headerName: 'Team', field: 'username' },
+      {
+        headerName: 'Team',
+        field: 'team.name',
+        valueGetter: (params) => params.data.team.name ?? 'Not Assigned',
+      },
       { headerName: 'Role', field: 'role' },
     ];
 
@@ -132,13 +137,10 @@ export class UsersComponent implements OnInit {
       .subscribe((res: any) => {});
   }
 
-  importUserJson($event: Event) {
-    throw new Error('Method not implemented.');
-  }
-  exportUsers() {
-    throw new Error('Method not implemented.');
-  }
-  addUser() {
-    throw new Error('Method not implemented.');
-  }
+  importUserJson($event: Event) {}
+
+  exportUsers() {}
+  addUser() {}
+  getActiveUsersCount() {}
+  getTeamsCount() {}
 }
