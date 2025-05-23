@@ -49,7 +49,7 @@
           <ul *ngIf="labTracker.labStarted?.labType == LabType.VIRTUAL_MACHINE">
             <li class="value" *ngFor="let vm of labTracker.vms"
               [ngClass]="vm.status == 'running' ? 'running' : 'exited'"> {{ vm.name!.replace(labTracker.id +
-              "-", "") }} - {{ vm.status }} <button class="restart-service" *ngIf="vm.status != 'running'" (click)="('')"
+              "-", "") }} - {{ vm.status }} - {{ vm.vmid }}<button class="restart-service" *ngIf="vm.status != 'running'" (click)="('')"
                 matTooltip="Delete Lab"><mat-icon>replay</mat-icon></button>
             </li>
           </ul>

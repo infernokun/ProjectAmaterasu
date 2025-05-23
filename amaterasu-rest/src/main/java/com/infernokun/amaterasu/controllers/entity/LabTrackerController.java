@@ -109,12 +109,12 @@ public class LabTrackerController extends BaseController {
     }
 
     @GetMapping("/settings/{labTrackerId}/{remoteServerId}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getLabFile(@PathVariable String labTrackerId,
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getLabConfiguration(@PathVariable String labTrackerId,
                                                                        @PathVariable String remoteServerId) {
         RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
         LabTracker labTracker = labTrackerOptional.orElseThrow();
-        Map<String, Object> response = labService.getLabFile(labTracker, remoteServer);
+        Map<String, Object> response = labService.getLabConfiguration(labTracker, remoteServer);
 
         return ResponseEntity.ok(
                 ApiResponse.<Map<String, Object>>builder()
@@ -162,6 +162,7 @@ public class LabTrackerController extends BaseController {
     public ResponseEntity<ApiResponse<String>> getLabLogs(@PathVariable String labTrackerId,
                                                                        @PathVariable String remoteServerId,
                                                           @PathVariable String service) {
+
         RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
         LabTracker labTracker = labTrackerOptional.orElseThrow();

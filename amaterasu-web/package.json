@@ -30,6 +30,8 @@
     "@angular/router": "^19.2.9",
     "@ngrx/store": "^19.1.0",
     "@ngstack/code-editor": "^9.0.0",
+    "ag-grid-angular": "^33.3.0",
+    "ag-grid-community": "^33.3.0",
     "js-yaml": "^4.1.0",
     "lodash-es": "^4.17.21",
     "luxon": "^3.6.1",
