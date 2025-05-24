@@ -1,6 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { LabService } from '../../services/lab.service';
-import { Lab, LabDTO, LabFormData } from '../../models/lab.model';
+import { LabService } from '../../services/lab/lab.service';
 import {
   Observable,
   switchMap,
@@ -14,17 +13,18 @@ import {
 } from 'rxjs';
 import { User } from '../../models/user.model';
 import { ApiResponse } from '../../models/api-response.model';
-import { LabTrackerService } from '../../services/lab-tracker.service';
-import { LabTracker } from '../../models/lab-tracker.model';
+import { LabTrackerService } from '../../services/lab/lab-tracker.service';
 import { Team } from '../../models/team.model';
 import { LabStatus } from '../../enums/lab-status.enum';
 import { EditDialogService } from '../../services/edit-dialog.service';
 import { LabType } from '../../enums/lab-type.enum';
-import { ProxmoxService } from '../../services/proxmox.service';
-import { RemoteServer } from '../../models/remote-server.model';
-import { RemoteServerService } from '../../services/remote-server.service';
+import { ProxmoxService } from '../../services/lab/proxmox.service';
+import { RemoteServerService } from '../../services/lab/remote-server.service';
 import { AuthService } from '../../services/auth.service';
 import { DateUtils } from '../../utils/date-utils';
+import { LabTracker } from '../../models/lab/lab-tracker.model';
+import { RemoteServer } from '../../models/lab/remote-server.model';
+import { Lab, LabDTO, LabFormData } from '../../models/lab/lab.model';
 
 @Component({
   selector: 'app-lab',
@@ -77,8 +77,8 @@ export class LabComponent implements OnInit, OnDestroy {
 
   private initializeData(): void {
     this.isLoading = true;
-  
-    
+
+
     // Set up subscription to labs
     this.labService.labs$.pipe(
       takeUntil(this.destroy$)
@@ -89,7 +89,7 @@ export class LabComponent implements OnInit, OnDestroy {
       this.labsCount = this.labs.length;
       console.log('Labs loaded:', labs);
     });
-  
+
     // Handle user and trackers separately
     this.loggedInUser$.pipe(
       takeUntil(this.destroy$),
@@ -130,12 +130,12 @@ export class LabComponent implements OnInit, OnDestroy {
     const vmTemplates = this.proxmoxService.getVMTemplates.bind(
       this.proxmoxService
     );
-    
+
     const remoteServers$: Observable<RemoteServer[]> =
       this.remoteServerService.getAllServers();
 
     const labFormDataWithVMs = new LabFormData(
-      (k: any, v: any) => {},
+      (k: any, v: any) => { },
       {
         remoteServer: remoteServers$,
         //'vms': vmTemplates$
@@ -166,9 +166,9 @@ export class LabComponent implements OnInit, OnDestroy {
             this.labService.addNewLab(new Lab(labResp.data));
           });
       })
-      .subscribe((res: any) => {});
+      .subscribe((res: any) => { });
   }
-  
+
   formatDate(date: Date): string {
     return DateUtils.formatDateWithTime(date);
   }

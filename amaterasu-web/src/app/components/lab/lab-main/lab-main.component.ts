@@ -1,5 +1,4 @@
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
-import { Lab } from '../../../models/lab.model';
 import {
   catchError,
   combineLatest,
@@ -11,23 +10,21 @@ import {
 } from 'rxjs';
 import { LabType } from '../../../enums/lab-type.enum';
 import { User } from '../../../models/user.model';
-import { LabTracker } from '../../../models/lab-tracker.model';
-import { LabTrackerService } from '../../../services/lab-tracker.service';
-import { LabService } from '../../../services/lab.service';
+import { LabTrackerService } from '../../../services/lab/lab-tracker.service';
+import { LabService } from '../../../services/lab/lab.service';
 import { MatDialog } from '@angular/material/dialog';
-import { RemoteServerService } from '../../../services/remote-server.service';
+import { RemoteServerService } from '../../../services/lab/remote-server.service';
 import { ApiResponse } from '../../../models/api-response.model';
-import { LabDeploymentService } from '../../../services/lab-deployment.service';
+import { LabDeploymentService } from '../../../services/lab/lab-deployment.service';
 import { FADE_ANIMATION } from '../../../utils/animations';
 import { CommonDialogComponent } from '../../common/dialog/common-dialog/common-dialog.component';
 import { EditDialogService } from '../../../services/edit-dialog.service';
-import {
-  RemoteServer,
-  RemoteServerSelectData,
-} from '../../../models/remote-server.model';
 import { getServerType } from '../../../utils/server-lab-type';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ConfirmationDialogComponent } from '../../common/dialog/confirmation-dialog/confirmation-dialog.component';
+import { LabTracker } from '../../../models/lab/lab-tracker.model';
+import { Lab } from '../../../models/lab/lab.model';
+import { RemoteServer, RemoteServerSelectData } from '../../../models/lab/remote-server.model';
 
 @Component({
   selector: 'app-lab-main',

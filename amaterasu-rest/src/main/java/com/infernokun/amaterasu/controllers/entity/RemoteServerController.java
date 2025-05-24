@@ -7,6 +7,7 @@ import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
+import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,15 +17,11 @@ import java.util.HashMap;
 import java.util.List;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/remote-server")
 public class RemoteServerController extends BaseController {
     private final RemoteServerService remoteServerService;
     private final ModelMapper modelMapper;
-
-    public RemoteServerController(RemoteServerService remoteServerService, ModelMapper modelMapper) {
-        this.remoteServerService = remoteServerService;
-        this.modelMapper = modelMapper;
-    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<RemoteServer>>> getAllRemoteServers(@RequestParam(required = false) HashMap<String, String> params) {

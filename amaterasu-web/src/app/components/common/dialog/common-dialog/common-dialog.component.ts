@@ -5,14 +5,14 @@ import { QuestionBase } from '../../../../models/simple-form-data.model';
 import { FormControl } from '@angular/forms';
 import { MatSelectChange } from '@angular/material/select';
 import { ApiResponse } from '../../../../models/api-response.model';
-import { LabTracker } from '../../../../models/lab-tracker.model';
+import { LabTracker } from '../../../../models/lab/lab-tracker.model';
 
 
 @Component({
-    selector: 'app-common-dialog',
-    templateUrl: './common-dialog.component.html',
-    styleUrls: ['./common-dialog.component.scss'],
-    standalone: false
+  selector: 'app-common-dialog',
+  templateUrl: './common-dialog.component.html',
+  styleUrls: ['./common-dialog.component.scss'],
+  standalone: false
 })
 export class CommonDialogComponent {
   output: CodeModel;
@@ -24,7 +24,7 @@ export class CommonDialogComponent {
   formControl: FormControl = new FormControl('');
 
   constructor(
-    @Inject(MAT_DIALOG_DATA) public data: { title: string, isCode: boolean, content: string, fileType: string, isReadOnly: boolean, options: { questions: QuestionBase[], current: string, async: Function, labTracker: LabTracker }},
+    @Inject(MAT_DIALOG_DATA) public data: { title: string, isCode: boolean, content: string, fileType: string, isReadOnly: boolean, options: { questions: QuestionBase[], current: string, async: Function, labTracker: LabTracker } },
     private dialogRef: MatDialogRef<CommonDialogComponent>
   ) {
     this.fileType = data.fileType;
@@ -59,7 +59,7 @@ export class CommonDialogComponent {
     if (this.options.async) {
       this.options.async(this.options.labTracker.id, this.options.labTracker.remoteServer?.id, event.value).subscribe((res: ApiResponse<any>) => {
         this.output.value = res.data;
-      }) 
+      })
     }
   }
 }

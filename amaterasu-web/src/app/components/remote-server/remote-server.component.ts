@@ -1,17 +1,17 @@
 import { Component, OnInit } from '@angular/core';
-import { RemoteServer, RemoteServerFormData } from '../../models/remote-server.model';
-import { RemoteServerService } from '../../services/remote-server.service';
+import { RemoteServerService } from '../../services/lab/remote-server.service';
 import { EditDialogService } from '../../services/edit-dialog.service';
 import { AuthService } from '../../services/auth.service';
 import { ApiResponse } from '../../models/api-response.model';
 import { BehaviorSubject, Observable, take } from 'rxjs';
 import { User } from '../../models/user.model';
+import { RemoteServer, RemoteServerFormData } from '../../models/lab/remote-server.model';
 
 @Component({
-    selector: 'app-remote-server',
-    templateUrl: './remote-server.component.html',
-    styleUrls: ['./remote-server.component.scss'],
-    standalone: false
+  selector: 'app-remote-server',
+  templateUrl: './remote-server.component.html',
+  styleUrls: ['./remote-server.component.scss'],
+  standalone: false
 })
 export class RemoteServerComponent implements OnInit {
   remoteServers: RemoteServer[] = [];
@@ -50,17 +50,17 @@ export class RemoteServerComponent implements OnInit {
 
   addRemoteServer(): void {
     const remoteServerFormData = new RemoteServerFormData();
-  
+
     this.editDialogService
       .openDialog<RemoteServer>(remoteServerFormData, (remoteServer: RemoteServer) => {
         this.authService.user$.pipe(take(1)).subscribe(user => {
           if (!user) return;
-  
+
           remoteServer.createdBy = user.username;
-  
+
           this.remoteServerService.addServer(remoteServer).subscribe((response: ApiResponse<RemoteServer>) => {
             if (!response.data) return;
-  
+
             this.remoteServers.push(response.data);
             this.selectedServer = response.data;
           });

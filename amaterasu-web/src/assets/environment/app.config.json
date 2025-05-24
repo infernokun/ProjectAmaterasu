@@ -4,5 +4,5 @@
   "baseUrl": "http://localhost:4200",
   "restUrl": "http://localhost:8080/amaterasu-rest/api",
   "baseEndPoint": "amaterasu",
-  "websocketUrl": "wss://localhost:8080/infernoctf-rest"
+  "websocketUrl": "ws://localhost:8080/amaterasu-rest"
 }

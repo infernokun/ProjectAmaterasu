@@ -13,6 +13,7 @@ public interface UserRepository extends JpaRepository<User, String> {
     Boolean existsByUsername(String username);
     Optional<User> findByUsername(String username);
     Optional<List<User>> findByRole(Role role);
+    Optional<User> findByEmail(String email);
 
     @Query("SELECT u FROM User u WHERE LOWER(u.username) = LOWER(:username)")
     Optional<User> findByUsernameIgnoreCase(@Param("username") String username);

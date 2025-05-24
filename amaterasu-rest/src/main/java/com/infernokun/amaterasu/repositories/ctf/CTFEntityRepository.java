@@ -1,0 +1,17 @@
+package com.infernokun.amaterasu.repositories.ctf;
+
+import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface CTFEntityRepository extends JpaRepository<CTFEntity, String> {
+
+    @Query("SELECT DISTINCT c FROM CTFEntity c LEFT JOIN FETCH c.flags")
+    List<CTFEntity> findAllWithFlags();
+
+    List<CTFEntity> findByRoomId(String roomId);
+}

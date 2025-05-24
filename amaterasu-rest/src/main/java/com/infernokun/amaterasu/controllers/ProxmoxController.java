@@ -7,6 +7,7 @@ import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.models.proxmox.ProxmoxVMConfig;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
 import com.infernokun.amaterasu.services.alt.ProxmoxService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,15 +15,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/proxmox")
 public class ProxmoxController {
     private final ProxmoxService proxmoxService;
     private final RemoteServerService remoteServerService;
-
-    public ProxmoxController(ProxmoxService proxmoxService, RemoteServerService remoteServerService) {
-        this.proxmoxService = proxmoxService;
-        this.remoteServerService = remoteServerService;
-    }
 
     @GetMapping("/vms")
     public ResponseEntity<ApiResponse<List<ProxmoxVM>>> getVMs(@RequestParam(name = "template",

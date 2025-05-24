@@ -1,28 +1,28 @@
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { User } from '../../../models/user.model';
-import { LabTracker, LabTrackerServicesForm } from '../../../models/lab-tracker.model';
 import { LabStatus } from '../../../enums/lab-status.enum';
 import { BehaviorSubject, catchError, finalize, Observable, of, Subject, takeUntil } from 'rxjs';
-import { LabTrackerService } from '../../../services/lab-tracker.service';
+import { LabTrackerService } from '../../../services/lab/lab-tracker.service';
 import { LabRequest } from '../../../models/dto/lab-request.model';
 import { EditDialogService } from '../../../services/edit-dialog.service';
 import { LabType } from '../../../enums/lab-type.enum';
-import { RemoteServer, RemoteServerSelectData } from '../../../models/remote-server.model';
-import { RemoteServerService } from '../../../services/remote-server.service';
-import { Lab } from '../../../models/lab.model';
+import { RemoteServerService } from '../../../services/lab/remote-server.service';
 import { getServerType } from '../../../utils/server-lab-type';
-import { LabService } from '../../../services/lab.service';
+import { LabService } from '../../../services/lab/lab.service';
 import { ApiResponse } from '../../../models/api-response.model';
-import { LabActionResult } from '../../../models/lab-action-result.model';
 import { MatDialog } from '@angular/material/dialog';
 import { CommonDialogComponent } from '../../common/dialog/common-dialog/common-dialog.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { LabDeploymentService } from '../../../services/lab-deployment.service';
+import { LabDeploymentService } from '../../../services/lab/lab-deployment.service';
 import { DateUtils } from '../../../utils/date-utils';
 import { FADE_ANIMATION } from '../../../utils/animations';
 import { QuestionBase } from '../../../models/simple-form-data.model';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { DockerServiceInfo } from '../../../models/docker-service-info.model';
+import { DockerServiceInfo } from '../../../models/lab/docker-service-info.model';
+import { LabActionResult } from '../../../models/lab/lab-action-result.model';
+import { LabTracker, LabTrackerServicesForm } from '../../../models/lab/lab-tracker.model';
+import { Lab } from '../../../models/lab/lab.model';
+import { RemoteServer, RemoteServerSelectData } from '../../../models/lab/remote-server.model';
 
 @Component({
   selector: 'app-lab-deploy',
@@ -39,7 +39,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
 
   labTrackers: LabTracker[] = [];
   labsLoading: Set<string> = new Set<string>();
-  
+
   // Enums exposed to template
   readonly LabType = LabType;
   readonly LabStatus = LabStatus;
@@ -57,7 +57,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private labDeploymentService: LabDeploymentService,
     private snackbar: MatSnackBar
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.initializeComponent();
@@ -77,7 +77,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       .subscribe((lab: Lab) => {
         this.deployLab(lab);
       });
-    
+
     // Subscribe to lab trackers from service
     this.labTrackers$ = this.labTrackerService.labTrackersByTeam$;
     this.labTrackers$
@@ -160,7 +160,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       console.error('Cannot start lab without labId');
       return;
     }
-    
+
     this.labService.startLab(labRequest)
       .pipe(
         takeUntil(this.destroy$),
@@ -182,7 +182,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       console.error('Cannot redeploy lab without required IDs');
       return;
     }
-    
+
     this.labsLoading.add(labTracker.id);
     this.labDeploymentService.updateLabsLoading(this.labsLoading);
 
@@ -214,7 +214,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       console.error('Cannot stop lab without required IDs');
       return;
     }
-    
+
     this.labsLoading.add(labTracker.id);
     this.labDeploymentService.updateLabsLoading(this.labsLoading);
 
@@ -249,14 +249,14 @@ export class LabDeployComponent implements OnInit, OnDestroy {
           this.showOutputDialog('Lab Stop', response.data.output, 'bash');
         }
       });
-  } 
+  }
 
   deleteLab(labTracker: LabTracker): void {
     if (!labTracker.id || !labTracker.labStarted?.id) {
       console.error('Cannot delete lab without required IDs');
       return;
     }
-    
+
     this.labsLoading.add(labTracker.id);
     this.labDeploymentService.updateLabsLoading(this.labsLoading);
 
@@ -295,7 +295,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
         this.labTrackers = this.labTrackers.filter(tracker => tracker.id !== labTracker.id);
         this.labTrackerService.setLabTrackersByTeam(this.labTrackers);
       }
-    );
+      );
   }
 
   getSettings(labTracker: LabTracker): void {
@@ -303,7 +303,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       console.error('Cannot get settings without required IDs');
       return;
     }
-    
+
     this.labTrackerService.getSettings(labTracker.id, labTracker.remoteServer.id)
       .pipe(
         takeUntil(this.destroy$),
@@ -317,7 +317,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
           console.error('No YAML data found in response!');
           return;
         }
-        
+
         this.showOutputDialog('Lab Settings', res.data.yml, 'yaml', false);
       });
   }
@@ -329,7 +329,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
     }
 
     const servicesForm = new LabTrackerServicesForm(
-      (k: any, v: any) => {}, labTracker.services, labTracker
+      (k: any, v: any) => { }, labTracker.services, labTracker
     );
 
 
@@ -338,33 +338,33 @@ export class LabDeployComponent implements OnInit, OnDestroy {
         if (!dialogResult) return;
 
         this.labTrackerService.getLogs(labTracker.id!, labTracker.remoteServer!.id!, dialogResult.service)
-        .pipe(
-          takeUntil(this.destroy$),
-          catchError(error => {
-            console.error('Failed to get lab logs:', error);
-            return of({ code: 404, data: {}, message: 'Failed to fetch logs' });
-          })
-        )
-        .subscribe((logsResult: ApiResponse<any>) => {
-  
-          if (!logsResult.data) {
-            console.error('No data found in response!');
-            return;
-          }
-          
-          this.showOutputDialog('Lab Settings', logsResult.data, 'bash', true,
-            {
-              questions: servicesForm.questions,
-              current: dialogResult.service,
-              async: this.labTrackerService.getLogs.bind(this.labTrackerService),
-              labTracker: labTracker
-            });
-        });
+          .pipe(
+            takeUntil(this.destroy$),
+            catchError(error => {
+              console.error('Failed to get lab logs:', error);
+              return of({ code: 404, data: {}, message: 'Failed to fetch logs' });
+            })
+          )
+          .subscribe((logsResult: ApiResponse<any>) => {
+
+            if (!logsResult.data) {
+              console.error('No data found in response!');
+              return;
+            }
+
+            this.showOutputDialog('Lab Settings', logsResult.data, 'bash', true,
+              {
+                questions: servicesForm.questions,
+                current: dialogResult.service,
+                async: this.labTrackerService.getLogs.bind(this.labTrackerService),
+                labTracker: labTracker
+              });
+          });
       }).subscribe();
-      
+
       return;
     }
-    
+
     this.labTrackerService.getLogs(labTracker.id, labTracker.remoteServer.id)
       .pipe(
         takeUntil(this.destroy$),
@@ -380,14 +380,14 @@ export class LabDeployComponent implements OnInit, OnDestroy {
           return;
         }
 
-        
+
         this.showOutputDialog('Lab Settings', res.data, 'bash');
       });
   }
 
   private showOutputDialog(title: string, content: string | object, fileType: string, isReadOnly: boolean = true, options: { questions: QuestionBase[], current: string, async: Function, labTracker: LabTracker } | undefined = undefined): void {
     const dialogContent = typeof content === 'object' ? JSON.stringify(content, null, 2) : content;
-    
+
     this.dialog.open(CommonDialogComponent, {
       data: {
         title: title,
@@ -418,7 +418,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
     if (response.data.output) {
       this.showOutputDialog('Lab Start', JSON.stringify(response.data, null, 2), 'json');
     }
-    
+
     this.labDeploymentService.startLabDeploymentFinish(response);
   }
 
@@ -436,13 +436,13 @@ export class LabDeployComponent implements OnInit, OnDestroy {
     if (response.data.output) {
       this.showOutputDialog('Lab Start', JSON.stringify(response.data, null, 2), 'json');
     }
-    
+
     this.labDeploymentService.startLabDeploymentFinish(response);
   }
 
   private updateLabTrackerInArray(original: LabTracker, updated: LabTracker): void {
     const index = this.labTrackers.findIndex(tracker => tracker.id === original.id);
-    
+
     if (index !== -1) {
       this.labTrackers = [
         ...this.labTrackers.slice(0, index),
@@ -475,12 +475,12 @@ export class LabDeployComponent implements OnInit, OnDestroy {
     } catch (e) {
       errorContent = JSON.stringify(
         { error: 'Unexpected error format', details: err.message },
-        null, 
+        null,
         2
       );
-      apiResponse = { 
-        code: 404, 
-        data: {}, 
+      apiResponse = {
+        code: 404,
+        data: {},
         message: 'Failed to process lab action'
       };
     }

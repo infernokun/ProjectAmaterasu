@@ -7,18 +7,18 @@ import { EditDialogService } from './services/edit-dialog.service';
 
 import { Role } from './enums/role.enum';
 import { AppInitService } from './services/app-init.service';
-import { RemoteServerService } from './services/remote-server.service';
-import { RemoteServer } from './models/remote-server.model';
+import { RemoteServerService } from './services/lab/remote-server.service';
 import { FormControl } from '@angular/forms';
+import { RemoteServer } from './models/lab/remote-server.model';
 
 declare var require: any;
 const { version: appVersion } = require('../../package.json');
 
 @Component({
-    selector: 'app-root',
-    templateUrl: './app.component.html',
-    styleUrl: './app.component.scss',
-    standalone: false
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrl: './app.component.scss',
+  standalone: false
 })
 export class AppComponent {
   title = 'Project Amaterasu';
@@ -34,9 +34,6 @@ export class AppComponent {
   appReady$: Observable<boolean> | undefined;
 
   Role = Role;
-  remoteServers: RemoteServer[] = [];
-
-  remoteServerControl: FormControl = new FormControl('');
 
   private unsubscribe$ = new Subject<void>();
 
@@ -55,14 +52,6 @@ export class AppComponent {
       startWith(false)
     );
 
-    this.remoteServerService.getAllServers().subscribe(remoteServers => {
-      if (remoteServers.length === 0) return;
-
-      this.remoteServerService.setRemoteServers(remoteServers);
-      this.remoteServers = remoteServers;
-      this.remoteServerControl.setValue(remoteServers[0].id);
-    });
-    
     this.isInitialized$ = this.appInitService.isInitialized();
     this.initializationComplete$ = this.appInitService.initializationComplete$;
     this.loggedInUser$ = this.authService.user$;
@@ -97,9 +86,9 @@ export class AppComponent {
     });
   }
 
-  openProfileModal() {}
+  openProfileModal() { }
 
-  openUserSettingsModal() {}
+  openUserSettingsModal() { }
 
   logoutButton(): void {
     this.authService.logout();

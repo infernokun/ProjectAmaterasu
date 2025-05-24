@@ -1,0 +1,98 @@
+<div class="ctf-page-container">
+  <div class="ctf-header" *ngIf="challenges.length > 0">
+    <h1 class="section-title">CTF Challenges</h1>
+    <div class="challenge-count">{{ challenges.length }} Challenge{{ challenges.length !== 1 ? 's' : '' }} Available</div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading$ | async" class="loading-container">
+    <div class="loading-spinner">
+      <mat-spinner diameter="50"></mat-spinner>
+      <p class="loading-text">Loading challenges...</p>
+    </div>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !(loading$ | async)" class="error-container">
+    <div class="error-card">
+      <i class="error-icon">⚠️</i>
+      <h3>Something went wrong</h3>
+      <p>{{ error }}</p>
+      <button class="retry-btn" (click)="retry()">
+        <i class="retry-icon">🔄</i>
+        Try Again
+      </button>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!error && !(loading$ | async) && challenges.length === 0" class="empty-container">
+    <div class="empty-card">
+      <i class="empty-icon">🎯</i>
+      <h3>No Challenges Found</h3>
+      <p>There are no challenges available in this room yet.</p>
+    </div>
+  </div>
+
+  <!-- CTF Cards -->
+  <div class="ctf-card-container" *ngIf="!(loading$ | async) && !error && challenges.length > 0">
+    <div *ngFor="let ctf of challenges" class="ctf-card" [class.completed]="false">
+      
+      <!-- Card Header -->
+      <div class="card-header">
+        <div class="difficulty-badge" [class]="'difficulty-' + ctf.difficultyLevel?.toLowerCase()">
+          {{ ctf.difficultyLevel }}
+        </div>
+        <div class="points-badge">
+          <span class="points-number">{{ ctf.points }}</span>
+          <span class="points-text">pts</span>
+        </div>
+      </div>
+
+      <!-- Card Content -->
+      <div class="card-content">
+        <h2 class="card-title">{{ ctf.question }}</h2>
+        
+        <div class="card-meta">
+          <div class="meta-item">
+            <i class="meta-icon">📁</i>
+            <span>{{ ctf.category }}</span>
+          </div>
+          <div class="meta-item" *ngIf="ctf.author">
+            <i class="meta-icon">👤</i>
+            <span>{{ ctf.author }}</span>
+          </div>
+        </div>
+
+        <p class="card-description" *ngIf="ctf.description">
+          {{ ctf.description ? (ctf.description | slice:0:100) + (ctf.description.length > 100 ? '...' : '') : '' }}
+        </p>
+
+        <!-- Tags -->
+        <div class="tags-container" *ngIf="ctf.tags && ctf.tags.length > 0">
+          <span class="tag" *ngFor="let tag of ctf.tags | slice:0:3">{{ tag }}</span>
+          <span class="tag more-tags" *ngIf="ctf.tags.length > 3">+{{ ctf.tags.length - 3 }}</span>
+        </div>
+      </div>
+
+      <!-- Card Actions -->
+      <div class="card-actions">
+        <button class="action-btn primary" (click)="openViewDialog(ctf)">
+          <i class="btn-icon">👁️</i>
+          View Challenge
+        </button>
+        <button class="action-btn secondary" (click)="openEditDialog(ctf)">
+          <i class="btn-icon">✏️</i>
+          Edit
+        </button>
+      </div>
+
+      <!-- Progress Indicator -->
+      <div class="card-footer" *ngIf="ctf.maxAttempts">
+        <div class="attempts-info">
+          <span>Max Attempts: {{ ctf.maxAttempts }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

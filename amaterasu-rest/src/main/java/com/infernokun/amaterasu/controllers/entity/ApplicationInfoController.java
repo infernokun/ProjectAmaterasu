@@ -4,18 +4,16 @@ import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.ApplicationInfo;
 import com.infernokun.amaterasu.services.entity.ApplicationInfoService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/application-info")
 public class ApplicationInfoController extends BaseController {
     private final ApplicationInfoService applicationInfoService;
-
-    public ApplicationInfoController(ApplicationInfoService applicationInfoService) {
-        this.applicationInfoService = applicationInfoService;
-    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<ApplicationInfo>> getApplicationInfo() {

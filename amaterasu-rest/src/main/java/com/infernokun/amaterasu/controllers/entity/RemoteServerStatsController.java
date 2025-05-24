@@ -4,6 +4,7 @@ import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.RemoteServerStats;
 import com.infernokun.amaterasu.services.entity.RemoteServerStatsService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,13 +13,10 @@ import java.util.List;
 
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/remote-server-stats")
 public class RemoteServerStatsController extends BaseController {
     private final RemoteServerStatsService remoteServerStatsService;
-
-    public RemoteServerStatsController(RemoteServerStatsService remoteServerStatsService) {
-        this.remoteServerStatsService = remoteServerStatsService;
-    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<RemoteServerStats>>> getAllStats() {

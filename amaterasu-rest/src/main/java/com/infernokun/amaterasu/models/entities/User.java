@@ -26,6 +26,7 @@ public class User extends StoredObject implements UserDetails {
     @ManyToOne
     @JoinColumn(name = "team_id")
     private Team team;
+    private String email;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

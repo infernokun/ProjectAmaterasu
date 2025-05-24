@@ -13,6 +13,7 @@ import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.services.entity.LabService;
 import com.infernokun.amaterasu.services.entity.LabTrackerService;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,17 +22,12 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.*;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/lab-tracker")
 public class LabTrackerController extends BaseController {
     private final LabTrackerService labTrackerService;
     private final RemoteServerService remoteServerService;
     private final LabService labService;
-
-    public LabTrackerController(LabTrackerService labTrackerService, RemoteServerService remoteServerService, LabService labService) {
-        this.labTrackerService = labTrackerService;
-        this.remoteServerService = remoteServerService;
-        this.labService = labService;
-    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<LabTracker>>> getAllLabTrackers(@RequestParam(required = false) HashMap<String, String> params) {

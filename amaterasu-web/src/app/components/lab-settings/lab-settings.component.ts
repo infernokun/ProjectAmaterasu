@@ -1,14 +1,14 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { LabService } from '../../services/lab.service';
+import { LabService } from '../../services/lab/lab.service';
 import { BehaviorSubject, catchError, combineLatest, of, Subject, takeUntil } from 'rxjs';
 import { UserService } from '../../services/user.service';
-import { LabTrackerService } from '../../services/lab-tracker.service';
-import { LabTracker } from '../../models/lab-tracker.model';
+import { LabTrackerService } from '../../services/lab/lab-tracker.service';
 import { ServerType } from '../../enums/server-type.enum';
 import { ApiResponse } from '../../models/api-response.model';
 
 import { load } from "js-yaml";
+import { LabTracker } from '../../models/lab/lab-tracker.model';
 
 export interface Volume {
   source?: string;
@@ -27,10 +27,10 @@ export interface ComposeFile {
 }
 
 @Component({
-    selector: 'app-lab-settings',
-    templateUrl: './lab-settings.component.html',
-    styleUrl: './lab-settings.component.scss',
-    standalone: false
+  selector: 'app-lab-settings',
+  templateUrl: './lab-settings.component.html',
+  styleUrl: './lab-settings.component.scss',
+  standalone: false
 })
 export class LabSettingsComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
@@ -46,7 +46,7 @@ export class LabSettingsComponent implements OnInit, OnDestroy {
   ServerType = ServerType;
 
   isLoading: boolean = true;
-  
+
   constructor(private route: ActivatedRoute, private labService: LabService, private labTrackerService: LabTrackerService, private userService: UserService) { }
 
   ngOnInit(): void {
@@ -59,7 +59,7 @@ export class LabSettingsComponent implements OnInit, OnDestroy {
     ).subscribe(([paramMap, queryParamMap]) => {
       this.labName = paramMap.get('name') || '';
       this.labId = queryParamMap.get('id') || '';
-      
+
       if (!this.labId) {
         console.error('No lab ID provided');
         return;
@@ -81,7 +81,7 @@ export class LabSettingsComponent implements OnInit, OnDestroy {
       console.log('labTracker', labTracker);
       this.labTracker = labTracker;
       this.labTrackerSubject.next(labTracker);
-      
+
       if (!labTracker.services || labTracker.services.length < 1) {
         this.loadAdditionalSettings(labTracker);
       } else {
@@ -114,7 +114,7 @@ export class LabSettingsComponent implements OnInit, OnDestroy {
             const parsedYaml = load(res.data.yml) as ComposeFile;
             this.ymlData = parsedYaml;
             console.log('Parsed YAML data:', this.ymlData);
-            
+
             // Check if services exist in the parsed data
             if (this.ymlData.services) {
               console.log('First service:', Object.values(this.ymlData.services)[0]);

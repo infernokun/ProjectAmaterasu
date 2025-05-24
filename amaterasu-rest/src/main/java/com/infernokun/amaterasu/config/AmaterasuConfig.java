@@ -16,8 +16,8 @@ public class AmaterasuConfig {
     private String defaultAdminUsername;
     private String defaultAdminPassword;
     private String uploadDir;
-    private String chatService;
     private String chatSocket;
     private String encryptionKey;
     private int sshPort;
+    private String apiKey;
 }

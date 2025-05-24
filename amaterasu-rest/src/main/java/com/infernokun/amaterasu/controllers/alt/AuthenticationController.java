@@ -9,6 +9,7 @@ import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.services.alt.AuthenticationService;
 import com.infernokun.amaterasu.services.entity.RefreshTokenService;
 import com.infernokun.amaterasu.services.entity.UserService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,19 +17,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/auth")
-@CrossOrigin
 public class AuthenticationController extends BaseController {
     private final AuthenticationService authenticationService;
-    private final UserService userService;
     private final RefreshTokenService refreshTokenService;
-
-    public AuthenticationController(AuthenticationService authenticationService, UserService userService,
-                                    RefreshTokenService refreshTokenService) {
-        this.authenticationService = authenticationService;
-        this.userService = userService;
-        this.refreshTokenService = refreshTokenService;
-    }
 
     @PostMapping(value = "/register", consumes = "application/json")
     public ResponseEntity<ApiResponse<Boolean>> registerUser(@RequestBody RegistrationDTO registrationDTO) {

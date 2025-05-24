@@ -1,15 +1,15 @@
 import { Component, OnInit } from '@angular/core';
-import { ProxmoxService } from '../../services/proxmox.service';
-import { ProxmoxVM } from '../../models/proxmox-vm.model';
-import { RemoteServerService } from '../../services/remote-server.service';
+import { ProxmoxService } from '../../services/lab/proxmox.service';
+import { RemoteServerService } from '../../services/lab/remote-server.service';
 import { ServerType } from '../../enums/server-type.enum';
 import { EditDialogService } from '../../services/edit-dialog.service';
+import { ProxmoxVM } from '../../models/lab/proxmox-vm.model';
 
 @Component({
-    selector: 'app-vm-lab-builder',
-    templateUrl: './vm-lab-builder.component.html',
-    styleUrl: './vm-lab-builder.component.scss',
-    standalone: false
+  selector: 'app-vm-lab-builder',
+  templateUrl: './vm-lab-builder.component.html',
+  styleUrl: './vm-lab-builder.component.scss',
+  standalone: false
 })
 export class VMLabBuilderComponent implements OnInit {
   vms: ProxmoxVM[] = [];

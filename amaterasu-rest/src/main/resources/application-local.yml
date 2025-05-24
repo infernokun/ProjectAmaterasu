@@ -48,13 +48,12 @@ server:
   use-forward-headers: true
 
 amaterasu:
-  applicationName: "Amaterasu Rest"
-  defaultAdminUsername: admin
+  applicationName: "Amaterasu"
+  defaultAdminUsername: amaterasu_admin
   defaultAdminPassword: password
   uploadDir: "${DOCKER_COMPOSE_PATH:/var/tmp/amaterasu}"
   encryptionKey: "${ENCRYPTION_KEY}"
   sshPort: "${SSH_PORT:22}"
-  chatService: ""
   chatSocket: ""
 
 logging:

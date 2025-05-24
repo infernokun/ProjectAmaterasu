@@ -16,12 +16,12 @@ import { map, take } from 'rxjs/operators';
 import { DialogQuestionComponent } from '../dialog-question/dialog-question.component';
 import { LabType } from '../../../../enums/lab-type.enum';
 import { ServerType } from '../../../../enums/server-type.enum';
-import { RemoteServer } from '../../../../models/remote-server.model';
 import { SimpleFormData } from '../../../../models/simple-form-data.model';
-import { LabService } from '../../../../services/lab.service';
+import { LabService } from '../../../../services/lab/lab.service';
 import { MessageService } from '../../../../services/message.service';
-import { RemoteServerService } from '../../../../services/remote-server.service';
+import { RemoteServerService } from '../../../../services/lab/remote-server.service';
 import { REQUIRED } from '../../../../utils/amaterasu.const';
+import { RemoteServer } from '../../../../models/lab/remote-server.model';
 
 @Component({
   selector: 'app-add-dialog-form',
@@ -30,8 +30,7 @@ import { REQUIRED } from '../../../../utils/amaterasu.const';
   standalone: false,
 })
 export class AddDialogFormComponent
-  implements OnInit, AfterViewInit, OnDestroy
-{
+  implements OnInit, AfterViewInit, OnDestroy {
   @ViewChildren(DialogQuestionComponent)
   questionComponents!: QueryList<DialogQuestionComponent>;
 
@@ -65,7 +64,7 @@ export class AddDialogFormComponent
     private remoteServerService: RemoteServerService,
     private labService: LabService,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.isLoading = true;
@@ -246,7 +245,7 @@ export class AddDialogFormComponent
             labTypeQuestion.question.cb('labType', firstEnabledOption.value);
           }
 
-          this.radioSelectionChanged({key: 'labType', value: firstEnabledOption.value});
+          this.radioSelectionChanged({ key: 'labType', value: firstEnabledOption.value });
         } else {
           console.warn('No enabled options available for labType');
         }
@@ -288,7 +287,7 @@ export class AddDialogFormComponent
 
   private handleSpecialValidation(): void {
     if (this.data.typeName == 'lab') {
-      switch(this.dynamicForm.value['labType']) {
+      switch (this.dynamicForm.value['labType']) {
         case LabType.DOCKER_COMPOSE:
           if (this.dynamicForm.valid) {
             if (this.checkQuestionsValidation()) {
@@ -299,7 +298,7 @@ export class AddDialogFormComponent
           } else {
             this.showValidationErrors();
           }
-        break;
+          break;
         case LabType.VIRTUAL_MACHINE:
           if (this.dynamicForm.valid) {
             if (this.dynamicForm.value['vms'] < 1) {
@@ -310,12 +309,12 @@ export class AddDialogFormComponent
           } else {
             this.showValidationErrors();
           }
-        break;
+          break;
         default:
           this.messageService.snackbar('Unknown lab type.');
           return;
-        }
-    } else if ( this.data.typeName == 'remoteServer') {
+      }
+    } else if (this.data.typeName == 'remoteServer') {
       if (this.dynamicForm.valid) {
         if (this.checkQuestionsValidation()) {
           this.dialogRef.close(this.data);
@@ -379,7 +378,7 @@ export class AddDialogFormComponent
 
   private originalValidatorsMap = new Map<string, any>();
 
-  radioSelectionChanged(event: {key: string, value: string }): void {
+  radioSelectionChanged(event: { key: string, value: string }): void {
     const selectedEnum = event.value;
 
     this.questionComponents?.forEach((component: DialogQuestionComponent) => {

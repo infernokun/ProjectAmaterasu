@@ -3,7 +3,7 @@
     <b>{{ header }}</b>
   </header>
   <mat-toolbar class="main-toolbar">
-    <div class="display-flex flex-row" matTooltip="or known as 1LT Brown...">
+    <div class="display-flex flex-row" matTooltip="or something like that">
       <article class="margin-left-half flex-fill display-flex">
         <div class="image-box interactive-text" routerLink="/">
           <svg width="45" height="45" xmlns="http://www.w3.org/2000/svg">
@@ -32,6 +32,7 @@
       <a routerLink="/users" class="nav-link">Users</a>
       <a routerLink="/teams" class="nav-link">Teams</a>
       <a routerLink="/vm-lab-builder" class="nav-link">VM Lab Builder</a>
+      <a routerLink="/challenges" class="nav-link">Challenges</a>
     </nav>
     <div class="display-flex flex-row width-100-percent justify-content-end">
       <article class="user-info">
@@ -67,7 +68,7 @@
           </button>
         </ng-container>
       </mat-menu>
-      
+
       <!-- Guest user menu template -->
       <ng-template #guestMenu>
         <button mat-menu-item (click)="openLoginModal()" aria-label="Log in">

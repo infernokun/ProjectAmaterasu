@@ -1,9 +1,9 @@
 import { Component, ElementRef, Input, ViewChild } from '@angular/core';
 import { Subject, takeUntil } from 'rxjs';
 import { ServerType } from '../../../enums/server-type.enum';
-import { LabTracker } from '../../../models/lab-tracker.model';
 import { ComposeFile, Volume } from '../lab-settings.component';
-import { LabTrackerService } from '../../../services/lab-tracker.service';
+import { LabTrackerService } from '../../../services/lab/lab-tracker.service';
+import { LabTracker } from '../../../models/lab/lab-tracker.model';
 
 export interface VolumeChange {
   serviceName: string;
@@ -41,7 +41,7 @@ export class SettingsConfigureComponent {
 
   constructor(private labTrackerService: LabTrackerService) { }
 
-  ngOnInit() {}
+  ngOnInit() { }
 
   getServiceEntries(): Array<{
     name: string;
@@ -191,7 +191,7 @@ export class SettingsConfigureComponent {
           // Clear the changes after successful upload
           this.volumeChanges.clear();
           this.isEditMode = false;
-          
+
           // Optionally reload the lab tracker to reflect changes
         },
         error: (error) => {

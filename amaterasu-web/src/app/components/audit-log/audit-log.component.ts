@@ -1,24 +1,24 @@
 import { Component, ElementRef, Input, ViewChild } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSort } from '@angular/material/sort';
-import { LabTracker } from '../../models/lab-tracker.model';
 import { MatTableDataSource } from '@angular/material/table';
-import { LabTrackerService } from '../../services/lab-tracker.service';
+import { LabTrackerService } from '../../services/lab/lab-tracker.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TABLE_ANIMATION } from '../../utils/animations';
+import { LabTracker } from '../../models/lab/lab-tracker.model';
 
 @Component({
-    selector: 'app-audit-log',
-    templateUrl: './audit-log.component.html',
-    styleUrls: ['./audit-log.component.scss'],
-    animations: [TABLE_ANIMATION],
-    standalone: false
+  selector: 'app-audit-log',
+  templateUrl: './audit-log.component.html',
+  styleUrls: ['./audit-log.component.scss'],
+  animations: [TABLE_ANIMATION],
+  standalone: false
 })
 export class AuditLogComponent {
   @ViewChild('auditLogSort') auditLogSort = new MatSort();
   @ViewChild(MatPaginator) paginator!: MatPaginator | null;
   @ViewChild('input') filterInput!: ElementRef;
-  
+
   @Input()
   labTrackers: LabTracker[] | undefined | null;
 
@@ -26,24 +26,24 @@ export class AuditLogComponent {
   actionsEnabled: boolean = false;
 
   displayedColumns: string[] = [
-    'id', 
-    'createdBy', 
-    'createdAt', 
-    'updatedAt', 
-    'labStarted', 
-    'labStatus', 
-    'labOwner', 
+    'id',
+    'createdBy',
+    'createdAt',
+    'updatedAt',
+    'labStarted',
+    'labStatus',
+    'labOwner',
     'actions'
   ];
 
   highlightedId: string | null = null;
 
-    // Filter values
-    statusFilter: string = '';
-    startDate: Date | null = null;
-    endDate: Date | null = null;
+  // Filter values
+  statusFilter: string = '';
+  startDate: Date | null = null;
+  endDate: Date | null = null;
 
-    showPaginationInfo = false;
+  showPaginationInfo = false;
 
   auditLogDataSource: MatTableDataSource<LabTracker> =
     new MatTableDataSource<LabTracker>();
@@ -80,15 +80,15 @@ export class AuditLogComponent {
 
   applyFilter(event: Event | string): void {
     let filterValue = '';
-    
+
     if (typeof event === 'string') {
       filterValue = event;
     } else {
       filterValue = (event.target as HTMLInputElement).value;
     }
-    
+
     this.auditLogDataSource.filter = filterValue.trim().toLowerCase();
-    
+
     if (this.auditLogDataSource.paginator) {
       this.auditLogDataSource.paginator.firstPage();
     }
@@ -103,14 +103,14 @@ export class AuditLogComponent {
       horizontalPosition: 'end',
       verticalPosition: 'top'
     });
-    
+
     // Actual export logic would go here
     console.log('Exporting data:', this.auditLogDataSource.data);
   }
-  
+
   viewDetails(id: string): void {
     console.log('Viewing details for ID:', id);
-    
+
     // Navigate to details page or open a dialog/modal
     this.snackBar.open(`Viewing details for ${id}`, 'Close', {
       duration: 2000
@@ -120,11 +120,11 @@ export class AuditLogComponent {
   deleteRecord(id: string): void {
     if (confirm(`Are you sure you want to delete record ${id}?`)) {
       console.log('Deleting record with ID:', id);
-      
+
       // Filter out the deleted record
       const updatedData = this.auditLogDataSource.data.filter(item => item.id !== id);
       this.auditLogDataSource.data = updatedData;
-      
+
       this.snackBar.open(`Record ${id} deleted`, 'Undo', {
         duration: 3000,
         horizontalPosition: 'end',
@@ -143,11 +143,11 @@ export class AuditLogComponent {
     this.statusFilter = '';
     this.startDate = null;
     this.endDate = null;
-    
+
     if (this.filterInput) {
       this.filterInput.nativeElement.value = '';
     }
-    
+
     this.auditLogDataSource.filterPredicate = this.createFilterPredicate();
     this.auditLogDataSource.filter = '';
   }
@@ -155,7 +155,7 @@ export class AuditLogComponent {
   createFilterPredicate(): (data: LabTracker, filter: string) => boolean {
     return (data: LabTracker, filter: string): boolean => {
       const searchTerms = filter.trim().toLowerCase().split(' ');
-      
+
       // Create a string of all values to be searched
       const dataStr = [
         data.id,
@@ -166,7 +166,7 @@ export class AuditLogComponent {
         data.labStatus,
         data.labOwner?.name || ''
       ].join(' ').toLowerCase();
-      
+
       // Check if all search terms are found
       return searchTerms.every(term => dataStr.includes(term));
     };
@@ -179,12 +179,12 @@ export class AuditLogComponent {
   applyFilters(): void {
     this.auditLogDataSource.filterPredicate = (data: LabTracker) => {
       let matches = true;
-      
+
       // Apply status filter
       if (this.statusFilter && data.labStatus !== this.statusFilter) {
         matches = false;
       }
-      
+
       // Apply date range filter
       if (this.startDate && this.endDate) {
         const createdAt = new Date(data.createdAt!);
@@ -192,10 +192,10 @@ export class AuditLogComponent {
           matches = false;
         }
       }
-      
+
       return matches;
     };
-    
+
     // Trigger filter update
     this.auditLogDataSource.filter = ' ';
   }

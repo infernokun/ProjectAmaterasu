@@ -8,7 +8,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MaterialModule } from './material.module';
 import { HomeComponent } from './components/home/home.component';
 import { EnvironmentService } from './services/environment.service';
-import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { LabComponent } from './components/lab/lab.component';
 import { CommonModule } from '@angular/common';
 import { AuditLogComponent } from './components/audit-log/audit-log.component';
@@ -37,6 +37,10 @@ import { SettingsConfigureComponent } from './components/lab-settings/settings-c
 import { ConfirmationDialogComponent } from './components/common/dialog/confirmation-dialog/confirmation-dialog.component';
 import { AdminActionsComponent } from './admin/admin-actions.component';
 import { AgGridAngular } from 'ag-grid-angular';
+import { AuthInterceptor } from './services/auth/auth-interceptor.service';
+import { CTFHomeComponent } from './components/app-ctf/home/home.component';
+import { CTFMainComponent } from './components/app-ctf/ctf/ctf-main/ctf-main.component';
+import { CTFCardComponent } from './components/app-ctf/ctf/ctf-card/ctf-card.component';
 
 export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
   return () => {
@@ -75,7 +79,10 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     LabDeployComponent,
     SettingsConfigureComponent,
     ConfirmationDialogComponent,
-    AdminActionsComponent
+    AdminActionsComponent,
+    CTFHomeComponent,
+    CTFMainComponent,
+    CTFCardComponent
   ],
   imports: [
     BrowserModule,
@@ -92,10 +99,15 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     EnvironmentService,
     AppInitService,
     provideAppInitializer(() => {
-        const initializerFn = (init_app)(inject(EnvironmentService), inject(AppInitService));
-        return initializerFn();
-      }),
+      const initializerFn = (init_app)(inject(EnvironmentService), inject(AppInitService));
+      return initializerFn();
+    }),
     provideHttpClient(withInterceptorsFromDi()),
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: AuthInterceptor,
+      multi: true
+    },
     provideCodeEditor({
       editorVersion: '0.44.0',
       baseUrl: '/assets/monaco-editor/min'

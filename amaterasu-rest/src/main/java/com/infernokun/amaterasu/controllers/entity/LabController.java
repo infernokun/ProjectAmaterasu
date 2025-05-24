@@ -12,6 +12,7 @@ import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.services.alt.LabFileUploadService;
 import com.infernokun.amaterasu.services.entity.LabService;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,17 +21,12 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/labs")
 public class LabController extends BaseController {
     private final LabService labService;
     private final LabFileUploadService labFileUploadService;
     private final RemoteServerService remoteServerService;
-
-    public LabController(LabService labService, LabFileUploadService labFileUploadService, RemoteServerService remoteServerService) {
-        this.labService = labService;
-        this.labFileUploadService = labFileUploadService;
-        this.remoteServerService = remoteServerService;
-    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Lab>>> getAllLabs() {

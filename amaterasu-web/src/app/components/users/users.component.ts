@@ -34,10 +34,14 @@ export class UsersComponent implements OnInit {
 
   defaultColDef: ColDef = {
     sortable: true,
+    filter: true,
     floatingFilter: true,
     resizable: true,
-    filter: 'agTextColumnFilter',
-    filterParams: { buttons: ['clear'] },
+    suppressSizeToFit: false,
+    filterParams: {
+      buttons: ['clear', 'reset'],
+      debounceMs: 200
+    },
   };
 
   gridApi?: GridApi;
@@ -51,12 +55,16 @@ export class UsersComponent implements OnInit {
     private messageService: MessageService,
     private authService: AuthService
   ) {
+    // Initialize gridOptions without rowData initially
     this.gridOptions = {
       animateRows: false,
       cellFlashDuration: 0,
       pagination: false,
+      suppressColumnVirtualisation: false,
+      suppressRowVirtualisation: false,
+      suppressDragLeaveHidesColumns: true,
+      suppressMovableColumns: false,
       columnDefs: this.getColumnDefs(),
-      rowData: this.users,
       onGridReady: (params: GridReadyEvent) => this.onGridReady(params),
       onFirstDataRendered: (params: FirstDataRenderedEvent) =>
         this.onFirstDataRendered(params),
@@ -66,43 +74,127 @@ export class UsersComponent implements OnInit {
   ngOnInit(): void {
     this.loggedInUser$ = this.authService.user$;
 
-    this.userService.getAllUsers().subscribe((users: User[]) => {
-      console.log(users);
-      this.users = users;
-      this.gridApi?.setGridOption('rowData', this.users);
-      this.gridApi?.sizeColumnsToFit();
+    this.userService.getAllUsers().subscribe({
+      next: (users: User[]) => {
+        console.log('Users received:', users);
+        console.log('Users count:', users?.length || 0);
+
+        // Check if users is actually an array
+        if (!Array.isArray(users)) {
+          console.error('Users is not an array:', users);
+          this.users = [];
+          return;
+        }
+
+        this.users = users;
+
+        // Update grid data if grid is ready
+        if (this.gridApi) {
+          console.log('Updating grid with users:', this.users);
+          this.gridApi.setGridOption('rowData', this.users);
+
+          // Force refresh
+          this.gridApi.refreshCells();
+
+          // Size columns after data update
+          setTimeout(() => {
+            this.gridApi?.sizeColumnsToFit();
+          }, 100);
+        }
+      },
+      error: (error) => {
+        console.error('Error fetching users:', error);
+        this.users = [];
+      }
     });
   }
 
   onGridReady(params: GridReadyEvent) {
+    console.log('Grid ready');
     this.gridApi = params.api;
+
+    // Set initial data if we already have users
+    if (this.users && this.users.length > 0) {
+      console.log('Setting initial grid data:', this.users);
+      this.gridApi.setGridOption('rowData', this.users);
+    }
   }
 
   onFirstDataRendered(params: FirstDataRenderedEvent) {
+    console.log('First data rendered');
     params.api.sizeColumnsToFit();
   }
 
   getColumnDefs(): ColDef[] {
     let columns: ColDef[] = [
       {
-        headerName: '',
-        width: 100,
-        suppressAutoSize: true,
+        headerName: 'Actions',
+        width: 120,
+        minWidth: 120,
+        maxWidth: 150,
+        resizable: false,
+        sortable: false,
+        filter: false,
+        floatingFilter: false,
+        suppressMovable: true,
+        lockPosition: 'left',
         cellRenderer: AdminActionsComponent,
         cellRendererParams: {
           viewClick: (data: any) => console.log('viewClick', data),
           editClick: (data: any) => console.log('editClick', data),
           deleteClick: (data: any) => console.log('deleteClick', data),
         },
+        pinned: 'left'
       },
-      { headerName: 'id', field: 'id', sort: 'asc' },
-      { headerName: 'Name', field: 'username' },
+      {
+        headerName: 'ID',
+        field: 'id',
+        sort: 'asc',
+        width: 80,
+        minWidth: 60,
+        maxWidth: 120,
+        resizable: true,
+        suppressMovable: false,
+        filter: 'agNumberColumnFilter',
+        floatingFilter: true
+      },
+      {
+        headerName: 'Username',
+        field: 'username',
+        width: 200,
+        minWidth: 150,
+        maxWidth: 300,
+        resizable: true,
+        suppressMovable: false,
+        filter: 'agTextColumnFilter',
+        floatingFilter: true
+      },
       {
         headerName: 'Team',
         field: 'team.name',
-        valueGetter: (params) => params.data.team.name ?? 'Not Assigned',
+        valueGetter: (params) => {
+          // Add null safety
+          return params.data?.team?.name ?? 'Not Assigned';
+        },
+        width: 150,
+        minWidth: 120,
+        maxWidth: 250,
+        resizable: true,
+        suppressMovable: false,
+        filter: 'agTextColumnFilter',
+        floatingFilter: true
       },
-      { headerName: 'Role', field: 'role' },
+      {
+        headerName: 'Role',
+        field: 'role',
+        width: 120,
+        minWidth: 100,
+        maxWidth: 200,
+        resizable: true,
+        suppressMovable: false,
+        filter: 'agTextColumnFilter',
+        floatingFilter: true
+      },
     ];
 
     return columns;
@@ -111,7 +203,7 @@ export class UsersComponent implements OnInit {
   editUsers() {
     const teams$: Observable<Team[]> = this.teamService.getAllTeams();
 
-    const userFormData = new UserFormData(this.users, (k: any, v: any) => {}, {
+    const userFormData = new UserFormData(this.users, (k: any, v: any) => { }, {
       teams: teams$,
     });
 
@@ -128,19 +220,36 @@ export class UsersComponent implements OnInit {
             );
             this.authService.setUser(updatedUser);
             this.messageService.snackbar(
-              `User ${updatedUser.username} updated team to ${
-                updatedUser.team!.name ?? ''
+              `User ${updatedUser.username} updated team to ${updatedUser.team!.name ?? ''
               }`
             );
+
+            // Update grid after user update
+            this.gridApi?.setGridOption('rowData', this.users);
           });
       })
-      .subscribe((res: any) => {});
+      .subscribe((res: any) => { });
   }
 
-  importUserJson($event: Event) {}
+  importUserJson($event: Event) {
+    // TODO: Implement import functionality
+  }
 
-  exportUsers() {}
-  addUser() {}
-  getActiveUsersCount() {}
-  getTeamsCount() {}
+  exportUsers() {
+    // TODO: Implement export functionality
+  }
+
+  addUser() {
+    // TODO: Implement add user functionality
+  }
+
+  getActiveUsersCount(): number {
+    return -1;
+    //return this.users.filter(user => user.active !== false).length;
+  }
+
+  getTeamsCount(): number {
+    const uniqueTeams = new Set(this.users.map(user => user.team?.id).filter(id => id));
+    return uniqueTeams.size;
+  }
 }
