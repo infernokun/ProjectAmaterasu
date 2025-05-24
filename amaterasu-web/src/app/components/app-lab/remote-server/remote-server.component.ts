@@ -1,11 +1,11 @@
 import { Component, OnInit } from '@angular/core';
-import { RemoteServerService } from '../../services/lab/remote-server.service';
-import { EditDialogService } from '../../services/edit-dialog.service';
-import { AuthService } from '../../services/auth.service';
-import { ApiResponse } from '../../models/api-response.model';
+import { RemoteServerService } from '../../../services/lab/remote-server.service';
+import { EditDialogService } from '../../../services/edit-dialog.service';
+import { AuthService } from '../../../services/auth.service';
+import { ApiResponse } from '../../../models/api-response.model';
 import { BehaviorSubject, Observable, take } from 'rxjs';
-import { User } from '../../models/user.model';
-import { RemoteServer, RemoteServerFormData } from '../../models/lab/remote-server.model';
+import { User } from '../../../models/user.model';
+import { RemoteServer, RemoteServerFormData } from '../../../models/lab/remote-server.model';
 
 @Component({
   selector: 'app-remote-server',

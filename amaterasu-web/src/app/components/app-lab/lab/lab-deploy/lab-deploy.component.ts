@@ -1,28 +1,28 @@
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
-import { User } from '../../../models/user.model';
-import { LabStatus } from '../../../enums/lab-status.enum';
+import { User } from '../../../../models/user.model';
+import { LabStatus } from '../../../../enums/lab-status.enum';
 import { BehaviorSubject, catchError, finalize, Observable, of, Subject, takeUntil } from 'rxjs';
-import { LabTrackerService } from '../../../services/lab/lab-tracker.service';
-import { LabRequest } from '../../../models/dto/lab-request.model';
-import { EditDialogService } from '../../../services/edit-dialog.service';
-import { LabType } from '../../../enums/lab-type.enum';
-import { RemoteServerService } from '../../../services/lab/remote-server.service';
-import { getServerType } from '../../../utils/server-lab-type';
-import { LabService } from '../../../services/lab/lab.service';
-import { ApiResponse } from '../../../models/api-response.model';
+import { LabTrackerService } from '../../../../services/lab/lab-tracker.service';
+import { LabRequest } from '../../../../models/dto/lab-request.model';
+import { EditDialogService } from '../../../../services/edit-dialog.service';
+import { LabType } from '../../../../enums/lab-type.enum';
+import { RemoteServerService } from '../../../../services/lab/remote-server.service';
+import { getServerType } from '../../../../utils/server-lab-type';
+import { LabService } from '../../../../services/lab/lab.service';
+import { ApiResponse } from '../../../../models/api-response.model';
 import { MatDialog } from '@angular/material/dialog';
-import { CommonDialogComponent } from '../../common/dialog/common-dialog/common-dialog.component';
+import { CommonDialogComponent } from '../../../common/dialog/common-dialog/common-dialog.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { LabDeploymentService } from '../../../services/lab/lab-deployment.service';
-import { DateUtils } from '../../../utils/date-utils';
-import { FADE_ANIMATION } from '../../../utils/animations';
-import { QuestionBase } from '../../../models/simple-form-data.model';
+import { LabDeploymentService } from '../../../../services/lab/lab-deployment.service';
+import { DateUtils } from '../../../../utils/date-utils';
+import { FADE_ANIMATION } from '../../../../utils/animations';
+import { QuestionBase } from '../../../../models/simple-form-data.model';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { DockerServiceInfo } from '../../../models/lab/docker-service-info.model';
-import { LabActionResult } from '../../../models/lab/lab-action-result.model';
-import { LabTracker, LabTrackerServicesForm } from '../../../models/lab/lab-tracker.model';
-import { Lab } from '../../../models/lab/lab.model';
-import { RemoteServer, RemoteServerSelectData } from '../../../models/lab/remote-server.model';
+import { DockerServiceInfo } from '../../../../models/lab/docker-service-info.model';
+import { LabActionResult } from '../../../../models/lab/lab-action-result.model';
+import { LabTracker, LabTrackerServicesForm } from '../../../../models/lab/lab-tracker.model';
+import { Lab } from '../../../../models/lab/lab.model';
+import { RemoteServer, RemoteServerSelectData } from '../../../../models/lab/remote-server.model';
 
 @Component({
   selector: 'app-lab-deploy',

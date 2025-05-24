@@ -111,6 +111,10 @@
         </div>
       </div>
     </div>
+
+    <div *ngIf="errorMessage" class="alert alert-danger" role="alert">
+      {{errorMessage}}
+    </div>
     
     <div class="form-section terms-section">
       <div class="terms-agreement">

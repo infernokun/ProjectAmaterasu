@@ -1,9 +1,9 @@
 import { Component, ElementRef, Input, ViewChild } from '@angular/core';
 import { Subject, takeUntil } from 'rxjs';
-import { ServerType } from '../../../enums/server-type.enum';
+import { ServerType } from '../../../../enums/server-type.enum';
 import { ComposeFile, Volume } from '../lab-settings.component';
-import { LabTrackerService } from '../../../services/lab/lab-tracker.service';
-import { LabTracker } from '../../../models/lab/lab-tracker.model';
+import { LabTrackerService } from '../../../../services/lab/lab-tracker.service';
+import { LabTracker } from '../../../../models/lab/lab-tracker.model';
 
 export interface VolumeChange {
   serviceName: string;

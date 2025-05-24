@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { LabService } from '../../services/lab/lab.service';
+import { LabService } from '../../../services/lab/lab.service';
 import {
   Observable,
   switchMap,
@@ -11,20 +11,20 @@ import {
   tap,
   timer,
 } from 'rxjs';
-import { User } from '../../models/user.model';
-import { ApiResponse } from '../../models/api-response.model';
-import { LabTrackerService } from '../../services/lab/lab-tracker.service';
-import { Team } from '../../models/team.model';
-import { LabStatus } from '../../enums/lab-status.enum';
-import { EditDialogService } from '../../services/edit-dialog.service';
-import { LabType } from '../../enums/lab-type.enum';
-import { ProxmoxService } from '../../services/lab/proxmox.service';
-import { RemoteServerService } from '../../services/lab/remote-server.service';
-import { AuthService } from '../../services/auth.service';
-import { DateUtils } from '../../utils/date-utils';
-import { LabTracker } from '../../models/lab/lab-tracker.model';
-import { RemoteServer } from '../../models/lab/remote-server.model';
-import { Lab, LabDTO, LabFormData } from '../../models/lab/lab.model';
+import { User } from '../../../models/user.model';
+import { ApiResponse } from '../../../models/api-response.model';
+import { LabTrackerService } from '../../../services/lab/lab-tracker.service';
+import { Team } from '../../../models/team.model';
+import { LabStatus } from '../../../enums/lab-status.enum';
+import { EditDialogService } from '../../../services/edit-dialog.service';
+import { LabType } from '../../../enums/lab-type.enum';
+import { ProxmoxService } from '../../../services/lab/proxmox.service';
+import { RemoteServerService } from '../../../services/lab/remote-server.service';
+import { AuthService } from '../../../services/auth.service';
+import { DateUtils } from '../../../utils/date-utils';
+import { LabTracker } from '../../../models/lab/lab-tracker.model';
+import { RemoteServer } from '../../../models/lab/remote-server.model';
+import { Lab, LabDTO, LabFormData } from '../../../models/lab/lab.model';
 
 @Component({
   selector: 'app-lab',

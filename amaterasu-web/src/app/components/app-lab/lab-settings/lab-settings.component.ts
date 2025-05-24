@@ -1,14 +1,14 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { LabService } from '../../services/lab/lab.service';
+import { LabService } from '../../../services/lab/lab.service';
 import { BehaviorSubject, catchError, combineLatest, of, Subject, takeUntil } from 'rxjs';
-import { UserService } from '../../services/user.service';
-import { LabTrackerService } from '../../services/lab/lab-tracker.service';
-import { ServerType } from '../../enums/server-type.enum';
-import { ApiResponse } from '../../models/api-response.model';
+import { UserService } from '../../../services/user.service';
+import { LabTrackerService } from '../../../services/lab/lab-tracker.service';
+import { ServerType } from '../../../enums/server-type.enum';
+import { ApiResponse } from '../../../models/api-response.model';
 
 import { load } from "js-yaml";
-import { LabTracker } from '../../models/lab/lab-tracker.model';
+import { LabTracker } from '../../../models/lab/lab-tracker.model';
 
 export interface Volume {
   source?: string;

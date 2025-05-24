@@ -2,31 +2,31 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { HomeComponent } from './components/home/home.component';
 import { AuditLogComponent } from './components/audit-log/audit-log.component';
-import { TeamAuditLogComponent } from './components/team-audit-log/team-audit-log.component';
+import { TeamAuditLogComponent } from './components/app-lab/team-audit-log/team-audit-log.component';
 import { CodeBlockComponent } from './components/common/code-block/code-block.component';
-import { RemoteServerComponent } from './components/remote-server/remote-server.component';
-import { LabSettingsComponent } from './components/lab-settings/lab-settings.component';
+import { RemoteServerComponent } from './components/app-lab/remote-server/remote-server.component';
+import { LabSettingsComponent } from './components/app-lab/lab-settings/lab-settings.component';
 import { AppInitComponent } from './components/app-init/app-init.component';
 import { UsersComponent } from './components/users/users.component';
 import { AppInitGuard } from './guards/app-init.guard';
 import { TeamsComponent } from './components/teams/teams.component';
-import { VMLabBuilderComponent } from './components/vm-lab-builder/vm-lab-builder.component';
 import { CTFMainComponent } from './components/app-ctf/ctf/ctf-main/ctf-main.component';
 import { authGuard } from './guards/auth.guard';
 import { CTFHomeComponent } from './components/app-ctf/home/home.component';
+import { VMLabBuilderComponent } from './components/app-lab/vm-lab-builder/vm-lab-builder.component';
 
 const routes: Routes = [
-  { path: 'challenges', component: CTFHomeComponent, canActivate: [authGuard] },
-  { path: 'room/:room', component: CTFMainComponent, canActivate: [authGuard] },
+  { path: 'challenges', component: CTFHomeComponent, canActivate: [AppInitGuard, authGuard] },
+  { path: 'room/:room', component: CTFMainComponent, canActivate: [AppInitGuard, authGuard] },
 
-  { path: 'vm-lab-builder', component: VMLabBuilderComponent, canActivate: [AppInitGuard] },
-  { path: 'teams', component: TeamsComponent, canActivate: [AppInitGuard] },
-  { path: 'users', component: UsersComponent, canActivate: [AppInitGuard] },
-  { path: 'lab/settings/:name', component: LabSettingsComponent, canActivate: [AppInitGuard] },
-  { path: 'remote-server', component: RemoteServerComponent, canActivate: [AppInitGuard] },
-  { path: 'code', component: CodeBlockComponent, canActivate: [AppInitGuard] },
-  { path: 'team-log', component: TeamAuditLogComponent, canActivate: [AppInitGuard] },
-  { path: 'log', component: AuditLogComponent, canActivate: [AppInitGuard] },
+  { path: 'vm-lab-builder', component: VMLabBuilderComponent, canActivate: [AppInitGuard, authGuard] },
+  { path: 'teams', component: TeamsComponent, canActivate: [AppInitGuard, authGuard] },
+  { path: 'users', component: UsersComponent, canActivate: [AppInitGuard, authGuard] },
+  { path: 'lab/settings/:name', component: LabSettingsComponent, canActivate: [AppInitGuard, authGuard] },
+  { path: 'remote-server', component: RemoteServerComponent, canActivate: [AppInitGuard, authGuard] },
+  { path: 'code', component: CodeBlockComponent, canActivate: [AppInitGuard, authGuard] },
+  { path: 'team-log', component: TeamAuditLogComponent, canActivate: [AppInitGuard, authGuard] },
+  { path: 'log', component: AuditLogComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'home', component: HomeComponent, canActivate: [AppInitGuard] },
   { path: 'init', component: AppInitComponent },
   {

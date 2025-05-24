@@ -9,19 +9,19 @@ import { MaterialModule } from './material.module';
 import { HomeComponent } from './components/home/home.component';
 import { EnvironmentService } from './services/environment.service';
 import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
-import { LabComponent } from './components/lab/lab.component';
+import { LabComponent } from './components/app-lab/lab/lab.component';
 import { CommonModule } from '@angular/common';
 import { AuditLogComponent } from './components/audit-log/audit-log.component';
 import { CommonDialogComponent } from './components/common/dialog/common-dialog/common-dialog.component';
 import { BashColoringPipe } from './pipes/bash-coloring.pipe';
 import { CodeBlockComponent } from './components/common/code-block/code-block.component';
 import { CodeEditorModule, provideCodeEditor } from '@ngstack/code-editor';
-import { RemoteServerComponent } from './components/remote-server/remote-server.component';
+import { RemoteServerComponent } from './components/app-lab/remote-server/remote-server.component';
 import { DurationPipe } from './pipes/duration.pipe';
 import { DialogQuestionComponent } from './components/common/dialog/dialog-question/dialog-question.component';
 import { SkeletonRectComponent } from './components/common/skeleton-rect/skeleton-rect.component';
 import { SkeletonDirective } from './directives/skeleton.directive';
-import { LabSettingsComponent } from './components/lab-settings/lab-settings.component';
+import { LabSettingsComponent } from './components/app-lab/lab-settings/lab-settings.component';
 import { DragnDropDirective } from './directives/dragndrop.directive';
 import { AppInitComponent } from './components/app-init/app-init.component';
 import { LoginComponent } from './components/common/login/login.component';
@@ -29,11 +29,10 @@ import { RegisterComponent } from './components/common/register/register.compone
 import { UsersComponent } from './components/users/users.component';
 import { AppInitService } from './services/app-init.service';
 import { TeamsComponent } from './components/teams/teams.component';
-import { VMLabBuilderComponent } from './components/vm-lab-builder/vm-lab-builder.component';
-import { LabMainComponent } from './components/lab/lab-main/lab-main.component';
-import { LabDeployComponent } from './components/lab/lab-deploy/lab-deploy.component';
+import { LabMainComponent } from './components/app-lab/lab/lab-main/lab-main.component';
+import { LabDeployComponent } from './components/app-lab/lab/lab-deploy/lab-deploy.component';
 import { AddDialogFormComponent } from './components/common/dialog/add-dialog-form/add-dialog-form.component';
-import { SettingsConfigureComponent } from './components/lab-settings/settings-configure/settings-configure.component';
+import { SettingsConfigureComponent } from './components/app-lab/lab-settings/settings-configure/settings-configure.component';
 import { ConfirmationDialogComponent } from './components/common/dialog/confirmation-dialog/confirmation-dialog.component';
 import { AdminActionsComponent } from './admin/admin-actions.component';
 import { AgGridAngular } from 'ag-grid-angular';
@@ -41,6 +40,7 @@ import { AuthInterceptor } from './services/auth/auth-interceptor.service';
 import { CTFHomeComponent } from './components/app-ctf/home/home.component';
 import { CTFMainComponent } from './components/app-ctf/ctf/ctf-main/ctf-main.component';
 import { CTFCardComponent } from './components/app-ctf/ctf/ctf-card/ctf-card.component';
+import { VMLabBuilderComponent } from './components/app-lab/vm-lab-builder/vm-lab-builder.component';
 
 export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
   return () => {

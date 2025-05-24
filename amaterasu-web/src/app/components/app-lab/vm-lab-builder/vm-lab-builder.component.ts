@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
-import { ProxmoxService } from '../../services/lab/proxmox.service';
-import { RemoteServerService } from '../../services/lab/remote-server.service';
-import { ServerType } from '../../enums/server-type.enum';
-import { EditDialogService } from '../../services/edit-dialog.service';
-import { ProxmoxVM } from '../../models/lab/proxmox-vm.model';
+import { ServerType } from '../../../enums/server-type.enum';
+import { ProxmoxVM } from '../../../models/lab/proxmox-vm.model';
+import { EditDialogService } from '../../../services/edit-dialog.service';
+import { ProxmoxService } from '../../../services/lab/proxmox.service';
+import { RemoteServerService } from '../../../services/lab/remote-server.service';
 
 @Component({
   selector: 'app-vm-lab-builder',

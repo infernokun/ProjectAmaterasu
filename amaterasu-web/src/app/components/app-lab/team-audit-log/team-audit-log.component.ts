@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { TeamService } from '../../services/team.service';
-import { Team } from '../../models/team.model';
+import { TeamService } from '../../../services/team.service';
+import { Team } from '../../../models/team.model';
 
 @Component({
     selector: 'app-team-audit-log',
