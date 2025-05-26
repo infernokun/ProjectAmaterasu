@@ -1,15 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { User } from './models/user.model';
-import { UserService } from './services/user.service';
-import { Observable, Subject, takeUntil, of, map, startWith } from 'rxjs';
+import { Observable, Subject, takeUntil, map, startWith, combineLatest } from 'rxjs';
 import { AuthService } from './services/auth.service';
 import { EditDialogService } from './services/edit-dialog.service';
-
 import { Role } from './enums/role.enum';
 import { AppInitService } from './services/app-init.service';
-import { RemoteServerService } from './services/lab/remote-server.service';
-import { FormControl } from '@angular/forms';
-import { RemoteServer } from './models/lab/remote-server.model';
 
 declare var require: any;
 const { version: appVersion } = require('../../package.json');
@@ -20,44 +15,72 @@ const { version: appVersion } = require('../../package.json');
   styleUrl: './app.component.scss',
   standalone: false
 })
-export class AppComponent {
+export class AppComponent implements OnInit, OnDestroy {
   title = 'Project Amaterasu';
   header: string = 'UNCLASSIFIED';
   footer: string = 'UNCLASSIFIED';
   appVersion: any = appVersion;
   bannerDisplayStyle: string = 'green-white';
 
-  loadingUser$: Observable<boolean> = of(false);
-  loggedInUser$: Observable<User | undefined> | undefined;
-  isInitialized$: Observable<boolean | undefined> = of(undefined);
-  initializationComplete$: Observable<boolean | undefined> = of(undefined);
-  appReady$: Observable<boolean> | undefined;
-
+  // Combined loading states
+  loggedInUser$: Observable<User | undefined>;
+  isAuthLoading$: Observable<boolean>;
+  isAppReady$: Observable<boolean>;
+  showAuthButtons$: Observable<boolean>;
   Role = Role;
 
   private unsubscribe$ = new Subject<void>();
 
-  constructor(private userService: UserService,
-    private authService: AuthService, private dialogService: EditDialogService,
-    private appInitService: AppInitService, private remoteServerService: RemoteServerService,
+  constructor(
+    private authService: AuthService,
+    private dialogService: EditDialogService,
+    private appInitService: AppInitService,
   ) {
+    this.loggedInUser$ = this.authService.user$;
 
+    // Auth loading state - true when checking authentication
+    this.isAuthLoading$ = combineLatest([
+      this.authService.loading$,
+      this.appInitService.isInitialized()
+    ]).pipe(
+      map(([authLoading, appInitialized]) => authLoading || !appInitialized),
+      startWith(true) // Start with loading = true
+    );
+
+    // App ready when initialization is complete AND auth check is done
+    this.isAppReady$ = combineLatest([
+      this.appInitService.initializationComplete$.pipe(
+        map(() => true),
+        startWith(false)
+      ),
+      this.isAuthLoading$
+    ]).pipe(
+      map(([initComplete, authLoading]) => initComplete && !authLoading)
+    );
+
+    // Only show auth buttons when app is ready AND user is not authenticated
+    this.showAuthButtons$ = combineLatest([
+      this.isAppReady$,
+      this.loggedInUser$
+    ]).pipe(
+      map(([appReady, user]) => appReady && !user)
+    );
   }
 
   ngOnInit(): void {
-    this.appReady$ = this.appInitService.initializationComplete$.pipe(
-      // Convert void emission to true
-      map(() => true),
-      // Start with false until we get a value
-      startWith(false)
-    );
-
-    this.isInitialized$ = this.appInitService.isInitialized();
-    this.initializationComplete$ = this.appInitService.initializationComplete$;
-    this.loggedInUser$ = this.authService.user$;
-    this.loadingUser$ = this.authService.loading$;
-
-    this.checkAuthentication();
+    // Remove the explicit checkAuthentication() call
+    // Let the AuthService handle authentication automatically
+    console.log('AppComponent initialized - AuthService will handle authentication');
+    
+    this.authService.user$.pipe(
+      takeUntil(this.unsubscribe$)
+    ).subscribe((user) => {
+      if (user) {
+        console.log('User logged in:', user.username);
+      } else {
+        console.log('No user logged in');
+      }
+    });
   }
 
   ngOnDestroy() {
@@ -65,30 +88,28 @@ export class AppComponent {
     this.unsubscribe$.complete();
   }
 
-  private checkAuthentication() {
-    this.authService
-      .isAuthenticated()
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(authenticated => {
-        console.log(authenticated ? 'Authenticated' : 'Not authenticated');
-        this.authService.setLoading(false);
-      });
-  }
-
+  // Remove the checkAuthentication method entirely
+  // The AuthService constructor handles this automatically
 
   openLoginModal(): void {
     this.dialogService.openLoginDialog().subscribe((res: any) => {
+      // Handle login result if needed
     });
   }
 
   openRegisterModal(): void {
     this.dialogService.openRegisterDialog().subscribe((res: any) => {
+      // Handle register result if needed
     });
   }
 
-  openProfileModal() { }
+  openProfileModal() {
+    // Implement profile modal
+  }
 
-  openUserSettingsModal() { }
+  openUserSettingsModal() {
+    // Implement settings modal
+  }
 
   logoutButton(): void {
     this.authService.logout();

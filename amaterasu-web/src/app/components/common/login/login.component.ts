@@ -90,13 +90,34 @@ export class LoginComponent implements OnInit {
       .pipe(finalize(() => this.busy = false))
       .subscribe({
         next: (response: ApiResponse<LoginResponseDTO>) => {
-          if (!response.data?.jwt) {
-            this.handleLoginError('No valid JWT token received');
+          const accessToken = response.data?.accessToken;
+          const refreshToken = response.data?.refreshToken;
+          
+          if (!accessToken) {
+            this.handleLoginError('No valid access token received');
+            return;
+          }
+          
+          if (!refreshToken) {
+            this.handleLoginError('No valid refresh token received');
+            return;
+          }
+          
+          if (!response.data.user) {
+            this.handleLoginError('No user data received');
             return;
           }
           
           try {
-            const tokenPayload = JSON.parse(atob(response.data.jwt.split('.')[1]));
+            // Validate access token structure
+            const tokenPayload = JSON.parse(atob(accessToken.split('.')[1]));
+            console.log('Access token payload (for validation):', tokenPayload);
+            
+            // Validate token expiry
+            if (!tokenPayload.exp || tokenPayload.exp * 1000 <= Date.now()) {
+              this.handleLoginError('Received expired access token');
+              return;
+            }
             
             // Reset error state
             this.wrongPassword = false;
@@ -109,22 +130,18 @@ export class LoginComponent implements OnInit {
               localStorage.removeItem('rememberedUser');
             }
             
-            // Store token
-            localStorage.setItem('jwt', response.data.jwt);
-            
-            if (!response.data.user) {
-              this.handleLoginError('No user data received');
-              return;
-            }
-            
-            // Set user data and navigate
+            // Set user data with both tokens
             const user = new User(response.data.user);
-            console.log('logging in', response.data.user)
-            this.authService.setPayload(user, tokenPayload);
+            console.log('Logging in user:', response.data.user);
+            
+            // NEW: Pass both access token and refresh token
+            this.authService.setPayload(user, accessToken, refreshToken);
+            
             this.router.navigate(['/home']);
             this.dialogRef.close(true);
+            
           } catch (e) {
-            console.error('Failed to process JWT token', e);
+            console.error('Failed to process access token', e);
             this.handleLoginError('Failed to process authentication token');
           }
         },

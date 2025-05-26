@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 import { ActivatedRoute, CanActivate, Router } from "@angular/router";
-import { Observable, map, of, switchMap, take } from "rxjs";
+import { Observable, of, switchMap, take } from "rxjs";
 import { AppInitService } from "../services/app-init.service";
 
 @Injectable({

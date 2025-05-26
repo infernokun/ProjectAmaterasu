@@ -43,6 +43,8 @@ services:
       DB_PASS: "${POSTGRES_PASSWORD:-amaterasu}"
       DB_PORT: "${DB_PORT:-5432}"
       ENCRYPTION_KEY: "${ENCRYPTION_KEY:-secret_key}"
+      RSA_PRIVATE_KEY_PATH: "${RSA_PRIVATE_KEY_PATH:-/var/tmp/amaterasu/private.pem}"
+      RSA_PUBLIC_KEY_PATH: "${RSA_PUBLIC_KEY_PATH:-/var/tmp/amaterasu/public.pem}"
     depends_on:
       - amaterasu-db
     healthcheck:

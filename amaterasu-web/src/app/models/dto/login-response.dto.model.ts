@@ -1,12 +1,14 @@
 import { User } from "../user.model";
 
 export class LoginResponseDTO {
-  jwt?: string;
+  refreshToken?: string;
+  accessToken?: string;
   user?: User;
 
   constructor(serverResult?: any) {
     if (serverResult) {
-      this.jwt = serverResult.jwt;
+      this.refreshToken = serverResult.refreshToken;
+      this.accessToken = serverResult.accessToken;
       this.user = serverResult.user ? new User(serverResult.user) : undefined;
     }
   }

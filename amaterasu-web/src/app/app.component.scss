@@ -52,11 +52,13 @@
   box-sizing: border-box;
 }
 
+.auth-buttons {
+  display: flex;
+  gap: 10px;
+}
+
 .user-button {
   background-color: #007bff;
-  display: grid;
-  grid-template-columns: 2fr;
-  gap: 15px;
   border: none;
   color: white;
   text-align: center;
@@ -65,7 +67,7 @@
   border-radius: 5px;
   cursor: pointer;
   transition: background-color 0.3s ease;
-  margin-right: 10px
+  width: auto;
 }
 
 .tool-info {

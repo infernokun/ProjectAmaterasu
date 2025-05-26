@@ -1,4 +1,4 @@
-<div class="main-body" *ngIf="appReady$ | async; else loading">
+<div class="main-body" *ngIf="isAppReady$ | async; else loading">
   <header class="header-footer {{ bannerDisplayStyle }}">
     <b>{{ header }}</b>
   </header>
@@ -22,6 +22,7 @@
         </div>
       </article>
     </div>
+    
     <!-- Navigation Links - Inline -->
     <nav class="nav-links">
       <a routerLink="/" class="nav-link">Home</a>
@@ -34,17 +35,36 @@
       <a routerLink="/vm-lab-builder" class="nav-link">VM Lab Builder</a>
       <a routerLink="/challenges" class="nav-link">Challenges</a>
     </nav>
+    
     <div class="display-flex flex-row width-100-percent justify-content-end">
+      <!-- User Info Section -->
       <article class="user-info">
-        <div *ngIf="(loggedInUser$ | async) as user; else login" class="user-details">
+        <!-- Show user details when authenticated -->
+        <div *ngIf="(loggedInUser$ | async) as user; else authSection" class="user-details">
           <span class="user-name">{{ user?.username }}</span>
           <span class="team-name">({{ user?.team?.name }})</span>
           <span class="role-name">[{{ user?.role }}]</span>
         </div>
+        
+        <!-- Auth buttons section (only shown when appropriate) -->
+        <ng-template #authSection>
+          <div *ngIf="showAuthButtons$ | async" class="auth-buttons">
+            <button class="user-button" mat-button (click)="openLoginModal()">
+              Login
+            </button>
+            <button class="user-button" mat-button (click)="openRegisterModal()">
+              Register
+            </button>
+          </div>
+        </ng-template>
       </article>
+      
+      <!-- Menu Button -->
       <button class="menuButton" mat-icon-button [matMenuTriggerFor]="theMenu">
         <mat-icon>menu</mat-icon>
       </button>
+      
+      <!-- User Menu -->
       <mat-menu #theMenu="matMenu" class="user-actions-menu">
         <ng-container *ngIf="(loggedInUser$ | async) as user; else guestMenu">
           <!-- Logged-in user menu items -->
@@ -67,40 +87,39 @@
             <span>Logout</span>
           </button>
         </ng-container>
+        
+        <!-- Guest user menu template -->
+        <ng-template #guestMenu>
+          <button mat-menu-item (click)="openLoginModal()" aria-label="Log in">
+            <mat-icon>login</mat-icon>
+            <span>Login</span>
+          </button>
+          <button mat-menu-item (click)="openRegisterModal()" aria-label="Register a new account">
+            <mat-icon>person_add</mat-icon>
+            <span>Register</span>
+          </button>
+        </ng-template>
       </mat-menu>
-
-      <!-- Guest user menu template -->
-      <ng-template #guestMenu>
-        <button mat-menu-item (click)="openLoginModal()" aria-label="Log in">
-          <mat-icon>login</mat-icon>
-          <span>Login</span>
-        </button>
-        <button mat-menu-item (click)="openRegisterModal()" aria-label="Register a new account">
-          <mat-icon>person_add</mat-icon>
-          <span>Register</span>
-        </button>
-      </ng-template>
     </div>
   </mat-toolbar>
+  
   <div class="main-content" id="router-container">
     <router-outlet></router-outlet>
   </div>
+  
   <footer class="header-footer {{ bannerDisplayStyle }}">
     <b>{{ footer }}</b>
   </footer>
 </div>
 
-<ng-template #login>
-  <div *ngIf="!(loadingUser$ | async) else loading" style="display: flex;">
-    <button class="user-button" [disabled]="!(isInitialized$ | async)" mat-button
-      (click)="openLoginModal()">Login</button>
-    <button class="user-button" [disabled]="!(isInitialized$ | async)" mat-button
-      (click)="openRegisterModal()">Register</button>
-  </div>
-</ng-template>
-
+<!-- Loading template -->
 <ng-template #loading>
   <div class="loading-container">
-    <span class="visually-hidden">Loading application content...</span>
+    <div class="loading-content">
+      <!-- Optional: Add a spinner or loading animation -->
+      <mat-spinner diameter="40"></mat-spinner>
+      <span class="loading-text">Loading application...</span>
+      <span class="visually-hidden">Loading application content...</span>
+    </div>
   </div>
 </ng-template>

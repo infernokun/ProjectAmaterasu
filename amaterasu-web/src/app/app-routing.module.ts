@@ -11,7 +11,7 @@ import { UsersComponent } from './components/users/users.component';
 import { AppInitGuard } from './guards/app-init.guard';
 import { TeamsComponent } from './components/teams/teams.component';
 import { CTFMainComponent } from './components/app-ctf/ctf/ctf-main/ctf-main.component';
-import { authGuard } from './guards/auth.guard';
+import { authGuard, homeAuthGuard } from './guards/auth.guard';
 import { CTFHomeComponent } from './components/app-ctf/home/home.component';
 import { VMLabBuilderComponent } from './components/app-lab/vm-lab-builder/vm-lab-builder.component';
 
@@ -27,7 +27,7 @@ const routes: Routes = [
   { path: 'code', component: CodeBlockComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'team-log', component: TeamAuditLogComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'log', component: AuditLogComponent, canActivate: [AppInitGuard, authGuard] },
-  { path: 'home', component: HomeComponent, canActivate: [AppInitGuard] },
+  { path: 'home', component: HomeComponent, canActivate: [AppInitGuard, homeAuthGuard] },
   { path: 'init', component: AppInitComponent },
   {
     path: '',

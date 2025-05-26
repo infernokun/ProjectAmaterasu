@@ -154,7 +154,7 @@ export class RegisterComponent implements OnInit, OnDestroy {
     this.busy = true;
     const { username, password, email } = this.registerForm.value;
     
-    this.loginService.register(username, password, email)
+    this.loginService.register(username, password)
       .pipe(
         finalize(() => this.busy = false),
         takeUntil(this.destroy$)

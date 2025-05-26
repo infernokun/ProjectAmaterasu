@@ -1,77 +1,170 @@
-import { Injectable } from '@angular/core';
-import { BehaviorSubject, catchError, concatMap, filter, map, Observable, of, switchMap, take } from 'rxjs';
-import { CanActivate, Router } from '@angular/router';
-import { LoginService } from './login.service';
+import { Injectable, OnDestroy } from '@angular/core';
+import { BehaviorSubject, Observable, of, timer } from 'rxjs';
+import { switchMap, catchError, map, take, filter, retry, timeout } from 'rxjs/operators';
+import { Router } from '@angular/router';
 import { User } from '../models/user.model';
-import { LoginResponseDTO } from '../models/dto/login-response.dto.model';
 import { ApiResponse } from '../models/api-response.model';
+import { LoginResponseDTO } from '../models/dto/login-response.dto.model';
+import { LoginService } from './login.service';
 import { UserService } from './user.service';
 
 export interface UserPayload {
   user: User;
-  token: string;
+  accessToken: string;
+  refreshToken: string;
 }
 
 @Injectable({
   providedIn: 'root'
 })
-export class AuthService {
+export class AuthService implements OnDestroy {
   private payloadSubject: BehaviorSubject<UserPayload | undefined> = new BehaviorSubject<UserPayload | undefined>(undefined);
   public payload$: Observable<UserPayload | undefined> = this.payloadSubject.asObservable();
 
   private userSubject: BehaviorSubject<User | undefined> = new BehaviorSubject<User | undefined>(undefined);
   public user$: Observable<User | undefined> = this.userSubject.asObservable();
 
-  private loadingSubject: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(true);
+  private loadingSubject: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   public loading$: Observable<boolean> = this.loadingSubject.asObservable();
 
-  constructor(private loginService: LoginService, private router: Router, private userService: UserService) { }
+  // Add refresh state management
+  private isRefreshing = false;
+  private refreshTokenSubject: BehaviorSubject<string | null> = new BehaviorSubject<string | null>(null);
+
+  // Token storage keys
+  private readonly ACCESS_TOKEN_KEY = 'accessToken';
+  private readonly REFRESH_TOKEN_KEY = 'refreshToken';
+  private readonly TOKEN_REFRESH_BUFFER = 2 * 60 * 1000; // 2 minutes before expiry
+
+  private lastActivityTime: number = Date.now();
+  private refreshCheckInterval: any;
+  private readonly ACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+  private readonly REFRESH_CHECK_INTERVAL = 60 * 1000; // Check every minute when active
+
+  constructor(
+    private loginService: LoginService, 
+    private router: Router, 
+    private userService: UserService
+  ) {
+    this.startSmartTokenRefresh();
+    this.trackUserActivity();
+  }
+
+  ngOnDestroy(): void {
+    if (this.refreshCheckInterval) {
+      clearInterval(this.refreshCheckInterval);
+    }
+  }
+
+  private startSmartTokenRefresh(): void {
+    console.log('Starting smart token refresh system');
+    
+    this.refreshCheckInterval = setInterval(() => {
+      this.checkTokenRefreshNeeded();
+    }, this.REFRESH_CHECK_INTERVAL);
+  }
+
+  private checkTokenRefreshNeeded(): void {
+    // Only check if user has been active recently
+    const timeSinceActivity = Date.now() - this.lastActivityTime;
+    if (timeSinceActivity > this.ACTIVITY_TIMEOUT) {
+      console.log('User inactive for', Math.floor(timeSinceActivity / 1000 / 60), 'minutes, skipping token check');
+      return;
+    }
+
+    // Only check if page is visible (not a background tab)
+    if (document.hidden) {
+      console.log('Page is hidden, skipping token check');
+      return;
+    }
+
+    const accessToken = this.getStoredAccessToken();
+    if (!accessToken) {
+      return;
+    }
+
+    const decodedToken = this.decodeToken(accessToken);
+    if (!decodedToken) {
+      return;
+    }
+
+    // Only refresh if close to expiry AND user is active
+    if (this.isTokenCloseToExpiry(decodedToken) && !this.isRefreshing) {
+      console.log('Proactive token refresh triggered (user active)');
+      this.performTokenRefresh().subscribe({
+        next: (success) => console.log('Proactive refresh result:', success),
+        error: (error) => console.error('Proactive refresh failed:', error)
+      });
+    }
+  }
+
+  private trackUserActivity(): void {
+    // Track user activity to determine if they're actively using the app
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    const updateActivity = () => {
+      this.lastActivityTime = Date.now();
+    };
+
+    // Add throttling to avoid excessive updates
+    let throttleTimer: any;
+    const throttledUpdate = () => {
+      if (throttleTimer) return;
+      throttleTimer = setTimeout(() => {
+        updateActivity();
+        throttleTimer = null;
+      }, 30000); // Update at most once per 30 seconds
+    };
+
+    activityEvents.forEach(event => {
+      document.addEventListener(event, throttledUpdate, true);
+    });
+  }
 
   isAuthenticated(): Observable<boolean> {
-    const token = localStorage.getItem('jwt');
+    const accessToken = this.getStoredAccessToken();
+    const refreshToken = this.getStoredRefreshToken();
 
-    if (!token) {
-      // No token found, return false immediately
+    // No tokens at all
+    if (!accessToken && !refreshToken) {
+      this.clearAuthState();
       return of(false);
     }
 
-    const decodedToken = this.decodeToken(token);
-    if (!decodedToken || !decodedToken.exp || decodedToken.exp * 1000 <= Date.now()) {
-      // Token expired, attempt revalidation
-      console.log('Token found and expired, revalidating...');
-      return this.revalidateToken(token).pipe(
-        catchError(() => of(false)) // If revalidation fails, return false
-      );
+    // Have refresh token but no access token - try to refresh
+    if (!accessToken && refreshToken) {
+      console.log('No access token, attempting refresh...');
+      return this.performTokenRefresh();
     }
 
-    console.log('Token found and active');
+    // Have access token - validate it
+    const decodedToken = this.decodeToken(accessToken!);
+    if (!decodedToken || !this.isTokenStructureValid(decodedToken)) {
+      console.log('Invalid access token structure');
+      this.clearAuthState();
+      return of(false);
+    }
 
-    // Fetch user details from the server
-    return this.userService.getUserById(decodedToken.sub).pipe(
-      switchMap((user: User | undefined) => {
-        if (!user) {
-          return of(false);
-        }
+    // Check if access token is expired
+    if (this.isTokenExpired(decodedToken)) {
+      console.log('Access token expired, attempting refresh...');
+      return this.performTokenRefresh();
+    }
 
-        const payload: UserPayload = {
-          user: user,
-          token: token
-        };
-
-        // Check if token is still valid from the server
-        return this.checkTokenValidity(token, payload);
-      }),
-      catchError(() => of(false)) // Catch any errors and return false
-    );
+    console.log('Access token valid, setting up auth state...');
+    return this.setupAuthFromValidToken(accessToken!, decodedToken);
   }
 
-  setPayload(user: User, jwt: string): void {
+  setPayload(user: User, accessToken: string, refreshToken: string): void {
     const payload: Readonly<UserPayload> = {
       user: user,
-      token: jwt
+      accessToken: accessToken,
+      refreshToken: refreshToken
     };
     this.payloadSubject.next(payload);
     this.userSubject.next(user);
+    this.storeTokens(accessToken, refreshToken);
+    this.setLoading(false);
   }
 
   setLoading(loading: boolean): void {
@@ -80,119 +173,226 @@ export class AuthService {
 
   private decodeToken(token: string): any {
     try {
-      // Decode the JWT token
+      if (!token || token.split('.').length !== 3) {
+        return null;
+      }
       const payload = JSON.parse(atob(token.split('.')[1]));
       return payload;
     } catch (error) {
+      console.warn('Failed to decode token:', error);
       return null;
     }
   }
 
-  public revalidateToken(token: string): Observable<boolean> {
-    const decodedToken = this.decodeToken(token);
+  private isTokenStructureValid(decodedToken: any): boolean {
+    return decodedToken && 
+           typeof decodedToken.exp === 'number' && 
+           typeof decodedToken.sub === 'string' &&
+           decodedToken.exp > 0;
+  }
 
-    if (!decodedToken || !decodedToken.exp || decodedToken.exp * 1000 >= Date.now()) {
-      return of(false); // Token is still valid, no revalidation needed
+  private isTokenExpired(decodedToken: any): boolean {
+    return decodedToken.exp * 1000 <= Date.now();
+  }
+
+  private isTokenCloseToExpiry(decodedToken: any): boolean {
+    const currentTime = Date.now();
+    const expiryTime = decodedToken.exp * 1000;
+    const timeUntilExpiry = expiryTime - currentTime;
+    
+    console.log('Time until expiry (minutes):', timeUntilExpiry / (1000 * 60));
+    
+    return timeUntilExpiry <= this.TOKEN_REFRESH_BUFFER;
+  }
+
+  private setupAuthFromValidToken(accessToken: string, decodedToken: any): Observable<boolean> {
+    const refreshToken = this.getStoredRefreshToken();
+    if (!refreshToken) {
+      console.log('Missing refresh token');
+      this.clearAuthState();
+      return of(false);
     }
 
-    console.log('Token expired, revalidating...');
+    // Always fetch full user object from server using ID in token
+    console.log('Fetching full user data from server for user ID:', decodedToken.sub);
+    return this.userService.getUserById(decodedToken.sub).pipe(
+      map((user: User | undefined) => {
+        if (!user) {
+          console.log('User not found on server for ID:', decodedToken.sub);
+          this.clearAuthState();
+          return false;
+        }
+        console.log('Full user data retrieved:', user);
+        this.setPayload(user, accessToken, refreshToken);
+        return true;
+      }),
+      catchError((error) => this.handleAuthError('Failed to fetch user', error))
+    );
+  }
 
-    return this.loginService.loginWithToken(token).pipe(
-      concatMap((response: ApiResponse<LoginResponseDTO>) => {
-        if (!response || !response.data?.jwt) {
-          console.error('Token revalidation failed at loginWithToken');
-          localStorage.removeItem('jwt');
-          return of(false);
+  private performTokenRefresh(): Observable<boolean> {
+    const refreshToken = this.getStoredRefreshToken();
+    if (!refreshToken) {
+      console.log('No refresh token available');
+      this.clearAuthState();
+      return of(false);
+    }
+
+    // Prevent multiple simultaneous refresh attempts
+    if (this.isRefreshing) {
+      return this.refreshTokenSubject.pipe(
+        filter(newToken => newToken !== null),
+        take(1),
+        map(newToken => !!newToken)
+      );
+    }
+
+    this.isRefreshing = true;
+    this.refreshTokenSubject.next(null);
+    this.setLoading(true);
+
+    return this.loginService.refreshToken(refreshToken).pipe(
+      switchMap((response: ApiResponse<LoginResponseDTO>) => {
+        if (!response?.data?.accessToken || !response?.data?.refreshToken) {
+          throw new Error('Invalid refresh response');
         }
 
-        const newToken = response.data.jwt;
-        const newDecodedToken = this.decodeToken(newToken);
-
-        if (!newDecodedToken || !newDecodedToken.sub) {
-          console.error('Invalid token after revalidation');
-          localStorage.removeItem('jwt');
-          return of(false);
+        const newAccessToken = response.data.accessToken;
+        const newRefreshToken = response.data.refreshToken;
+        
+        const decodedToken = this.decodeToken(newAccessToken);
+        if (!decodedToken || !this.isTokenStructureValid(decodedToken)) {
+          throw new Error('Invalid refreshed access token');
         }
 
-        // Fetch updated user data
-        return this.userService.getUserById(newDecodedToken.sub).pipe(
+        // Always fetch full user data from server instead of using response.data.user
+        console.log('Token refreshed, fetching full user data for ID:', decodedToken.sub);
+        return this.userService.getUserById(decodedToken.sub).pipe(
           map((user: User | undefined) => {
             if (!user) {
-              console.error('Token revalidation failed at getUserById');
-              localStorage.removeItem('jwt');
-              return false;
+              throw new Error('User not found after token refresh');
             }
-
-            const payload: UserPayload = {
-              user: user,
-              token: newToken // Use new token from response
-            };
-
-            this.payloadSubject.next(payload);
-            this.userSubject.next(user);
-            localStorage.setItem('jwt', newToken);
-            return true; // Token revalidation successful
-          }),
-          catchError(() => {
-            localStorage.removeItem('jwt');
-            return of(false);
+            
+            console.log('Full user data retrieved after refresh:', user);
+            this.setPayload(user, newAccessToken, newRefreshToken);
+            this.refreshTokenSubject.next(newAccessToken);
+            this.isRefreshing = false;
+            
+            console.log('Token refreshed successfully');
+            return true;
           })
         );
       }),
-      catchError(() => {
-        localStorage.removeItem('jwt');
-        return of(false);
+      catchError((error) => {
+        this.isRefreshing = false;
+        this.refreshTokenSubject.next(null);
+        return this.handleAuthError('Token refresh failed', error);
+      }),
+      retry({
+        count: 2,
+        delay: (error, retryCount) => {
+          console.log(`Token refresh retry ${retryCount}/2`);
+          return timer(1000 * retryCount);
+        }
       })
     );
   }
 
-
-  private checkTokenValidity(token: string, payload: UserPayload): Observable<boolean> {
-    return this.loginService.checkToken(token).pipe(
-      switchMap(answer => {
-        if (answer) {
-          this.payloadSubject.next(payload);
-          this.userSubject.next(payload.user);
-
-          console.log('Token database check complete');
-          return of(true); // Token is valid
-        } else {
-          return of(false); // Token is invalid
-        }
-      }),
-      catchError(() => of(false)) // If checking token validity fails, return false
-    );
-  }
-
   logout(): void {
-    this.payload$
-      .pipe(
-        take(1),
-        filter((payload: UserPayload | undefined) => !!payload)
-      )
-      .subscribe((payload: UserPayload | undefined) => {
-        if (!payload) {
-          return;
-        }
-        console.log('Logging out user: ', payload);
-        this.loginService.logout(payload.user.id!).subscribe(
-          () => {
-            localStorage.removeItem('jwt');
-            this.payloadSubject.next(undefined);
-            this.userSubject.next(undefined);
-            this.router.navigate(['/']);
-            console.log('Logout successful');
-          },
-          error => {
-            console.error('Logout failed:', error);
-          }
-        );
+    this.setLoading(true);
+    
+    const refreshToken = this.getStoredRefreshToken();
+    if (refreshToken) {
+      // Attempt server-side logout with refresh token
+      this.loginService.logout(refreshToken).pipe(
+        timeout(5000),
+        catchError((error) => {
+          console.warn('Server logout failed, proceeding with local logout:', error);
+          return of(null);
+        })
+      ).subscribe(() => {
+        this.performLogout();
       });
+    } else {
+      this.performLogout();
+    }
   }
 
-  setUser(user: User) {
-    if (this.userSubject.value?.id == user.id) {
+  private performLogout(): void {
+    this.clearAuthState();
+    this.router.navigate(['/login']);
+    console.log('Logout completed');
+  }
+
+  private clearAuthState(): void {
+    this.removeStoredTokens();
+    this.payloadSubject.next(undefined);
+    this.userSubject.next(undefined);
+    this.setLoading(false);
+    this.isRefreshing = false;
+    this.refreshTokenSubject.next(null);
+  }
+
+  private handleAuthError(message: string, error?: any): Observable<boolean> {
+    console.error(`Auth error: ${message}`, error);
+    this.clearAuthState();
+    return of(false);
+  }
+
+  setUser(user: User): void {
+    const currentUser = this.userSubject.value;
+    if (currentUser?.id === user.id) {
       this.userSubject.next(user);
+      
+      // Update payload with new user data while keeping the same tokens
+      const currentPayload = this.payloadSubject.value;
+      if (currentPayload) {
+        this.payloadSubject.next({
+          ...currentPayload,
+          user: user
+        });
+      }
     }
+  }
+
+  // Helper methods for token storage
+  private getStoredAccessToken(): string | null {
+    return localStorage.getItem(this.ACCESS_TOKEN_KEY);
+  }
+
+  private getStoredRefreshToken(): string | null {
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+  }
+
+  private storeTokens(accessToken: string, refreshToken: string): void {
+    localStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
+    localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
+  }
+
+  private removeStoredTokens(): void {
+    localStorage.removeItem(this.ACCESS_TOKEN_KEY);
+    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+  }
+
+  // Public method to get current access token (for HTTP interceptors)
+  public getAccessToken(): string | null {
+    return this.getStoredAccessToken();
+  }
+
+  // Public method to manually refresh token
+  public forceTokenRefresh(): Observable<boolean> {
+    return this.performTokenRefresh();
+  }
+
+  // Check if user has specific role
+  public hasRole(role: string): Observable<boolean> {
+    return this.payload$.pipe(
+      map(payload => {
+        if (!payload?.accessToken) return false;
+        const decodedToken = this.decodeToken(payload.accessToken);
+        const roles = decodedToken?.roles || '';
+        return roles.split(' ').includes(`ROLE_${role}`);
+      })
+    );
   }
 }

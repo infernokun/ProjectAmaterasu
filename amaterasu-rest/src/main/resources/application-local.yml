@@ -60,3 +60,7 @@ logging:
   level:
     org.hibernate: WARN
     org.hibernate.orm.connections.pooling: ERROR
+
+rsa:
+  private-key: file:${RSA_PRIVATE_KEY_PATH:certs/private.pem}
+  public-key: file:${RSA_PUBLIC_KEY_PATH:certs/public.pem}

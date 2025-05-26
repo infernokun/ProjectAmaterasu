@@ -122,7 +122,7 @@ export class UsersComponent implements OnInit {
 
   onFirstDataRendered(params: FirstDataRenderedEvent) {
     console.log('First data rendered');
-    params.api.sizeColumnsToFit();
+    params.api.autoSizeAllColumns();
   }
 
   getColumnDefs(): ColDef[] {
@@ -152,7 +152,7 @@ export class UsersComponent implements OnInit {
         sort: 'asc',
         width: 80,
         minWidth: 60,
-        maxWidth: 120,
+        maxWidth: 300,
         resizable: true,
         suppressMovable: false,
         filter: 'agNumberColumnFilter',
@@ -178,7 +178,7 @@ export class UsersComponent implements OnInit {
         },
         width: 150,
         minWidth: 120,
-        maxWidth: 250,
+        maxWidth: 300,
         resizable: true,
         suppressMovable: false,
         filter: 'agTextColumnFilter',
@@ -189,7 +189,7 @@ export class UsersComponent implements OnInit {
         field: 'role',
         width: 120,
         minWidth: 100,
-        maxWidth: 200,
+        maxWidth: 300,
         resizable: true,
         suppressMovable: false,
         filter: 'agTextColumnFilter',

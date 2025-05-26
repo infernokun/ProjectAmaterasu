@@ -1,69 +1,73 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Router } from '@angular/router';
+import { ApiResponse } from '../models/api-response.model';
+import { LoginResponseDTO } from '../models/dto/login-response.dto.model';
 import { EnvironmentService } from './environment.service';
+import { Router } from '@angular/router';
 
 @Injectable({
   providedIn: 'root'
 })
 export class LoginService {
-  private readonly loginUrl: string;
-  private readonly tokenUrl: string;
-
+  
   constructor(
     private environmentService: EnvironmentService,
-    private httpClient: HttpClient,
-    private router: Router) {
-    this.loginUrl = `${this.environmentService.settings?.restUrl}/auth/login`;
-    this.tokenUrl = `${this.environmentService.settings?.restUrl}/auth/token`;
+    private http: HttpClient,
+    private router: Router
+  ) { }
+
+  // Use getters to evaluate URLs at runtime when settings are available
+  private get loginUrl(): string {
+    return `${this.environmentService.settings?.restUrl}/auth/login`;
   }
 
-  public login(username: string, password: string): Observable<any> {
-    const credentials = { username: username, password: password };
-    return this.httpClient.post<any>(this.loginUrl, credentials, {
-      headers: new HttpHeaders(
-        {
-          'Content-Type': 'application/json'
-        }
-      )
+  private get registerUrl(): string {
+    return `${this.environmentService.settings?.restUrl}/auth/register`;
+  }
+
+  private get refreshUrl(): string {
+    return `${this.environmentService.settings?.restUrl}/auth/refresh`;
+  }
+
+  private get validateRefreshUrl(): string {
+    return `${this.environmentService.settings?.restUrl}/auth/refresh/validate`;
+  }
+
+  private get logoutUrl(): string {
+    return `${this.environmentService.settings?.restUrl}/auth/logout`;
+  }
+
+  login(username: string, password: string): Observable<ApiResponse<LoginResponseDTO>> {
+    return this.http.post<ApiResponse<LoginResponseDTO>>(this.loginUrl, {
+      username,
+      password
     });
   }
 
-  public loginWithToken(token: string): Observable<any> {
-    return this.httpClient.post<any>(this.tokenUrl, token, {
-      headers: new HttpHeaders(
-        {
-          'Content-Type': 'application/json',
-          'skip': "true"
-        }
-      )
-    });
-  }
-  public logout(username: string): Observable<any> {
-    console.log('logout....')
-    return this.httpClient.delete<any>(`${this.tokenUrl}/logout/${username}`);
-  }
-
-  public checkToken(token: string): Observable<any> {
-    return this.httpClient.post<any>(`${this.tokenUrl}/check`, token, {
-      headers: new HttpHeaders(
-        {
-          'Content-Type': 'application/json'
-        }
-      )
+  register(username: string, password: string): Observable<ApiResponse<boolean>> {
+    return this.http.post<ApiResponse<boolean>>(this.registerUrl, {
+      username,
+      password
     });
   }
 
-  public register(username: string, password: string, email: string): Observable<any> {
-    const credentials = { username: username, password: password, email: email };
-    return this.httpClient.post<any>(`${this.environmentService.settings?.restUrl}/auth/register`, credentials, {
-      headers: new HttpHeaders(
-        {
-          'Content-Type': 'application/json'
-        }
-      ),
-      responseType: 'text' as 'json'
+  refreshToken(refreshToken: string): Observable<ApiResponse<LoginResponseDTO>> {
+    console.log('Refresh URL:', this.refreshUrl); // Debug log
+    return this.http.post<ApiResponse<LoginResponseDTO>>(this.refreshUrl, {
+      refreshToken
+    });
+  }
+
+  validateRefreshToken(refreshToken: string): Observable<ApiResponse<boolean>> {
+    return this.http.post<ApiResponse<boolean>>(this.validateRefreshUrl, {
+      refreshToken
+    });
+  }
+
+  logout(refreshToken: string): Observable<ApiResponse<string>> {
+    return this.http.post<ApiResponse<string>>(this.logoutUrl, {
+      refreshToken
     });
   }
 }

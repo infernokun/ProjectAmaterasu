@@ -1,6 +1,7 @@
 package com.infernokun.amaterasu.utils;
 
 import com.infernokun.amaterasu.models.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -15,5 +16,15 @@ public class AmaterasuConstants {
                         .message(message)
                         .data(data)
                         .build());
+    }
+
+    public static String extractTokenFromRequest(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7); // Remove "Bearer " prefix
+        }
+
+        return null;
     }
 }

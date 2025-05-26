@@ -14,6 +14,9 @@ public class AmaterasuLogger implements Filter {
 
     private static final String REQUEST_ID_ATTRIBUTE = "requestId";
     private static final String START_TIME_ATTRIBUTE = "startTime";
+    private static final String SEPARATOR = " | ";
+    private static final String REQUEST_PREFIX = "→ REQ";
+    private static final String RESPONSE_PREFIX = "← RES";
 
     private final Set<String> excludedUrls = Set.of(
             "/health",
@@ -63,16 +66,20 @@ public class AmaterasuLogger implements Filter {
 
     private void logIncomingRequest(HttpServletRequest request, String requestId) {
         String clientIp = getClientIpAddress(request);
-        String userAgent = request.getHeader("User-Agent");
+        String userAgent = getUserAgentShort(request.getHeader("User-Agent"));
         String referer = request.getHeader("Referer");
 
-        log.info("REQUEST [{}] {} {} from {} | User-Agent: {} | Referer: {}",
+        log.info("{} [{}]{}{}{}{}{}{}{}{}",
+                REQUEST_PREFIX,
                 requestId,
+                SEPARATOR,
                 request.getMethod(),
-                buildFullRequestUrl(request),
+                SEPARATOR,
+                formatUrl(request),
+                SEPARATOR,
                 clientIp,
-                userAgent != null ? userAgent : "N/A",
-                referer != null ? referer : "N/A"
+                formatOptionalField("Agent", userAgent),
+                formatOptionalField("Ref", referer)
         );
     }
 
@@ -83,50 +90,120 @@ public class AmaterasuLogger implements Filter {
         String clientIp = getClientIpAddress(request);
 
         if (exception != null) {
-            log.error("RESPONSE [{}] {} {} from {} | Status: ERROR | Duration: {}ms | Error: {}",
+            log.error("{} [{}]{}{}{}{}{}{}{}{}{}",
+                    RESPONSE_PREFIX,
                     requestId,
+                    SEPARATOR,
                     request.getMethod(),
-                    buildFullRequestUrl(request),
+                    SEPARATOR,
+                    formatUrl(request),
+                    SEPARATOR,
                     clientIp,
-                    duration,
-                    exception.getMessage()
+                    SEPARATOR,
+                    formatStatus("ERROR", true),
+                    formatDuration(duration) + formatError(exception.getMessage())
             );
         } else {
             int status = response.getStatus();
-            String logLevel = status >= 400 ? "WARN" : "INFO";
+            boolean isError = status >= 400;
 
-            if (status >= 400) {
-                log.warn("RESPONSE [{}] {} {} from {} | Status: {} | Duration: {}ms",
+            if (isError) {
+                log.warn("{} [{}]{}{}{}{}{}{}{}{}",
+                        RESPONSE_PREFIX,
                         requestId,
+                        SEPARATOR,
                         request.getMethod(),
-                        buildFullRequestUrl(request),
+                        SEPARATOR,
+                        formatUrl(request),
+                        SEPARATOR,
                         clientIp,
-                        status,
-                        duration
+                        SEPARATOR,
+                        formatStatus(String.valueOf(status), true) + formatDuration(duration)
                 );
             } else {
-                log.info("RESPONSE [{}] {} {} from {} | Status: {} | Duration: {}ms",
+                log.info("{} [{}]{}{}{}{}{}{}{}{}",
+                        RESPONSE_PREFIX,
                         requestId,
+                        SEPARATOR,
                         request.getMethod(),
-                        buildFullRequestUrl(request),
+                        SEPARATOR,
+                        formatUrl(request),
+                        SEPARATOR,
                         clientIp,
-                        status,
-                        duration
+                        SEPARATOR,
+                        formatStatus(String.valueOf(status), false) + formatDuration(duration)
                 );
             }
         }
     }
 
-    private String buildFullRequestUrl(HttpServletRequest request) {
-        StringBuilder url = new StringBuilder();
-        url.append(request.getRequestURI());
+    private String formatUrl(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String query = request.getQueryString();
 
-        if (request.getQueryString() != null) {
-            url.append("?").append(request.getQueryString());
+        if (query != null) {
+            return uri + "?" + query;
+        }
+        return uri;
+    }
+
+    private String formatStatus(String status, boolean isError) {
+        if (isError) {
+            return String.format("Status: %-5s", status);
+        }
+        return String.format("Status: %-3s", status);
+    }
+
+    private String formatDuration(long duration) {
+        String durationStr;
+        if (duration < 1000) {
+            durationStr = duration + "ms";
+        } else if (duration < 60000) {
+            durationStr = String.format("%.2fs", duration / 1000.0);
+        } else {
+            durationStr = String.format("%.1fm", duration / 60000.0);
+        }
+        return SEPARATOR + String.format("⏱ %-8s", durationStr);
+    }
+
+    private String formatOptionalField(String label, String value) {
+        if (value != null && !value.trim().isEmpty() && !"N/A".equals(value)) {
+            return SEPARATOR + label + ": " + value;
+        }
+        return "";
+    }
+
+    private String formatError(String errorMessage) {
+        if (errorMessage != null && !errorMessage.trim().isEmpty()) {
+            return SEPARATOR + "❌ " + errorMessage;
+        }
+        return "";
+    }
+
+    private String getUserAgentShort(String userAgent) {
+        if (userAgent == null || userAgent.trim().isEmpty()) {
+            return null;
         }
 
-        url.append(" ").append(request.getProtocol());
-        return url.toString();
+        // Extract browser name for cleaner display
+        if (userAgent.contains("Chrome") && !userAgent.contains("Edg")) {
+            return "Chrome";
+        } else if (userAgent.contains("Firefox")) {
+            return "Firefox";
+        } else if (userAgent.contains("Safari") && !userAgent.contains("Chrome")) {
+            return "Safari";
+        } else if (userAgent.contains("Edg")) {
+            return "Edge";
+        } else if (userAgent.contains("Postman")) {
+            return "Postman";
+        } else if (userAgent.contains("curl")) {
+            return "curl";
+        } else if (userAgent.contains("Java")) {
+            return "Java Client";
+        }
+
+        // Return first 20 characters if no known browser
+        return userAgent.length() > 20 ? userAgent.substring(0, 20) + "..." : userAgent;
     }
 
     private String getClientIpAddress(HttpServletRequest request) {
@@ -147,11 +224,11 @@ public class AmaterasuLogger implements Filter {
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
-        log.info("AmaterasuLogger initialized with excluded URLs: {}", excludedUrls);
+        log.info("🚀 AmaterasuLogger initialized | Excluded URLs: {}", excludedUrls);
     }
 
     @Override
     public void destroy() {
-        log.info("AmaterasuLogger destroyed");
+        log.info("🛑 AmaterasuLogger destroyed");
     }
 }
