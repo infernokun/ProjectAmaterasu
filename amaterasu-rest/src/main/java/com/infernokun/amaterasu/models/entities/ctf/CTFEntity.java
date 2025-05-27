@@ -12,12 +12,12 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Getter
 @Setter
-@ToString(exclude = {"flags"})
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "ctf_entity")
@@ -28,16 +28,15 @@ public class CTFEntity extends StoredObject {
     @JoinColumn(name = "room_id")
     private Room room;
     private String description;
-    private List<String> hints;
+    private List<String> hints = new ArrayList<>();
     @OneToMany(mappedBy = "ctfEntity", cascade = CascadeType.ALL)
     @JsonManagedReference
-    @JsonIgnore
-    private List<Flag> flags;
+    private List<Flag> flags = new ArrayList<>();
     private String category;
     private String difficultyLevel;
     private Integer points;
     private String author;
-    private List<String> tags;
+    private List<String> tags = new ArrayList<>();
     private Boolean visible;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
@@ -49,7 +48,7 @@ public class CTFEntity extends StoredObject {
     @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     @JsonSerialize(using = LocalDateTimeSerializer.class)
     private LocalDateTime expirationDate;
-    private List<String> attachments;
+    private List<String> attachments = new ArrayList<>();
     private String solutionExplanation;
-    private List<String> relatedChallengeIds;
+    private List<String> relatedChallengeIds = new ArrayList<>();
 }

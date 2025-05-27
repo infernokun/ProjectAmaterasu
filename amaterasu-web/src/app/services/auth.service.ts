@@ -42,8 +42,8 @@ export class AuthService implements OnDestroy {
   private readonly REFRESH_CHECK_INTERVAL = 60 * 1000; // Check every minute when active
 
   constructor(
-    private loginService: LoginService, 
-    private router: Router, 
+    private loginService: LoginService,
+    private router: Router,
     private userService: UserService
   ) {
     this.startSmartTokenRefresh();
@@ -58,7 +58,7 @@ export class AuthService implements OnDestroy {
 
   private startSmartTokenRefresh(): void {
     console.log('Starting smart token refresh system');
-    
+
     this.refreshCheckInterval = setInterval(() => {
       this.checkTokenRefreshNeeded();
     }, this.REFRESH_CHECK_INTERVAL);
@@ -101,7 +101,7 @@ export class AuthService implements OnDestroy {
   private trackUserActivity(): void {
     // Track user activity to determine if they're actively using the app
     const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    
+
     const updateActivity = () => {
       this.lastActivityTime = Date.now();
     };
@@ -187,10 +187,10 @@ export class AuthService implements OnDestroy {
   }
 
   private isTokenStructureValid(decodedToken: any): boolean {
-    return decodedToken && 
-           typeof decodedToken.exp === 'number' && 
-           typeof decodedToken.sub === 'string' &&
-           decodedToken.exp > 0;
+    return decodedToken &&
+      typeof decodedToken.exp === 'number' &&
+      typeof decodedToken.sub === 'string' &&
+      decodedToken.exp > 0;
   }
 
   private isTokenExpired(decodedToken: any): boolean {
@@ -201,9 +201,9 @@ export class AuthService implements OnDestroy {
     const currentTime = Date.now();
     const expiryTime = decodedToken.exp * 1000;
     const timeUntilExpiry = expiryTime - currentTime;
-    
+
     console.log('Time until expiry (minutes):', timeUntilExpiry / (1000 * 60));
-    
+
     return timeUntilExpiry <= this.TOKEN_REFRESH_BUFFER;
   }
 
@@ -240,7 +240,6 @@ export class AuthService implements OnDestroy {
       return of(false);
     }
 
-    // Prevent multiple simultaneous refresh attempts
     if (this.isRefreshing) {
       return this.refreshTokenSubject.pipe(
         filter(newToken => newToken !== null),
@@ -254,55 +253,44 @@ export class AuthService implements OnDestroy {
     this.setLoading(true);
 
     return this.loginService.refreshToken(refreshToken).pipe(
-      switchMap((response: ApiResponse<LoginResponseDTO>) => {
+      map((response: ApiResponse<LoginResponseDTO>) => {
         if (!response?.data?.accessToken || !response?.data?.refreshToken) {
           throw new Error('Invalid refresh response');
         }
 
         const newAccessToken = response.data.accessToken;
         const newRefreshToken = response.data.refreshToken;
-        
+
         const decodedToken = this.decodeToken(newAccessToken);
         if (!decodedToken || !this.isTokenStructureValid(decodedToken)) {
           throw new Error('Invalid refreshed access token');
         }
 
-        // Always fetch full user data from server instead of using response.data.user
-        console.log('Token refreshed, fetching full user data for ID:', decodedToken.sub);
-        return this.userService.getUserById(decodedToken.sub).pipe(
-          map((user: User | undefined) => {
-            if (!user) {
-              throw new Error('User not found after token refresh');
-            }
-            
-            console.log('Full user data retrieved after refresh:', user);
-            this.setPayload(user, newAccessToken, newRefreshToken);
-            this.refreshTokenSubject.next(newAccessToken);
-            this.isRefreshing = false;
-            
-            console.log('Token refreshed successfully');
-            return true;
-          })
-        );
+        // Use the user data from the refresh response instead of making another API call
+        const user = response.data.user;
+        if (!user) {
+          throw new Error('User data missing from refresh response');
+        }
+
+        console.log('Token refreshed, using user data from response:', user);
+        this.setPayload(user, newAccessToken, newRefreshToken);
+        this.refreshTokenSubject.next(newAccessToken);
+        this.isRefreshing = false;
+
+        console.log('Token refreshed successfully');
+        return true;
       }),
       catchError((error) => {
         this.isRefreshing = false;
         this.refreshTokenSubject.next(null);
         return this.handleAuthError('Token refresh failed', error);
-      }),
-      retry({
-        count: 2,
-        delay: (error, retryCount) => {
-          console.log(`Token refresh retry ${retryCount}/2`);
-          return timer(1000 * retryCount);
-        }
       })
     );
   }
 
   logout(): void {
     this.setLoading(true);
-    
+
     const refreshToken = this.getStoredRefreshToken();
     if (refreshToken) {
       // Attempt server-side logout with refresh token
@@ -345,7 +333,7 @@ export class AuthService implements OnDestroy {
     const currentUser = this.userSubject.value;
     if (currentUser?.id === user.id) {
       this.userSubject.next(user);
-      
+
       // Update payload with new user data while keeping the same tokens
       const currentPayload = this.payloadSubject.value;
       if (currentPayload) {

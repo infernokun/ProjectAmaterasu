@@ -7,6 +7,7 @@ import com.infernokun.amaterasu.services.entity.ApplicationInfoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,6 +17,7 @@ public class ApplicationInfoController extends BaseController {
     private final ApplicationInfoService applicationInfoService;
 
     @GetMapping
+    @PreAuthorize("permitAll()")
     public ResponseEntity<ApiResponse<ApplicationInfo>> getApplicationInfo() {
         ApplicationInfo applicationInfo = applicationInfoService.getApplicationInfo();
         return ResponseEntity.ok(
@@ -28,6 +30,7 @@ public class ApplicationInfoController extends BaseController {
     }
 
     @PostMapping
+    @PreAuthorize("permitAll()")
     public ResponseEntity<ApiResponse<ApplicationInfo>> createApplicationInfo(@RequestBody ApplicationInfo applicationInfo) {
         return ResponseEntity.ok(
                 ApiResponse.<ApplicationInfo>builder()

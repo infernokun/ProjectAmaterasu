@@ -1,9 +1,8 @@
-package com.infernokun.amaterasu.controllers.entity;
+package com.infernokun.amaterasu.controllers.entity.lab;
 
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.dto.RemoteServerDTO;
-import com.infernokun.amaterasu.models.entities.LabTracker;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;

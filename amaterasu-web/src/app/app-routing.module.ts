@@ -18,7 +18,6 @@ import { InitializationComponent } from './components/initialization/initializat
 const routes: Routes = [
   { path: 'challenges', component: CTFHomeComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'room/:room', component: CTFMainComponent, canActivate: [AppInitGuard, authGuard] },
-
   { path: 'vm-lab-builder', component: VMLabBuilderComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'teams', component: TeamsComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'users', component: UsersComponent, canActivate: [AppInitGuard, authGuard] },

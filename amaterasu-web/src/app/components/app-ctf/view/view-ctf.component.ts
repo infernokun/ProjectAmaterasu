@@ -19,12 +19,12 @@ import { User } from '../../../models/user.model';
 export class ViewCTFComponent implements OnInit, OnDestroy {
   viewedChallenge!: CTFEntity;
   answer: string = '';
-  
+
   // State management
   private destroy$ = new Subject<void>();
   private isAnswered = new BehaviorSubject<boolean>(false);
   isAnswered$: Observable<boolean> = this.isAnswered.asObservable();
-  
+
   // Status and feedback
   statusMessage: string = '';
   statusType: 'success' | 'error' | 'warning' | 'info' = 'info';
@@ -55,7 +55,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
    */
   private checkExistingAnswer(): void {
     this.isLoading = true;
-    
+
     this.ctfService.answerChallengeCheck(this.viewedChallenge)
       .pipe(
         takeUntil(this.destroy$),
@@ -64,7 +64,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
             // No previous answer found - this is expected for new challenges
             return of({ data: null } as ApiResponse<any>);
           }
-          
+
           // Handle other errors
           console.error('Error checking challenge status:', error);
           this.showStatus('Failed to load challenge status', 'error');
@@ -90,7 +90,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   private handleExistingAnswerResponse(response: ApiResponse<any>): void {
     if (response.data) {
       this.currentAttempts = response.data.attempts || 0;
-      
+
       if (response.data.correct === true) {
         // Challenge already completed successfully
         this.isAnswered.next(true);
@@ -164,7 +164,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
         error: (error: HttpErrorResponse) => {
           this.isLoading = false;
           console.error('Submit answer error:', error);
-          
+
           if (error.status === 429) {
             this.showStatus('Too many requests. Please wait before trying again.', 'warning');
           } else if (error.status === 400) {

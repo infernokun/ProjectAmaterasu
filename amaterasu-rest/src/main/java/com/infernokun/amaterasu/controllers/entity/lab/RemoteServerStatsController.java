@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.controllers.entity;
+package com.infernokun.amaterasu.controllers.entity.lab;
 
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;

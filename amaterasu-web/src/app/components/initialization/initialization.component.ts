@@ -7,10 +7,10 @@ import { Router } from '@angular/router';
 import { Observable, of } from 'rxjs';
 
 @Component({
-    selector: 'amaterasu-initialization',
-    templateUrl: './initialization.component.html',
-    styleUrls: ['./initialization.component.scss'],
-    standalone: false
+  selector: 'amaterasu-initialization',
+  templateUrl: './initialization.component.html',
+  styleUrls: ['./initialization.component.scss'],
+  standalone: false
 })
 export class InitializationComponent implements OnInit {
   formGroup: FormGroup;
@@ -30,7 +30,8 @@ export class InitializationComponent implements OnInit {
 
   ngOnInit(): void {
     this.isInitialized$ = this.appInitService.isInitialized();
-    this.appInitService.isInitialized().subscribe((initialized: boolean) => {
+    this.isInitialized$.subscribe((initialized: boolean) => {
+      console.log('Initialization status helpppp:', initialized);
       if (initialized) {
         this.ngZone.run(() => {
           this.router.navigate(['/home']);

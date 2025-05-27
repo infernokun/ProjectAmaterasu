@@ -7,8 +7,10 @@ import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
 import com.infernokun.amaterasu.models.entities.ctf.Flag;
 import com.infernokun.amaterasu.repositories.ctf.FlagRepository;
 import com.infernokun.amaterasu.services.entity.UserService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -27,15 +29,15 @@ public class FlagService {
     }
 
     public boolean validateFlag(FlagAnswer flagAnswer) {
-        CTFEntity ctfEntity =  this.ctfEntityService.findCTFEntityByIdWithFlags(flagAnswer.getQuestionId());
+        List<Flag> challengeFlags = getFlagsByCtfEntityId(flagAnswer.getQuestionId());
 
-        return ctfEntity.getFlags().stream().map(Flag::getFlag)
+        return challengeFlags.stream().map(Flag::getFlag)
                 .anyMatch(flag -> flag.equals(flagAnswer.getFlag()));
     }
 
     public AnsweredCTFEntity addAnsweredCTFEntity(String userId, FlagAnswer flagAnswer, boolean correct) {
         User user = this.userService.findUserById(userId);
-        CTFEntity ctfEntity = this.ctfEntityService.findCTFEntityById(flagAnswer.getQuestionId());
+        CTFEntity ctfEntity = this.ctfEntityService.findCTFEntityByIdWithFlags(flagAnswer.getQuestionId());
 
         AnsweredCTFEntity answeredCTFEntity = answeredCTFEntityService
                 .findByUserIdAndCtfEntityIdOptional(user.getId(), ctfEntity.getId())

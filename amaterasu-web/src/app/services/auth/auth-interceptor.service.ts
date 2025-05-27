@@ -9,7 +9,7 @@ export class AuthInterceptor implements HttpInterceptor {
   private isRefreshing = false;
   private refreshTokenSubject: BehaviorSubject<any> = new BehaviorSubject<any>(null);
 
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService) { }
 
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
     // Skip adding auth header for auth endpoints
@@ -41,31 +41,42 @@ export class AuthInterceptor implements HttpInterceptor {
   }
 
   private isAuthEndpoint(url: string): boolean {
-    return url.includes('/api/auth/');
+    return url.includes('/api/auth/') || url.includes('/api/application-info');
   }
 
   private handle401Error(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+    console.log('🔄 Handling 401 error for:', request.url);
+    console.log('🔄 isRefreshing:', this.isRefreshing);
+
     if (!this.isRefreshing) {
       this.isRefreshing = true;
       this.refreshTokenSubject.next(null);
 
+      console.log('🔄 Starting token refresh...');
+
       return this.authService.forceTokenRefresh().pipe(
         switchMap((success: boolean) => {
+          console.log('🔄 Token refresh result:', success);
           this.isRefreshing = false;
+
           if (success) {
             const newAccessToken = this.authService.getAccessToken();
+            console.log('🔄 New access token available:', !!newAccessToken);
             this.refreshTokenSubject.next(newAccessToken);
-            
+
             if (newAccessToken) {
+              console.log('🔄 Retrying original request with new token for:', request.url);
               return next.handle(this.addTokenHeader(request, newAccessToken));
             }
           }
-          
+
+          console.log('🔄 Refresh failed, logging out');
           // Refresh failed, redirect to login
           this.authService.logout();
           return throwError(() => new Error('Token refresh failed'));
         }),
         catchError((error) => {
+          console.log('🔄 Token refresh error:', error);
           this.isRefreshing = false;
           this.authService.logout();
           return throwError(() => error);
@@ -73,11 +84,15 @@ export class AuthInterceptor implements HttpInterceptor {
       );
     }
 
+    console.log('⏳ Refresh in progress, queuing request for:', request.url);
     // If refresh is in progress, wait for it to complete
     return this.refreshTokenSubject.pipe(
       filter(token => token !== null),
       take(1),
-      switchMap((token) => next.handle(this.addTokenHeader(request, token)))
+      switchMap((token) => {
+        console.log('⏳ Retrying queued request with token for:', request.url, 'Token available:', !!token);
+        return next.handle(this.addTokenHeader(request, token));
+      })
     );
   }
 }

@@ -1,11 +1,11 @@
 package com.infernokun.amaterasu.controllers.entity;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.infernokun.amaterasu.controllers.entity.lab.RemoteServerStatsController;
 import com.infernokun.amaterasu.exceptions.GlobalExceptionHandler;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.RemoteServer;
 import com.infernokun.amaterasu.models.entities.RemoteServerStats;
-import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.services.entity.RemoteServerStatsService;
 import org.junit.jupiter.api.BeforeEach;

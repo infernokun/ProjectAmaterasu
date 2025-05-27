@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.controllers.entity;
+package com.infernokun.amaterasu.controllers.entity.lab;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;

@@ -29,6 +29,8 @@ export class AppComponent implements OnInit, OnDestroy {
   showAuthButtons$: Observable<boolean>;
   Role = Role;
 
+  initializationComplete$: Observable<boolean> | undefined;
+
   private unsubscribe$ = new Subject<void>();
 
   constructor(
@@ -37,6 +39,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private appInitService: AppInitService,
   ) {
     this.loggedInUser$ = this.authService.user$;
+    this.initializationComplete$ = this.appInitService.initializationComplete$;
 
     // Auth loading state - true when checking authentication
     this.isAuthLoading$ = combineLatest([
@@ -49,7 +52,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // App ready when initialization is complete AND auth check is done
     this.isAppReady$ = combineLatest([
-      this.appInitService.initializationComplete$.pipe(
+      this.initializationComplete$.pipe(
         map(() => true),
         startWith(false)
       ),
@@ -71,7 +74,7 @@ export class AppComponent implements OnInit, OnDestroy {
     // Remove the explicit checkAuthentication() call
     // Let the AuthService handle authentication automatically
     console.log('AppComponent initialized - AuthService will handle authentication');
-    
+
     this.authService.user$.pipe(
       takeUntil(this.unsubscribe$)
     ).subscribe((user) => {

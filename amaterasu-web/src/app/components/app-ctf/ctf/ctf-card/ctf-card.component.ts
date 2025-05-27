@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewEncapsulation } from '@angular/core';
 import { Subject, takeUntil, switchMap, filter, tap, catchError, of, EMPTY, Observable } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
 import { ApiResponse } from '../../../../models/api-response.model';
@@ -8,14 +8,21 @@ import { CTFService } from '../../../../services/ctf/ctf.service';
 import { WebsocketService } from '../../../../services/websocket.service';
 import { EditDialogService } from '../../../../services/edit-dialog.service';
 
+interface CategoryGroup {
+  category: string;
+  challenges: CTFEntity[];
+}
+
 @Component({
   selector: 'amaterasu-ctf-card',
   templateUrl: './ctf-card.component.html',
   styleUrl: './ctf-card.component.scss',
+  encapsulation: ViewEncapsulation.None,
   standalone: false
 })
 export class CTFCardComponent implements OnInit, OnDestroy {
   public challenges: CTFEntity[] = [];
+  public categorizedChallenges: CategoryGroup[] = [];
   public busy = false;
   public error: string | null = null;
 
@@ -24,6 +31,8 @@ export class CTFCardComponent implements OnInit, OnDestroy {
 
   // Subject for handling component destruction
   private destroy$ = new Subject<void>();
+
+  private difficultyOrder = { 'easy': 1, 'medium': 2, 'hard': 3 };
 
   constructor(
     private ctfService: CTFService,
@@ -53,21 +62,19 @@ export class CTFCardComponent implements OnInit, OnDestroy {
       console.log('Auth loading state:', loading);
     });
 
-    // Wait for auth to complete, then get room param and fetch challenges
-    this.authService.loading$
+    this.authService.isAuthenticated()
       .pipe(
-        filter(loading => !loading), // Wait until auth is not loading
-        switchMap(() => this.route.params), // Switch to route params
-        filter(params => !!params['room']), // Only proceed if room param exists
-        tap(params => console.log('Route params:', params)),
+        filter(isAuth => isAuth === true),
+        switchMap(() => this.route.params),
+        filter(params => !!params['room']),
         switchMap(params => this.loadChallenges(params['room'])),
         takeUntil(this.destroy$)
       )
       .subscribe({
         next: (challenges) => {
           this.challenges = challenges;
+          this.categorizedChallenges = this.categorizeAndSortChallenges(challenges);
           this.busy = false;
-          console.log('CTF Entities loaded:', challenges);
         },
         error: (error) => {
           console.error('Error loading challenges:', error);
@@ -94,6 +101,40 @@ export class CTFCardComponent implements OnInit, OnDestroy {
           response.data ? of(response.data) : EMPTY
         )
       );
+  }
+  private categorizeAndSortChallenges(challenges: CTFEntity[]): CategoryGroup[] {
+    // Group challenges by category
+    const grouped = challenges.reduce((acc, challenge) => {
+      const category = challenge.category || 'Uncategorized';
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(challenge);
+      return acc;
+    }, {} as { [key: string]: CTFEntity[] });
+
+    // Convert to array and sort
+    return Object.keys(grouped)
+      .sort() // Sort categories alphabetically
+      .map(category => ({
+        category,
+        challenges: grouped[category].sort((a, b) => {
+          // Sort by difficulty first (easy -> medium -> hard)
+          const diffA = this.difficultyOrder[a.difficultyLevel?.toLowerCase() as keyof typeof this.difficultyOrder] || 999;
+          const diffB = this.difficultyOrder[b.difficultyLevel?.toLowerCase() as keyof typeof this.difficultyOrder] || 999;
+
+          if (diffA !== diffB) {
+            return diffA - diffB;
+          }
+
+          // Then sort by points (ascending)
+          return (a.points || 0) - (b.points || 0);
+        })
+      }));
+  }
+
+  public getTotalChallenges(): number {
+    return this.categorizedChallenges.reduce((total, group) => total + group.challenges.length, 0);
   }
 
   private subscribeToWebSocketMessages(): void {
@@ -169,6 +210,7 @@ export class CTFCardComponent implements OnInit, OnDestroy {
         .subscribe({
           next: (challenges) => {
             this.challenges = challenges;
+            this.categorizedChallenges = this.categorizeAndSortChallenges(challenges);
             this.busy = false;
           },
           error: (error) => {

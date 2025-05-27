@@ -24,18 +24,30 @@ public class CTFEntityService {
     @Transactional
     public CTFEntity createCTFEntity(CTFEntity ctfEntity) {
         log.info("Creating CTF entity: {}", ctfEntity.getQuestion());
+        log.info("Flags before processing: {}", ctfEntity.getFlags() != null ? ctfEntity.getFlags().size() : "null");
 
         validateCTFEntity(ctfEntity);
 
-        // Save the CTF entity first to generate an ID
-        CTFEntity savedEntity = ctfEntityRepository.save(ctfEntity);
-
-        // Process and save flags if they exist
-        if (!CollectionUtils.isEmpty(savedEntity.getFlags())) {
-            processAndSaveFlags(savedEntity);
+        // Set bidirectional relationship properly
+        if (!CollectionUtils.isEmpty(ctfEntity.getFlags())) {
+            log.info("Setting bidirectional relationships for {} flags", ctfEntity.getFlags().size());
+            ctfEntity.getFlags().forEach(flag -> {
+                log.info("Setting ctfEntity for flag: '{}'", flag.getFlag());
+                flag.setCtfEntity(ctfEntity);
+            });
         }
 
-        log.info("Successfully created CTF entity with id: {}", savedEntity.getId());
+        CTFEntity savedEntity = ctfEntityRepository.save(ctfEntity);
+
+        // Check what was actually saved
+        log.info("Entity saved with ID: {}", savedEntity.getId());
+        if (savedEntity.getFlags() != null) {
+            log.info("Flags after save: {}", savedEntity.getFlags().size());
+            savedEntity.getFlags().forEach(flag ->
+                    log.info("Saved flag: '{}', ID: {}", flag.getFlag(), flag.getId())
+            );
+        }
+
         return savedEntity;
     }
 

@@ -65,7 +65,7 @@ public class RefreshTokenService extends BaseService {
      */
     public String generateAccessToken(User user) {
         Instant now = Instant.now();
-        Instant expiration = now.plus(30, ChronoUnit.MINUTES); // Short-lived
+        Instant expiration = now.plus(2, ChronoUnit.MINUTES); // Short-lived
 
         String scope = user.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)

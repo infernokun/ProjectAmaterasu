@@ -35,8 +35,6 @@ public class FlagAnswerController {
 
         User user = userService.findUserById(flagAnswer.getUserId());
 
-        log.error("User {} is {}", user.getUsername(), authentication.getName());
-
         if (!user.getId().equals(authentication.getName())) {
             // If usernames don't match, return unauthorized
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();

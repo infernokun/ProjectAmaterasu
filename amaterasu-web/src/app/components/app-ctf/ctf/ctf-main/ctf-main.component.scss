@@ -1,0 +1,22 @@
+.width-100-percent {
+  width: 100%;
+
+  &.display-flex {
+    display: flex;
+
+    &.flex-wrap {
+      flex-wrap: wrap;
+    }
+  }
+
+  // Ensure child component borders are visible
+  amaterasu-ctf-card {
+    width: 100%;
+
+    // Force border visibility for all ctf cards
+    ::ng-deep .ctf-card {
+      border: 3px solid #DC143C !important;
+      box-sizing: border-box !important;
+    }
+  }
+}

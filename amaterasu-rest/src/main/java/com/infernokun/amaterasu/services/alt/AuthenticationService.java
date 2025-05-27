@@ -74,9 +74,7 @@ public class AuthenticationService extends BaseService {
             RefreshToken refreshToken = refreshTokenService.createRefreshToken(
                     authenticatedUser, deviceInfo, request);
 
-
             String accessToken = refreshTokenService.generateAccessToken(authenticatedUser);
-
 
             return new LoginResponseDTO(accessToken, authenticatedUser, refreshToken.getToken());
 

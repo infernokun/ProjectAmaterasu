@@ -54,7 +54,7 @@ export class AppInitService extends BaseService {
           this.initializedSubject$.next(false);
           this.initializationCompleteSubject.next(true);
           this.initializationCompleteSubject.complete();
-          return of({} as ApiResponse<ApplicationInfo>); 
+          return of({} as ApiResponse<ApplicationInfo>);
         },)
       )
       .subscribe({
