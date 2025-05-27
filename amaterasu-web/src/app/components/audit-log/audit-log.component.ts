@@ -8,7 +8,7 @@ import { TABLE_ANIMATION } from '../../utils/animations';
 import { LabTracker } from '../../models/lab/lab-tracker.model';
 
 @Component({
-  selector: 'app-audit-log',
+  selector: 'amaterasu-audit-log',
   templateUrl: './audit-log.component.html',
   styleUrls: ['./audit-log.component.scss'],
   animations: [TABLE_ANIMATION],

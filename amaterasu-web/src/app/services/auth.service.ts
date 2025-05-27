@@ -127,6 +127,7 @@ export class AuthService implements OnDestroy {
 
     // No tokens at all
     if (!accessToken && !refreshToken) {
+      console.log('No access or refresh token found');
       this.clearAuthState();
       return of(false);
     }
@@ -161,6 +162,7 @@ export class AuthService implements OnDestroy {
       accessToken: accessToken,
       refreshToken: refreshToken
     };
+
     this.payloadSubject.next(payload);
     this.userSubject.next(user);
     this.storeTokens(accessToken, refreshToken);

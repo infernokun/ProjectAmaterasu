@@ -21,7 +21,7 @@ import { AdminActionsComponent } from '../../admin/admin-actions.component';
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 @Component({
-  selector: 'app-users',
+  selector: 'amaterasu-users',
   templateUrl: './users.component.html',
   styleUrl: './users.component.scss',
   standalone: false,

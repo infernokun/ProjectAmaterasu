@@ -7,12 +7,12 @@ import { Router } from '@angular/router';
 import { Observable, of } from 'rxjs';
 
 @Component({
-    selector: 'app-app-init',
-    templateUrl: './app-init.component.html',
-    styleUrls: ['./app-init.component.scss'],
+    selector: 'amaterasu-initialization',
+    templateUrl: './initialization.component.html',
+    styleUrls: ['./initialization.component.scss'],
     standalone: false
 })
-export class AppInitComponent implements OnInit {
+export class InitializationComponent implements OnInit {
   formGroup: FormGroup;
   isInitialized$: Observable<boolean> | undefined = of(false);
 

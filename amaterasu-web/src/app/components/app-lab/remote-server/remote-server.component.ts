@@ -8,7 +8,7 @@ import { User } from '../../../models/user.model';
 import { RemoteServer, RemoteServerFormData } from '../../../models/lab/remote-server.model';
 
 @Component({
-  selector: 'app-remote-server',
+  selector: 'amaterasu-remote-server',
   templateUrl: './remote-server.component.html',
   styleUrls: ['./remote-server.component.scss'],
   standalone: false

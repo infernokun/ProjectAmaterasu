@@ -15,7 +15,7 @@ export interface VolumeChange {
 }
 
 @Component({
-  selector: 'app-settings-configure',
+  selector: 'amaterasu-settings-configure',
   standalone: false,
   templateUrl: './settings-configure.component.html',
   styleUrl: './settings-configure.component.scss',

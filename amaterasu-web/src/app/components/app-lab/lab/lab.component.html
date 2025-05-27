@@ -42,10 +42,10 @@
     <!-- Lab containers that show when content exists -->
     <ng-container *ngIf="(loggedInUser$ | async) && (labsCount > 0)">
       <div class="lab-main-container">
-        <app-lab-main [user]="(loggedInUser$ | async)!"></app-lab-main>
+        <amaterasu-lab-main [user]="(loggedInUser$ | async)!"></amaterasu-lab-main>
       </div>
       <div class="lab-deploy-container">
-        <app-lab-deploy [user]="(loggedInUser$ | async)!"></app-lab-deploy>
+        <amaterasu-lab-deploy [user]="(loggedInUser$ | async)!"></amaterasu-lab-deploy>
       </div>
     </ng-container>
   </div>

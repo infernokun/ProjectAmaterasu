@@ -24,7 +24,7 @@ import { REQUIRED } from '../../../../utils/amaterasu.const';
 import { RemoteServer } from '../../../../models/lab/remote-server.model';
 
 @Component({
-  selector: 'app-add-dialog-form',
+  selector: 'amaterasu-add-dialog-form',
   templateUrl: './add-dialog-form.component.html',
   styleUrls: ['./add-dialog-form.component.scss'],
   standalone: false,

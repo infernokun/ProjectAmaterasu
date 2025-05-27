@@ -10,7 +10,7 @@ export interface ConfirmationDialogData {
 }
 
 @Component({
-  selector: 'app-confirmation-dialog',
+  selector: 'amaterasu-confirmation-dialog',
   templateUrl: './confirmation-dialog.component.html',
   styleUrl: './confirmation-dialog.component.scss',
   standalone: false

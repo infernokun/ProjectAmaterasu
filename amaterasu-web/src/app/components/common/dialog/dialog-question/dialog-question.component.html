@@ -194,6 +194,6 @@
 <!-- DEPENDENT QUESTIONS -->
 <div *ngFor="let kv of question.dependentQuestions | keyvalue">
   <div *ngIf="formControl.value && kv.key!==undefined && formControl.value === kv.key">
-    <app-dialog-question [question]="kv.value"></app-dialog-question>
+    <amaterasu-dialog-question [question]="kv.value"></amaterasu-dialog-question>
   </div>
 </div>

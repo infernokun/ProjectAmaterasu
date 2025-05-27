@@ -27,7 +27,7 @@ export interface ComposeFile {
 }
 
 @Component({
-  selector: 'app-lab-settings',
+  selector: 'amaterasu-lab-settings',
   templateUrl: './lab-settings.component.html',
   styleUrl: './lab-settings.component.scss',
   standalone: false

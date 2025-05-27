@@ -90,6 +90,13 @@ public class CTFEntityService {
                 });
     }
 
+    public CTFEntity findCTFEntityByIdWithFlags(String id) {
+        log.info("Fetching CTF entity with flags and id: {}", id);
+
+        return ctfEntityRepository.findByIdWithFlags(id)
+                .orElseThrow(() -> new ResourceNotFoundException("CTF entity not found with id: " + id));
+    }
+
     public List<CTFEntity> findCTFEntitiesByRoomId(String roomId) {
         log.info("Fetching CTF entities for room: {}", roomId);
 

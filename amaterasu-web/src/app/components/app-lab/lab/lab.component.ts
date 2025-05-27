@@ -27,7 +27,7 @@ import { RemoteServer } from '../../../models/lab/remote-server.model';
 import { Lab, LabDTO, LabFormData } from '../../../models/lab/lab.model';
 
 @Component({
-  selector: 'app-lab',
+  selector: 'amaterasu-lab',
   templateUrl: './lab.component.html',
   styleUrl: './lab.component.scss',
   animations: [],

@@ -1,7 +1,7 @@
 import { Component, ElementRef } from '@angular/core';
 
 @Component({
-    selector: 'app-skeleton-rect',
+    selector: 'amaterasu-skeleton-rect',
     templateUrl: './skeleton-rect.component.html',
     host: {
         class: 'pulse bg-light border-radius',

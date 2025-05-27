@@ -25,7 +25,7 @@ import { Lab } from '../../../../models/lab/lab.model';
 import { RemoteServer, RemoteServerSelectData } from '../../../../models/lab/remote-server.model';
 
 @Component({
-  selector: 'app-lab-deploy',
+  selector: 'amaterasu-lab-deploy',
   standalone: false,
   templateUrl: './lab-deploy.component.html',
   styleUrl: './lab-deploy.component.scss',

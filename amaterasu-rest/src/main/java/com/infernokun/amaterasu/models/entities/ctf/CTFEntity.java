@@ -17,7 +17,7 @@ import java.util.List;
 @Entity
 @Getter
 @Setter
-@ToString
+@ToString(exclude = {"flags"})
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "ctf_entity")

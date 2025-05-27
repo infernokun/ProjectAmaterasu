@@ -1,11 +1,11 @@
 export class FlagAnswer {
     flag?: string;
-    username?: string;
+    userId?: string;
     questionId?: string;
 
-    constructor(flag: string, username: string, questionId: string) {
+    constructor(flag: string, userId: string, questionId: string) {
         this.flag = flag;
-        this.username = username;
+        this.userId = userId;
         this.questionId = questionId;
     }
 }

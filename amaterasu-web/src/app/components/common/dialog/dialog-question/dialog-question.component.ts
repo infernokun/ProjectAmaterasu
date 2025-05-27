@@ -16,7 +16,7 @@ import { QuestionBase } from '../../../../models/simple-form-data.model';
 import { REQUIRED } from '../../../../utils/amaterasu.const';
 
 @Component({
-    selector: 'app-dialog-question',
+    selector: 'amaterasu-dialog-question',
     templateUrl: './dialog-question.component.html',
     styleUrls: ['./dialog-question.component.scss'],
     standalone: false

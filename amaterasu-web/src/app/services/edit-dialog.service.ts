@@ -7,6 +7,8 @@ import { LoginComponent } from '../components/common/login/login.component';
 import { RegisterComponent } from '../components/common/register/register.component';
 import { ComponentType } from '@angular/cdk/overlay';
 import { AddDialogFormComponent } from '../components/common/dialog/add-dialog-form/add-dialog-form.component';
+import { CTFEntity } from '../models/ctf/ctf-entity.model';
+import { ViewCTFComponent } from '../components/app-ctf/view/view-ctf.component';
 
 @Injectable({
   providedIn: 'root'
@@ -22,6 +24,17 @@ export class EditDialogService {
     config.minWidth = config.minWidth ?? "50vw";
     return this.dialog
       .open(component ? component : AddDialogFormComponent, config)
+      .afterClosed();
+  }
+
+  openCTFForm(formData: CTFEntity | undefined, component: ComponentType<unknown>): Observable<any> {
+    const config = new MatDialogConfig();
+    config.disableClose = false;
+    config.autoFocus = true;
+    config.data = formData;
+    config.minWidth = "50vw";
+    return this.dialog
+      .open(component, config)
       .afterClosed();
   }
 
@@ -50,5 +63,9 @@ export class EditDialogService {
     const config = new MatDialogConfig();
     config.disableClose = false;
     return this.openForm(undefined, RegisterComponent, config);
+  }
+
+  openViewDialog(formData: CTFEntity): Observable<any> {
+    return this.openCTFForm(formData, ViewCTFComponent);
   }
 }

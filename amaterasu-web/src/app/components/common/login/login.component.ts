@@ -12,7 +12,7 @@ import { User } from '../../../models/user.model';
 import { finalize } from 'rxjs/operators';
 
 @Component({
-  selector: 'app-login',
+  selector: 'amaterasu-login',
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss'],
   standalone: false

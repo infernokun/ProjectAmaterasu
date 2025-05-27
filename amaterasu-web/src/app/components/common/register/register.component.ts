@@ -15,7 +15,7 @@ interface PasswordStrength {
 }
 
 @Component({
-  selector: 'app-register',
+  selector: 'amaterasu-register',
   templateUrl: './register.component.html',
   styleUrls: ['./register.component.scss'],
   standalone: false

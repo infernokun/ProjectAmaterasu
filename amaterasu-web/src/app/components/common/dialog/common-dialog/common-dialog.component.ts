@@ -7,9 +7,8 @@ import { MatSelectChange } from '@angular/material/select';
 import { ApiResponse } from '../../../../models/api-response.model';
 import { LabTracker } from '../../../../models/lab/lab-tracker.model';
 
-
 @Component({
-  selector: 'app-common-dialog',
+  selector: 'amaterasu-common-dialog',
   templateUrl: './common-dialog.component.html',
   styleUrls: ['./common-dialog.component.scss'],
   standalone: false

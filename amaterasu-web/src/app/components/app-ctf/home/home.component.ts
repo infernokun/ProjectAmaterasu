@@ -8,7 +8,7 @@ import { RoomService } from '../../../services/ctf/room.service';
 import { EditDialogService } from '../../../services/edit-dialog.service';
 
 @Component({
-  selector: 'ctf-home',
+  selector: 'amaterasu-ctf-home',
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
   standalone: false

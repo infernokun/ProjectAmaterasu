@@ -10,7 +10,7 @@ import {
 import { CodeEditorComponent, CodeModel } from '@ngstack/code-editor';
 
 @Component({
-  selector: 'app-code-block',
+  selector: 'amaterasu-code-block',
   templateUrl: './code-block.component.html',
   styleUrls: ['./code-block.component.scss'],
   standalone: false,

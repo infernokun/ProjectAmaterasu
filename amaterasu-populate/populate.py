@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 import docker_challenge
 
-url = "http://127.0.0.1:8081/amaterasu-rest/api"
+url = "http://127.0.0.1:8080/amaterasu-rest/api"
 admin_user = "amaterasu_admin"
 
 

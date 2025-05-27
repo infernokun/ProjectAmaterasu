@@ -15,7 +15,7 @@ export interface AdminActionRendererParams extends ICellRendererParams {
 }
 
 @Component({
-  selector: 'app-admin-action',
+  selector: 'amaterasu-admin-action',
   template: `
     <span class="row">
       <button *ngIf="!params || !params.data || (!!params.data && !!params.viewClick)" mat-icon-button aria-label="View" class="table-action" color="primary" matToolTip="View" (click)="view()">

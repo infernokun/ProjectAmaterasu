@@ -9,8 +9,6 @@ import com.infernokun.amaterasu.services.ctf.FlagService;
 import com.infernokun.amaterasu.services.entity.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -35,7 +33,11 @@ public class FlagAnswerController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
 
-        if (!flagAnswer.getUsername().equals(authentication.getName())) {
+        User user = userService.findUserById(flagAnswer.getUserId());
+
+        log.error("User {} is {}", user.getUsername(), authentication.getName());
+
+        if (!user.getId().equals(authentication.getName())) {
             // If usernames don't match, return unauthorized
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }

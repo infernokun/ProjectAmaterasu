@@ -27,14 +27,14 @@ public class FlagService {
     }
 
     public boolean validateFlag(FlagAnswer flagAnswer) {
-        CTFEntity ctfEntity =  this.ctfEntityService.findCTFEntityById(flagAnswer.getQuestionId());
+        CTFEntity ctfEntity =  this.ctfEntityService.findCTFEntityByIdWithFlags(flagAnswer.getQuestionId());
 
         return ctfEntity.getFlags().stream().map(Flag::getFlag)
                 .anyMatch(flag -> flag.equals(flagAnswer.getFlag()));
     }
 
-    public AnsweredCTFEntity addAnsweredCTFEntity(String username, FlagAnswer flagAnswer, boolean correct) {
-        User user = this.userService.findUserByUsername(username);
+    public AnsweredCTFEntity addAnsweredCTFEntity(String userId, FlagAnswer flagAnswer, boolean correct) {
+        User user = this.userService.findUserById(userId);
         CTFEntity ctfEntity = this.ctfEntityService.findCTFEntityById(flagAnswer.getQuestionId());
 
         AnsweredCTFEntity answeredCTFEntity = answeredCTFEntityService

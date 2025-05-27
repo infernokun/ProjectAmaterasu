@@ -6,7 +6,7 @@ import { ProxmoxService } from '../../../services/lab/proxmox.service';
 import { RemoteServerService } from '../../../services/lab/remote-server.service';
 
 @Component({
-  selector: 'app-vm-lab-builder',
+  selector: 'amaterasu-vm-lab-builder',
   templateUrl: './vm-lab-builder.component.html',
   styleUrl: './vm-lab-builder.component.scss',
   standalone: false

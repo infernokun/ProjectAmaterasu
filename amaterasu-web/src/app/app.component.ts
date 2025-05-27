@@ -78,7 +78,7 @@ export class AppComponent implements OnInit, OnDestroy {
       if (user) {
         console.log('User logged in:', user.username);
       } else {
-        console.log('No user logged in');
+        console.log('No user logged in', user);
       }
     });
   }

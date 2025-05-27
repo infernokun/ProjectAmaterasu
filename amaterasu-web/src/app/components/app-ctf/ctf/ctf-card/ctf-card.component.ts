@@ -6,9 +6,10 @@ import { CTFEntity } from '../../../../models/ctf/ctf-entity.model';
 import { AuthService } from '../../../../services/auth.service';
 import { CTFService } from '../../../../services/ctf/ctf.service';
 import { WebsocketService } from '../../../../services/websocket.service';
+import { EditDialogService } from '../../../../services/edit-dialog.service';
 
 @Component({
-  selector: 'app-ctf-card',
+  selector: 'amaterasu-ctf-card',
   templateUrl: './ctf-card.component.html',
   styleUrl: './ctf-card.component.scss',
   standalone: false
@@ -28,7 +29,8 @@ export class CTFCardComponent implements OnInit, OnDestroy {
     private ctfService: CTFService,
     private webSocketService: WebsocketService,
     private authService: AuthService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private dialogService: EditDialogService
   ) {
     this.loading$ = this.ctfService.loading$;
   }
@@ -123,7 +125,7 @@ export class CTFCardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    /*this.dialogService.openViewDialog(challenge)
+    this.dialogService.openViewDialog(challenge)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (result) => {
@@ -133,7 +135,7 @@ export class CTFCardComponent implements OnInit, OnDestroy {
         error: (error) => {
           console.error('Error opening view dialog:', error);
         }
-      });*/
+      });
   }
 
   public openEditDialog(challenge: CTFEntity): void {

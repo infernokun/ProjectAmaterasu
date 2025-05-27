@@ -3,7 +3,7 @@ import { AuthService } from '../../../../services/auth.service';
 import { Observable } from 'rxjs';
 
 @Component({
-  selector: 'app-ctf-main',
+  selector: 'amaterasu-ctf-main',
   templateUrl: './ctf-main.component.html',
   styleUrl: './ctf-main.component.scss',
   standalone: false

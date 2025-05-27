@@ -27,7 +27,7 @@
     
     <!-- Code editor display -->
     <div *ngIf="isCode" class="code-editor-wrapper">
-      <app-code-block 
+      <amaterasu-code-block 
         id="code-editor" 
         [codeModel]="output" 
         [fileType]="fileType"
@@ -35,7 +35,7 @@
         [versions]="[1, 2, 3]" 
         (onChange)="onCodeChange($event)" 
         (onVersionChange)="onVersionSelected($event)">
-      </app-code-block>
+      </amaterasu-code-block>
     </div>
   </mat-dialog-content>
   
