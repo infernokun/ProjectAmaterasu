@@ -1,7 +1,7 @@
 package com.infernokun.amaterasu.repositories;
 
-import com.infernokun.amaterasu.models.entities.Lab;
-import com.infernokun.amaterasu.models.entities.LabTracker;
+import com.infernokun.amaterasu.models.entities.lab.Lab;
+import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import org.springframework.data.jpa.repository.JpaRepository;

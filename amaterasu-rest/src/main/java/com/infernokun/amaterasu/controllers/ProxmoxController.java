@@ -3,7 +3,7 @@ package com.infernokun.amaterasu.controllers;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.proxmox.ProxmoxNetwork;
 import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
-import com.infernokun.amaterasu.models.entities.RemoteServer;
+import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.proxmox.ProxmoxVMConfig;
 import com.infernokun.amaterasu.services.entity.RemoteServerService;
 import com.infernokun.amaterasu.services.alt.ProxmoxService;

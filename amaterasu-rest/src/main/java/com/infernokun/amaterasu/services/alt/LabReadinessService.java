@@ -4,16 +4,15 @@ import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.LabReadinessException;
 import com.infernokun.amaterasu.exceptions.RemoteCommandException;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
-import com.infernokun.amaterasu.models.entities.Lab;
-import com.infernokun.amaterasu.models.entities.LabTracker;
-import com.infernokun.amaterasu.models.entities.RemoteServer;
+import com.infernokun.amaterasu.models.entities.lab.Lab;
+import com.infernokun.amaterasu.models.entities.lab.LabTracker;
+import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.services.BaseService;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Logger;
 
 @Service
 public class LabReadinessService extends BaseService {

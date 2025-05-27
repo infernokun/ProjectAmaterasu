@@ -57,7 +57,7 @@ UPTIME=$(awk '{print int($1)}' /proc/uptime 2>/dev/null || echo "0")
 # Build JSON output
 JSON=$(cat <<EOF
 {
-  "@class": "com.infernokun.amaterasu.models.entities.RemoteServerStats",
+  "@class": "com.infernokun.amaterasu.models.entities.lab.RemoteServerStats",
   "hostname": "$HOSTNAME",
   "osName": "$OS_NAME",
   "osVersion": "$OS_VERSION",

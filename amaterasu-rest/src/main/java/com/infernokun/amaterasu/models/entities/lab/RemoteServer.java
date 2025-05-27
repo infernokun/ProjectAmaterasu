@@ -1,6 +1,7 @@
-package com.infernokun.amaterasu.models.entities;
+package com.infernokun.amaterasu.models.entities.lab;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.infernokun.amaterasu.models.entities.StoredObject;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import jakarta.persistence.*;
 import lombok.*;

@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.controllers.entity.ctf;
 
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.dto.ctf.FlagAnswer;
+import com.infernokun.amaterasu.models.dto.ctf.web.AnsweredCTFEntityResponse;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.AnsweredCTFEntity;
 import com.infernokun.amaterasu.services.ctf.AnsweredCTFEntityService;
@@ -27,7 +28,7 @@ public class FlagAnswerController {
     private final UserService userService;
 
     @PostMapping()
-    public ResponseEntity<ApiResponse<AnsweredCTFEntity>> answerQuestion(@RequestBody FlagAnswer flagAnswer) {
+    public ResponseEntity<ApiResponse<AnsweredCTFEntityResponse>> answerQuestion(@RequestBody FlagAnswer flagAnswer) {
         final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (flagAnswer == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();

@@ -1,5 +1,6 @@
-package com.infernokun.amaterasu.models.entities;
+package com.infernokun.amaterasu.models.entities.lab;
 
+import com.infernokun.amaterasu.models.entities.StoredObject;
 import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;

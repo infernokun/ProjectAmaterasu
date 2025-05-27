@@ -1,7 +1,7 @@
 package com.infernokun.amaterasu.repositories;
 
-import com.infernokun.amaterasu.models.entities.Lab;
-import com.infernokun.amaterasu.models.entities.LabFileChangeLog;
+import com.infernokun.amaterasu.models.entities.lab.Lab;
+import com.infernokun.amaterasu.models.entities.lab.LabFileChangeLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

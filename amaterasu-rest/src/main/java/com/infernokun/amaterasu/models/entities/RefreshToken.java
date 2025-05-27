@@ -24,7 +24,6 @@ public class RefreshToken {
     private Instant creationDate;
     private Instant expirationDate;
 
-    // ADD: Track when token was last used (for sliding expiration)
     @Column(name = "last_used")
     private Instant lastUsed;
 

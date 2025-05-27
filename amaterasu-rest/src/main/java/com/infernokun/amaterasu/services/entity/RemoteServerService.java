@@ -1,7 +1,7 @@
 package com.infernokun.amaterasu.services.entity;
 
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
-import com.infernokun.amaterasu.models.entities.RemoteServer;
+import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.repositories.RemoteServerRepository;
 import com.infernokun.amaterasu.services.BaseService;

@@ -1,8 +1,8 @@
-package com.infernokun.amaterasu.models.entities;
+package com.infernokun.amaterasu.models.entities.lab;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.infernokun.amaterasu.models.DockerServiceInfo;
+import com.infernokun.amaterasu.models.entities.StoredObject;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.enums.LabType;
 import com.infernokun.amaterasu.models.helper.IntegerListConverter;

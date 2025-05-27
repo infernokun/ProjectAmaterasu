@@ -57,7 +57,6 @@ public class AuthenticationService extends BaseService {
 
     public LoginResponseDTO login(String username, String password, HttpServletRequest request) {
         try {
-            LOGGER.info("Step 1: Looking up user by username");
             User user = userService.findByUsernameIgnoreCase(username)
                     .orElseThrow(() -> new BadCredentialsException("Invalid username or password"));
 

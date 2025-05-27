@@ -1,7 +1,7 @@
 package com.infernokun.amaterasu.services.cron;
 
 import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
-import com.infernokun.amaterasu.models.entities.LabTracker;
+import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.enums.LabType;
 import com.infernokun.amaterasu.models.enums.ServerType;

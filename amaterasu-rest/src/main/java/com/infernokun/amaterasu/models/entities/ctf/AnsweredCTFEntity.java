@@ -1,8 +1,11 @@
 package com.infernokun.amaterasu.models.entities.ctf;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.infernokun.amaterasu.models.dto.ctf.FlagAnswer;
 import com.infernokun.amaterasu.models.entities.StoredObject;
 import com.infernokun.amaterasu.models.entities.User;
+import com.infernokun.amaterasu.models.helper.FlagAnswerListConverter;
+import com.infernokun.amaterasu.models.helper.LocalDateTimeListConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,11 +25,11 @@ import java.util.List;
         uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "ctf_entity_id"}))
 public class AnsweredCTFEntity extends StoredObject {
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "ctf_entity_id", nullable = false)
     private CTFEntity ctfEntity;
 
@@ -38,19 +41,15 @@ public class AnsweredCTFEntity extends StoredObject {
     @Column(nullable = false)
     private Integer attempts = 0;
 
-    // Store all submitted answers
-    @ElementCollection
-    @CollectionTable(name = "ctf_answers", joinColumns = @JoinColumn(name = "answered_ctf_id"))
-    @Column(name = "answer", length = 1000)
+    @Column(name = "answers", columnDefinition = "TEXT")
+    @Convert(converter = FlagAnswerListConverter.class)
     @Builder.Default
-    private List<String> answers = new ArrayList<>();
+    private List<FlagAnswer> answers = new ArrayList<>();
 
-    // Store timestamps for each attempt
-    @ElementCollection
-    @CollectionTable(name = "ctf_attempt_times", joinColumns = @JoinColumn(name = "answered_ctf_id"))
-    @Column(name = "attempt_time")
+    @Column(name = "attempt_times", columnDefinition = "TEXT")
+    @Convert(converter = LocalDateTimeListConverter.class)
     @Builder.Default
-    private List<LocalDateTime> times = new ArrayList<>();
+    private List<LocalDateTime> attemptTimes = new ArrayList<>();
 
     // When the challenge was solved (if correct)
     @Column(name = "solved_at")
@@ -95,7 +94,7 @@ public class AnsweredCTFEntity extends StoredObject {
     /**
      * Get the most recent answer
      */
-    public String getLatestAnswer() {
+    public FlagAnswer getLatestAnswer() {
         return answers != null && !answers.isEmpty() ?
                 answers.getLast() : null;
     }
@@ -104,8 +103,8 @@ public class AnsweredCTFEntity extends StoredObject {
      * Get the most recent attempt time
      */
     public LocalDateTime getLatestAttemptTime() {
-        return times != null && !times.isEmpty() ?
-                times.getLast() : null;
+        return attemptTimes != null && !attemptTimes.isEmpty() ?
+                attemptTimes.getLast() : null;
     }
 
     /**

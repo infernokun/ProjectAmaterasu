@@ -1,9 +1,9 @@
 package com.infernokun.amaterasu.services.alt;
 
 import com.infernokun.amaterasu.models.LabActionResult;
-import com.infernokun.amaterasu.models.entities.Lab;
-import com.infernokun.amaterasu.models.entities.LabTracker;
-import com.infernokun.amaterasu.models.entities.RemoteServer;
+import com.infernokun.amaterasu.models.entities.lab.Lab;
+import com.infernokun.amaterasu.models.entities.lab.LabTracker;
+import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.services.BaseService;
 import org.springframework.stereotype.Service;

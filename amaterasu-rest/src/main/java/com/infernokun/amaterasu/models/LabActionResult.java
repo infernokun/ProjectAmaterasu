@@ -1,6 +1,6 @@
 package com.infernokun.amaterasu.models;
 
-import com.infernokun.amaterasu.models.entities.LabTracker;
+import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
