@@ -1,9 +1,9 @@
-package com.infernokun.amaterasu.services.entity;
+package com.infernokun.amaterasu.services.entity.lab;
 
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServerStats;
-import com.infernokun.amaterasu.repositories.RemoteServerStatsRepository;
+import com.infernokun.amaterasu.repositories.lab.RemoteServerStatsRepository;
 import com.infernokun.amaterasu.services.BaseService;
 import org.hibernate.dialect.lock.OptimisticEntityLockException;
 import org.springframework.stereotype.Service;

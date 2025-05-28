@@ -31,6 +31,8 @@ public class User extends StoredObject implements UserDetails {
     @Column(nullable = false)
     @Builder.Default
     private Role role = Role.MEMBER;
+    private String displayName;
+    private String avatarUrl;
 
     public User(String username, String password) {
         this.username = username;

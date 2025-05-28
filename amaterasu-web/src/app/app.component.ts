@@ -1,6 +1,6 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { User } from './models/user.model';
-import { Observable, Subject, takeUntil, map, startWith, combineLatest } from 'rxjs';
+import { Observable, Subject, takeUntil, map, startWith, combineLatest, distinctUntilChanged, shareReplay } from 'rxjs';
 import { AuthService } from './services/auth.service';
 import { EditDialogService } from './services/edit-dialog.service';
 import { Role } from './enums/role.enum';
@@ -13,7 +13,8 @@ const { version: appVersion } = require('../../package.json');
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
-  standalone: false
+  standalone: false,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent implements OnInit, OnDestroy {
   title = 'Project Amaterasu';
@@ -37,6 +38,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private dialogService: EditDialogService,
     private appInitService: AppInitService,
+    private cdr: ChangeDetectorRef
   ) {
     this.loggedInUser$ = this.authService.user$;
     this.initializationComplete$ = this.appInitService.initializationComplete$;
@@ -54,6 +56,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.isAppReady$ = combineLatest([
       this.initializationComplete$.pipe(
         map(() => true),
+        distinctUntilChanged(),
+        shareReplay(1),
         startWith(false)
       ),
       this.isAuthLoading$
@@ -89,6 +93,10 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.unsubscribe$.next();
     this.unsubscribe$.complete();
+  }
+
+  private triggerChangeDetection() {
+    this.cdr.markForCheck();
   }
 
   // Remove the checkAuthentication method entirely

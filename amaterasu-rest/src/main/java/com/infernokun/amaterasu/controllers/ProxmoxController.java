@@ -5,7 +5,7 @@ import com.infernokun.amaterasu.models.proxmox.ProxmoxNetwork;
 import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.proxmox.ProxmoxVMConfig;
-import com.infernokun.amaterasu.services.entity.RemoteServerService;
+import com.infernokun.amaterasu.services.entity.lab.RemoteServerService;
 import com.infernokun.amaterasu.services.alt.ProxmoxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

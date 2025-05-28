@@ -29,7 +29,7 @@ public class CTFEntity extends StoredObject {
     private Room room;
     private String description;
     private List<String> hints = new ArrayList<>();
-    @OneToMany(mappedBy = "ctfEntity", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "ctfEntity", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JsonManagedReference
     private List<Flag> flags = new ArrayList<>();
     private String category;

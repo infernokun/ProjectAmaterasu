@@ -2,7 +2,7 @@ package com.infernokun.amaterasu.controllers.entity.ctf;
 
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
-import com.infernokun.amaterasu.services.ctf.RoomService;
+import com.infernokun.amaterasu.services.entity.ctf.RoomService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;

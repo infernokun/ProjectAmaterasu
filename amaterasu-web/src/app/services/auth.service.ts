@@ -1,6 +1,6 @@
 import { Injectable, OnDestroy } from '@angular/core';
-import { BehaviorSubject, Observable, of, timer } from 'rxjs';
-import { switchMap, catchError, map, take, filter, retry, timeout } from 'rxjs/operators';
+import { BehaviorSubject, Observable, of } from 'rxjs';
+import { catchError, map, take, filter, timeout } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { User } from '../models/user.model';
 import { ApiResponse } from '../models/api-response.model';
@@ -173,7 +173,7 @@ export class AuthService implements OnDestroy {
     this.loadingSubject.next(loading);
   }
 
-  private decodeToken(token: string): any {
+  decodeToken(token: string): any {
     try {
       if (!token || token.split('.').length !== 3) {
         return null;
@@ -197,7 +197,7 @@ export class AuthService implements OnDestroy {
     return decodedToken.exp * 1000 <= Date.now();
   }
 
-  private isTokenCloseToExpiry(decodedToken: any): boolean {
+  isTokenCloseToExpiry(decodedToken: any): boolean {
     const currentTime = Date.now();
     const expiryTime = decodedToken.exp * 1000;
     const timeUntilExpiry = expiryTime - currentTime;
@@ -232,7 +232,7 @@ export class AuthService implements OnDestroy {
     );
   }
 
-  private performTokenRefresh(): Observable<boolean> {
+  performTokenRefresh(): Observable<boolean> {
     const refreshToken = this.getStoredRefreshToken();
     if (!refreshToken) {
       console.log('No refresh token available');

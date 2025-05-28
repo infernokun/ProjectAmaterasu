@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.services.entity;
+package com.infernokun.amaterasu.services.entity.lab;
 
 import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.FileUploadException;
@@ -13,12 +13,14 @@ import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.enums.LabType;
-import com.infernokun.amaterasu.repositories.LabFileChangeLogRepository;
-import com.infernokun.amaterasu.repositories.LabRepository;
+import com.infernokun.amaterasu.repositories.lab.LabFileChangeLogRepository;
+import com.infernokun.amaterasu.repositories.lab.LabRepository;
 import com.infernokun.amaterasu.services.alt.LabFileUploadService;
 import com.infernokun.amaterasu.services.alt.LabActionService;
 import com.infernokun.amaterasu.services.alt.LabReadinessService;
 import com.infernokun.amaterasu.services.BaseService;
+import com.infernokun.amaterasu.services.entity.TeamService;
+import com.infernokun.amaterasu.services.entity.UserService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 

@@ -9,7 +9,7 @@ import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.enums.LabStatus;
-import com.infernokun.amaterasu.services.entity.LabTrackerService;
+import com.infernokun.amaterasu.services.entity.lab.LabTrackerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

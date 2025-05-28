@@ -1,7 +1,7 @@
 package com.infernokun.amaterasu.components;
 
 import com.infernokun.amaterasu.config.AmaterasuConfig;
-import com.infernokun.amaterasu.services.entity.LabService;
+import com.infernokun.amaterasu.services.entity.lab.LabService;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;

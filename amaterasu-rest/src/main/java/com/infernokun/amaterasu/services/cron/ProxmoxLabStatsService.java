@@ -7,7 +7,7 @@ import com.infernokun.amaterasu.models.enums.LabType;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.alt.ProxmoxService;
-import com.infernokun.amaterasu.services.entity.LabTrackerService;
+import com.infernokun.amaterasu.services.entity.lab.LabTrackerService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

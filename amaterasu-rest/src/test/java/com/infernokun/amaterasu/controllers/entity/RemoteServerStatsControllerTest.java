@@ -7,7 +7,7 @@ import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServerStats;
 import com.infernokun.amaterasu.models.enums.LabStatus;
-import com.infernokun.amaterasu.services.entity.RemoteServerStatsService;
+import com.infernokun.amaterasu.services.entity.lab.RemoteServerStatsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

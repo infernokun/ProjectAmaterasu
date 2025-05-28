@@ -1,9 +1,9 @@
-package com.infernokun.amaterasu.services.entity;
+package com.infernokun.amaterasu.services.entity.lab;
 
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.ServerType;
-import com.infernokun.amaterasu.repositories.RemoteServerRepository;
+import com.infernokun.amaterasu.repositories.lab.RemoteServerRepository;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.alt.DockerService;
 import com.infernokun.amaterasu.services.alt.ProxmoxService;

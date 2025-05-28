@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.services.ctf;
+package com.infernokun.amaterasu.services.entity.ctf;
 
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.ctf.Room;

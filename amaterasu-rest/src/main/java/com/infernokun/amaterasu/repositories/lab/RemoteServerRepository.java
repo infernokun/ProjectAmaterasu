@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.repositories;
+package com.infernokun.amaterasu.repositories.lab;
 
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.ServerType;

@@ -46,12 +46,22 @@ import { ViewCTFComponent } from './components/app-ctf/view/view-ctf.component';
 export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
   return () => {
     return environmentService.load().then(() => {
-      // You can now call any method of AppInitService here if needed
-      appInitService.load(environmentService); // Example if AppInitService has an initialize method
+      console.log('🔧 Environment loaded successfully');
+
+      if (!environmentService.settings?.restUrl) {
+        console.error('🔧 Environment loaded but REST URL is still undefined!');
+        throw new Error('Failed to load environment settings');
+      }
+
+      return appInitService.load(environmentService);
+    }).then(() => {
+      console.log('🔧 App initialization completed successfully');
+    }).catch((error) => {
+      console.error('🔧 App initialization failed:', error);
+      throw error;
     });
   };
 }
-
 
 @NgModule({
   declarations: [

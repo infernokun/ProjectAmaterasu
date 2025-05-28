@@ -10,7 +10,7 @@ import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.models.proxmox.*;
 import com.infernokun.amaterasu.services.BaseService;
-import com.infernokun.amaterasu.services.entity.LabTrackerService;
+import com.infernokun.amaterasu.services.entity.lab.LabTrackerService;
 import com.infernokun.amaterasu.utils.AESUtil;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;

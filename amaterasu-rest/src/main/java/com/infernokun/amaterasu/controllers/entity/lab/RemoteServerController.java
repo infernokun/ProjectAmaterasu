@@ -5,7 +5,7 @@ import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.dto.RemoteServerDTO;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.ServerType;
-import com.infernokun.amaterasu.services.entity.RemoteServerService;
+import com.infernokun.amaterasu.services.entity.lab.RemoteServerService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;

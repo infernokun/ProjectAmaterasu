@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.services.entity;
+package com.infernokun.amaterasu.services.entity.lab;
 
 import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.LabReadinessException;
@@ -12,9 +12,10 @@ import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.enums.LabStatus;
-import com.infernokun.amaterasu.repositories.LabTrackerRepository;
+import com.infernokun.amaterasu.repositories.lab.LabTrackerRepository;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.alt.RemoteCommandService;
+import com.infernokun.amaterasu.services.entity.TeamService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 

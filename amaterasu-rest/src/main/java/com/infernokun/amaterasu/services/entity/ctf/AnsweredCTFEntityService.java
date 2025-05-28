@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.services.ctf;
+package com.infernokun.amaterasu.services.entity.ctf;
 
 import com.infernokun.amaterasu.exceptions.ChallengeNotAnsweredException;
 import com.infernokun.amaterasu.models.entities.ctf.AnsweredCTFEntity;

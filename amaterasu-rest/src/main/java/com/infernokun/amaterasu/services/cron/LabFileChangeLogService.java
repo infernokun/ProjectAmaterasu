@@ -8,11 +8,11 @@ import com.infernokun.amaterasu.models.entities.lab.LabFileChangeLog;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.LabType;
 import com.infernokun.amaterasu.models.enums.ServerType;
-import com.infernokun.amaterasu.repositories.LabFileChangeLogRepository;
-import com.infernokun.amaterasu.services.entity.LabService;
+import com.infernokun.amaterasu.repositories.lab.LabFileChangeLogRepository;
+import com.infernokun.amaterasu.services.entity.lab.LabService;
 import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import com.infernokun.amaterasu.services.BaseService;
-import com.infernokun.amaterasu.services.entity.RemoteServerService;
+import com.infernokun.amaterasu.services.entity.lab.RemoteServerService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
