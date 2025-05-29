@@ -2,23 +2,16 @@ package com.infernokun.amaterasu.controllers.alt;
 
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
-import com.infernokun.amaterasu.models.dto.LoginResponseDTO;
+import com.infernokun.amaterasu.models.dto.LoginResponse;
 import com.infernokun.amaterasu.models.dto.RefreshTokenRequest;
-import com.infernokun.amaterasu.models.dto.RegistrationDTO;
-import com.infernokun.amaterasu.models.entities.RefreshToken;
-import com.infernokun.amaterasu.models.entities.User;
+import com.infernokun.amaterasu.models.dto.RegistrationRequest;
 import com.infernokun.amaterasu.services.alt.AuthenticationService;
 import com.infernokun.amaterasu.services.entity.RefreshTokenService;
-import com.infernokun.amaterasu.services.entity.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Optional;
-
-import static com.infernokun.amaterasu.utils.AmaterasuConstants.extractTokenFromRequest;
 
 @RestController
 @RequiredArgsConstructor
@@ -28,25 +21,25 @@ public class AuthenticationController extends BaseController {
     private final RefreshTokenService refreshTokenService;
 
     @PostMapping(value = "/register", consumes = "application/json")
-    public ResponseEntity<ApiResponse<Boolean>> registerUser(@RequestBody RegistrationDTO registrationDTO) {
+    public ResponseEntity<ApiResponse<Boolean>> registerUser(@RequestBody RegistrationRequest registrationRequest) {
         return ResponseEntity.ok(ApiResponse.<Boolean>builder()
                 .code(HttpStatus.OK.value())
                 .message("User registered successfully.")
-                .data(authenticationService.registerUser(registrationDTO))
+                .data(authenticationService.registerUser(registrationRequest))
                 .build());
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginResponseDTO>> login(
-            @RequestBody RegistrationDTO credentials,
+    public ResponseEntity<ApiResponse<LoginResponse>> login(
+            @RequestBody RegistrationRequest credentials,
             HttpServletRequest request) {
 
-        LoginResponseDTO response = authenticationService.login(
+        LoginResponse response = authenticationService.login(
                 credentials.getUsername(),
                 credentials.getPassword(),
                 request);
 
-        return ResponseEntity.ok(ApiResponse.<LoginResponseDTO>builder()
+        return ResponseEntity.ok(ApiResponse.<LoginResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Login successful")
                 .data(response)
@@ -57,14 +50,14 @@ public class AuthenticationController extends BaseController {
      * Refresh access token using refresh token
      */
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<LoginResponseDTO>> refreshToken(
+    public ResponseEntity<ApiResponse<LoginResponse>> refreshToken(
             @RequestBody RefreshTokenRequest request,
             HttpServletRequest httpRequest) {
 
-        LoginResponseDTO response = authenticationService.refreshToken(
+        LoginResponse response = authenticationService.refreshToken(
                 request.getRefreshToken(), httpRequest);
 
-        return ResponseEntity.ok(ApiResponse.<LoginResponseDTO>builder()
+        return ResponseEntity.ok(ApiResponse.<LoginResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Token refreshed successfully")
                 .data(response)

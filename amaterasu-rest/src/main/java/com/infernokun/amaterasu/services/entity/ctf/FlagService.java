@@ -1,8 +1,8 @@
 package com.infernokun.amaterasu.services.entity.ctf;
 
-import com.infernokun.amaterasu.models.dto.ctf.FlagAnswer;
-import com.infernokun.amaterasu.models.dto.ctf.web.AnsweredCTFEntityResponse;
-import com.infernokun.amaterasu.models.dto.ctf.web.CTFEntityResponseDTO;
+import com.infernokun.amaterasu.models.dto.ctf.FlagAnswerRequest;
+import com.infernokun.amaterasu.models.dto.ctf.AnsweredCTFEntityResponse;
+import com.infernokun.amaterasu.models.dto.ctf.CTFEntityResponse;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.AnsweredCTFEntity;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
@@ -31,16 +31,16 @@ public class FlagService {
         return this.flagRepository.save(flag);
     }
 
-    public boolean validateFlag(FlagAnswer flagAnswer) {
-        List<Flag> challengeFlags = getFlagsByCtfEntityId(flagAnswer.getQuestionId());
+    public boolean validateFlag(FlagAnswerRequest flagAnswerRequest) {
+        List<Flag> challengeFlags = getFlagsByCtfEntityId(flagAnswerRequest.getQuestionId());
 
         return challengeFlags.stream().map(Flag::getFlag)
-                .anyMatch(flag -> flag.equals(flagAnswer.getFlag()));
+                .anyMatch(flag -> flag.equals(flagAnswerRequest.getFlag()));
     }
 
-    public AnsweredCTFEntityResponse addAnsweredCTFEntity(String userId, FlagAnswer flagAnswer, boolean correct) {
+    public AnsweredCTFEntityResponse addAnsweredCTFEntity(String userId, FlagAnswerRequest flagAnswerRequest, boolean correct) {
         User user = this.userService.findUserById(userId);
-        CTFEntity ctfEntity = this.ctfEntityService.findCTFEntityByIdWithFlags(flagAnswer.getQuestionId());
+        CTFEntity ctfEntity = this.ctfEntityService.findCTFEntityByIdWithFlags(flagAnswerRequest.getQuestionId());
 
         AnsweredCTFEntity answeredCTFEntity = answeredCTFEntityService
                 .findByUserIdAndCtfEntityIdOptional(user.getId(), ctfEntity.getId())
@@ -54,7 +54,7 @@ public class FlagService {
                         .attempts(0)
                         .build());
 
-        answeredCTFEntity.getAnswers().add(flagAnswer);
+        answeredCTFEntity.getAnswers().add(flagAnswerRequest);
         answeredCTFEntity.getAttemptTimes().add(LocalDateTime.now());
         answeredCTFEntity.setAttempts(answeredCTFEntity.getAttempts() + 1);
         answeredCTFEntity.setCorrect(correct);
@@ -65,7 +65,7 @@ public class FlagService {
                 AnsweredCTFEntityResponse.class);
 
         answeredCTFEntityResponse.setCtfEntity(modelMapper.map(answeredCTFEntity.getCtfEntity(),
-                CTFEntityResponseDTO.class));
+                CTFEntityResponse.class));
 
         return answeredCTFEntityResponse;
     }

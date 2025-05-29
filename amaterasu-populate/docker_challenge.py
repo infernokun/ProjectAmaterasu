@@ -1,1040 +1,413 @@
 from datetime import datetime, timedelta
-
+from random import randint
 
 def get_challenges(docker_room, admin_user):
-    return [
-        # Challenge 3 - Easy
+    questions_flags_hints = [
+        # BEGINNER Level (50-100 points)
         {
-            "question": "What command is used to run a Docker container?",
-            "maxAttempts": 3,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of running Docker containers.",
+            "question": "What command is used to run a Docker container interactively with a terminal?",
+            "flag": "docker run -it",
             "hints": [
-                "Think about starting a container.",
-                "The command begins with 'docker'.",
+                "You need flags to make it interactive and allocate a pseudo-TTY.",
+                "The -i flag keeps STDIN open, -t allocates a pseudo-TTY.",
+                "Combine 'docker run' with interactive flags."
             ],
-            "flags": [
-                {
-                    "flag": "docker run",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Commands",
-            "difficultyLevel": "Easy",
-            "points": 10,
-            "author": admin_user["username"],
-            "tags": ["docker", "commands", "containers"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker run' command creates and starts a new container from an image.",
-            "relatedChallengeIds": [],
+            "difficulty": "BEGINNER",
+            "points": 50,
+            "tags": ["docker", "containers", "interactive", "terminal"],
+            "category": "Docker Basics",
+            "solution": "Use 'docker run -it <image>' to run a container interactively with terminal access."
         },
-        # Challenge 4 - Easy
         {
-            "question": "What command shows all Docker images on your system?",
-            "maxAttempts": 3,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of listing Docker images.",
+            "question": "What command shows all running Docker containers?",
+            "flag": "docker ps",
             "hints": [
-                "Similar to listing containers but for images.",
-                "Check the Docker images documentation.",
+                "Think 'process status' but for Docker.",
+                "This is one of the most basic Docker commands.",
+                "Similar to 'ps' command in Linux but for containers."
             ],
-            "flags": [
-                {
-                    "flag": "docker images",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Commands",
-            "difficultyLevel": "Easy",
-            "points": 10,
-            "author": admin_user["username"],
-            "tags": ["docker", "images", "list"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker images' command lists all Docker images stored locally.",
-            "relatedChallengeIds": [],
+            "difficulty": "BEGINNER",
+            "points": 50,
+            "tags": ["docker", "containers", "list", "status"],
+            "category": "Docker Basics",
+            "solution": "'docker ps' lists all currently running containers."
         },
-        # Challenge 5 - Easy
         {
-            "question": "What command is used to stop a running Docker container?",
-            "maxAttempts": 3,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of stopping Docker containers.",
+            "question": "What command pulls a Docker image from a registry without running it?",
+            "flag": "docker pull",
             "hints": [
-                "Think about halting a container.",
-                "You'll need the container ID or name.",
+                "You want to download an image for later use.",
+                "This command only downloads, doesn't run.",
+                "Think about 'pulling' something from a remote location."
             ],
-            "flags": [
-                {
-                    "flag": "docker stop",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Commands",
-            "difficultyLevel": "Easy",
-            "points": 10,
-            "author": admin_user["username"],
-            "tags": ["docker", "containers", "stop"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker stop' command gracefully stops a running container.",
-            "relatedChallengeIds": [],
+            "difficulty": "BEGINNER",
+            "points": 75,
+            "tags": ["docker", "images", "registry", "download"],
+            "category": "Docker Images",
+            "solution": "'docker pull <image>' downloads an image from a Docker registry."
         },
-        # Challenge 6 - Easy
+        {
+            "question": "What flag is used with 'docker run' to run a container in the background (detached mode)?",
+            "flag": "-d",
+            "hints": [
+                "You want the container to run without blocking your terminal.",
+                "Think 'detached' mode.",
+                "It's a single letter flag."
+            ],
+            "difficulty": "BEGINNER",
+            "points": 75,
+            "tags": ["docker", "containers", "detached", "background"],
+            "category": "Docker Basics",
+            "solution": "The '-d' flag runs containers in detached (background) mode."
+        },
         {
             "question": "What command removes a Docker container?",
-            "maxAttempts": 3,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of removing Docker containers.",
+            "flag": "docker rm",
             "hints": [
-                "Think about deleting a container.",
-                "The container must be stopped first.",
+                "Think 'remove' but abbreviated.",
+                "You need the container ID or name.",
+                "Container must be stopped first (unless you force it)."
             ],
-            "flags": [
-                {
-                    "flag": "docker rm",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Commands",
-            "difficultyLevel": "Easy",
-            "points": 10,
-            "author": admin_user["username"],
-            "tags": ["docker", "containers", "remove"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker rm' command removes one or more containers.",
-            "relatedChallengeIds": [],
+            "difficulty": "BEGINNER",
+            "points": 100,
+            "tags": ["docker", "containers", "remove", "cleanup"],
+            "category": "Docker Cleanup",
+            "solution": "'docker rm <container>' removes a stopped container."
         },
-        # Challenge 7 - Easy
+
+        # EASY Level (100-200 points)
         {
-            "question": "What command removes a Docker image?",
-            "maxAttempts": 3,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of removing Docker images.",
+            "question": "What command builds a Docker image from a Dockerfile in the current directory and tags it as 'myapp:latest'?",
+            "flag": "docker build -t myapp:latest .",
             "hints": [
-                "Similar to removing containers but for images.",
-                "Make sure no containers are using the image.",
+                "You need to build, tag, and specify the build context.",
+                "The -t flag is used for tagging.",
+                "Don't forget the build context (current directory)."
             ],
-            "flags": [
-                {
-                    "flag": "docker rmi",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Commands",
-            "difficultyLevel": "Easy",
-            "points": 10,
-            "author": admin_user["username"],
-            "tags": ["docker", "images", "remove"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker rmi' command removes one or more images from the local system.",
-            "relatedChallengeIds": [],
+            "difficulty": "EASY",
+            "points": 150,
+            "tags": ["docker", "build", "dockerfile", "tag"],
+            "category": "Docker Images",
+            "solution": "'docker build -t myapp:latest .' builds and tags an image from current directory."
         },
-        # Challenge 8 - Medium
         {
-            "question": "What Docker run flag allows you to run a container in detached mode?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of Docker run flags.",
+            "question": "What command shows the logs of a running container named 'webapp'?",
+            "flag": "docker logs webapp",
             "hints": [
-                "Detached mode runs the container in the background.",
-                "It's a single letter flag.",
+                "You want to see what the container is outputting.",
+                "Use the container name instead of ID.",
+                "Logs command shows stdout and stderr."
             ],
-            "flags": [
-                {
-                    "flag": "-d",
-                    "surroundWithTag": False,
-                    "caseSensitive": True,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Flags",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "flags", "detached"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The '-d' flag runs the container in detached mode (in the background).",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 9 - Medium
-        {
-            "question": "What Docker run flag is used to map a host port to a container port?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of port mapping in Docker.",
-            "hints": [
-                "Think about publishing or exposing ports.",
-                "It's a single letter flag.",
-            ],
-            "flags": [
-                {
-                    "flag": "-p",
-                    "surroundWithTag": False,
-                    "caseSensitive": True,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Networking",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "networking", "ports"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The '-p' flag maps a host port to a container port (e.g., -p 8080:80).",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 10 - Medium
-        {
-            "question": "What command is used to execute a command inside a running Docker container?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of executing commands in containers.",
-            "hints": [
-                "Think about running additional processes in a container.",
-                "Often used with -it flags.",
-            ],
-            "flags": [
-                {
-                    "flag": "docker exec",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Commands",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "exec", "commands"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker exec' command runs a command in a running container.",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 11 - Medium
-        {
-            "question": "What command shows the logs of a Docker container?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of viewing container logs.",
-            "hints": [
-                "Think about debugging and monitoring containers.",
-                "Used to see container output.",
-            ],
-            "flags": [
-                {
-                    "flag": "docker logs",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
+            "difficulty": "EASY",
+            "points": 125,
+            "tags": ["docker", "logs", "debugging", "containers"],
             "category": "Docker Debugging",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "logs", "debugging"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker logs' command fetches the logs of a container.",
-            "relatedChallengeIds": [],
+            "solution": "'docker logs <container>' shows the container's log output."
         },
-        # Challenge 12 - Medium
         {
-            "question": "What command is used to create a Docker volume?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of Docker volumes.",
+            "question": "What command creates a Docker volume named 'data-vol'?",
+            "flag": "docker volume create data-vol",
             "hints": [
                 "Volumes are used for persistent data storage.",
-                "Check the volume subcommand.",
+                "You need to create before you can use it.",
+                "Use the volume subcommand."
             ],
-            "flags": [
-                {
-                    "flag": "docker volume create",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
+            "difficulty": "EASY",
+            "points": 175,
+            "tags": ["docker", "volumes", "storage", "persistence"],
             "category": "Docker Storage",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "volumes", "storage"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker volume create' command creates a new Docker volume.",
-            "relatedChallengeIds": [],
+            "solution": "'docker volume create <name>' creates a named volume for data persistence."
         },
-        # Challenge 13 - Medium
         {
-            "question": "What command lists all Docker volumes?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of listing Docker volumes.",
+            "question": "What command executes the 'bash' command inside a running container named 'mycontainer'?",
+            "flag": "docker exec -it mycontainer bash",
             "hints": [
-                "Similar to listing containers and images.",
-                "Use the volume subcommand.",
+                "You want to execute a command in an already running container.",
+                "You'll need interactive flags for bash shell.",
+                "Use exec, not run, for existing containers."
             ],
-            "flags": [
-                {
-                    "flag": "docker volume ls",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Storage",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "volumes", "list"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker volume ls' command lists all Docker volumes on the system.",
-            "relatedChallengeIds": [],
+            "difficulty": "EASY",
+            "points": 200,
+            "tags": ["docker", "exec", "bash", "shell"],
+            "category": "Docker Debugging",
+            "solution": "'docker exec -it <container> bash' opens an interactive bash shell in a running container."
         },
-        # Challenge 14 - Medium
         {
-            "question": "What command is used to create a Docker network?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of Docker networking.",
+            "question": "What command maps port 8080 on your host to port 80 in the container when running nginx?",
+            "flag": "docker run -p 8080:80 nginx",
             "hints": [
-                "Networks allow containers to communicate.",
-                "Use the network subcommand.",
+                "You need port mapping between host and container.",
+                "Format is host-port:container-port.",
+                "Use the -p flag for port mapping."
             ],
-            "flags": [
-                {
-                    "flag": "docker network create",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
+            "difficulty": "EASY",
+            "points": 175,
+            "tags": ["docker", "networking", "ports", "nginx"],
             "category": "Docker Networking",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "networking", "create"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker network create' command creates a new Docker network.",
-            "relatedChallengeIds": [],
+            "solution": "'docker run -p 8080:80 nginx' maps host port 8080 to container port 80."
         },
-        # Challenge 15 - Hard
+
+        # MEDIUM Level (200-400 points)
         {
-            "question": "What is the default Docker network driver?",
-            "maxAttempts": 1,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of Docker network drivers.",
+            "question": "What command runs a MySQL container with environment variable MYSQL_ROOT_PASSWORD set to 'secret123' and maps port 3306?",
+            "flag": "docker run -e MYSQL_ROOT_PASSWORD=secret123 -p 3306:3306 mysql",
             "hints": [
-                "Think about the most common network type.",
-                "It's used for single-host networking.",
+                "You need environment variables and port mapping.",
+                "Use -e flag for environment variables.",
+                "MySQL typically runs on port 3306."
             ],
-            "flags": [
-                {
-                    "flag": "bridge",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
+            "difficulty": "MEDIUM",
+            "points": 250,
+            "tags": ["docker", "mysql", "environment", "database"],
+            "category": "Docker Applications",
+            "solution": "Use -e for environment variables and -p for port mapping when running database containers."
+        },
+        {
+            "question": "What Docker Compose command starts all services defined in docker-compose.yml in detached mode?",
+            "flag": "docker-compose up -d",
+            "hints": [
+                "Docker Compose manages multi-container applications.",
+                "You want to start services in the background.",
+                "The 'up' command starts services."
             ],
+            "difficulty": "MEDIUM",
+            "points": 300,
+            "tags": ["docker-compose", "services", "orchestration"],
+            "category": "Docker Compose",
+            "solution": "'docker-compose up -d' starts all services defined in the compose file in detached mode."
+        },
+        {
+            "question": "What command creates a custom Docker network named 'mynetwork' with the bridge driver?",
+            "flag": "docker network create --driver bridge mynetwork",
+            "hints": [
+                "Custom networks allow better container communication.",
+                "Bridge is the default network driver.",
+                "Use the network subcommand."
+            ],
+            "difficulty": "MEDIUM",
+            "points": 275,
+            "tags": ["docker", "networking", "bridge", "custom"],
             "category": "Docker Networking",
-            "difficultyLevel": "Hard",
-            "points": 25,
-            "author": admin_user["username"],
-            "tags": ["docker", "networking", "drivers"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'bridge' network driver is the default driver for Docker containers.",
-            "relatedChallengeIds": [],
+            "solution": "'docker network create --driver bridge <name>' creates a custom bridge network."
         },
-        # Challenge 16 - Hard
         {
-            "question": "What Dockerfile instruction is used to set the working directory?",
-            "maxAttempts": 1,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of Dockerfile instructions.",
+            "question": "What command copies a file named 'config.txt' from your host to '/app/' directory inside a running container 'webapp'?",
+            "flag": "docker cp config.txt webapp:/app/",
             "hints": [
-                "Think about changing directories in the container.",
-                "It's similar to the 'cd' command.",
+                "You need to copy files between host and container.",
+                "Use the cp command like in Linux.",
+                "Format is source:destination."
             ],
-            "flags": [
-                {
-                    "flag": "WORKDIR",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Dockerfile",
-            "difficultyLevel": "Hard",
-            "points": 25,
-            "author": admin_user["username"],
-            "tags": ["dockerfile", "instructions", "workdir"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'WORKDIR' instruction sets the working directory for subsequent instructions.",
-            "relatedChallengeIds": [],
+            "difficulty": "MEDIUM",
+            "points": 225,
+            "tags": ["docker", "copy", "files", "filesystem"],
+            "category": "Docker File Operations",
+            "solution": "'docker cp <source> <container>:<destination>' copies files between host and container."
         },
-        # Challenge 17 - Hard
         {
-            "question": "What Dockerfile instruction is used to copy files from the host to the container?",
-            "maxAttempts": 1,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of file copying in Dockerfiles.",
+            "question": "What command mounts the host directory '/home/user/data' to '/data' in the container when running ubuntu?",
+            "flag": "docker run -v /home/user/data:/data ubuntu",
             "hints": [
-                "Think about transferring files.",
-                "There are two main instructions for this.",
+                "You need volume mounting for shared directories.",
+                "Use -v flag for volume mounts.",
+                "Format is host-path:container-path."
             ],
-            "flags": [
-                {
-                    "flag": "COPY",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 0.5,
-                },
-                {
-                    "flag": "ADD",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 0.5,
-                },
-            ],
-            "category": "Dockerfile",
-            "difficultyLevel": "Hard",
-            "points": 25,
-            "author": admin_user["username"],
-            "tags": ["dockerfile", "copy", "add"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "Both 'COPY' and 'ADD' can copy files, but COPY is preferred for simple file copying.",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 18 - Hard
-        {
-            "question": "What Dockerfile instruction specifies the default command to run when the container starts?",
-            "maxAttempts": 1,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of container startup commands.",
-            "hints": [
-                "Think about what happens when a container starts.",
-                "There are two main instructions for this.",
-            ],
-            "flags": [
-                {
-                    "flag": "CMD",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 0.6,
-                },
-                {
-                    "flag": "ENTRYPOINT",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 0.4,
-                },
-            ],
-            "category": "Dockerfile",
-            "difficultyLevel": "Hard",
-            "points": 25,
-            "author": admin_user["username"],
-            "tags": ["dockerfile", "cmd", "entrypoint"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "CMD provides defaults for executing a container, while ENTRYPOINT configures the container as an executable.",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 19 - Medium
-        {
-            "question": "What command pulls a Docker image from a registry?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of downloading Docker images.",
-            "hints": [
-                "Think about downloading from Docker Hub.",
-                "Similar to git pull.",
-            ],
-            "flags": [
-                {
-                    "flag": "docker pull",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Registry",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "pull", "registry"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker pull' command downloads an image from a Docker registry.",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 20 - Medium
-        {
-            "question": "What command pushes a Docker image to a registry?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of uploading Docker images.",
-            "hints": ["Think about uploading to Docker Hub.", "Similar to git push."],
-            "flags": [
-                {
-                    "flag": "docker push",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Registry",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "push", "registry"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker push' command uploads an image to a Docker registry.",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 21 - Easy
-        {
-            "question": "What command shows detailed information about a Docker container?",
-            "maxAttempts": 3,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of inspecting Docker containers.",
-            "hints": [
-                "Think about examining container details.",
-                "Used for debugging and information gathering.",
-            ],
-            "flags": [
-                {
-                    "flag": "docker inspect",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Commands",
-            "difficultyLevel": "Easy",
-            "points": 10,
-            "author": admin_user["username"],
-            "tags": ["docker", "inspect", "information"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker inspect' command returns detailed information about Docker objects.",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 22 - Medium
-        {
-            "question": "What Docker run flag allows you to automatically remove the container when it exits?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of automatic container cleanup.",
-            "hints": [
-                "Think about temporary containers.",
-                "Useful for testing and one-time runs.",
-            ],
-            "flags": [
-                {
-                    "flag": "--rm",
-                    "surroundWithTag": False,
-                    "caseSensitive": True,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Flags",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "flags", "cleanup"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The '--rm' flag automatically removes the container when it exits.",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 23 - Hard
-        {
-            "question": "What is the Docker build context?",
-            "maxAttempts": 1,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your understanding of Docker build concepts.",
-            "hints": [
-                "Think about what files Docker can access during build.",
-                "It's specified as the last argument to docker build.",
-            ],
-            "flags": [
-                {
-                    "flag": "build context",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 0.7,
-                },
-                {
-                    "flag": "context",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 0.3,
-                },
-            ],
-            "category": "Docker Build",
-            "difficultyLevel": "Hard",
-            "points": 25,
-            "author": admin_user["username"],
-            "tags": ["docker", "build", "context"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The build context is the set of files and directories that Docker can access during the build process.",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 24 - Medium
-        {
-            "question": "What command shows real-time resource usage statistics for Docker containers?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of monitoring Docker containers.",
-            "hints": [
-                "Think about system monitoring.",
-                "Similar to the Unix 'top' command.",
-            ],
-            "flags": [
-                {
-                    "flag": "docker stats",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Monitoring",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "monitoring", "stats"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker stats' command displays real-time resource usage statistics for containers.",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 25 - Medium
-        {
-            "question": "What Docker run flag is used to set environment variables?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of setting environment variables in containers.",
-            "hints": [
-                "Think about configuring the container environment.",
-                "Used with key=value pairs.",
-            ],
-            "flags": [
-                {
-                    "flag": "-e",
-                    "surroundWithTag": False,
-                    "caseSensitive": True,
-                    "weight": 0.6,
-                },
-                {
-                    "flag": "--env",
-                    "surroundWithTag": False,
-                    "caseSensitive": True,
-                    "weight": 0.4,
-                },
-            ],
-            "category": "Docker Configuration",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "environment", "variables"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The '-e' or '--env' flag sets environment variables in the container.",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 26 - Hard
-        {
-            "question": "What is the difference between CMD and ENTRYPOINT in a Dockerfile?",
-            "maxAttempts": 1,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your deep understanding of Dockerfile instructions.",
-            "hints": [
-                "Think about override behavior.",
-                "One can be overridden, the other cannot.",
-            ],
-            "flags": [
-                {
-                    "flag": "CMD can be overridden, ENTRYPOINT cannot",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 0.6,
-                },
-                {
-                    "flag": "ENTRYPOINT is fixed, CMD is default",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 0.4,
-                },
-            ],
-            "category": "Dockerfile",
-            "difficultyLevel": "Hard",
-            "points": 30,
-            "author": admin_user["username"],
-            "tags": ["dockerfile", "cmd", "entrypoint", "difference"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "CMD provides defaults that can be overridden, while ENTRYPOINT configures the container as an executable that cannot be overridden.",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 27 - Medium
-        {
-            "question": "What command is used to tag a Docker image?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of Docker image tagging.",
-            "hints": [
-                "Think about labeling images.",
-                "Often used before pushing to registries.",
-            ],
-            "flags": [
-                {
-                    "flag": "docker tag",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Images",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "tag", "images"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker tag' command creates a tag that refers to an existing image.",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 28 - Easy
-        {
-            "question": "What command restarts a Docker container?",
-            "maxAttempts": 3,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of restarting Docker containers.",
-            "hints": [
-                "Think about stopping and starting a container.",
-                "Useful for applying configuration changes.",
-            ],
-            "flags": [
-                {
-                    "flag": "docker restart",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Commands",
-            "difficultyLevel": "Easy",
-            "points": 10,
-            "author": admin_user["username"],
-            "tags": ["docker", "restart", "containers"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker restart' command stops and then starts a container.",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 29 - Medium
-        {
-            "question": "What Docker run flag is used to mount a volume?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of Docker volume mounting.",
-            "hints": [
-                "Think about persistent storage.",
-                "Used to share data between host and container.",
-            ],
-            "flags": [
-                {
-                    "flag": "-v",
-                    "surroundWithTag": False,
-                    "caseSensitive": True,
-                    "weight": 0.6,
-                },
-                {
-                    "flag": "--volume",
-                    "surroundWithTag": False,
-                    "caseSensitive": True,
-                    "weight": 0.4,
-                },
-            ],
+            "difficulty": "MEDIUM",
+            "points": 350,
+            "tags": ["docker", "volumes", "mount", "bind"],
             "category": "Docker Storage",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "volumes", "mount"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The '-v' or '--volume' flag mounts a volume or bind mount into the container.",
-            "relatedChallengeIds": [],
+            "solution": "'docker run -v <host-path>:<container-path> <image>' creates a bind mount."
         },
-        # Challenge 30 - Hard
+
+        # HARD Level (400-600 points)
         {
-            "question": "What is the default restart policy for Docker containers?",
-            "maxAttempts": 1,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of Docker restart policies.",
+            "question": "What command builds a multi-stage Docker image, targeting only the 'production' stage, and tags it as 'myapp:prod'?",
+            "flag": "docker build --target production -t myapp:prod .",
             "hints": [
-                "Think about what happens when a container stops.",
-                "Most basic policy.",
+                "Multi-stage builds have different stages/targets.",
+                "You can target specific stages during build.",
+                "Use --target flag to specify the stage."
             ],
-            "flags": [
-                {
-                    "flag": "no",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Configuration",
-            "difficultyLevel": "Hard",
-            "points": 25,
-            "author": admin_user["username"],
-            "tags": ["docker", "restart", "policy"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The default restart policy is 'no', meaning containers don't restart automatically.",
-            "relatedChallengeIds": [],
+            "difficulty": "HARD",
+            "points": 450,
+            "tags": ["docker", "multi-stage", "build", "production"],
+            "category": "Advanced Docker",
+            "solution": "'docker build --target <stage> -t <tag> .' builds only the specified stage of a multi-stage Dockerfile."
         },
-        # Challenge 31 - Medium
         {
-            "question": "What command is used to pause a running Docker container?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of pausing Docker containers.",
+            "question": "What command runs a container with memory limit of 512MB and CPU limit of 0.5 cores?",
+            "flag": "docker run --memory=512m --cpus=0.5",
             "hints": [
-                "Think about temporarily stopping processes.",
-                "Different from stopping the container.",
+                "Resource constraints prevent containers from consuming too much.",
+                "Memory is specified with units like 'm' for megabytes.",
+                "CPU limits can be fractional."
             ],
-            "flags": [
-                {
-                    "flag": "docker pause",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Commands",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "pause", "containers"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker pause' command suspends all processes in the specified container.",
-            "relatedChallengeIds": [],
+            "difficulty": "HARD",
+            "points": 400,
+            "tags": ["docker", "resources", "memory", "cpu"],
+            "category": "Docker Resource Management",
+            "solution": "Use --memory and --cpus flags to limit container resource usage."
         },
-        # Challenge 32 - Medium
         {
-            "question": "What command is used to unpause a paused Docker container?",
-            "maxAttempts": 2,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of unpausing Docker containers.",
-            "hints": ["Opposite of pause.", "Resumes suspended processes."],
-            "flags": [
-                {
-                    "flag": "docker unpause",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Docker Commands",
-            "difficultyLevel": "Medium",
-            "points": 15,
-            "author": admin_user["username"],
-            "tags": ["docker", "unpause", "containers"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'docker unpause' command unpauses all processes in the specified container.",
-            "relatedChallengeIds": [],
-        },
-        # Challenge 33 - Hard
-        {
-            "question": "What Dockerfile instruction is used to expose ports?",
-            "maxAttempts": 1,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your knowledge of port exposure in Dockerfiles.",
+            "question": "What command creates a Docker secret named 'db-password' from a file called 'password.txt' in Docker Swarm?",
+            "flag": "docker secret create db-password password.txt",
             "hints": [
-                "Think about network accessibility.",
-                "Informs Docker that the container listens on specific ports.",
+                "Secrets are used for sensitive data in Swarm mode.",
+                "You can create secrets from files.",
+                "This only works in Swarm mode."
             ],
-            "flags": [
-                {
-                    "flag": "EXPOSE",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 1,
-                }
-            ],
-            "category": "Dockerfile",
-            "difficultyLevel": "Hard",
-            "points": 25,
-            "author": admin_user["username"],
-            "tags": ["dockerfile", "expose", "ports"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "The 'EXPOSE' instruction informs Docker that the container listens on specified network ports at runtime.",
-            "relatedChallengeIds": [],
+            "difficulty": "HARD",
+            "points": 500,
+            "tags": ["docker", "swarm", "secrets", "security"],
+            "category": "Docker Swarm",
+            "solution": "'docker secret create <name> <file>' creates a secret from a file in Docker Swarm."
         },
-        # Challenge 34 - Expert
         {
-            "question": "What is a Docker multi-stage build?",
-            "maxAttempts": 1,
-            "roomId": docker_room["id"],
-            "description": "This challenge tests your advanced knowledge of Docker build optimization.",
+            "question": "What command initializes a Docker Swarm cluster and advertises the manager on IP 192.168.1.100?",
+            "flag": "docker swarm init --advertise-addr 192.168.1.100",
             "hints": [
-                "Think about reducing image size.",
-                "Uses multiple FROM statements.",
+                "Swarm mode enables container orchestration.",
+                "You need to specify the advertise address for cluster communication.",
+                "This creates a Swarm manager node."
             ],
-            "flags": [
-                {
-                    "flag": "multiple FROM statements",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 0.4,
-                },
-                {
-                    "flag": "build optimization",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 0.3,
-                },
-                {
-                    "flag": "reduce image size",
-                    "surroundWithTag": False,
-                    "caseSensitive": False,
-                    "weight": 0.3,
-                },
-            ],
-            "category": "Docker Advanced",
-            "difficultyLevel": "Expert",
-            "points": 35,
-            "author": admin_user["username"],
-            "tags": ["docker", "multi-stage", "build", "optimization"],
-            "visible": True,
-            "expirationDate": (datetime.now() + timedelta(days=30)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "attachments": [],
-            "solutionExplanation": "Multi-stage builds use multiple FROM statements to create smaller, more efficient images by copying only necessary artifacts between stages.",
-            "relatedChallengeIds": [],
+            "difficulty": "HARD",
+            "points": 550,
+            "tags": ["docker", "swarm", "cluster", "orchestration"],
+            "category": "Docker Swarm",
+            "solution": "'docker swarm init --advertise-addr <ip>' initializes a Swarm cluster with specified manager address."
         },
+        {
+            "question": "What command creates a Docker service named 'web' running nginx with 3 replicas and published port 80?",
+            "flag": "docker service create --name web --replicas 3 --publish 80:80 nginx",
+            "hints": [
+                "Services are the unit of deployment in Swarm mode.",
+                "Replicas determine how many instances to run.",
+                "Use --publish for port mapping in services."
+            ],
+            "difficulty": "HARD",
+            "points": 475,
+            "tags": ["docker", "service", "swarm", "replicas"],
+            "category": "Docker Swarm",
+            "solution": "'docker service create' with --name, --replicas, and --publish flags creates a service with multiple instances."
+        },
+
+        # EXPERT Level (600-800 points)
+        {
+            "question": "What command prunes all unused Docker objects (containers, networks, images, volumes) with a filter to only remove objects older than 24 hours?",
+            "flag": "docker system prune -a --filter until=24h",
+            "hints": [
+                "System prune removes multiple types of unused objects.",
+                "The -a flag includes unused images.",
+                "Filters can be based on time using 'until'."
+            ],
+            "difficulty": "EXPERT",
+            "points": 650,
+            "tags": ["docker", "prune", "cleanup", "filter"],
+            "category": "Docker Maintenance",
+            "solution": "'docker system prune -a --filter until=<time>' removes all unused objects older than specified time."
+        },
+        {
+            "question": "What command exports a container's filesystem as a tar archive named 'backup.tar'?",
+            "flag": "docker export container_name > backup.tar",
+            "hints": [
+                "Export creates a tar archive of the container's filesystem.",
+                "This is different from saving an image.",
+                "Use output redirection to save to file."
+            ],
+            "difficulty": "EXPERT",
+            "points": 600,
+            "tags": ["docker", "export", "backup", "filesystem"],
+            "category": "Docker Backup",
+            "solution": "'docker export <container>' creates a tar archive of the container's entire filesystem."
+        },
+        {
+            "question": "What command inspects a Docker image and outputs only the exposed ports in JSON format?",
+            "flag": "docker inspect --format='{{.Config.ExposedPorts}}' image_name",
+            "hints": [
+                "Inspect provides detailed information about Docker objects.",
+                "Use --format with Go templates to extract specific data.",
+                "ExposedPorts is under the Config section."
+            ],
+            "difficulty": "EXPERT",
+            "points": 700,
+            "tags": ["docker", "inspect", "json", "ports"],
+            "category": "Docker Inspection",
+            "solution": "'docker inspect --format' with Go templates extracts specific information from Docker objects."
+        },
+        {
+            "question": "What command runs a container with a custom security profile that drops all capabilities except NET_ADMIN?",
+            "flag": "docker run --cap-drop=ALL --cap-add=NET_ADMIN ubuntu",
+            "hints": [
+                "Linux capabilities control what privileged operations are allowed.",
+                "You can drop all capabilities then add back specific ones.",
+                "NET_ADMIN allows network administration tasks."
+            ],
+            "difficulty": "EXPERT",
+            "points": 750,
+            "tags": ["docker", "security", "capabilities", "linux"],
+            "category": "Docker Security",
+            "solution": "Use --cap-drop=ALL --cap-add=<capability> to run containers with minimal privileges."
+        },
+        {
+            "question": "What command creates a Docker buildx builder instance named 'mybuilder' that supports multi-platform builds?",
+            "flag": "docker buildx create --name mybuilder --use",
+            "hints": [
+                "Buildx enables advanced build features like multi-platform.",
+                "You need to create and use a builder instance.",
+                "The --use flag makes it the active builder."
+            ],
+            "difficulty": "EXPERT",
+            "points": 800,
+            "tags": ["docker", "buildx", "multi-platform", "builder"],
+            "category": "Advanced Docker",
+            "solution": "'docker buildx create --name <name> --use' creates and activates a buildx builder for advanced builds."
+        }
     ]
+
+    challenges = []
+    now = datetime.now()
+    
+    for idx, q in enumerate(questions_flags_hints):
+        challenge = {
+            "question": q["question"],
+            "maxAttempts": 3 if q["difficulty"] in ["BEGINNER", "EASY"] else 5,
+            "roomId": docker_room["id"],
+            "description": f"Challenge {idx+1}: {q['category']} - Test your Docker skills with this {q['difficulty'].lower()}-level challenge.",
+            "hints": [
+                {
+                    "hint": hint,
+                    "orderIndex": i + 1,
+                    "cost": 5 if q["difficulty"] == "BEGINNER" else 10 if q["difficulty"] == "EASY" else 15 if q["difficulty"] == "MEDIUM" else 20 if q["difficulty"] == "HARD" else 25,
+                    "isUnlocked": i == 0,  # First hint is always unlocked
+                    "unlockAfterAttempts": i,  # Unlock after i failed attempts
+                    "usedAt": None,
+                    "pointsDeducted": 0
+                }
+                for i, hint in enumerate(q["hints"])
+            ],
+            "flags": [
+                {
+                    "flag": q["flag"],
+                    "surroundWithTag": False,
+                    "caseSensitive": False,
+                    "weight": 1.0
+                }
+            ],
+            "category": q["category"],
+            "difficultyLevel": q["difficulty"],
+            "points": q["points"],
+            "author": admin_user["username"],
+            "tags": q["tags"],
+            "visible": True,
+            "isActive": True,
+            "solveCount": 0,
+            "attemptCount": 0,
+            "releaseDate": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "expirationDate": (now + timedelta(days=60)).strftime("%Y-%m-%d %H:%M:%S"),
+            "attachments": [],
+            "solutionExplanation": q["solution"],
+            "relatedChallengeIds": []
+        }
+        challenges.append(challenge)
+
+    return challenges

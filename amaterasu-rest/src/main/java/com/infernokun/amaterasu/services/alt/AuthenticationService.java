@@ -3,8 +3,8 @@ package com.infernokun.amaterasu.services.alt;
 import com.infernokun.amaterasu.exceptions.AuthFailedException;
 import com.infernokun.amaterasu.exceptions.TokenException;
 import com.infernokun.amaterasu.exceptions.WrongPasswordException;
-import com.infernokun.amaterasu.models.dto.LoginResponseDTO;
-import com.infernokun.amaterasu.models.dto.RegistrationDTO;
+import com.infernokun.amaterasu.models.dto.LoginResponse;
+import com.infernokun.amaterasu.models.dto.RegistrationRequest;
 import com.infernokun.amaterasu.models.entities.RefreshToken;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.enums.Role;
@@ -34,7 +34,7 @@ public class AuthenticationService extends BaseService {
     private final RefreshTokenService refreshTokenService;
     private final UserService userService;
 
-    public boolean registerUser(RegistrationDTO user) {
+    public boolean registerUser(RegistrationRequest user) {
         if (user == null || user.getUsername() == null || user.getPassword() == null) {
             throw new AuthFailedException("Username and password required!");
         }
@@ -55,7 +55,7 @@ public class AuthenticationService extends BaseService {
         return true;
     }
 
-    public LoginResponseDTO login(String username, String password, HttpServletRequest request) {
+    public LoginResponse login(String username, String password, HttpServletRequest request) {
         try {
             User user = userService.findByUsernameIgnoreCase(username)
                     .orElseThrow(() -> new BadCredentialsException("Invalid username or password"));
@@ -75,7 +75,7 @@ public class AuthenticationService extends BaseService {
 
             String accessToken = refreshTokenService.generateAccessToken(authenticatedUser);
 
-            return new LoginResponseDTO(accessToken, authenticatedUser, refreshToken.getToken());
+            return new LoginResponse(accessToken, authenticatedUser, refreshToken.getToken());
 
         } catch (BadCredentialsException e) {
             LOGGER.error("LOGIN FAILED: Bad credentials for username: {}", username);
@@ -92,7 +92,7 @@ public class AuthenticationService extends BaseService {
     /**
      * Refresh access token using refresh token
      */
-    public LoginResponseDTO refreshToken(String refreshTokenString, HttpServletRequest request) {
+    public LoginResponse refreshToken(String refreshTokenString, HttpServletRequest request) {
         LOGGER.info("Refreshing token");
 
         // Validate refresh token and get new access token
@@ -106,7 +106,7 @@ public class AuthenticationService extends BaseService {
 
         LOGGER.info("Token refreshed for user: {}", refreshToken.getUser().getId());
 
-        return new LoginResponseDTO(newAccessToken, refreshToken.getUser(), finalRefreshToken.getToken());
+        return new LoginResponse(newAccessToken, refreshToken.getUser(), finalRefreshToken.getToken());
     }
 
     /**

@@ -2,7 +2,7 @@ package com.infernokun.amaterasu.controllers.entity.lab;
 
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
-import com.infernokun.amaterasu.models.dto.RemoteServerDTO;
+import com.infernokun.amaterasu.models.dto.RemoteServerRequest;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.services.entity.lab.RemoteServerService;
@@ -54,7 +54,7 @@ public class RemoteServerController extends BaseController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<RemoteServer>> createRemoteServer(@RequestBody RemoteServerDTO remoteServer) {
+    public ResponseEntity<ApiResponse<RemoteServer>> createRemoteServer(@RequestBody RemoteServerRequest remoteServer) {
         RemoteServer createdServer = remoteServerService.addServer(modelMapper.map(remoteServer, RemoteServer.class));
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse.<RemoteServer>builder()
@@ -66,7 +66,7 @@ public class RemoteServerController extends BaseController {
     }
 
     @PostMapping("/validate")
-    public ResponseEntity<ApiResponse<Boolean>> validateRemoteServer(@RequestBody RemoteServerDTO remoteServer) {
+    public ResponseEntity<ApiResponse<Boolean>> validateRemoteServer(@RequestBody RemoteServerRequest remoteServer) {
         boolean isRemoteServerValid = remoteServerService.validateRemoteServer(modelMapper.map(remoteServer, RemoteServer.class));
         return ResponseEntity.status(HttpStatus.OK).body(
                 ApiResponse.<Boolean>builder()

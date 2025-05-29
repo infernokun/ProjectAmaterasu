@@ -1,28 +1,35 @@
+import { DifficultyLevel } from "../../enums/difficulty-level.enum";
 import { StoredObject } from "../stored-object.model";
 import { Flag } from "./flag.model";
+import { Hint } from "./hint.model";
 
 export class CTFEntity extends StoredObject {
+  // excluded from dto
+  flags?: Flag[];
+  // included in dto
   question?: string;
   maxAttempts?: number;
   description?: string;
-  hints?: string[];
   category?: string;
-  difficultyLevel?: string;
+  difficultyLevel?: DifficultyLevel;
   points?: number;
   author?: string;
-  flags?: Flag[];
+  hints?: Hint[];
   tags?: string[];
   visible?: boolean;
+  isActive?: boolean;
+  solveCount?: number;
+  attemptCount?: number;
   releaseDate?: Date;
   expirationDate?: Date;
   attachments?: string[];
   solutionExplanation?: string;
-  relatedChallenges?: string[];
+  relatedChallengeIds?: string[];
 
   constructor(serverResult?: any) {
-    if (serverResult) {
-      super(serverResult);
+    super(serverResult);
 
+    if (serverResult) {
       this.question = serverResult.question;
       this.maxAttempts = serverResult.maxAttempts;
       this.description = serverResult.description;
@@ -34,10 +41,14 @@ export class CTFEntity extends StoredObject {
       this.flags = serverResult.flags;
       this.tags = serverResult.tags;
       this.visible = serverResult.visible;
+      this.isActive = serverResult.isActive;
+      this.solveCount = serverResult.solveCount;
+      this.attemptCount = serverResult.attemptCount;
       this.releaseDate = serverResult.releaseDate ? new Date(serverResult.releaseDate) : undefined;
       this.expirationDate = serverResult.expirationDate ? new Date(serverResult.expirationDate) : undefined;
-      this.attachments = serverResult.solutionExplanation;
-      this.relatedChallenges = serverResult.relatedChallenges;
+      this.attachments = serverResult.attachment;
+      this.solutionExplanation = serverResult.solutionExplanation;
+      this.relatedChallengeIds = serverResult.relatedChallengeIds;
     }
   }
 }

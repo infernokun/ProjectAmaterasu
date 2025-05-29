@@ -16,7 +16,7 @@ import { ViewCTFComponent } from '../components/app-ctf/view/view-ctf.component'
 export class EditDialogService {
   constructor(private dialog: MatDialog) { }
 
-  openForm(formData: SimpleFormData | undefined, component?: ComponentType<any>, customConfig?: MatDialogConfig): Observable<any> {
+  openForm(formData: SimpleFormData | any | undefined, component?: ComponentType<any>, customConfig?: MatDialogConfig): Observable<any> {
     const config = customConfig || new MatDialogConfig();
     config.disableClose = config.disableClose ?? true;
     config.autoFocus = config.autoFocus ?? true;
@@ -24,17 +24,6 @@ export class EditDialogService {
     config.minWidth = config.minWidth ?? "50vw";
     return this.dialog
       .open(component ? component : AddDialogFormComponent, config)
-      .afterClosed();
-  }
-
-  openCTFForm(formData: CTFEntity | undefined, component: ComponentType<unknown>): Observable<any> {
-    const config = new MatDialogConfig();
-    config.disableClose = false;
-    config.autoFocus = true;
-    config.data = formData;
-    config.minWidth = "50vw";
-    return this.dialog
-      .open(component, config)
       .afterClosed();
   }
 
@@ -66,6 +55,13 @@ export class EditDialogService {
   }
 
   openViewDialog(formData: CTFEntity): Observable<any> {
-    return this.openCTFForm(formData, ViewCTFComponent);
+    const config: MatDialogConfig = {
+      disableClose: false,
+      autoFocus: true,
+      data: formData,
+      minWidth: "50vw"
+    }
+
+    return this.openForm(formData, ViewCTFComponent, config);
   }
 }

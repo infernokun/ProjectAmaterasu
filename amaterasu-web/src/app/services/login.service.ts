@@ -2,9 +2,9 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiResponse } from '../models/api-response.model';
-import { LoginResponseDTO } from '../models/dto/login-response.dto.model';
 import { EnvironmentService } from './environment.service';
 import { Router } from '@angular/router';
+import { LoginResponse } from '../models/dto/login-response.model';
 
 @Injectable({
   providedIn: 'root'
@@ -38,8 +38,8 @@ export class LoginService {
     return `${this.environmentService.settings?.restUrl}/auth/logout`;
   }
 
-  login(username: string, password: string): Observable<ApiResponse<LoginResponseDTO>> {
-    return this.http.post<ApiResponse<LoginResponseDTO>>(this.loginUrl, {
+  login(username: string, password: string): Observable<ApiResponse<LoginResponse>> {
+    return this.http.post<ApiResponse<LoginResponse>>(this.loginUrl, {
       username,
       password
     });
@@ -52,9 +52,9 @@ export class LoginService {
     });
   }
 
-  refreshToken(refreshToken: string): Observable<ApiResponse<LoginResponseDTO>> {
+  refreshToken(refreshToken: string): Observable<ApiResponse<LoginResponse>> {
     console.log('Refresh URL:', this.refreshUrl); // Debug log
-    return this.http.post<ApiResponse<LoginResponseDTO>>(this.refreshUrl, {
+    return this.http.post<ApiResponse<LoginResponse>>(this.refreshUrl, {
       refreshToken
     });
   }

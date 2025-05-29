@@ -3,8 +3,7 @@ package com.infernokun.amaterasu.controllers.entity.lab;
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.LabActionResult;
-import com.infernokun.amaterasu.models.LabRequest;
-import com.infernokun.amaterasu.models.dto.LabDTO;
+import com.infernokun.amaterasu.models.dto.LabRequest;
 import com.infernokun.amaterasu.models.entities.lab.Lab;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
@@ -90,11 +89,11 @@ public class LabController extends BaseController {
     }
 
     @PostMapping()
-    public ResponseEntity<ApiResponse<Lab>> createLab(@RequestParam String remoteServerId, @RequestBody LabDTO labDTO) {
-        if (labDTO == null) throw new RuntimeException("labDTO is null");
+    public ResponseEntity<ApiResponse<Lab>> createLab(@RequestParam String remoteServerId, @RequestBody LabRequest labRequest) {
+        if (labRequest == null) throw new RuntimeException("labDTO is null");
         RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
 
-        Lab createdLab = labService.createLab(labDTO, remoteServer);
+        Lab createdLab = labService.createLab(labRequest, remoteServer);
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse.<Lab>builder()
                         .code(HttpStatus.CREATED.value())
@@ -157,7 +156,7 @@ public class LabController extends BaseController {
     }
 
     @PostMapping("/start")
-    public ResponseEntity<ApiResponse<LabActionResult>> startLab(@RequestBody LabRequest labRequest) {
+    public ResponseEntity<ApiResponse<LabActionResult>> startLab(@RequestBody com.infernokun.amaterasu.models.LabRequest labRequest) {
         RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
 
         LabActionResult result = labService.startLab(labRequest.getLabId(),
@@ -172,7 +171,7 @@ public class LabController extends BaseController {
     }
 
     @PostMapping("/stop")
-    public ResponseEntity<ApiResponse<LabActionResult>> stopLab(@RequestBody LabRequest labRequest) {
+    public ResponseEntity<ApiResponse<LabActionResult>> stopLab(@RequestBody com.infernokun.amaterasu.models.LabRequest labRequest) {
         RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
 
         LabActionResult stoppedLab = labService.stopLab(
@@ -187,7 +186,7 @@ public class LabController extends BaseController {
     }
 
     @PostMapping("/delete")
-    public ResponseEntity<ApiResponse<LabActionResult>> deleteLab(@RequestBody LabRequest labRequest) {
+    public ResponseEntity<ApiResponse<LabActionResult>> deleteLab(@RequestBody com.infernokun.amaterasu.models.LabRequest labRequest) {
         RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
 
         LabActionResult deletedLab = labService.deleteLab(
@@ -202,7 +201,7 @@ public class LabController extends BaseController {
     }
 
     @PostMapping("delete-lab-from-team")
-    public ResponseEntity<ApiResponse<LabTracker>> deleteLabFromTeam(@RequestBody LabRequest labRequest) {
+    public ResponseEntity<ApiResponse<LabTracker>> deleteLabFromTeam(@RequestBody com.infernokun.amaterasu.models.LabRequest labRequest) {
         LOGGER.info("Deleting lab with details {}, {}, and {}",
                 labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
 
@@ -228,7 +227,7 @@ public class LabController extends BaseController {
     }
 
     @PostMapping("dev")
-    public void clear(@RequestBody LabRequest labRequest) {
+    public void clear(@RequestBody com.infernokun.amaterasu.models.LabRequest labRequest) {
         labService.clear(labRequest.getTeamId());
     }
 }

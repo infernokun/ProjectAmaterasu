@@ -3,6 +3,7 @@
 from enum import Flag
 import requests
 from datetime import datetime, timedelta
+import json as JSON
 
 import docker_challenge
 
@@ -60,6 +61,9 @@ def main():
     # room_docker()
     docker_challenges()
 
+    '''x = docker_challenge.get_challenges({'id': 'test'}, {'username': 'test'})
+    with open("docker_challenges.json", "w") as f:
+        f.write(JSON.dumps(x, indent=4))'''
 
 if __name__ == "__main__":
     main()

@@ -1,17 +1,18 @@
 package com.infernokun.amaterasu.models.dto.ctf;
 
+import com.infernokun.amaterasu.models.entities.ctf.Hint;
 import lombok.Data;
 
 import java.util.List;
 
 @Data
-public class CTFEntityCreateDTO {
+public class CTFEntityRequest {
     private String question;
     private Integer maxAttempts;
-    private String roomId;  // Just the ID, not the full object
+    private String roomId;
     private String description;
-    private List<String> hints;
-    private List<FlagCreateDTO> flags;  // Use DTO
+    private List<Hint> hints;
+    private List<FlagRequest> flags;
     private String category;
     private String difficultyLevel;
     private Integer points;

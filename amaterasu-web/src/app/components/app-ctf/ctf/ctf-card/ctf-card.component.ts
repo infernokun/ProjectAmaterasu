@@ -7,6 +7,7 @@ import { AuthService } from '../../../../services/auth.service';
 import { CTFService } from '../../../../services/ctf/ctf.service';
 import { WebsocketService } from '../../../../services/websocket.service';
 import { EditDialogService } from '../../../../services/edit-dialog.service';
+import { DifficultyLevel } from '../../../../enums/difficulty-level.enum';
 
 interface CategoryGroup {
   category: string;
@@ -32,7 +33,11 @@ export class CTFCardComponent implements OnInit, OnDestroy {
   // Subject for handling component destruction
   private destroy$ = new Subject<void>();
 
-  private difficultyOrder = { 'easy': 1, 'medium': 2, 'hard': 3 };
+  DIFFICULTY_KEYS = Object.keys(DifficultyLevel) as (keyof typeof DifficultyLevel)[];
+  DIFFICULTY_ORDER = this.DIFFICULTY_KEYS.reduce((acc, key, index) => {
+    acc[DifficultyLevel[key]] = index + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   constructor(
     private ctfService: CTFService,
@@ -71,9 +76,9 @@ export class CTFCardComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe({
-        next: (challenges) => {
-          this.challenges = challenges;
-          this.categorizedChallenges = this.categorizeAndSortChallenges(challenges);
+        next: (challenges: CTFEntity[]) => {
+          this.challenges = challenges.map(challenge => new CTFEntity(challenge));
+          this.categorizedChallenges = this.categorizeAndSortChallenges(this.challenges);
           this.busy = false;
         },
         error: (error) => {
@@ -102,8 +107,12 @@ export class CTFCardComponent implements OnInit, OnDestroy {
         )
       );
   }
+
+  getDifficultyOrder(difficulty: string | undefined): number {
+    return difficulty ? this.DIFFICULTY_ORDER[difficulty] || 999 : 999;
+  }
+
   private categorizeAndSortChallenges(challenges: CTFEntity[]): CategoryGroup[] {
-    // Group challenges by category
     const grouped = challenges.reduce((acc, challenge) => {
       const category = challenge.category || 'Uncategorized';
       if (!acc[category]) {
@@ -112,22 +121,20 @@ export class CTFCardComponent implements OnInit, OnDestroy {
       acc[category].push(challenge);
       return acc;
     }, {} as { [key: string]: CTFEntity[] });
-
-    // Convert to array and sort
+  
     return Object.keys(grouped)
-      .sort() // Sort categories alphabetically
+      .sort()
       .map(category => ({
         category,
         challenges: grouped[category].sort((a, b) => {
-          // Sort by difficulty first (easy -> medium -> hard)
-          const diffA = this.difficultyOrder[a.difficultyLevel?.toLowerCase() as keyof typeof this.difficultyOrder] || 999;
-          const diffB = this.difficultyOrder[b.difficultyLevel?.toLowerCase() as keyof typeof this.difficultyOrder] || 999;
-
+          const diffA = this.getDifficultyOrder(a.difficultyLevel);
+          const diffB = this.getDifficultyOrder(b.difficultyLevel);
+          
+          
           if (diffA !== diffB) {
             return diffA - diffB;
           }
-
-          // Then sort by points (ascending)
+          
           return (a.points || 0) - (b.points || 0);
         })
       }));

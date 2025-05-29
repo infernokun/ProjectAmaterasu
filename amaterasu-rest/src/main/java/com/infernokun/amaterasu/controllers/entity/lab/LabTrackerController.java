@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
-import com.infernokun.amaterasu.models.dto.VolumeChangeDTO;
+import com.infernokun.amaterasu.models.dto.VolumeChangeRequest;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.LabStatus;
@@ -130,7 +130,7 @@ public class LabTrackerController extends BaseController {
         // Deserialize volumeChanges JSON
         ObjectMapper objectMapper = new ObjectMapper();
 
-        List<VolumeChangeDTO> volumeChanges;
+        List<VolumeChangeRequest> volumeChanges;
         try {
             volumeChanges = objectMapper.readValue(volumeChangesJson, new TypeReference<>() {
             });

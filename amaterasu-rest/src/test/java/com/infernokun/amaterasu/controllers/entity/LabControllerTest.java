@@ -5,8 +5,7 @@ import com.infernokun.amaterasu.controllers.entity.lab.LabController;
 import com.infernokun.amaterasu.exceptions.GlobalExceptionHandler;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.LabActionResult;
-import com.infernokun.amaterasu.models.LabRequest;
-import com.infernokun.amaterasu.models.dto.LabDTO;
+import com.infernokun.amaterasu.models.dto.LabRequest;
 import com.infernokun.amaterasu.models.entities.lab.Lab;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
@@ -42,8 +41,8 @@ class LabControllerTest {
     private MockMvc mockMvc;
 
     private Lab lab;
-    private LabDTO labDTO;
     private LabRequest labRequest;
+    private com.infernokun.amaterasu.models.LabRequest labRequest;
     private LabActionResult labActionResult;
     private LabTracker labTracker;
     private RemoteServer remoteServer;
@@ -85,9 +84,9 @@ class LabControllerTest {
                 .build();
         lab.setId("1");
 
-        labDTO = new LabDTO();
-
         labRequest = new LabRequest();
+
+        labRequest = new com.infernokun.amaterasu.models.LabRequest();
         labRequest.setLabId("1");
         labRequest.setRemoteServerId("rs1");
         labRequest.setUserId("user1");
@@ -143,12 +142,12 @@ class LabControllerTest {
     @Test
     void createLab() throws Exception {
         when(remoteServerService.findServerById("rs1")).thenReturn(remoteServer);
-        when(labService.createLab(labDTO, remoteServer)).thenReturn(lab);
+        when(labService.createLab(labRequest, remoteServer)).thenReturn(lab);
 
         mockMvc.perform(post("/api/labs")
                         .param("remoteServerId", "rs1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(labDTO)))
+                        .content(objectMapper.writeValueAsString(labRequest)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.code").value(201));
     }

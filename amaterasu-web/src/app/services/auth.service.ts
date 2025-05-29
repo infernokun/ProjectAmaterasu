@@ -4,7 +4,7 @@ import { catchError, map, take, filter, timeout } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { User } from '../models/user.model';
 import { ApiResponse } from '../models/api-response.model';
-import { LoginResponseDTO } from '../models/dto/login-response.dto.model';
+import { LoginResponse } from '../models/dto/login-response.model';
 import { LoginService } from './login.service';
 import { UserService } from './user.service';
 
@@ -253,7 +253,7 @@ export class AuthService implements OnDestroy {
     this.setLoading(true);
 
     return this.loginService.refreshToken(refreshToken).pipe(
-      map((response: ApiResponse<LoginResponseDTO>) => {
+      map((response: ApiResponse<LoginResponse>) => {
         if (!response?.data?.accessToken || !response?.data?.refreshToken) {
           throw new Error('Invalid refresh response');
         }

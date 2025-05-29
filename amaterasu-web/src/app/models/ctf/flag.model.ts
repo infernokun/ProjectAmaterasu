@@ -9,7 +9,6 @@ export class Flag extends StoredObject {
   constructor(serverResult?: any) {
     if (serverResult) {
       super(serverResult);
-      this.id = serverResult.id;
       this.flag = serverResult.flag;
       this.surroundWithTag = serverResult.surroundWithTag;
       this.caseSensitive = serverResult.caseSensitive;

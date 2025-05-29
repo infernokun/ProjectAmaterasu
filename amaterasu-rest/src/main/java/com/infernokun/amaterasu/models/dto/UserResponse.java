@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserDTO {
+public class UserResponse {
     private String id;
     private String username;
     private Role role;

@@ -1,6 +1,6 @@
 import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { AuthService, UserPayload } from '../../../services/auth.service';
+import { AuthService } from '../../../services/auth.service';
 import { BehaviorSubject, catchError, Observable, of, take, throwError, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -9,6 +9,7 @@ import { CTFEntity } from '../../../models/ctf/ctf-entity.model';
 import { FlagAnswer } from '../../../models/ctf/flag-answer.model';
 import { CTFService } from '../../../services/ctf/ctf.service';
 import { User } from '../../../models/user.model';
+import { Hint } from '../../../models/ctf/hint.model';
 
 @Component({
   selector: 'amaterasu-view-dialog',
@@ -253,5 +254,13 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
    */
   get isSubmitDisabled(): boolean {
     return this.isAnswered.getValue() || !this.answer.trim() || this.isLoading;
+  }
+
+  useHint(hint: Hint) {
+
+  }
+
+  canUseHint(hint: Hint): boolean {
+    return true;
   }
 }

@@ -44,6 +44,16 @@
         </div>
       </div>
 
+      <div class="challenge-hint" *ngIf="viewedChallenge.hints">
+        <ul class="hint-list">
+          <li *ngFor="let hint of viewedChallenge.hints">
+            <button class="btn btn-secondary" (click)="useHint(hint)" [disabled]="!(isAnswered$ | async) || !canUseHint(hint)">
+              Unlock hint for {{ hint.cost }} points
+            </button>
+          </li>
+        </ul>
+      </div>
+
       <form class="answer-form" (ngSubmit)="checkAnswer(viewedChallenge)">
         <div class="form-group">
           <label for="answer-input" class="sr-only">Your Answer</label>

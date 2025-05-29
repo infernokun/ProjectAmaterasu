@@ -1,8 +1,9 @@
 package com.infernokun.amaterasu.controllers.entity.ctf;
 
 import com.infernokun.amaterasu.models.ApiResponse;
-import com.infernokun.amaterasu.models.dto.ctf.CTFEntityCreateDTO;
-import com.infernokun.amaterasu.models.dto.ctf.web.CTFEntityResponseDTO;
+import com.infernokun.amaterasu.models.dto.ctf.CTFEntityRequest;
+import com.infernokun.amaterasu.models.dto.ctf.CTFEntityResponse;
+import com.infernokun.amaterasu.models.dto.ctf.HintResponse;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
 import com.infernokun.amaterasu.models.entities.ctf.Flag;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
@@ -31,18 +32,33 @@ public class CTFEntityController {
     private final RoomService roomService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<CTFEntityResponseDTO>>> getAllCTFEntities() {
+    public ResponseEntity<ApiResponse<List<CTFEntityResponse>>> getAllCTFEntities() {
         log.debug("Fetching all CTF entities");
 
         List<CTFEntity> entities = ctfEntityService.findAllCTFEntities();
 
-        List<CTFEntityResponseDTO> ctfEntityResponseDTOS = entities.stream()
-                .map(entity -> modelMapper.map(entity, CTFEntityResponseDTO.class))
+        List<CTFEntityResponse> ctfEntityResponses = entities.stream()
+                .map(entity -> {
+                    CTFEntityResponse dto = modelMapper.map(entity, CTFEntityResponse.class);
+                    return dto;
+                })
                 .collect(Collectors.toList());
 
         return buildSuccessResponse(
                 "All entities retrieved successfully",
-                ctfEntityResponseDTOS,
+                ctfEntityResponses,
+                HttpStatus.OK
+        );
+    }
+
+    @GetMapping("/full")
+    public ResponseEntity<ApiResponse<List<CTFEntity>>> getAllCTFEntitiesFull() {
+
+        List<CTFEntity> entities = ctfEntityService.findAllCTFEntities();
+
+        return buildSuccessResponse(
+                "All entities retrieved successfully",
+                entities,
                 HttpStatus.OK
         );
     }
@@ -62,29 +78,34 @@ public class CTFEntityController {
     }
 
     @GetMapping("by")
-    public ResponseEntity<ApiResponse<List<CTFEntityResponseDTO>>> getCtfEntitiesBy(@RequestParam Map<String, String> params) {
+    public ResponseEntity<ApiResponse<List<CTFEntityResponse>>> getCtfEntitiesBy(@RequestParam Map<String, String> params) {
         if (params.containsKey("room")) {
             List<CTFEntity> entities = ctfEntityService.findCTFEntitiesByRoomId((params.get("room")));
 
-            List<CTFEntityResponseDTO> ctfEntityResponseDTOS = entities.stream()
-                    .map(entity -> modelMapper.map(entity, CTFEntityResponseDTO.class))
-                    .collect(Collectors.toList());
+            List<CTFEntityResponse> ctfEntityResponses = entities.stream()
+                    .map(entity -> {
+                        CTFEntityResponse dto = modelMapper.map(entity, CTFEntityResponse.class);
+                        dto.setHints(entity.getHints().stream().map(hint -> modelMapper.map(hint, HintResponse.class)).toList());
+                        return dto;
+                    })
+                    .toList();
 
             return buildSuccessResponse(
                     "All entities retrieved successfully by room: " + params.get("room"),
-                    ctfEntityResponseDTOS,
+                    ctfEntityResponses,
                     HttpStatus.OK
             );
         }
+
         List<CTFEntity> entities = ctfEntityService.findAllCTFEntities();
 
-        List<CTFEntityResponseDTO> ctfEntityResponseDTOS = entities.stream()
-                .map(entity -> modelMapper.map(entity, CTFEntityResponseDTO.class))
+        List<CTFEntityResponse> ctfEntityResponses = entities.stream()
+                .map(entity -> modelMapper.map(entity, CTFEntityResponse.class))
                 .collect(Collectors.toList());
 
         return buildSuccessResponse(
                 "All entities retrieved successfully",
-                ctfEntityResponseDTOS,
+                ctfEntityResponses,
                 HttpStatus.OK
         );
     }
@@ -105,7 +126,7 @@ public class CTFEntityController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<CTFEntity>> createCTFEntity(
-            @RequestBody CTFEntityCreateDTO dto) {
+            @RequestBody CTFEntityRequest dto) {
         CTFEntity ctfEntity = convertDtoToEntity(dto);
         CTFEntity savedEntity = ctfEntityService.createCTFEntity(ctfEntity);
 
@@ -159,7 +180,7 @@ public class CTFEntityController {
         );
     }
 
-    private CTFEntity convertDtoToEntity(CTFEntityCreateDTO dto) {
+    private CTFEntity convertDtoToEntity(CTFEntityRequest dto) {
         CTFEntity entity = modelMapper.map(dto, CTFEntity.class);
 
         if (dto.getFlags() != null && !dto.getFlags().isEmpty()) {

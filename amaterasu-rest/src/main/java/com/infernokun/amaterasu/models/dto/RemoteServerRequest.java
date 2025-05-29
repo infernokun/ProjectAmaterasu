@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RemoteServerDTO {
+public class RemoteServerRequest {
     private String name;
     private String ipAddress;
     private int port;

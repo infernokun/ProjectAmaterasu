@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
-public class LabDTO {
+public class LabRequest {
     private String name;
     private String description;
     private String version;

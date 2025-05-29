@@ -5,7 +5,7 @@ import com.infernokun.amaterasu.exceptions.FileUploadException;
 import com.infernokun.amaterasu.exceptions.LabReadinessException;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.LabActionResult;
-import com.infernokun.amaterasu.models.dto.LabDTO;
+import com.infernokun.amaterasu.models.dto.LabRequest;
 import com.infernokun.amaterasu.models.entities.*;
 import com.infernokun.amaterasu.models.entities.lab.Lab;
 import com.infernokun.amaterasu.models.entities.lab.LabFileChangeLog;
@@ -88,26 +88,26 @@ public class LabService extends BaseService {
         return labRepository.save(lab);
     }
 
-    public Lab createLab(LabDTO labDTO, RemoteServer remoteServer) {
+    public Lab createLab(LabRequest labRequest, RemoteServer remoteServer) {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
 
         Lab newLab = null;
 
-        switch (labDTO.getLabType()) {
+        switch (labRequest.getLabType()) {
             case DOCKER_COMPOSE -> {
 
                 newLab = Lab.builder()
-                        .name(labDTO.getName())
-                        .description(labDTO.getDescription())
-                        .labType(labDTO.getLabType())
+                        .name(labRequest.getName())
+                        .description(labRequest.getDescription())
+                        .labType(labRequest.getLabType())
                         .ready(false)
-                        .dockerFile(labDTO.getName().toLowerCase().replace(" ", "-") + "_" + timestamp + ".yml")
-                        .version(labDTO.getVersion())
-                        .capacity(labDTO.getCapacity())
+                        .dockerFile(labRequest.getName().toLowerCase().replace(" ", "-") + "_" + timestamp + ".yml")
+                        .version(labRequest.getVersion())
+                        .capacity(labRequest.getCapacity())
                         .build();
-                newLab.setCreatedBy(labDTO.getCreatedBy());
+                newLab.setCreatedBy(labRequest.getCreatedBy());
                 Lab savedLab = labRepository.save(newLab);
-                uploadLabFile(savedLab.getId(), labDTO.getDockerFile(), remoteServer);
+                uploadLabFile(savedLab.getId(), labRequest.getDockerFile(), remoteServer);
 
                 LabFileChangeLog labFileChangeLog = new LabFileChangeLog(savedLab);
                 labFileChangeLog.setUpdatedAt(LocalDateTime.now().minusYears(10));
@@ -118,16 +118,16 @@ public class LabService extends BaseService {
             case KUBERNETES -> throw new RuntimeException("Kube! Coming one day....");
             case VIRTUAL_MACHINE -> {
                 newLab = Lab.builder()
-                        .name(labDTO.getName())
-                        .description(labDTO.getDescription())
-                        .labType(labDTO.getLabType())
+                        .name(labRequest.getName())
+                        .description(labRequest.getDescription())
+                        .labType(labRequest.getLabType())
                         .ready(true)
-                        .version(labDTO.getVersion())
-                        .capacity(labDTO.getCapacity())
-                        .vmIds(labDTO.getVms())
+                        .version(labRequest.getVersion())
+                        .capacity(labRequest.getCapacity())
+                        .vmIds(labRequest.getVms())
                         .status(LabStatus.ACTIVE)
                         .build();
-                newLab.setCreatedBy(labDTO.getCreatedBy());
+                newLab.setCreatedBy(labRequest.getCreatedBy());
                 return labRepository.save(newLab);
             }
             case DOCKER_CONTAINER -> throw new RuntimeException("Docker Container! Coming one day....");

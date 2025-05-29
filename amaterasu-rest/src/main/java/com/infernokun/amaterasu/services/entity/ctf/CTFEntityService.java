@@ -17,7 +17,6 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class CTFEntityService {
-
     private final CTFEntityRepository ctfEntityRepository;
     private final FlagRepository flagRepository;
 
@@ -27,6 +26,14 @@ public class CTFEntityService {
         log.info("Flags before processing: {}", ctfEntity.getFlags() != null ? ctfEntity.getFlags().size() : "null");
 
         validateCTFEntity(ctfEntity);
+
+        if (!CollectionUtils.isEmpty(ctfEntity.getHints())) {
+            log.info("Setting bidirectional relationships for {} hints", ctfEntity.getFlags().size());
+            ctfEntity.getHints().forEach(hint -> {
+                log.info("Setting ctfEntity for hint: '{}'", hint.getHint());
+                hint.setCtfEntity(ctfEntity);
+            });
+        }
 
         // Set bidirectional relationship properly
         if (!CollectionUtils.isEmpty(ctfEntity.getFlags())) {

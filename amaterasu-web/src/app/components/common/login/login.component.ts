@@ -6,7 +6,7 @@ import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms'
 import { LoginService } from '../../../services/login.service';
 import { AuthService } from '../../../services/auth.service';
 import { ApiResponse } from '../../../models/api-response.model';
-import { LoginResponseDTO } from '../../../models/dto/login-response.dto.model';
+import { LoginResponse } from '../../../models/dto/login-response.model';
 import { UserService } from '../../../services/user.service';
 import { User } from '../../../models/user.model';
 import { finalize } from 'rxjs/operators';
@@ -89,7 +89,7 @@ export class LoginComponent implements OnInit {
     this.loginService.login(username, password)
       .pipe(finalize(() => this.busy = false))
       .subscribe({
-        next: (response: ApiResponse<LoginResponseDTO>) => {
+        next: (response: ApiResponse<LoginResponse>) => {
           const accessToken = response.data?.accessToken;
           const refreshToken = response.data?.refreshToken;
           

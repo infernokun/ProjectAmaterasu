@@ -1,7 +1,7 @@
 package com.infernokun.amaterasu.models.entities.ctf;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.infernokun.amaterasu.models.dto.ctf.FlagAnswer;
+import com.infernokun.amaterasu.models.dto.ctf.FlagAnswerRequest;
 import com.infernokun.amaterasu.models.entities.StoredObject;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.helper.FlagAnswerListConverter;
@@ -44,7 +44,7 @@ public class AnsweredCTFEntity extends StoredObject {
     @Column(name = "answers", columnDefinition = "TEXT")
     @Convert(converter = FlagAnswerListConverter.class)
     @Builder.Default
-    private List<FlagAnswer> answers = new ArrayList<>();
+    private List<FlagAnswerRequest> answers = new ArrayList<>();
 
     @Column(name = "attempt_times", columnDefinition = "TEXT")
     @Convert(converter = LocalDateTimeListConverter.class)
@@ -94,7 +94,7 @@ public class AnsweredCTFEntity extends StoredObject {
     /**
      * Get the most recent answer
      */
-    public FlagAnswer getLatestAnswer() {
+    public FlagAnswerRequest getLatestAnswer() {
         return answers != null && !answers.isEmpty() ?
                 answers.getLast() : null;
     }

@@ -1,6 +1,6 @@
 import { User } from "../user.model";
 
-export class LoginResponseDTO {
+export class LoginResponse {
   refreshToken?: string;
   accessToken?: string;
   user?: User;

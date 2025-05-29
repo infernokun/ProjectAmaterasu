@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString
-public class FlagAnswer {
+public class FlagAnswerRequest {
     @Column(name = "flag", length = 1000)
     private String flag;
 

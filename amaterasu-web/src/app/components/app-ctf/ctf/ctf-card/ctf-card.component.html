@@ -49,8 +49,8 @@
 
           <!-- Card Header -->
           <div class="card-header">
-            <div class="difficulty-badge" [class]="'difficulty-' + ctf.difficultyLevel?.toLowerCase()">
-              {{ ctf.difficultyLevel }}
+            <div class="difficulty-badge" [ngClass]="'difficulty-' + ctf.difficultyLevel?.toLowerCase()">
+              {{ ctf.difficultyLevel }} --- {{ ctf.hints?.length}}
             </div>
             <div class="points-badge">
               <span class="points-number">{{ ctf.points }}</span>
