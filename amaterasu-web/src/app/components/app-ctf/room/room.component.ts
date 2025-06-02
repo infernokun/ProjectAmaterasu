@@ -9,6 +9,7 @@ import { EditDialogService } from '../../../services/edit-dialog.service';
 import { AuthService } from '../../../services/auth.service';
 import { RoomUserStatus } from '../../../enums/room-user-status.enum';
 import { Router } from '@angular/router';
+import { JoinRoomResponse } from '../../../models/dto/join-room-response.model';
 
 @Component({
   selector: 'amaterasu-ctf-room',
@@ -31,7 +32,7 @@ export class RoomComponent implements OnInit, OnDestroy {
   // Component state
   readonly trackByRoomId = (index: number, room: Room): string => room.id || index.toString();
 
-  joinableStatus = signal<Map<string, RoomUserStatus>>(new Map());
+  joinableStatus = signal<Map<string, JoinRoomResponse>>(new Map());
 
   constructor(
     private roomService: RoomService,
@@ -133,8 +134,8 @@ export class RoomComponent implements OnInit, OnDestroy {
         this.showInfo('No rooms found. Create your first room to get started!');
       } else {
         this.roomService.checkJoinable(this.authService.getUser()?.id || '', rooms.map(room => room.id || ''))
-          .subscribe((checkResponse: ApiResponse<Map<string, RoomUserStatus>>) => {
-            this.roomService.addRoomJoinables(checkResponse.data || new Map<string, RoomUserStatus>());
+          .subscribe((checkResponse: ApiResponse<Map<string, JoinRoomResponse>>) => {
+            this.roomService.addRoomJoinables(checkResponse.data || new Map<string, JoinRoomResponse>());
             console.log('Joinable status checked:', checkResponse);
             const newMap = new Map(Object.entries(checkResponse.data));
             this.joinableStatus.set(newMap);
@@ -147,7 +148,7 @@ export class RoomComponent implements OnInit, OnDestroy {
   }
 
   isRoomJoined(roomId: string): boolean {
-    return this.joinableStatus().get(roomId) === RoomUserStatus.JOINED;
+    return this.joinableStatus().get(roomId)?.roomUserStatus === RoomUserStatus.JOINED;
   }
 
   private handleLoadRoomsError(error: any): void {
@@ -323,13 +324,13 @@ export class RoomComponent implements OnInit, OnDestroy {
     if (!roomId) { return }
     console.log(`Joining room with ID: ${roomId}`);
 
-    this.roomService.joinRoom(roomId, this.authService.getUser()?.id || '').subscribe((response: ApiResponse<{ roomId: string, userId: string, roomUserStatus: RoomUserStatus }>) => {
+    this.roomService.joinRoom(roomId, this.authService.getUser()?.id || '').subscribe((response: ApiResponse<JoinRoomResponse>) => {
       if (response?.data) {
         const { roomId, userId, roomUserStatus } = response.data;
-        console.log(`Joined room ${roomId} as user ${userId} with status ${roomUserStatus}`);
+        console.log(`Joined room ${response.data.roomId} as user ${response.data.userId} with status ${roomUserStatus}`);
 
         const newMap = new Map(this.joinableStatus());
-        newMap.set(roomId, roomUserStatus);
+        newMap.set(response.data.roomId!, response.data);
         this.joinableStatus.set(newMap);
 
         this.showSuccess(`Successfully joined room: ${roomId}`);
@@ -339,5 +340,9 @@ export class RoomComponent implements OnInit, OnDestroy {
         this.showError('Failed to join room. Please try again.');
       }
     });
+  }
+
+  leaveRoom(roomId: string, event: MouseEvent) {
+    console.log("Leaving room: " + roomId);
   }
 }

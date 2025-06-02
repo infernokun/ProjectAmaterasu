@@ -9,5 +9,6 @@ import lombok.Data;
 public class JoinRoomResponse {
     private String roomId;
     private String userId;
+    private Integer points;
     private RoomUserStatus roomUserStatus;
 }

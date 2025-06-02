@@ -5,13 +5,8 @@ import { ApiResponse } from '../../models/api-response.model';
 import { BaseService } from '../base.service';
 import { Room } from '../../models/ctf/room.model';
 import { EnvironmentService } from '../environment.service';
-import { RoomUserStatus } from '../../enums/room-user-status.enum';
+import { JoinRoomResponse } from '../../models/dto/join-room-response.model';
 
-interface JoinRoomResponse {
-  roomId: string;
-  userId: string;
-  roomUserStatus: RoomUserStatus;
-}
 
 @Injectable({
   providedIn: 'root'
@@ -20,8 +15,8 @@ export class RoomService extends BaseService {
   private roomsSubject = new BehaviorSubject<Room[] | undefined>(undefined);
   rooms$: Observable<Room[] | undefined> = this.roomsSubject.asObservable();
 
-  private roomJoinableSubject = new BehaviorSubject<Map<string, RoomUserStatus> | undefined>(undefined);
-  roomJoinable$: Observable<Map<string, RoomUserStatus> | undefined> = this.roomJoinableSubject.asObservable();
+  private roomJoinableSubject = new BehaviorSubject<Map<string, JoinRoomResponse> | undefined>(undefined);
+  roomJoinable$: Observable<Map<string, JoinRoomResponse> | undefined> = this.roomJoinableSubject.asObservable();
 
   reqUrl: string = '';
 
@@ -49,8 +44,8 @@ export class RoomService extends BaseService {
     return this.post<ApiResponse<JoinRoomResponse>>(`${this.reqUrl}/join/${roomId}/${userId}`, { });
   }
 
-  checkJoinable(userId: string, roomIds: string[]): Observable<ApiResponse<Map<string, RoomUserStatus>>> {
-    return this.post<ApiResponse<Map<string, RoomUserStatus>>>(`${this.reqUrl}/check-joinable`, { userId: userId, roomIds: roomIds });
+  checkJoinable(userId: string, roomIds: string[]): Observable<ApiResponse<Map<string, JoinRoomResponse>>> {
+    return this.post<ApiResponse<Map<string, JoinRoomResponse>>>(`${this.reqUrl}/check-joinable`, { userId: userId, roomIds: roomIds });
   }
 
   addNewRoom(room: Room): void {
@@ -62,13 +57,13 @@ export class RoomService extends BaseService {
     this.roomsSubject.next(rooms || []);
   }
 
-  addRoomJoinable(roomId: string, roomUserStatus: RoomUserStatus): void {
-    const currentJoinable = this.roomJoinableSubject.value || new Map<string, RoomUserStatus>();
+  addRoomJoinable(roomId: string, roomUserStatus: JoinRoomResponse): void {
+    const currentJoinable = this.roomJoinableSubject.value || new Map<string, JoinRoomResponse>();
     currentJoinable.set(roomId, roomUserStatus);
     this.roomJoinableSubject.next(currentJoinable);
   }
 
-  addRoomJoinables(roomJoinables: Map<string, RoomUserStatus>): void {
-    this.roomJoinableSubject.next(roomJoinables || new Map<string, RoomUserStatus>());
+  addRoomJoinables(roomJoinables: Map<string, JoinRoomResponse>): void {
+    this.roomJoinableSubject.next(roomJoinables || new Map<string, JoinRoomResponse>());
   }
 }

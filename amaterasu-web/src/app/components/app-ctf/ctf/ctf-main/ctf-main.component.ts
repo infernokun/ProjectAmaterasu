@@ -6,6 +6,7 @@ import { RoomService } from '../../../../services/ctf/room.service';
 import { RoomUserStatus } from '../../../../enums/room-user-status.enum';
 import { Room } from '../../../../models/ctf/room.model';
 import { ApiResponse } from '../../../../models/api-response.model';
+import { JoinRoomResponse } from '../../../../models/dto/join-room-response.model';
 
 @Component({
   selector: 'amaterasu-ctf-main',
@@ -18,12 +19,12 @@ export class CTFMainComponent implements OnInit, OnDestroy {
   
   loading = signal(true);
   room = signal<Room | null>(null);
-  roomUserStatus = signal<RoomUserStatus | null>(null);
+  roomUserStatus = signal<JoinRoomResponse | null>(null);
   error = signal<string | null>(null);
   roomId: string | null = null;
 
   isRoomJoined = computed(() => 
-    this.roomUserStatus() === RoomUserStatus.JOINED
+    this.roomUserStatus()?.roomUserStatus === RoomUserStatus.JOINED
   );
 
   constructor(
@@ -58,7 +59,7 @@ export class CTFMainComponent implements OnInit, OnDestroy {
         if (!responses) return;
         
         const [roomResponse, joinStatusResponse] = responses;
-        const joinStatus: ApiResponse<{ [roomId: string]: RoomUserStatus }> | null = joinStatusResponse as any;
+        const joinStatus: ApiResponse<{ [roomId: string]: JoinRoomResponse }> | null = joinStatusResponse as any;
         
         if (roomResponse?.data) {
           this.room.set(roomResponse.data);
@@ -95,9 +96,9 @@ export class CTFMainComponent implements OnInit, OnDestroy {
     if (!this.roomId || !this.authService.getUser()?.id) return;
 
     this.roomService.joinRoom(this.roomId, this.authService.getUser()!.id!)
-      .subscribe(response => {
+      .subscribe((response: ApiResponse<JoinRoomResponse>) => {
         if (response?.data) {
-          this.roomUserStatus.set(response.data.roomUserStatus);
+          this.roomUserStatus.set(response.data);
         }
       });
   }

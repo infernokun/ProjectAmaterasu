@@ -1,4 +1,5 @@
 <div class="width-100-percent display-flex flex-wrap">
+  <p>Points: {{roomUserStatus()?.points}}</p>
   <!-- Show CTF card if user has joined the room -->
   <div *ngIf="isRoomJoined() && !loading()">
     <amaterasu-ctf-card></amaterasu-ctf-card>

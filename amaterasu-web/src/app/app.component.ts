@@ -1,10 +1,11 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { User } from './models/user.model';
-import { Observable, Subject, takeUntil, map, startWith, combineLatest, distinctUntilChanged, shareReplay } from 'rxjs';
+import { Observable, Subject, takeUntil, map, startWith, combineLatest, distinctUntilChanged, shareReplay, filter } from 'rxjs';
 import { AuthService } from './services/auth.service';
 import { EditDialogService } from './services/edit-dialog.service';
 import { Role } from './enums/role.enum';
 import { AppInitService } from './services/app-init.service';
+import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 
 declare var require: any;
 const { version: appVersion } = require('../../package.json');
@@ -38,7 +39,9 @@ export class AppComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private dialogService: EditDialogService,
     private appInitService: AppInitService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private router: Router,
+    private route: ActivatedRoute
   ) {
     this.loggedInUser$ = this.authService.user$;
     this.initializationComplete$ = this.appInitService.initializationComplete$;
@@ -115,14 +118,27 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   openProfileModal() {
-    // Implement profile modal
+    console.log("WIP");
   }
 
   openUserSettingsModal() {
-    // Implement settings modal
+    console.log("WIP");
   }
 
   logoutButton(): void {
     this.authService.logout();
+  }
+
+  addPoints() {
+    console.log("?????");
+
+    this.route.params.subscribe((res) => console.log(res));
+
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd)
+    ).subscribe(() => {
+      // Get current route params
+      console.log(this.route.snapshot.params);
+    });
   }
 }

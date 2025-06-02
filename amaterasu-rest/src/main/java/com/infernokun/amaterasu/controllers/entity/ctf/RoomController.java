@@ -103,20 +103,26 @@ public class RoomController {
                         .roomId(roomUser.getRoom().getId())
                         .userId(roomUser.getUser().getId())
                         .roomUserStatus(roomUser.getRoomUserStatus())
-                        .build(), HttpStatus.OK);
+                        .build(),
+                HttpStatus.OK);
     }
 
     @PostMapping("/check-joinable")
-    public ResponseEntity<ApiResponse<Map<String, RoomUserStatus>>> checkJoinable(
+    public ResponseEntity<ApiResponse<Map<String, JoinRoomResponse>>> checkJoinable(
             @RequestBody RoomJoinableRequest roomJoinableRequest) {
 
         List<RoomUser> eachRoomForUser = roomUserService.findByUserIdAndRoomIds(roomJoinableRequest.getUserId(),
                 roomJoinableRequest.getRoomIds());
 
-        Map<String, RoomUserStatus> roomStatus = new HashMap<>();
+        Map<String, JoinRoomResponse> roomStatus = new HashMap<>();
 
         eachRoomForUser.forEach(roomUser -> {
-            roomStatus.put(roomUser.getRoom().getId(), roomUser.getRoomUserStatus());
+            roomStatus.put(roomUser.getRoom().getId(), JoinRoomResponse.builder()
+                            .points(roomUser.getPoints())
+                            .roomId(roomUser.getRoom().getId())
+                            .userId(roomUser.getId())
+                            .roomUserStatus(roomUser.getRoomUserStatus())
+                    .build());
         });
 
         return buildSuccessResponse("Checked join status for rooms.", roomStatus, HttpStatus.OK);

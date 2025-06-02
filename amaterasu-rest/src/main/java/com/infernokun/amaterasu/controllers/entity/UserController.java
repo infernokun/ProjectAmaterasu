@@ -2,7 +2,6 @@ package com.infernokun.amaterasu.controllers.entity;
 
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
-import com.infernokun.amaterasu.models.dto.UserDTO;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.services.entity.UserService;
 import lombok.RequiredArgsConstructor;
