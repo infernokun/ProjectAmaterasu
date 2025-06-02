@@ -133,11 +133,12 @@ public class RefreshTokenService extends BaseService {
      */
     public RefreshToken rotateRefreshTokenIfNeeded(RefreshToken currentToken, HttpServletRequest request) {
         if (currentToken.needsRotation()) {
-            // Revoke old token
-            currentToken.revoke("Token rotated for security");
-            refreshTokenRepository.save(currentToken);
+            // Ensure proper revocation
+            if (!currentToken.isRevoked()) {
+                currentToken.revoke("Token rotated for security");
+                refreshTokenRepository.save(currentToken);
+            }
 
-            // Create new refresh token
             return createRefreshToken(currentToken.getUser(), currentToken.getDeviceInfo(), request);
         }
         return currentToken;
@@ -157,6 +158,10 @@ public class RefreshTokenService extends BaseService {
      */
     @Transactional
     public void revokeSession(String refreshTokenString, String reason) {
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new IllegalArgumentException("Revocation reason cannot be null or empty");
+        }
+
         RefreshToken refreshToken = refreshTokenRepository.findByToken(refreshTokenString)
                 .orElseThrow(() -> new TokenException("Refresh token not found"));
 
@@ -184,19 +189,16 @@ public class RefreshTokenService extends BaseService {
 
     private void cleanupExpiredTokensForUser(String userId) {
         List<RefreshToken> userTokens = refreshTokenRepository.findAllByUserId(userId);
-        List<RefreshToken> expiredTokens = userTokens.stream()
-                .filter(RefreshToken::isExpired)
+        List<RefreshToken> tokensToUpdate = userTokens.stream()
+                .filter(token -> token.isExpired() && !token.isRevoked())
                 .collect(Collectors.toList());
 
-        // Mark as revoked instead of deleting for audit trail
-        for (RefreshToken token : expiredTokens) {
-            if (!token.isRevoked()) {
-                token.revoke("Expired during cleanup");
-            }
+        for (RefreshToken token : tokensToUpdate) {
+            token.revoke("Expired during cleanup");
         }
 
-        if (!expiredTokens.isEmpty()) {
-            refreshTokenRepository.saveAll(expiredTokens);
+        if (!tokensToUpdate.isEmpty()) {
+            refreshTokenRepository.saveAll(tokensToUpdate);
         }
     }
 

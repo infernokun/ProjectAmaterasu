@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { BehaviorSubject, Observable, Subject, combineLatest, debounceTime, distinctUntilChanged, finalize, map, startWith, takeUntil } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormControl } from '@angular/forms';
@@ -6,14 +6,17 @@ import { ApiResponse } from '../../../models/api-response.model';
 import { Room, RoomFormData } from '../../../models/ctf/room.model';
 import { RoomService } from '../../../services/ctf/room.service';
 import { EditDialogService } from '../../../services/edit-dialog.service';
+import { AuthService } from '../../../services/auth.service';
+import { RoomUserStatus } from '../../../enums/room-user-status.enum';
+import { Router } from '@angular/router';
 
 @Component({
-  selector: 'amaterasu-ctf-home',
-  templateUrl: './home.component.html',
-  styleUrls: ['./home.component.scss'],
+  selector: 'amaterasu-ctf-room',
+  templateUrl: './room.component.html',
+  styleUrls: ['./room.component.scss'],
   standalone: false
 })
-export class CTFHomeComponent implements OnInit, OnDestroy {
+export class RoomComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
   private readonly loadingSubject = new BehaviorSubject<boolean>(false);
 
@@ -28,10 +31,14 @@ export class CTFHomeComponent implements OnInit, OnDestroy {
   // Component state
   readonly trackByRoomId = (index: number, room: Room): string => room.id || index.toString();
 
+  joinableStatus = signal<Map<string, RoomUserStatus>>(new Map());
+
   constructor(
     private roomService: RoomService,
     private editDialogService: EditDialogService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private authService: AuthService,
+    private router: Router
   ) {
     this.rooms$ = this.roomService.rooms$;
     this.setupFilteredRooms();
@@ -91,13 +98,14 @@ export class CTFHomeComponent implements OnInit, OnDestroy {
   loadRooms(): void {
     this.setLoading(true);
 
+
     this.roomService.getAllRooms()
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => this.setLoading(false))
       )
       .subscribe({
-        next: (response) => this.handleRoomsLoaded(response),
+        next: (response: ApiResponse<Room[]>) => this.handleRoomsLoaded(response),
         error: (error) => this.handleLoadRoomsError(error)
       });
   }
@@ -123,6 +131,14 @@ export class CTFHomeComponent implements OnInit, OnDestroy {
 
       if (rooms.length === 0) {
         this.showInfo('No rooms found. Create your first room to get started!');
+      } else {
+        this.roomService.checkJoinable(this.authService.getUser()?.id || '', rooms.map(room => room.id || ''))
+          .subscribe((checkResponse: ApiResponse<Map<string, RoomUserStatus>>) => {
+            this.roomService.addRoomJoinables(checkResponse.data || new Map<string, RoomUserStatus>());
+            console.log('Joinable status checked:', checkResponse);
+            const newMap = new Map(Object.entries(checkResponse.data));
+            this.joinableStatus.set(newMap);
+          });
       }
     } catch (error) {
       console.error('Error processing room data:', error);
@@ -130,9 +146,10 @@ export class CTFHomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Handle rooms loading error
-   */
+  isRoomJoined(roomId: string): boolean {
+    return this.joinableStatus().get(roomId) === RoomUserStatus.JOINED;
+  }
+
   private handleLoadRoomsError(error: any): void {
     console.error('Failed to load rooms:', error);
 
@@ -143,9 +160,6 @@ export class CTFHomeComponent implements OnInit, OnDestroy {
     this.roomService.addRooms([]);
   }
 
-  /**
-   * Open room creation dialog
-   */
   createRoom(): void {
     if (this.loadingSubject.value) {
       this.showWarning('Please wait for the current operation to complete.');
@@ -170,9 +184,7 @@ export class CTFHomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Handle room creation from dialog
-   */
+
   private handleRoomCreation(room: Room): void {
     if (!room) {
       console.warn('No room data provided for creation');
@@ -198,9 +210,6 @@ export class CTFHomeComponent implements OnInit, OnDestroy {
       });
   }
 
-  /**
-   * Handle successful room creation
-   */
   private handleRoomCreated(response: ApiResponse<Room>): void {
     if (!response?.data) {
       this.showError('Room creation failed: No data returned from server.');
@@ -222,9 +231,6 @@ export class CTFHomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Handle room creation error
-   */
   private handleCreateRoomError(error: any): void {
     console.error('Failed to create room:', error);
 
@@ -232,23 +238,14 @@ export class CTFHomeComponent implements OnInit, OnDestroy {
     this.showError(`Failed to create room: ${errorMessage}`);
   }
 
-  /**
-   * Refresh rooms data
-   */
   refreshRooms(): void {
     this.loadRooms();
   }
 
-  /**
-   * Clear search filter
-   */
   clearSearch(): void {
     this.searchControl.setValue('');
   }
 
-  /**
-   * Get user-friendly error message
-   */
   private getErrorMessage(error: any): string {
     if (error?.error?.message) {
       return error.error.message;
@@ -271,16 +268,11 @@ export class CTFHomeComponent implements OnInit, OnDestroy {
     return 'An unexpected error occurred. Please try again.';
   }
 
-  /**
-   * Set loading state
-   */
+
   private setLoading(loading: boolean): void {
     this.loadingSubject.next(loading);
   }
 
-  /**
-   * Show success message
-   */
   private showSuccess(message: string): void {
     this.snackBar.open(message, 'Close', {
       duration: 4000,
@@ -290,9 +282,6 @@ export class CTFHomeComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Show error message
-   */
   private showError(message: string): void {
     this.snackBar.open(message, 'Close', {
       duration: 6000,
@@ -302,9 +291,6 @@ export class CTFHomeComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Show warning message
-   */
   private showWarning(message: string): void {
     this.snackBar.open(message, 'Close', {
       duration: 4000,
@@ -314,15 +300,44 @@ export class CTFHomeComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Show info message
-   */
   private showInfo(message: string): void {
     this.snackBar.open(message, 'Close', {
       duration: 3000,
       panelClass: ['info-snackbar'],
       horizontalPosition: 'end',
       verticalPosition: 'top'
+    });
+  }
+
+  enterRoom(roomId: string): void {
+    console.log('uhhh', this.joinableStatus)
+    this.router.navigate(['/room/', roomId], {
+      state: this.joinableStatus(),
+    }).catch(error => {
+      console.error('Error navigating to room:', error);
+      this.showError('Failed to navigate to room. Please try again.');
+    });
+  }
+
+  joinRoom(roomId: string, event: MouseEvent): void {
+    if (!roomId) { return }
+    console.log(`Joining room with ID: ${roomId}`);
+
+    this.roomService.joinRoom(roomId, this.authService.getUser()?.id || '').subscribe((response: ApiResponse<{ roomId: string, userId: string, roomUserStatus: RoomUserStatus }>) => {
+      if (response?.data) {
+        const { roomId, userId, roomUserStatus } = response.data;
+        console.log(`Joined room ${roomId} as user ${userId} with status ${roomUserStatus}`);
+
+        const newMap = new Map(this.joinableStatus());
+        newMap.set(roomId, roomUserStatus);
+        this.joinableStatus.set(newMap);
+
+        this.showSuccess(`Successfully joined room: ${roomId}`);
+      }
+      else {
+        console.error('Join room response did not contain data:', response);
+        this.showError('Failed to join room. Please try again.');
+      }
     });
   }
 }

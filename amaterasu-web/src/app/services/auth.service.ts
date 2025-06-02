@@ -345,6 +345,10 @@ export class AuthService implements OnDestroy {
     }
   }
 
+  getUser(): User | undefined {
+    return this.userSubject.value;
+  }
+
   // Helper methods for token storage
   private getStoredAccessToken(): string | null {
     return localStorage.getItem(this.ACCESS_TOKEN_KEY);

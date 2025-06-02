@@ -11,12 +11,12 @@ import { AppInitGuard } from './guards/app-init.guard';
 import { TeamsComponent } from './components/teams/teams.component';
 import { CTFMainComponent } from './components/app-ctf/ctf/ctf-main/ctf-main.component';
 import { authGuard, homeAuthGuard } from './guards/auth.guard';
-import { CTFHomeComponent } from './components/app-ctf/home/home.component';
 import { VMLabBuilderComponent } from './components/app-lab/vm-lab-builder/vm-lab-builder.component';
 import { InitializationComponent } from './components/initialization/initialization.component';
+import { RoomComponent } from './components/app-ctf/room/room.component';
 
 const routes: Routes = [
-  { path: 'challenges', component: CTFHomeComponent, canActivate: [AppInitGuard, authGuard] },
+  { path: 'challenges', component: RoomComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'room/:room', component: CTFMainComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'vm-lab-builder', component: VMLabBuilderComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'teams', component: TeamsComponent, canActivate: [AppInitGuard, authGuard] },

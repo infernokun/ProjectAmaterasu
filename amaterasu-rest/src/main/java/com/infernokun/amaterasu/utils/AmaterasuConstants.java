@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 public class AmaterasuConstants {
     public static String DEFAULT_SURROUND_TAG = "CTF{x}";
 
-    public static  <T> ResponseEntity<ApiResponse<T>> buildSuccessResponse(
+    public static <T> ResponseEntity<ApiResponse<T>> buildSuccessResponse(
             String message, T data, HttpStatus status) {
         return ResponseEntity.status(status)
                 .body(ApiResponse.<T>builder()

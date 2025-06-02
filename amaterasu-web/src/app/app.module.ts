@@ -36,12 +36,12 @@ import { ConfirmationDialogComponent } from './components/common/dialog/confirma
 import { AdminActionsComponent } from './admin/admin-actions.component';
 import { AgGridAngular } from 'ag-grid-angular';
 import { AuthInterceptor } from './services/auth/auth-interceptor.service';
-import { CTFHomeComponent } from './components/app-ctf/home/home.component';
 import { CTFMainComponent } from './components/app-ctf/ctf/ctf-main/ctf-main.component';
 import { CTFCardComponent } from './components/app-ctf/ctf/ctf-card/ctf-card.component';
 import { VMLabBuilderComponent } from './components/app-lab/vm-lab-builder/vm-lab-builder.component';
 import { InitializationComponent } from './components/initialization/initialization.component';
 import { ViewCTFComponent } from './components/app-ctf/view/view-ctf.component';
+import { RoomComponent } from './components/app-ctf/room/room.component';
 
 export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
   return () => {
@@ -91,7 +91,7 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     SettingsConfigureComponent,
     ConfirmationDialogComponent,
     AdminActionsComponent,
-    CTFHomeComponent,
+    RoomComponent,
     CTFMainComponent,
     CTFCardComponent,
     ViewCTFComponent
