@@ -128,17 +128,4 @@ export class AppComponent implements OnInit, OnDestroy {
   logoutButton(): void {
     this.authService.logout();
   }
-
-  addPoints() {
-    console.log("?????");
-
-    this.route.params.subscribe((res) => console.log(res));
-
-    this.router.events.pipe(
-      filter(event => event instanceof NavigationEnd)
-    ).subscribe(() => {
-      // Get current route params
-      console.log(this.route.snapshot.params);
-    });
-  }
 }

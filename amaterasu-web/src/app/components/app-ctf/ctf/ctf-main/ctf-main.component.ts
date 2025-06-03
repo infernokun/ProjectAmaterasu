@@ -71,6 +71,7 @@ export class CTFMainComponent implements OnInit, OnDestroy {
           console.log('Join status:', joinStatus.data);
           const status = joinStatus.data[this.roomId!];
           this.roomUserStatus.set(status || null);
+          this.roomService.setCurrentRoomUser(status || null);
           //this.roomUserStatus.set(joinStatus.data.get(this.roomId!) || null);
         } else {
           this.error.set('Failed to check joinable status');
@@ -99,11 +100,24 @@ export class CTFMainComponent implements OnInit, OnDestroy {
       .subscribe((response: ApiResponse<JoinRoomResponse>) => {
         if (response?.data) {
           this.roomUserStatus.set(response.data);
+          this.roomService.setCurrentRoomUser( response.data || null);
         }
       });
   }
 
   browseRooms(): void {
     this.router.navigate(['/challenges']);
+  }
+
+  addPoints(): void {
+    if (!this.roomId || !this.authService.getUser()?.id) return;
+
+    this.roomService.addPoints(this.roomId, this.authService.getUser()!.id!)
+      .subscribe((response: ApiResponse<JoinRoomResponse>) => {
+        if (response?.data) {
+          this.roomUserStatus.set(response.data);
+          this.roomService.setCurrentRoomUser(response.data || null);
+        }
+      });
   }
 }

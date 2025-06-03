@@ -343,6 +343,24 @@ export class RoomComponent implements OnInit, OnDestroy {
   }
 
   leaveRoom(roomId: string, event: MouseEvent) {
-    console.log("Leaving room: " + roomId);
+    if (!roomId) { return }
+    console.log(`Leaving room with ID: ${roomId}`);
+
+    this.roomService.leaveRoom(roomId, this.authService.getUser()?.id || '').subscribe((response: ApiResponse<JoinRoomResponse>) => {
+      if (response?.data) {
+        const { roomId, userId, roomUserStatus } = response.data;
+        console.log(`Left room ${response.data.roomId} as user ${response.data.userId} with status ${roomUserStatus}`);
+
+        const newMap = new Map(this.joinableStatus());
+        newMap.set(response.data.roomId!, response.data);
+        this.joinableStatus.set(newMap);
+
+        this.showSuccess(`Successfully left room: ${roomId}`);
+      }
+      else {
+        console.error('Leave room response did not contain data:', response);
+        this.showError('Failed to leave room. Please try again.');
+      }
+    });
   }
 }

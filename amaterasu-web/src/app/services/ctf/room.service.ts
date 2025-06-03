@@ -18,6 +18,9 @@ export class RoomService extends BaseService {
   private roomJoinableSubject = new BehaviorSubject<Map<string, JoinRoomResponse> | undefined>(undefined);
   roomJoinable$: Observable<Map<string, JoinRoomResponse> | undefined> = this.roomJoinableSubject.asObservable();
 
+  private currentRoomUserSubject = new BehaviorSubject<JoinRoomResponse | undefined>(undefined);
+  currentRoomUser$: Observable<JoinRoomResponse | undefined> = this.currentRoomUserSubject.asObservable();
+
   reqUrl: string = '';
 
   constructor(
@@ -44,6 +47,10 @@ export class RoomService extends BaseService {
     return this.post<ApiResponse<JoinRoomResponse>>(`${this.reqUrl}/join/${roomId}/${userId}`, { });
   }
 
+  leaveRoom(roomId: string, userId: string): Observable<ApiResponse<JoinRoomResponse>> {
+    return this.post<ApiResponse<JoinRoomResponse>>(`${this.reqUrl}/leave/${roomId}/${userId}`, { });
+  }
+
   checkJoinable(userId: string, roomIds: string[]): Observable<ApiResponse<Map<string, JoinRoomResponse>>> {
     return this.post<ApiResponse<Map<string, JoinRoomResponse>>>(`${this.reqUrl}/check-joinable`, { userId: userId, roomIds: roomIds });
   }
@@ -65,5 +72,20 @@ export class RoomService extends BaseService {
 
   addRoomJoinables(roomJoinables: Map<string, JoinRoomResponse>): void {
     this.roomJoinableSubject.next(roomJoinables || new Map<string, JoinRoomResponse>());
+  }
+
+  addPoints(roomId: string, userId: string): Observable<ApiResponse<JoinRoomResponse>> {
+    return this.post<ApiResponse<JoinRoomResponse>>(`${this.reqUrl}/add-points/${roomId}/${userId}`, { });
+  }
+
+  setCurrentRoomUser(roomUser: JoinRoomResponse): void {
+    this.currentRoomUserSubject.next(roomUser);
+  }
+
+  getCurrentRoomUser(): JoinRoomResponse {
+    if (!this.currentRoomUserSubject.value) {
+      throw new Error('Current room user is not set');
+    }
+    return this.currentRoomUserSubject.value;
   }
 }

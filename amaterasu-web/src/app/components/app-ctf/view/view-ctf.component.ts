@@ -10,6 +10,8 @@ import { FlagAnswer } from '../../../models/ctf/flag-answer.model';
 import { CTFService } from '../../../services/ctf/ctf.service';
 import { User } from '../../../models/user.model';
 import { Hint } from '../../../models/ctf/hint.model';
+import { RoomService } from '../../../services/ctf/room.service';
+import { JoinRoomResponse } from '../../../models/dto/join-room-response.model';
 
 @Component({
   selector: 'amaterasu-view-dialog',
@@ -32,18 +34,22 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   currentAttempts: number = 0;
   isLoading: boolean = false;
 
+  roomUser: JoinRoomResponse | undefined;
+
   constructor(
     private ctfService: CTFService,
     private authService: AuthService,
     @Inject(MAT_DIALOG_DATA) public data: CTFEntity,
-    private dialogRef: MatDialogRef<ViewCTFComponent>
+    private dialogRef: MatDialogRef<ViewCTFComponent>,
+    private roomService: RoomService
   ) {
     this.viewedChallenge = { ...data };
+    this.roomUser = this.roomService.getCurrentRoomUser();
   }
 
   ngOnInit(): void {
-    console.log("CTF Challenge dialog opened", this.viewedChallenge);
     this.checkExistingAnswer();
+
   }
 
   ngOnDestroy(): void {
@@ -261,6 +267,6 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   }
 
   canUseHint(hint: Hint): boolean {
-    return true;
+    return this.roomUser?.points! > hint.cost! //&& !this.viewedChallenge.hintsUsed?.includes(hint.id);
   }
 }

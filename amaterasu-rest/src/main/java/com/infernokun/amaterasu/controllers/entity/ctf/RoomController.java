@@ -12,10 +12,12 @@ import com.infernokun.amaterasu.services.entity.ctf.RoomService;
 import com.infernokun.amaterasu.services.entity.ctf.RoomUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 import static com.infernokun.amaterasu.utils.AmaterasuConstants.buildSuccessResponse;
@@ -28,6 +30,7 @@ public class RoomController {
     private final RoomService roomService;
     private final UserService userService;
     private final RoomUserService roomUserService;
+    private final ModelMapper modelMapper;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Room>>> getAllRooms(@RequestParam(required = false)
@@ -81,13 +84,23 @@ public class RoomController {
     }
 
     @PostMapping("/join/{roomId}/{userId}")
-    public ResponseEntity<ApiResponse<JoinRoomResponse>> joinRoom(@PathVariable String userId, @PathVariable String roomId) {
+    public ResponseEntity<ApiResponse<JoinRoomResponse>> joinRoom(@PathVariable String userId,
+                                                                  @PathVariable String roomId) {
         User user = userService.findUserById(userId);
         Room room = roomService.findByRoomId(roomId);
 
-        // Check if already joined (optional, depends on logic)
         if (roomUserService.findByUserAndRoom(user, room).isPresent()) {
-            return buildSuccessResponse("User already joined this room", null, HttpStatus.CONFLICT);
+            RoomUser roomUser = roomUserService.findByUserAndRoom(user, room).get();
+            if (roomUser.getRoomUserStatus() == RoomUserStatus.JOINED) {
+                return buildSuccessResponse("User already joined this room", null, HttpStatus.CONFLICT);
+
+            }
+            roomUser.setUpdatedAt(LocalDateTime.now());
+            roomUser.setRoomUserStatus(RoomUserStatus.JOINED);
+            roomUserService.save(roomUser);
+
+            return buildSuccessResponse("User rejoined this room!",
+                    modelMapper.map(roomUser, JoinRoomResponse.class), HttpStatus.OK);
         }
 
         RoomUser roomUser = new RoomUser();
@@ -95,10 +108,42 @@ public class RoomController {
         roomUser.setRoom(room);
         roomUser.setPoints(0);
         roomUser.setRoomUserStatus(RoomUserStatus.JOINED);
+        roomUser.setUpdatedAt(LocalDateTime.now());
 
         roomUserService.save(roomUser);
 
         return buildSuccessResponse("User " + user.getUsername() + " joined room " + room.getName(),
+                JoinRoomResponse.builder()
+                        .roomId(roomUser.getRoom().getId())
+                        .userId(roomUser.getUser().getId())
+                        .roomUserStatus(roomUser.getRoomUserStatus())
+                        .build(),
+                HttpStatus.OK);
+    }
+
+    @PostMapping("/leave/{roomId}/{userId}")
+    public ResponseEntity<ApiResponse<JoinRoomResponse>> leaveRoom(@PathVariable String userId,
+                                                                  @PathVariable String roomId) {
+        User user = userService.findUserById(userId);
+        Room room = roomService.findByRoomId(roomId);
+
+        Optional<RoomUser> roomUserOpt = roomUserService.findByUserAndRoom(user, room);
+
+        if (roomUserOpt.isEmpty()) {
+            return buildSuccessResponse("User is not in this room", null, HttpStatus.BAD_REQUEST);
+        }
+
+        RoomUser roomUser = roomUserOpt.get();
+
+        if (roomUser.getRoomUserStatus() == RoomUserStatus.LEFT) {
+            return buildSuccessResponse("User already left this room", null, HttpStatus.CONFLICT);
+        }
+
+        roomUser.setRoomUserStatus(RoomUserStatus.LEFT);
+        roomUser.setUpdatedAt(LocalDateTime.now());
+        roomUser = roomUserService.save(roomUser);
+
+        return buildSuccessResponse("User left this room!",
                 JoinRoomResponse.builder()
                         .roomId(roomUser.getRoom().getId())
                         .userId(roomUser.getUser().getId())
@@ -116,14 +161,12 @@ public class RoomController {
 
         Map<String, JoinRoomResponse> roomStatus = new HashMap<>();
 
-        eachRoomForUser.forEach(roomUser -> {
-            roomStatus.put(roomUser.getRoom().getId(), JoinRoomResponse.builder()
-                            .points(roomUser.getPoints())
-                            .roomId(roomUser.getRoom().getId())
-                            .userId(roomUser.getId())
-                            .roomUserStatus(roomUser.getRoomUserStatus())
-                    .build());
-        });
+        eachRoomForUser.forEach(roomUser -> roomStatus.put(roomUser.getRoom().getId(), JoinRoomResponse.builder()
+                        .points(roomUser.getPoints())
+                        .roomId(roomUser.getRoom().getId())
+                        .userId(roomUser.getId())
+                        .roomUserStatus(roomUser.getRoomUserStatus())
+                .build()));
 
         return buildSuccessResponse("Checked join status for rooms.", roomStatus, HttpStatus.OK);
     }
@@ -137,6 +180,35 @@ public class RoomController {
                         .message("Rooms created successfully.")
                         .data(savedRooms)
                         .build());
+    }
+
+    @PostMapping("/add-points/{roomId}/{userId}")
+    public ResponseEntity<ApiResponse<JoinRoomResponse>> addPoints(@PathVariable String userId,
+                                                                   @PathVariable String roomId) {
+
+        User user = userService.findUserById(userId);
+        Room room = roomService.findByRoomId(roomId);
+
+        Optional<RoomUser> roomUserOpt = roomUserService.findByUserAndRoom(user, room);
+
+        if (roomUserOpt.isEmpty()) {
+            return buildSuccessResponse("User is not in this room", null, HttpStatus.BAD_REQUEST);
+        }
+
+        RoomUser roomUser = roomUserOpt.get();
+
+        roomUser.setUpdatedAt(LocalDateTime.now());
+        roomUser.setPoints(roomUser.getPoints() + 100);
+        roomUser = roomUserService.save(roomUser);
+
+        return buildSuccessResponse(String.format("User %s has %d points in room %s",
+                roomUser.getUser().getUsername(), roomUser.getPoints() + 100, roomUser.getRoom().getName()),
+                JoinRoomResponse.builder()
+                        .points(roomUser.getPoints())
+                        .roomId(roomUser.getRoom().getId())
+                        .userId(roomUser.getUser().getId())
+                        .roomUserStatus(roomUser.getRoomUserStatus())
+                        .build(), HttpStatus.OK);
     }
 
     @GetMapping("/{id}")

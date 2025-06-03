@@ -1,4 +1,8 @@
 <div class="width-100-percent display-flex flex-wrap">
+  <button style="color: red;" mat-menu-item (click)="addPoints()" aria-label="User settings">
+    <mat-icon>settings</mat-icon>
+    <span>Add Points</span>
+  </button>
   <p>Points: {{roomUserStatus()?.points}}</p>
   <!-- Show CTF card if user has joined the room -->
   <div *ngIf="isRoomJoined() && !loading()">

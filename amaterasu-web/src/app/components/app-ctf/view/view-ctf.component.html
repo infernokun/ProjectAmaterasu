@@ -47,7 +47,8 @@
       <div class="challenge-hint" *ngIf="viewedChallenge.hints">
         <ul class="hint-list">
           <li *ngFor="let hint of viewedChallenge.hints">
-            <button class="btn btn-secondary" (click)="useHint(hint)" [disabled]="!(isAnswered$ | async) || !canUseHint(hint)">
+            {{!canUseHint(hint)}} {{roomUser?.points}} {{ !(isAnswered$ | async) }}
+            <button class="btn btn-secondary" (click)="useHint(hint)" [disabled]="!!(isAnswered$ | async) || !canUseHint(hint)">
               Unlock hint for {{ hint.cost }} points
             </button>
           </li>
