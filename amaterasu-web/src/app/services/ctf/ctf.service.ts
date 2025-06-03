@@ -6,6 +6,7 @@ import { CTFEntity } from '../../models/ctf/ctf-entity.model';
 import { FlagAnswer } from '../../models/ctf/flag-answer.model';
 import { BaseService } from '../base.service';
 import { EnvironmentService } from '../environment.service';
+import { AnsweredCTFEntityResponse } from '../../models/dto/answered-ctfentity-response.model';
 
 @Injectable({
   providedIn: 'root'
@@ -29,8 +30,9 @@ export class CTFService extends BaseService {
     return this.get<ApiResponse<CTFEntity[]>>(this.environmentService.settings?.restUrl + '/ctf-entity/by?room=' + roomId);
   }
 
-  answerChallenge(flag: FlagAnswer): Observable<ApiResponse<any>> {
-    return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/answer', flag);
+  answerChallenge(flag: FlagAnswer): Observable<ApiResponse<AnsweredCTFEntityResponse>> {
+    console.log(flag)
+    return this.post<ApiResponse<AnsweredCTFEntityResponse>>(this.environmentService.settings?.restUrl + '/answer', flag);
   }
 
   answerChallengeCheck(ctfEntity: CTFEntity): Observable<ApiResponse<any>> {

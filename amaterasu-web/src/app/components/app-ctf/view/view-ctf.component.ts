@@ -12,6 +12,7 @@ import { User } from '../../../models/user.model';
 import { Hint } from '../../../models/ctf/hint.model';
 import { RoomService } from '../../../services/ctf/room.service';
 import { JoinRoomResponse } from '../../../models/dto/join-room-response.model';
+import { AnsweredCTFEntityResponse } from '../../../models/dto/answered-ctfentity-response.model';
 
 @Component({
   selector: 'amaterasu-view-dialog',
@@ -145,7 +146,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
           this.showStatus('Authentication required', 'error');
           return;
         }
-        this.submitAnswer(user.id, challenge);
+        this.submitAnswer(user.id, this.roomService.getCurrentRoomUser().roomId!, challenge);
       },
       error: (error) => {
         this.isLoading = false;
@@ -158,13 +159,14 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   /**
    * Submit the answer to the server
    */
-  private submitAnswer(userId: string, challenge: CTFEntity): void {
-    const flag = new FlagAnswer(this.answer.trim(), userId, challenge.id!);
+  private submitAnswer(userId: string, roomId: string, challenge: CTFEntity): void {
+    console.log('theid!!!', roomId);
+    const flag = FlagAnswer.create(this.answer.trim(), userId, roomId, challenge.id!);
 
     this.ctfService.answerChallenge(flag)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (response: ApiResponse<any>) => {
+        next: (response: ApiResponse<AnsweredCTFEntityResponse>) => {
           this.isLoading = false;
           this.handleAnswerResponse(response);
         },
@@ -186,7 +188,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   /**
    * Handle the response from submitting an answer
    */
-  private handleAnswerResponse(response: ApiResponse<any>): void {
+  private handleAnswerResponse(response: ApiResponse<AnsweredCTFEntityResponse>): void {
     if (!response.data) {
       this.showStatus('Invalid response from server', 'error');
       return;
@@ -200,6 +202,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
       this.isAnswered.next(true);
       this.showStatus('🎉 Correct! Challenge completed!', 'success');
       console.log('Challenge solved successfully!');
+      this.roomService.setCurrentRoomUser(response.data?.joinRoomResponse!);
     } else if (this.currentAttempts >= this.viewedChallenge.maxAttempts!) {
       // Max attempts reached
       this.isAnswered.next(true);

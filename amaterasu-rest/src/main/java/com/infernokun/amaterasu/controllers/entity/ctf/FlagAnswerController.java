@@ -27,7 +27,7 @@ public class FlagAnswerController {
     private final AnsweredCTFEntityService answeredCTFEntityService;
     private final UserService userService;
 
-    @PostMapping()
+    @PostMapping
     public ResponseEntity<ApiResponse<AnsweredCTFEntityResponse>> answerQuestion(@RequestBody FlagAnswerRequest flagAnswerRequest) {
         final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (flagAnswerRequest == null) {

@@ -20,4 +20,5 @@ public class AnsweredCTFEntityResponse extends StoredObject {
     private Integer score;
     private Integer hintsUsed;
     private Long solveTimeSeconds;
+    private JoinRoomResponse joinRoomResponse;
 }

@@ -19,6 +19,9 @@ public class FlagAnswerRequest {
     @Column(name = "user_id")
     private String userId;
 
+    @Column(name = "room_id")
+    private String roomId;
+
     @Column(name = "question_id")
     private String questionId;
 
