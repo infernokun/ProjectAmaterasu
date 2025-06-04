@@ -6,7 +6,7 @@ import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.repositories.TeamRepository;
 import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.services.BaseService;
-import com.infernokun.amaterasu.utils.dto.UserMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -18,18 +18,11 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class UserService extends BaseService implements UserDetailsService {
     private final UserRepository userRepository;
     private final TeamRepository teamRepository;
     private final PasswordEncoder passwordEncoder;
-    private final UserMapper userMapper;
-
-    public UserService(UserRepository userRepository, TeamRepository teamRepository, PasswordEncoder passwordEncoder, UserMapper userMapper) {
-        this.userRepository = userRepository;
-        this.teamRepository = teamRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.userMapper = userMapper;
-    }
 
     public boolean existsByUsername(String username) {
         return this.userRepository.existsByUsername(username);
