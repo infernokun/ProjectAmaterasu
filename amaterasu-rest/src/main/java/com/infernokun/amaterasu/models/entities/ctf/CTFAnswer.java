@@ -26,8 +26,8 @@ import java.util.List;
 public class CTFAnswer extends StoredObject {
 
     @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "room_user_id", nullable = false)
+    private RoomUser roomUser;
 
     @ManyToOne
     @JoinColumn(name = "ctf_entity_id", nullable = false)
@@ -67,7 +67,8 @@ public class CTFAnswer extends StoredObject {
 
     @Builder.Default
     @Column(name = "hints_used")
-    private Integer hintsUsed = 0;
+    @OneToMany(fetch = FetchType.EAGER)
+    private List<Hint> hintsUsed = new ArrayList<>();
 
     // Optional: Time taken to solve (in seconds)
     @Column(name = "solve_time_seconds")

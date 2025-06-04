@@ -10,7 +10,7 @@
   <!-- Main content area with tabs or sections -->
   <div class="lab-content">
     <!-- Empty state message that shows when no labs exist -->
-    <div *ngIf="isLoading" class="skeleton-loading">
+    <div *ngIf="isLoading()" class="skeleton-loading">
       <div class="skeleton-cards">
         <div class="skeleton-card pulse" *ngFor="let i of [1,2,3,4]">
           <div class="skeleton-card-header"></div>
@@ -23,7 +23,7 @@
       </div>
     </div>
     
-    <div *ngIf="(!isLoading && labsCount === 0) && !(loggedInUser$ | async)" class="empty-state">
+    <div *ngIf="(!isLoading() && labsCount === 0) && !(loggedInUser$ | async)" class="empty-state">
       <div class="empty-state-icon">
         <mat-icon>science_off</mat-icon>
       </div>

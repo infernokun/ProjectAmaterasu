@@ -21,11 +21,11 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
-@ConfigurationProperties(prefix = "rsa")
-@Component
+@Slf4j
 @Getter
 @Setter
-@Slf4j
+@Component
+@ConfigurationProperties(prefix = "rsa")
 public class RSAKeyProperties {
 
     private String privateKey;
@@ -42,9 +42,8 @@ public class RSAKeyProperties {
         this.publicKey = publicKey;
     }
 
-    /**
-     * Get RSAPrivateKey, loading from file if not cached
-     */
+
+     // Get RSAPrivateKey, loading from file if not cached
     public RSAPrivateKey getPrivateKey() {
         if (cachedPrivateKey == null) {
             cachedPrivateKey = loadPrivateKeyFromFile();
@@ -52,9 +51,7 @@ public class RSAKeyProperties {
         return cachedPrivateKey;
     }
 
-    /**
-     * Get RSAPublicKey, loading from file if not cached
-     */
+     // Get RSAPublicKey, loading from file if not cached
     public RSAPublicKey getPublicKey() {
         if (cachedPublicKey == null) {
             cachedPublicKey = loadPublicKeyFromFile();
@@ -62,9 +59,7 @@ public class RSAKeyProperties {
         return cachedPublicKey;
     }
 
-    /**
-     * Load and parse private key from file
-     */
+     // Load and parse private key from file
     private RSAPrivateKey loadPrivateKeyFromFile() {
         try {
             log.debug("Loading private key from: {}", privateKey);
@@ -88,9 +83,7 @@ public class RSAKeyProperties {
         }
     }
 
-    /**
-     * Load and parse public key from file
-     */
+     // Load and parse public key from file
     private RSAPublicKey loadPublicKeyFromFile() {
         try {
             log.debug("Loading public key from: {}", publicKey);
@@ -114,9 +107,7 @@ public class RSAKeyProperties {
         }
     }
 
-    /**
-     * Clean key content by removing headers, footers, and whitespace
-     */
+     // Clean key content by removing headers, footers, and whitespace
     private String cleanKeyContent(String keyContent, String keyType) {
         return keyContent
                 .replace("-----BEGIN " + keyType + "-----", "")
@@ -127,9 +118,7 @@ public class RSAKeyProperties {
                 .trim();
     }
 
-    /**
-     * Load key content from file or classpath resource
-     */
+     // Load key content from file or classpath resource
     private String loadKeyContent(String keyPath) throws IOException {
         if (keyPath == null || keyPath.trim().isEmpty()) {
             throw new IllegalArgumentException("Key path cannot be null or empty");
@@ -155,10 +144,10 @@ public class RSAKeyProperties {
      * Try multiple loading strategies when no explicit prefix is provided
      */
     private String loadWithMultipleStrategies(String keyPath) throws IOException {
-        String content = null;
-        Exception lastException = null;
+        String content;
+        Exception lastException;
 
-        // Strategy 1: Classpath resource (most common for Spring Boot)
+        // Strategy 1: Classpath resource
         try {
             content = loadFromClasspath(keyPath);
             log.debug("Successfully loaded key from classpath: {}", keyPath);
@@ -191,12 +180,12 @@ public class RSAKeyProperties {
 
         // If all strategies failed
         throw new FileNotFoundException("Could not load key file: " + keyPath +
-                ". Last error: " + (lastException != null ? lastException.getMessage() : "Unknown error"));
+                ". Last error: " + lastException.getMessage());
     }
 
-    /**
-     * Load content from classpath resource
-     */
+
+    // Load content from classpath resource
+
     private String loadFromClasspath(String resourcePath) throws IOException {
         String path = resourcePath.startsWith("classpath:") ?
                 resourcePath.substring("classpath:".length()) : resourcePath;
@@ -216,9 +205,7 @@ public class RSAKeyProperties {
         }
     }
 
-    /**
-     * Load content from file system
-     */
+     // Load content from file system
     private String loadFromFileSystem(String filePath) throws IOException {
         Path path = Paths.get(filePath);
         if (!Files.exists(path)) {
@@ -227,26 +214,22 @@ public class RSAKeyProperties {
         return Files.readString(path, StandardCharsets.UTF_8);
     }
 
-    /**
-     * Reset cached keys (useful for testing or key rotation)
-     */
+
+     // Reset cached keys (useful for testing or key rotation)
     public void resetCache() {
         this.cachedPrivateKey = null;
         this.cachedPublicKey = null;
         log.debug("RSA key cache reset");
     }
 
-    /**
-     * Check if keys are properly configured
-     */
+
+    // Check if keys are properly configured
     public boolean isConfigured() {
         return privateKey != null && !privateKey.trim().isEmpty() &&
                 publicKey != null && !publicKey.trim().isEmpty();
     }
 
-    /**
-     * Validate that keys can be loaded successfully
-     */
+    // Validate that keys can be loaded successfully
     public void validateKeys() {
         try {
             getPrivateKey();

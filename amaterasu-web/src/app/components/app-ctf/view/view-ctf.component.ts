@@ -63,8 +63,9 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
    */
   private checkExistingAnswer(): void {
     this.isLoading = true;
+    console.log(this.viewedChallenge, this.roomService.getCurrentRoom().id)
 
-    this.ctfService.answerChallengeCheck(this.viewedChallenge)
+    this.ctfService.answerChallengeCheck(this.viewedChallenge, this.roomService.getCurrentRoom().id!)
       .pipe(
         takeUntil(this.destroy$),
         catchError((error: HttpErrorResponse) => {
@@ -160,7 +161,6 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
    * Submit the answer to the server
    */
   private submitAnswer(userId: string, roomId: string, challenge: CTFEntity): void {
-    console.log('theid!!!', roomId);
     const flag = FlagAnswer.create(this.answer.trim(), userId, roomId, challenge.id!);
 
     this.ctfService.answerChallenge(flag)
@@ -266,10 +266,10 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   }
 
   useHint(hint: Hint) {
-
+    //this.ctfService.useHint((res))
   }
 
   canUseHint(hint: Hint): boolean {
-    return this.roomUser?.points! > hint.cost! //&& !this.viewedChallenge.hintsUsed?.includes(hint.id);
+    return this.roomUser?.points! > hint.cost!;
   }
 }

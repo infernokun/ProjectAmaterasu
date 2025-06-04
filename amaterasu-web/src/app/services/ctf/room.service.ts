@@ -12,14 +12,17 @@ import { JoinRoomResponse } from '../../models/dto/join-room-response.model';
   providedIn: 'root'
 })
 export class RoomService extends BaseService {
-  private roomsSubject = new BehaviorSubject<Room[] | undefined>(undefined);
+  private roomsSubject: BehaviorSubject<Room[] | undefined> = new BehaviorSubject<Room[] | undefined>(undefined);
   rooms$: Observable<Room[] | undefined> = this.roomsSubject.asObservable();
 
-  private roomJoinableSubject = new BehaviorSubject<Map<string, JoinRoomResponse> | undefined>(undefined);
+  private roomJoinableSubject: BehaviorSubject<Map<string, JoinRoomResponse> | undefined> = new BehaviorSubject<Map<string, JoinRoomResponse> | undefined>(undefined);
   roomJoinable$: Observable<Map<string, JoinRoomResponse> | undefined> = this.roomJoinableSubject.asObservable();
 
-  private currentRoomUserSubject = new BehaviorSubject<JoinRoomResponse | undefined>(undefined);
+  private currentRoomUserSubject: BehaviorSubject<JoinRoomResponse | undefined> = new BehaviorSubject<JoinRoomResponse | undefined>(undefined);
   currentRoomUser$: Observable<JoinRoomResponse | undefined> = this.currentRoomUserSubject.asObservable();
+
+  private currentRoomSubject: BehaviorSubject<Room | undefined> = new BehaviorSubject<Room | undefined>(undefined);
+  currentRoom$: Observable<Room | undefined> = this.currentRoomSubject.asObservable();
 
   reqUrl: string = '';
 
@@ -86,6 +89,19 @@ export class RoomService extends BaseService {
     if (!this.currentRoomUserSubject.value) {
       throw new Error('Current room user is not set');
     }
+
     return this.currentRoomUserSubject.value;
+  }
+
+  getCurrentRoom(): Room {
+    if (!this.currentRoomSubject.value) {
+      throw new Error('Current room is not set');
+    }
+
+    return this.currentRoomSubject.value;
+  }
+
+  setCurrentRoom(room: Room): void {
+    this.currentRoomSubject.next(room);
   }
 }

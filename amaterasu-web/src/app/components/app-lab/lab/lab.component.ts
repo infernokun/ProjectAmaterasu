@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal, WritableSignal } from '@angular/core';
 import { LabService } from '../../../services/lab/lab.service';
 import {
   Observable,
@@ -53,7 +53,7 @@ export class LabComponent implements OnInit, OnDestroy {
   loggedInUser$: Observable<User | undefined>
   labTrackersByTeam$: Observable<LabTracker[]> = of([]);
 
-  isLoading: boolean = false;
+  isLoading: WritableSignal<boolean> = signal(false);
 
   constructor(
     private labService: LabService,
@@ -76,7 +76,7 @@ export class LabComponent implements OnInit, OnDestroy {
   }
 
   private initializeData(): void {
-    this.isLoading = true;
+    this.isLoading.set(true);
 
 
     // Set up subscription to labs
@@ -111,7 +111,7 @@ export class LabComponent implements OnInit, OnDestroy {
       );
       this.labTrackerService.setLabTrackersByTeam(this.trackedLabs);
 
-      this.isLoading = false;
+      this.isLoading.set(false);
     });
 
     timer(1000).pipe(
@@ -120,7 +120,7 @@ export class LabComponent implements OnInit, OnDestroy {
     ).subscribe(() => {
       // If after 2 seconds we still don't have a user, stop showing loading indicator
       if (this.isLoading) {
-        this.isLoading = false;
+        this.isLoading.set(false);
       }
     });
   }

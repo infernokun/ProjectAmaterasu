@@ -111,3 +111,7 @@ docker-compose logs [service_name]
 ```
 
 This will display logs for a specific service, such as `amaterasu-web`, `amaterasu-db`, or `amaterasu-rest`.
+
+# RSA stuff
+openssl genpkey -algorithm RSA -out private.key -pkeyopt rsa_keygen_bits:409
+openssl rsa -pubout -in private.key -out public.key

@@ -47,10 +47,10 @@ public class FlagService {
         Optional<RoomUser> roomUserOpt = roomUserService.findByUserAndRoom(user, room);
 
         CTFAnswer ctfAnswer = ctfAnswerService
-                .findByUserIdAndCtfEntityIdOptional(user.getId(), ctfEntity.getId())
+                .findByRoomUserIdAndCtfEntityIdOptional(user.getId(), ctfEntity.getId())
                 .orElseGet(() -> CTFAnswer
                         .builder()
-                        .user(user)
+                        .roomUser(roomUserOpt.get())
                         .ctfEntity(ctfEntity)
                         .correct(correct)
                         .answers(new ArrayList<>())

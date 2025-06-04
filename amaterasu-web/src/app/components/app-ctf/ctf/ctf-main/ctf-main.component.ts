@@ -63,6 +63,7 @@ export class CTFMainComponent implements OnInit, OnDestroy {
         
         if (roomResponse?.data) {
           this.room.set(roomResponse.data);
+          this.roomService.setCurrentRoom(roomResponse.data);
         } else {
           this.error.set('Room not found');
         }

@@ -13,13 +13,13 @@ import java.util.Optional;
 public class CTFAnswerService {
     private final CTFAnswerRepository ctfAnswerRepository;
 
-    public Optional<CTFAnswer> findByUserIdAndCtfEntityIdOptional(String userId, String ctfEntityId) {
-        return ctfAnswerRepository.findByUserIdAndCtfEntityId(userId, ctfEntityId);
+    public CTFAnswer findByRoomUserIdAndCtfEntityId(String roomUserId, String ctfEntityId){
+        return ctfAnswerRepository.findByRoomUserIdAndCtfEntityId(roomUserId, ctfEntityId)
+                .orElseThrow(() -> new ChallengeNotAnsweredException("Challenge not yet answered"));
     }
 
-    public CTFAnswer findByUserIdAndCtfEntityId(String userId, String ctfEntityId) {
-        return ctfAnswerRepository.findByUserIdAndCtfEntityId(userId, ctfEntityId)
-                .orElseThrow(() -> new ChallengeNotAnsweredException("Challenge not yet answered"));
+    public Optional<CTFAnswer> findByRoomUserIdAndCtfEntityIdOptional(String roomUserId, String ctfEntityId){
+        return ctfAnswerRepository.findByRoomUserIdAndCtfEntityId(roomUserId, ctfEntityId);
     }
 
     public CTFAnswer saveAnsweredCTFEntity(CTFAnswer CTFAnswer) {

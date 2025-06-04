@@ -1,14 +1,11 @@
 package com.infernokun.amaterasu.controllers.entity.ctf;
 
 import com.infernokun.amaterasu.models.ApiResponse;
-import com.infernokun.amaterasu.models.entities.ctf.dto.CTFEntityRequest;
-import com.infernokun.amaterasu.models.entities.ctf.dto.CTFEntityResponse;
-import com.infernokun.amaterasu.models.entities.ctf.dto.HintResponse;
-import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
-import com.infernokun.amaterasu.models.entities.ctf.Flag;
-import com.infernokun.amaterasu.models.entities.ctf.Room;
-import com.infernokun.amaterasu.services.entity.ctf.CTFEntityService;
-import com.infernokun.amaterasu.services.entity.ctf.RoomService;
+import com.infernokun.amaterasu.models.entities.User;
+import com.infernokun.amaterasu.models.entities.ctf.*;
+import com.infernokun.amaterasu.models.entities.ctf.dto.*;
+import com.infernokun.amaterasu.services.entity.UserService;
+import com.infernokun.amaterasu.services.entity.ctf.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -16,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -30,6 +28,10 @@ public class CTFEntityController {
     private final CTFEntityService ctfEntityService;
     private final ModelMapper modelMapper;
     private final RoomService roomService;
+    private final UserService userService;
+    private final RoomUserService roomUserService;
+    private final HintService hintService;
+    private final CTFAnswerService ctfAnswerService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<CTFEntityResponse>>> getAllCTFEntities() {
@@ -38,10 +40,7 @@ public class CTFEntityController {
         List<CTFEntity> entities = ctfEntityService.findAllCTFEntities();
 
         List<CTFEntityResponse> ctfEntityResponses = entities.stream()
-                .map(entity -> {
-                    CTFEntityResponse dto = modelMapper.map(entity, CTFEntityResponse.class);
-                    return dto;
-                })
+                .map(entity -> modelMapper.map(entity, CTFEntityResponse.class))
                 .collect(Collectors.toList());
 
         return buildSuccessResponse(
@@ -149,6 +148,75 @@ public class CTFEntityController {
                 savedEntities,
                 HttpStatus.CREATED
         );
+    }
+
+    @PostMapping("/use-hint/{hintId}/{roomId}/{userId}/{ctfEntityId}")
+    public ResponseEntity<ApiResponse<CTFEntityHintResponse>> useHint(
+            @PathVariable String hintId,
+            @PathVariable String roomId,
+            @PathVariable String userId,
+            @PathVariable String ctfEntityId) {
+
+        // Validate entities exist
+        Room room = roomService.findByRoomId(roomId);
+        User user = userService.findUserById(userId);
+        CTFEntity ctfEntity = ctfEntityService.findCTFEntityById(ctfEntityId);
+        Hint hint = hintService.getHintById(hintId);
+
+        // Validate room user exists
+        RoomUser roomUser = roomUserService.findByUserAndRoom(user, room)
+                .orElseThrow(() -> new IllegalArgumentException("User is not part of this room"));
+
+        // Validate hint belongs to the CTF entity
+        if (!hint.getCtfEntity().getId().equals(ctfEntityId)) {
+            throw new IllegalArgumentException("Hint does not belong to the specified CTF entity");
+        }
+
+        // Validate hint can be used
+        if (!hint.getIsUnlocked()) {
+            throw new IllegalStateException("Hint is not unlocked yet");
+        }
+
+        if (hint.getUsedAt() != null) {
+            throw new IllegalStateException("Hint has already been used");
+        }
+
+        // Validate user has enough points
+        if (roomUser.getPoints() < hint.getCost()) {
+            throw new IllegalStateException("Not enough points to use this hint");
+        }
+
+        // Get or create CTF answer
+        CTFAnswer ctfAnswer = ctfAnswerService.findByRoomUserIdAndCtfEntityId(roomUser.getId(), ctfEntity.getId());
+
+        // Check if hint already used by this user for this CTF entity
+        if (ctfAnswer.getHintsUsed().stream().anyMatch(h -> h.getId().equals(hintId))) {
+            throw new IllegalStateException("Hint has already been used by this user");
+        }
+
+        // Use the hint
+        hint.setUsedAt(LocalDateTime.now());
+        hint.setPointsDeducted(hint.getCost() + hint.getCost());
+        hint = hintService.save(hint);
+
+        // Deduct points from user
+        roomUser.setPoints(roomUser.getPoints() - hint.getCost());
+        roomUser = roomUserService.save(roomUser);
+
+        // Add hint to user's used hints
+        ctfAnswer.getHintsUsed().add(hint);
+        ctfAnswer = ctfAnswerService.saveAnsweredCTFEntity(ctfAnswer);
+
+        // Build response
+        CTFEntityHintResponse ctfEntityHintResponse = modelMapper.map(ctfAnswer, CTFEntityHintResponse.class);
+        ctfEntityHintResponse.setJoinRoomResponse(JoinRoomResponse.builder()
+                .points(roomUser.getPoints())
+                .roomId(roomUser.getRoom().getId())
+                .userId(roomUser.getUser().getId())
+                .roomUserStatus(roomUser.getRoomUserStatus())
+                .build());
+
+        return buildSuccessResponse("Hint used successfully", ctfEntityHintResponse, HttpStatus.OK);
     }
 
     @PutMapping("/{id}")

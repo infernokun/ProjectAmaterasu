@@ -72,6 +72,18 @@ public class RoomController {
         );
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<Room>> getRoomById(@PathVariable String id) {
+        Room room = this.roomService.findByRoomId(id);
+        return ResponseEntity.ok(
+                ApiResponse.<Room>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Room retrieved successfully.")
+                        .data(room)
+                        .build()
+        );
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<Room>> createRoom(@RequestBody Room room) {
         Room savedRoom = this.roomService.saveRoom(room);
@@ -209,18 +221,6 @@ public class RoomController {
                         .userId(roomUser.getUser().getId())
                         .roomUserStatus(roomUser.getRoomUserStatus())
                         .build(), HttpStatus.OK);
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Room>> getRoomById(@PathVariable String id) {
-        Room room = this.roomService.findByRoomId(id);
-        return ResponseEntity.ok(
-                ApiResponse.<Room>builder()
-                        .code(HttpStatus.OK.value())
-                        .message("Room retrieved successfully.")
-                        .data(room)
-                        .build()
-        );
     }
 
     @PutMapping("/{id}")
