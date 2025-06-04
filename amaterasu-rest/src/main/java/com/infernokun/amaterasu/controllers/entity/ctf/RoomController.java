@@ -1,8 +1,8 @@
 package com.infernokun.amaterasu.controllers.entity.ctf;
 
 import com.infernokun.amaterasu.models.ApiResponse;
-import com.infernokun.amaterasu.models.dto.ctf.JoinRoomResponse;
-import com.infernokun.amaterasu.models.dto.ctf.RoomJoinableRequest;
+import com.infernokun.amaterasu.models.entities.ctf.dto.JoinRoomResponse;
+import com.infernokun.amaterasu.models.entities.ctf.dto.RoomJoinableRequest;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.ctf.RoomUser;

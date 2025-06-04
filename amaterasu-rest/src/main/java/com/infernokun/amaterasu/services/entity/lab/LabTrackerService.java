@@ -6,7 +6,7 @@ import com.infernokun.amaterasu.exceptions.RemoteCommandException;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.DockerServiceInfo;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
-import com.infernokun.amaterasu.models.dto.VolumeChangeRequest;
+import com.infernokun.amaterasu.models.entities.alt.VolumeChangeRequest;
 import com.infernokun.amaterasu.models.entities.lab.Lab;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;

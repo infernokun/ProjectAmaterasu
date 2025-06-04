@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.models.dto;
+package com.infernokun.amaterasu.models.entities.alt;
 
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.enums.Role;

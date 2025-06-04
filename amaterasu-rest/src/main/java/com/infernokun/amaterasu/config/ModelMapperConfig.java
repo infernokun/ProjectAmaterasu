@@ -1,7 +1,7 @@
 package com.infernokun.amaterasu.config;
 
-import com.infernokun.amaterasu.models.dto.ctf.CTFEntityRequest;
-import com.infernokun.amaterasu.models.dto.ctf.FlagRequest;
+import com.infernokun.amaterasu.models.entities.ctf.dto.CTFEntityRequest;
+import com.infernokun.amaterasu.models.entities.ctf.dto.FlagRequest;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
 import com.infernokun.amaterasu.models.entities.ctf.Flag;
 import org.modelmapper.ModelMapper;

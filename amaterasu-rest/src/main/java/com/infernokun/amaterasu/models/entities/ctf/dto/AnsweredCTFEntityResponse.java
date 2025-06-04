@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.models.dto.ctf;
+package com.infernokun.amaterasu.models.entities.ctf.dto;
 
 import com.infernokun.amaterasu.models.entities.StoredObject;
 import lombok.Data;
@@ -13,7 +13,7 @@ public class AnsweredCTFEntityResponse extends StoredObject {
     private CTFEntityResponse ctfEntity;
     private Boolean correct;
     private Integer attempts;
-    private List<FlagAnswerRequest> answers;
+    private List<CTFAnswerRequest> answers;
     private List<LocalDateTime> attemptTimes;
     private LocalDateTime solvedAt;
     private LocalDateTime lastAttemptAt;

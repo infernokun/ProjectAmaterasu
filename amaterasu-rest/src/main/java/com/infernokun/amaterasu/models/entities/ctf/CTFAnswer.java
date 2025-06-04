@@ -1,7 +1,7 @@
 package com.infernokun.amaterasu.models.entities.ctf;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.infernokun.amaterasu.models.dto.ctf.FlagAnswerRequest;
+import com.infernokun.amaterasu.models.entities.ctf.dto.CTFAnswerRequest;
 import com.infernokun.amaterasu.models.entities.StoredObject;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.helper.FlagAnswerListConverter;
@@ -23,7 +23,7 @@ import java.util.List;
 @Builder
 @Table(name = "answered_ctf_entity",
         uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "ctf_entity_id"}))
-public class AnsweredCTFEntity extends StoredObject {
+public class CTFAnswer extends StoredObject {
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
@@ -44,7 +44,7 @@ public class AnsweredCTFEntity extends StoredObject {
     @Column(name = "answers", columnDefinition = "TEXT")
     @Convert(converter = FlagAnswerListConverter.class)
     @Builder.Default
-    private List<FlagAnswerRequest> answers = new ArrayList<>();
+    private List<CTFAnswerRequest> answers = new ArrayList<>();
 
     @Column(name = "attempt_times", columnDefinition = "TEXT")
     @Convert(converter = LocalDateTimeListConverter.class)
@@ -94,7 +94,7 @@ public class AnsweredCTFEntity extends StoredObject {
     /**
      * Get the most recent answer
      */
-    public FlagAnswerRequest getLatestAnswer() {
+    public CTFAnswerRequest getLatestAnswer() {
         return answers != null && !answers.isEmpty() ?
                 answers.getLast() : null;
     }

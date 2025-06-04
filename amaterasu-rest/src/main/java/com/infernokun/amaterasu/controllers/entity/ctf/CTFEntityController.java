@@ -1,9 +1,9 @@
 package com.infernokun.amaterasu.controllers.entity.ctf;
 
 import com.infernokun.amaterasu.models.ApiResponse;
-import com.infernokun.amaterasu.models.dto.ctf.CTFEntityRequest;
-import com.infernokun.amaterasu.models.dto.ctf.CTFEntityResponse;
-import com.infernokun.amaterasu.models.dto.ctf.HintResponse;
+import com.infernokun.amaterasu.models.entities.ctf.dto.CTFEntityRequest;
+import com.infernokun.amaterasu.models.entities.ctf.dto.CTFEntityResponse;
+import com.infernokun.amaterasu.models.entities.ctf.dto.HintResponse;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
 import com.infernokun.amaterasu.models.entities.ctf.Flag;
 import com.infernokun.amaterasu.models.entities.ctf.Room;

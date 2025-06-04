@@ -1,9 +1,9 @@
 package com.infernokun.amaterasu.services.entity.ctf;
 
-import com.infernokun.amaterasu.models.dto.ctf.FlagAnswerRequest;
-import com.infernokun.amaterasu.models.dto.ctf.AnsweredCTFEntityResponse;
-import com.infernokun.amaterasu.models.dto.ctf.CTFEntityResponse;
-import com.infernokun.amaterasu.models.dto.ctf.JoinRoomResponse;
+import com.infernokun.amaterasu.models.entities.ctf.dto.CTFAnswerRequest;
+import com.infernokun.amaterasu.models.entities.ctf.dto.AnsweredCTFEntityResponse;
+import com.infernokun.amaterasu.models.entities.ctf.dto.CTFEntityResponse;
+import com.infernokun.amaterasu.models.entities.ctf.dto.JoinRoomResponse;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.*;
 import com.infernokun.amaterasu.repositories.ctf.FlagRepository;
@@ -23,7 +23,7 @@ import java.util.Optional;
 public class FlagService {
     private final CTFEntityService ctfEntityService;
     private final UserService userService;
-    private final AnsweredCTFEntityService answeredCTFEntityService;
+    private final CTFAnswerService ctfAnswerService;
     private final FlagRepository flagRepository;
     private final ModelMapper modelMapper;
     private final RoomUserService roomUserService;
@@ -33,22 +33,22 @@ public class FlagService {
         return this.flagRepository.save(flag);
     }
 
-    public boolean validateFlag(FlagAnswerRequest flagAnswerRequest) {
-        List<Flag> challengeFlags = getFlagsByCtfEntityId(flagAnswerRequest.getQuestionId());
+    public boolean validateFlag(CTFAnswerRequest ctfAnswerRequest) {
+        List<Flag> challengeFlags = getFlagsByCtfEntityId(ctfAnswerRequest.getQuestionId());
 
         return challengeFlags.stream().map(Flag::getFlag)
-                .anyMatch(flag -> flag.equals(flagAnswerRequest.getFlag()));
+                .anyMatch(flag -> flag.equals(ctfAnswerRequest.getFlag()));
     }
 
-    public AnsweredCTFEntityResponse addAnsweredCTFEntity(String userId, FlagAnswerRequest flagAnswerRequest, boolean correct) {
+    public AnsweredCTFEntityResponse addAnsweredCTFEntity(String userId, CTFAnswerRequest ctfAnswerRequest, boolean correct) {
         User user = userService.findUserById(userId);
-        Room room = roomService.findByRoomId(flagAnswerRequest.getRoomId());
-        CTFEntity ctfEntity = ctfEntityService.findCTFEntityByIdWithFlags(flagAnswerRequest.getQuestionId());
+        Room room = roomService.findByRoomId(ctfAnswerRequest.getRoomId());
+        CTFEntity ctfEntity = ctfEntityService.findCTFEntityByIdWithFlags(ctfAnswerRequest.getQuestionId());
         Optional<RoomUser> roomUserOpt = roomUserService.findByUserAndRoom(user, room);
 
-        AnsweredCTFEntity answeredCTFEntity = answeredCTFEntityService
+        CTFAnswer ctfAnswer = ctfAnswerService
                 .findByUserIdAndCtfEntityIdOptional(user.getId(), ctfEntity.getId())
-                .orElseGet(() -> AnsweredCTFEntity
+                .orElseGet(() -> CTFAnswer
                         .builder()
                         .user(user)
                         .ctfEntity(ctfEntity)
@@ -58,17 +58,17 @@ public class FlagService {
                         .attempts(0)
                         .build());
 
-        answeredCTFEntity.getAnswers().add(flagAnswerRequest);
-        answeredCTFEntity.getAttemptTimes().add(LocalDateTime.now());
-        answeredCTFEntity.setAttempts(answeredCTFEntity.getAttempts() + 1);
-        answeredCTFEntity.setCorrect(correct);
+        ctfAnswer.getAnswers().add(ctfAnswerRequest);
+        ctfAnswer.getAttemptTimes().add(LocalDateTime.now());
+        ctfAnswer.setAttempts(ctfAnswer.getAttempts() + 1);
+        ctfAnswer.setCorrect(correct);
 
-        answeredCTFEntity = answeredCTFEntityService.saveAnsweredCTFEntity(answeredCTFEntity);
+        ctfAnswer = ctfAnswerService.saveAnsweredCTFEntity(ctfAnswer);
 
-        AnsweredCTFEntityResponse answeredCTFEntityResponse = modelMapper.map(answeredCTFEntity,
+        AnsweredCTFEntityResponse answeredCTFEntityResponse = modelMapper.map(ctfAnswer,
                 AnsweredCTFEntityResponse.class);
 
-        answeredCTFEntityResponse.setCtfEntity(modelMapper.map(answeredCTFEntity.getCtfEntity(),
+        answeredCTFEntityResponse.setCtfEntity(modelMapper.map(ctfAnswer.getCtfEntity(),
                 CTFEntityResponse.class));
 
 
@@ -84,7 +84,7 @@ public class FlagService {
                 roomUser = roomUserService.save(roomUser);
 
                 answeredCTFEntityResponse.setJoinRoomResponse(JoinRoomResponse.builder()
-                        .roomId(flagAnswerRequest.getRoomId())
+                        .roomId(ctfAnswerRequest.getRoomId())
                         .points(roomUser.getPoints())
                         .userId(roomUser.getUser().getId())
                         .roomUserStatus(roomUser.getRoomUserStatus())

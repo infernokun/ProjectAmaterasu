@@ -2,9 +2,9 @@ package com.infernokun.amaterasu.controllers.alt;
 
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
-import com.infernokun.amaterasu.models.dto.LoginResponse;
-import com.infernokun.amaterasu.models.dto.RefreshTokenRequest;
-import com.infernokun.amaterasu.models.dto.RegistrationRequest;
+import com.infernokun.amaterasu.models.entities.alt.LoginResponse;
+import com.infernokun.amaterasu.models.entities.alt.RefreshTokenRequest;
+import com.infernokun.amaterasu.models.entities.alt.RegistrationRequest;
 import com.infernokun.amaterasu.services.alt.AuthenticationService;
 import com.infernokun.amaterasu.services.entity.RefreshTokenService;
 import jakarta.servlet.http.HttpServletRequest;

@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.models.dto.ctf;
+package com.infernokun.amaterasu.models.entities.ctf.dto;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString
-public class FlagAnswerRequest {
+public class CTFAnswerRequest {
     @Column(name = "flag", length = 1000)
     private String flag;
 

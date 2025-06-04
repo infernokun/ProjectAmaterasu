@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.models.dto;
+package com.infernokun.amaterasu.models.entities.alt;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;

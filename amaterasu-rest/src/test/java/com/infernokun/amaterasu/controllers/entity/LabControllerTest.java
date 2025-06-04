@@ -5,7 +5,7 @@ import com.infernokun.amaterasu.controllers.entity.lab.LabController;
 import com.infernokun.amaterasu.exceptions.GlobalExceptionHandler;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.LabActionResult;
-import com.infernokun.amaterasu.models.dto.LabRequest;
+import com.infernokun.amaterasu.models.entities.lab.dto.LabRequest;
 import com.infernokun.amaterasu.models.entities.lab.Lab;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;

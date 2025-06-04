@@ -1,4 +1,4 @@
-package com.infernokun.amaterasu.models.dto;
+package com.infernokun.amaterasu.models.entities.lab.dto;
 
 import com.infernokun.amaterasu.models.enums.LabType;
 import lombok.Data;
