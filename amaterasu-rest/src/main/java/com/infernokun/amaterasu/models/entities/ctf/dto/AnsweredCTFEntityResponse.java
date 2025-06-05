@@ -13,7 +13,7 @@ public class AnsweredCTFEntityResponse extends StoredObject {
     private CTFEntityResponse ctfEntity;
     private Boolean correct;
     private Integer attempts;
-    private List<CTFAnswerRequest> answers;
+    private List<CTFEntityAnswerRequest> answers;
     private List<LocalDateTime> attemptTimes;
     private LocalDateTime solvedAt;
     private LocalDateTime lastAttemptAt;

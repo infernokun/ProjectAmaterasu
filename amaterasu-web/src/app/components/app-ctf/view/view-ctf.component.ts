@@ -12,7 +12,8 @@ import { User } from '../../../models/user.model';
 import { Hint } from '../../../models/ctf/hint.model';
 import { RoomService } from '../../../services/ctf/room.service';
 import { JoinRoomResponse } from '../../../models/dto/join-room-response.model';
-import { AnsweredCTFEntityResponse } from '../../../models/dto/answered-ctfentity-response.model';
+import { CTFEntityHintResponse } from '../../../models/dto/ctf-entity-hint-response.model';
+import { CTFEntityAnswerResponse } from '../../../models/dto/answered-ctfentity-response.model';
 
 @Component({
   selector: 'amaterasu-view-dialog',
@@ -63,9 +64,8 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
    */
   private checkExistingAnswer(): void {
     this.isLoading = true;
-    console.log(this.viewedChallenge, this.roomService.getCurrentRoom().id)
 
-    this.ctfService.answerChallengeCheck(this.viewedChallenge, this.roomService.getCurrentRoom().id!)
+    this.ctfService.answerChallengeCheck(this.viewedChallenge, this.roomService.getCurrentRoom()?.id!)
       .pipe(
         takeUntil(this.destroy$),
         catchError((error: HttpErrorResponse) => {
@@ -166,7 +166,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
     this.ctfService.answerChallenge(flag)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (response: ApiResponse<AnsweredCTFEntityResponse>) => {
+        next: (response: ApiResponse<CTFEntityAnswerResponse>) => {
           this.isLoading = false;
           this.handleAnswerResponse(response);
         },
@@ -188,7 +188,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   /**
    * Handle the response from submitting an answer
    */
-  private handleAnswerResponse(response: ApiResponse<AnsweredCTFEntityResponse>): void {
+  private handleAnswerResponse(response: ApiResponse<CTFEntityAnswerResponse>): void {
     if (!response.data) {
       this.showStatus('Invalid response from server', 'error');
       return;
@@ -266,7 +266,10 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   }
 
   useHint(hint: Hint) {
-    //this.ctfService.useHint((res))
+    this.ctfService.useHint(hint?.id!, this.roomService.getCurrentRoom()?.id!, this.authService.getUser()?.id!, this.viewedChallenge.id!)
+      .subscribe((response: ApiResponse<CTFEntityHintResponse>) => {
+        console.log(response);
+      })
   }
 
   canUseHint(hint: Hint): boolean {

@@ -1,6 +1,6 @@
 package com.infernokun.amaterasu.services.entity.ctf;
 
-import com.infernokun.amaterasu.models.entities.ctf.dto.CTFAnswerRequest;
+import com.infernokun.amaterasu.models.entities.ctf.dto.CTFEntityAnswerRequest;
 import com.infernokun.amaterasu.models.entities.ctf.dto.AnsweredCTFEntityResponse;
 import com.infernokun.amaterasu.models.entities.ctf.dto.CTFEntityResponse;
 import com.infernokun.amaterasu.models.entities.ctf.dto.JoinRoomResponse;
@@ -33,22 +33,22 @@ public class FlagService {
         return this.flagRepository.save(flag);
     }
 
-    public boolean validateFlag(CTFAnswerRequest ctfAnswerRequest) {
-        List<Flag> challengeFlags = getFlagsByCtfEntityId(ctfAnswerRequest.getQuestionId());
+    public boolean validateFlag(CTFEntityAnswerRequest ctfEntityAnswerRequest) {
+        List<Flag> challengeFlags = getFlagsByCtfEntityId(ctfEntityAnswerRequest.getQuestionId());
 
         return challengeFlags.stream().map(Flag::getFlag)
-                .anyMatch(flag -> flag.equals(ctfAnswerRequest.getFlag()));
+                .anyMatch(flag -> flag.equals(ctfEntityAnswerRequest.getFlag()));
     }
 
-    public AnsweredCTFEntityResponse addAnsweredCTFEntity(String userId, CTFAnswerRequest ctfAnswerRequest, boolean correct) {
+    public AnsweredCTFEntityResponse addAnsweredCTFEntity(String userId, CTFEntityAnswerRequest ctfEntityAnswerRequest, boolean correct) {
         User user = userService.findUserById(userId);
-        Room room = roomService.findByRoomId(ctfAnswerRequest.getRoomId());
-        CTFEntity ctfEntity = ctfEntityService.findCTFEntityByIdWithFlags(ctfAnswerRequest.getQuestionId());
+        Room room = roomService.findByRoomId(ctfEntityAnswerRequest.getRoomId());
+        CTFEntity ctfEntity = ctfEntityService.findCTFEntityByIdWithFlags(ctfEntityAnswerRequest.getQuestionId());
         Optional<RoomUser> roomUserOpt = roomUserService.findByUserAndRoom(user, room);
 
-        CTFAnswer ctfAnswer = ctfAnswerService
+        CTFEntityAnswer ctfEntityAnswer = ctfAnswerService
                 .findByRoomUserIdAndCtfEntityIdOptional(user.getId(), ctfEntity.getId())
-                .orElseGet(() -> CTFAnswer
+                .orElseGet(() -> CTFEntityAnswer
                         .builder()
                         .roomUser(roomUserOpt.get())
                         .ctfEntity(ctfEntity)
@@ -58,17 +58,17 @@ public class FlagService {
                         .attempts(0)
                         .build());
 
-        ctfAnswer.getAnswers().add(ctfAnswerRequest);
-        ctfAnswer.getAttemptTimes().add(LocalDateTime.now());
-        ctfAnswer.setAttempts(ctfAnswer.getAttempts() + 1);
-        ctfAnswer.setCorrect(correct);
+        ctfEntityAnswer.getAnswers().add(ctfEntityAnswerRequest);
+        ctfEntityAnswer.getAttemptTimes().add(LocalDateTime.now());
+        ctfEntityAnswer.setAttempts(ctfEntityAnswer.getAttempts() + 1);
+        ctfEntityAnswer.setCorrect(correct);
 
-        ctfAnswer = ctfAnswerService.saveAnsweredCTFEntity(ctfAnswer);
+        ctfEntityAnswer = ctfAnswerService.saveAnsweredCTFEntity(ctfEntityAnswer);
 
-        AnsweredCTFEntityResponse answeredCTFEntityResponse = modelMapper.map(ctfAnswer,
+        AnsweredCTFEntityResponse answeredCTFEntityResponse = modelMapper.map(ctfEntityAnswer,
                 AnsweredCTFEntityResponse.class);
 
-        answeredCTFEntityResponse.setCtfEntity(modelMapper.map(ctfAnswer.getCtfEntity(),
+        answeredCTFEntityResponse.setCtfEntity(modelMapper.map(ctfEntityAnswer.getCtfEntity(),
                 CTFEntityResponse.class));
 
 
@@ -84,7 +84,7 @@ public class FlagService {
                 roomUser = roomUserService.save(roomUser);
 
                 answeredCTFEntityResponse.setJoinRoomResponse(JoinRoomResponse.builder()
-                        .roomId(ctfAnswerRequest.getRoomId())
+                        .roomId(ctfEntityAnswerRequest.getRoomId())
                         .points(roomUser.getPoints())
                         .userId(roomUser.getUser().getId())
                         .roomUserStatus(roomUser.getRoomUserStatus())

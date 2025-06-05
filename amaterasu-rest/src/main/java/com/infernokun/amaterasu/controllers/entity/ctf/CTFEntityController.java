@@ -187,10 +187,10 @@ public class CTFEntityController {
         }
 
         // Get or create CTF answer
-        CTFAnswer ctfAnswer = ctfAnswerService.findByRoomUserIdAndCtfEntityId(roomUser.getId(), ctfEntity.getId());
+        CTFEntityAnswer ctfEntityAnswer = ctfAnswerService.findByRoomUserIdAndCtfEntityId(roomUser, ctfEntity);
 
         // Check if hint already used by this user for this CTF entity
-        if (ctfAnswer.getHintsUsed().stream().anyMatch(h -> h.getId().equals(hintId))) {
+        if (ctfEntityAnswer.getHintsUsed().stream().anyMatch(h -> h.getId().equals(hintId))) {
             throw new IllegalStateException("Hint has already been used by this user");
         }
 
@@ -204,11 +204,11 @@ public class CTFEntityController {
         roomUser = roomUserService.save(roomUser);
 
         // Add hint to user's used hints
-        ctfAnswer.getHintsUsed().add(hint);
-        ctfAnswer = ctfAnswerService.saveAnsweredCTFEntity(ctfAnswer);
+        ctfEntityAnswer.getHintsUsed().add(hint);
+        ctfEntityAnswer = ctfAnswerService.saveAnsweredCTFEntity(ctfEntityAnswer);
 
         // Build response
-        CTFEntityHintResponse ctfEntityHintResponse = modelMapper.map(ctfAnswer, CTFEntityHintResponse.class);
+        CTFEntityHintResponse ctfEntityHintResponse = modelMapper.map(ctfEntityAnswer, CTFEntityHintResponse.class);
         ctfEntityHintResponse.setJoinRoomResponse(JoinRoomResponse.builder()
                 .points(roomUser.getPoints())
                 .roomId(roomUser.getRoom().getId())

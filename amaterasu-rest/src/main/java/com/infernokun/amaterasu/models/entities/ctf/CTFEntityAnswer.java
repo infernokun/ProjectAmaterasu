@@ -1,9 +1,8 @@
 package com.infernokun.amaterasu.models.entities.ctf;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.infernokun.amaterasu.models.entities.ctf.dto.CTFAnswerRequest;
+import com.infernokun.amaterasu.models.entities.ctf.dto.CTFEntityAnswerRequest;
 import com.infernokun.amaterasu.models.entities.StoredObject;
-import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.helper.FlagAnswerListConverter;
 import com.infernokun.amaterasu.models.helper.LocalDateTimeListConverter;
 import jakarta.persistence.*;
@@ -23,7 +22,7 @@ import java.util.List;
 @Builder
 @Table(name = "answered_ctf_entity",
         uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "ctf_entity_id"}))
-public class CTFAnswer extends StoredObject {
+public class CTFEntityAnswer extends StoredObject {
 
     @ManyToOne
     @JoinColumn(name = "room_user_id", nullable = false)
@@ -44,7 +43,7 @@ public class CTFAnswer extends StoredObject {
     @Column(name = "answers", columnDefinition = "TEXT")
     @Convert(converter = FlagAnswerListConverter.class)
     @Builder.Default
-    private List<CTFAnswerRequest> answers = new ArrayList<>();
+    private List<CTFEntityAnswerRequest> answers = new ArrayList<>();
 
     @Column(name = "attempt_times", columnDefinition = "TEXT")
     @Convert(converter = LocalDateTimeListConverter.class)
@@ -67,7 +66,12 @@ public class CTFAnswer extends StoredObject {
 
     @Builder.Default
     @Column(name = "hints_used")
-    @OneToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "ctf_answer_hints_used",
+            joinColumns = @JoinColumn(name = "ctf_entity_answer_id"),
+            inverseJoinColumns = @JoinColumn(name = "hint_id")
+    )
     private List<Hint> hintsUsed = new ArrayList<>();
 
     // Optional: Time taken to solve (in seconds)
@@ -95,7 +99,7 @@ public class CTFAnswer extends StoredObject {
     /**
      * Get the most recent answer
      */
-    public CTFAnswerRequest getLatestAnswer() {
+    public CTFEntityAnswerRequest getLatestAnswer() {
         return answers != null && !answers.isEmpty() ?
                 answers.getLast() : null;
     }

@@ -2,20 +2,22 @@
   <header class="header-footer {{ bannerDisplayStyle }}">
     <b>{{ header }}</b>
   </header>
+  
   <mat-toolbar class="main-toolbar">
-    <div class="display-flex flex-row" matTooltip="or something like that">
-      <article class="margin-left-half flex-fill display-flex">
+    <!-- Logo and Title Section -->
+    <div class="toolbar-section logo-section">
+      <article class="brand-container">
         <div class="image-box interactive-text" routerLink="/">
           <svg width="45" height="45" xmlns="http://www.w3.org/2000/svg">
             <image xlink:href="assets/icon.svg" width="45" height="45" x="0" y="0" />
           </svg>
         </div>
-        <div class="display-flex flex-column justify-content-start tool-info">
-          <div class="display-flex flex-row align-items-baseline">
-            <span class="text-2x interactive-text" routerLink="/">{{ title }}&nbsp;</span>
-            <span class="text-sm" style="line-height: 16px">v{{ appVersion }}</span>
+        <div class="tool-info">
+          <div class="title-container">
+            <span class="app-title interactive-text" routerLink="/">{{ title }}&nbsp;</span>
+            <span class="version-text">v{{ appVersion }}</span>
           </div>
-          <div class="text-sm" style="line-height: 16px">
+          <div class="author-text">
             A tool by
             <a href="https://github.com/infernokun">InfernoKun..</a>
           </div>
@@ -23,51 +25,86 @@
       </article>
     </div>
 
-    <!-- Navigation Links - Inline -->
-    <nav class="nav-links">
-      <a routerLink="/" class="nav-link">Home</a>
-      <a routerLink="/log" class="nav-link">Log</a>
-      <a routerLink="/team-log" class="nav-link">Team Log</a>
-      <a routerLink="/code" class="nav-link">Code</a>
-      <a routerLink="/remote-server" class="nav-link">Remote Server</a>
-      <a routerLink="/users" class="nav-link">Users</a>
-      <a routerLink="/teams" class="nav-link">Teams</a>
-      <a routerLink="/vm-lab-builder" class="nav-link">VM Lab Builder</a>
-      <a routerLink="/challenges" class="nav-link">Challenges</a>
+    <!-- Navigation Section -->
+    <nav class="toolbar-section nav-section">
+      <!-- Desktop Navigation -->
+      <div class="nav-links desktop-nav">
+        <a routerLink="/" class="nav-link">Home</a>
+        <a routerLink="/log" class="nav-link">Log</a>
+        <a routerLink="/team-log" class="nav-link">Team Log</a>
+        <a routerLink="/code" class="nav-link">Code</a>
+        <a routerLink="/remote-server" class="nav-link">Remote Server</a>
+        <a routerLink="/users" class="nav-link">Users</a>
+        <a routerLink="/teams" class="nav-link">Teams</a>
+        <a routerLink="/vm-lab-builder" class="nav-link">VM Lab Builder</a>
+        <a routerLink="/challenges" class="nav-link">Challenges</a>
+      </div>
+
+      <!-- Mobile Navigation Button -->
+      <button class="mobile-nav-toggle" mat-icon-button [matMenuTriggerFor]="navMenu">
+        <mat-icon>apps</mat-icon>
+      </button>
+
+      <!-- Mobile Navigation Menu -->
+      <mat-menu #navMenu="matMenu" class="mobile-nav-menu">
+        <a mat-menu-item routerLink="/">
+          <mat-icon>home</mat-icon>
+          <span>Home</span>
+        </a>
+        <a mat-menu-item routerLink="/log">
+          <mat-icon>description</mat-icon>
+          <span>Log</span>
+        </a>
+        <a mat-menu-item routerLink="/team-log">
+          <mat-icon>group</mat-icon>
+          <span>Team Log</span>
+        </a>
+        <a mat-menu-item routerLink="/code">
+          <mat-icon>code</mat-icon>
+          <span>Code</span>
+        </a>
+        <a mat-menu-item routerLink="/remote-server">
+          <mat-icon>computer</mat-icon>
+          <span>Remote Server</span>
+        </a>
+        <a mat-menu-item routerLink="/users">
+          <mat-icon>people</mat-icon>
+          <span>Users</span>
+        </a>
+        <a mat-menu-item routerLink="/teams">
+          <mat-icon>groups</mat-icon>
+          <span>Teams</span>
+        </a>
+        <a mat-menu-item routerLink="/vm-lab-builder">
+          <mat-icon>build</mat-icon>
+          <span>VM Lab Builder</span>
+        </a>
+        <a mat-menu-item routerLink="/challenges">
+          <mat-icon>quiz</mat-icon>
+          <span>Challenges</span>
+        </a>
+      </mat-menu>
     </nav>
 
-    <div class="display-flex flex-row width-100-percent justify-content-end">
-      <!-- User Info Section -->
-      <article class="user-info">
-        <!-- Show user details when authenticated -->
-        <div *ngIf="(loggedInUser$ | async) as user; else authSection" class="user-details">
+    <!-- User Section -->
+    <div class="toolbar-section user-section">
+      <!-- User Info -->
+      <article *ngIf="(loggedInUser$ | async) as user;" class="user-info">
+        <div class="user-details">
           <span class="user-name">{{ user?.username }}</span>
           <span class="team-name">({{ user?.team?.name }})</span>
           <span class="role-name">[{{ user?.role }}]</span>
         </div>
-
-        <!-- Auth buttons section (only shown when appropriate) -->
-        <ng-template #authSection>
-          <div *ngIf="showAuthButtons$ | async" class="auth-buttons">
-            <button class="user-button" mat-button (click)="openLoginModal()">
-              Login
-            </button>
-            <button class="user-button" mat-button (click)="openRegisterModal()">
-              Register
-            </button>
-          </div>
-        </ng-template>
       </article>
 
-      <!-- Menu Button -->
-      <button class="menuButton" mat-icon-button [matMenuTriggerFor]="theMenu" *ngIf="(isAppReady$ | async)">
-        <mat-icon>menu</mat-icon>
+      <!-- User Menu Button -->
+      <button class="menu-button" mat-icon-button [matMenuTriggerFor]="userMenu" *ngIf="(isAppReady$ | async)">
+        <mat-icon>account_circle</mat-icon>
       </button>
 
       <!-- User Menu -->
-      <mat-menu #theMenu="matMenu" class="user-actions-menu">
+      <mat-menu #userMenu="matMenu" class="user-actions-menu">
         <ng-container *ngIf="(loggedInUser$ | async) as user; else guestMenu">
-          <!-- Logged-in user menu items -->
           <div class="user-menu-header">
             <span class="user-menu-name">{{ user.username }}</span>
             <span class="user-menu-role">{{ user.role }}</span>
@@ -88,7 +125,6 @@
           </button>
         </ng-container>
 
-        <!-- Guest user menu template -->
         <ng-template #guestMenu>
           <button mat-menu-item (click)="openLoginModal()" aria-label="Log in">
             <mat-icon>login</mat-icon>
@@ -103,9 +139,11 @@
     </div>
   </mat-toolbar>
 
-  <div class="main-content" id="router-container">
-    <router-outlet></router-outlet>
-  </div>
+  <main class="main-content" id="router-container">
+    <div class="content-wrapper">
+      <router-outlet></router-outlet>
+    </div>
+  </main>
 
   <footer class="header-footer {{ bannerDisplayStyle }}">
     <b>{{ footer }}</b>
@@ -116,7 +154,6 @@
 <ng-template #loading>
   <div class="loading-container">
     <div class="loading-content">
-      <!-- Optional: Add a spinner or loading animation -->
       <mat-spinner diameter="40"></mat-spinner>
       <span class="loading-text">Loading application...</span>
       <span class="visually-hidden">Loading application content...</span>

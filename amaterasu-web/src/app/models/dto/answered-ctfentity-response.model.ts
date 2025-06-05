@@ -3,7 +3,7 @@ import { FlagAnswer } from "../ctf/flag-answer.model";
 import { StoredObject } from "../stored-object.model";
 import { JoinRoomResponse } from "./join-room-response.model";
 
-export class AnsweredCTFEntityResponse extends StoredObject {
+export class CTFEntityAnswerResponse extends StoredObject {
     ctfEntity?: CTFEntity;
     correct?: boolean;
     attempts?: number;

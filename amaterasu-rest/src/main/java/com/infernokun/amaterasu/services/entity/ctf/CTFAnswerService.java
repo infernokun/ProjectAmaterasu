@@ -1,11 +1,13 @@
 package com.infernokun.amaterasu.services.entity.ctf;
 
-import com.infernokun.amaterasu.exceptions.ChallengeNotAnsweredException;
-import com.infernokun.amaterasu.models.entities.ctf.CTFAnswer;
+import com.infernokun.amaterasu.models.entities.ctf.CTFEntityAnswer;
+import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
+import com.infernokun.amaterasu.models.entities.ctf.RoomUser;
 import com.infernokun.amaterasu.repositories.ctf.CTFAnswerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Optional;
 
 @Service
@@ -13,16 +15,27 @@ import java.util.Optional;
 public class CTFAnswerService {
     private final CTFAnswerRepository ctfAnswerRepository;
 
-    public CTFAnswer findByRoomUserIdAndCtfEntityId(String roomUserId, String ctfEntityId){
-        return ctfAnswerRepository.findByRoomUserIdAndCtfEntityId(roomUserId, ctfEntityId)
-                .orElseThrow(() -> new ChallengeNotAnsweredException("Challenge not yet answered"));
+    public CTFEntityAnswer findByRoomUserIdAndCtfEntityId(RoomUser roomUser, CTFEntity ctfEntity){
+        return ctfAnswerRepository.findByRoomUserIdAndCtfEntityId(roomUser.getId(), ctfEntity.getId())
+                .orElse(CTFEntityAnswer.builder()
+                        .ctfEntity(ctfEntity)
+                        .roomUser(roomUser)
+                        .attempts(0)
+                        .answers(new ArrayList<>())
+                        .attemptTimes(new ArrayList<>())
+                        .solvedAt(null)
+                        .lastAttemptAt(null)
+                        .score(0)
+                        .hintsUsed(new ArrayList<>())
+                        .solveTimeSeconds(0L)
+                        .build());
     }
 
-    public Optional<CTFAnswer> findByRoomUserIdAndCtfEntityIdOptional(String roomUserId, String ctfEntityId){
+    public Optional<CTFEntityAnswer> findByRoomUserIdAndCtfEntityIdOptional(String roomUserId, String ctfEntityId){
         return ctfAnswerRepository.findByRoomUserIdAndCtfEntityId(roomUserId, ctfEntityId);
     }
 
-    public CTFAnswer saveAnsweredCTFEntity(CTFAnswer CTFAnswer) {
-        return ctfAnswerRepository.save(CTFAnswer);
+    public CTFEntityAnswer saveAnsweredCTFEntity(CTFEntityAnswer CTFEntityAnswer) {
+        return ctfAnswerRepository.save(CTFEntityAnswer);
     }
 }

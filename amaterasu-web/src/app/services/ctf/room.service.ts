@@ -93,11 +93,7 @@ export class RoomService extends BaseService {
     return this.currentRoomUserSubject.value;
   }
 
-  getCurrentRoom(): Room {
-    if (!this.currentRoomSubject.value) {
-      throw new Error('Current room is not set');
-    }
-
+  getCurrentRoom(): Room | undefined {
     return this.currentRoomSubject.value;
   }
 
