@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import json as JSON
 
 import docker_challenge
+import room
 
 url = "http://127.0.0.1:8080/amaterasu-rest/api"
 admin_user = "amaterasu_admin"
@@ -18,7 +19,17 @@ def get_admin_user():
 
 
 def get_docker_room():
-    res = requests.get(url + "/room/by?name=Docker%20Room", verify=False)
+    room_endpoint = url + "/room"
+
+    admin_user = get_admin_user()
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+
+    res = requests.post(room_endpoint, headers=headers, json=room.get_room(admin_user), verify=False)
+    if res.status_code == 201:
+        print("Challenge created successfully.")
+    else:
+        print(res.json())
+    ##res = requests.get(url + "/room/by?name=Docker%20Room", verify=False)
 
     return res.json()["data"]
 
@@ -40,7 +51,12 @@ def room_docker():
 def docker_challenges():
     challenge_endpoint = url + "/ctf-entity"
 
+    
     docker_room = get_docker_room()
+
+    if docker_room is None:
+        print('rip')
+        return
     admin_user = get_admin_user()
 
     headers = {"Content-Type": "application/json", "Accept": "application/json"}
@@ -52,11 +68,10 @@ def docker_challenges():
         res = requests.post(
             challenge_endpoint, headers=headers, json=challenge, verify=False
         )
-        print(res.json())
-        if res.status_code == 200:
+        if res.status_code == 201:
             print("Challenge created successfully.")
-
-
+        else:
+            print(res.json())
 def main():
     # room_docker()
     docker_challenges()

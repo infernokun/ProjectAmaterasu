@@ -19,7 +19,8 @@ import java.util.List;
 public class Room extends StoredObject {
     private String name;
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "creators")
+    @JoinColumn(name = "creator")
+    @JsonIgnore
     private User creator;
     @ElementCollection
     @JsonIgnore
