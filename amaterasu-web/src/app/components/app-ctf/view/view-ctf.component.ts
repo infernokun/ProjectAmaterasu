@@ -14,6 +14,7 @@ import { RoomService } from '../../../services/ctf/room.service';
 import { JoinRoomResponse } from '../../../models/dto/join-room-response.model';
 import { CTFEntityHintResponse } from '../../../models/dto/ctf-entity-hint-response.model';
 import { CTFEntityAnswerResponse } from '../../../models/dto/answered-ctfentity-response.model';
+import { CTFEntityAnswer } from '../../../models/ctf/ctf-entity-answer.model';
 
 @Component({
   selector: 'amaterasu-view-dialog',
@@ -29,6 +30,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private isAnswered = new BehaviorSubject<boolean>(false);
   isAnswered$: Observable<boolean> = this.isAnswered.asObservable();
+  hintsUsed: Hint[] = [];
 
   // Status and feedback
   statusMessage: string = '';
@@ -59,9 +61,6 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  /**
-   * Check if the user has already answered this challenge
-   */
   private checkExistingAnswer(): void {
     this.isLoading = true;
 
@@ -81,7 +80,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
         })
       )
       .subscribe({
-        next: (response: ApiResponse<any>) => {
+        next: (response: ApiResponse<CTFEntityAnswer>) => {
           this.isLoading = false;
           this.handleExistingAnswerResponse(response);
         },
@@ -93,12 +92,14 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
       });
   }
 
-  /**
-   * Handle the response from checking existing answers
-   */
-  private handleExistingAnswerResponse(response: ApiResponse<any>): void {
+  isHintUsed(hint: Hint): boolean {
+    return this.hintsUsed.some(h => h.id === hint.id);
+  }
+
+  private handleExistingAnswerResponse(response: ApiResponse<CTFEntityAnswer>): void {
     if (response.data) {
       this.currentAttempts = response.data.attempts || 0;
+      this.hintsUsed = response.data.hintsUsed || [];
 
       if (response.data.correct === true) {
         // Challenge already completed successfully
@@ -266,10 +267,21 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   }
 
   useHint(hint: Hint) {
+    console.log('using hint', hint.id, this.roomService.getCurrentRoom()?.id, this.authService.getUser()?.id, this.viewedChallenge.id);
     this.ctfService.useHint(hint?.id!, this.roomService.getCurrentRoom()?.id!, this.authService.getUser()?.id!, this.viewedChallenge.id!)
       .subscribe((response: ApiResponse<CTFEntityHintResponse>) => {
-        console.log(response);
-      })
+        if (!response.data) {
+          this.showStatus('Failed to use hint', 'error');
+          return;
+        }
+
+        if (response.data.requestedHint) {
+          this.showStatus(`Hint used: ${response.data.requestedHint.hint}`, 'info');
+        }
+        
+        this.roomService.setCurrentRoomUser(response.data.joinRoomResponse!);
+        this.hintsUsed = response.data.hintsUsed || [];
+      });
   }
 
   canUseHint(hint: Hint): boolean {

@@ -39,6 +39,5 @@ public class CTFEntityResponse extends StoredObject {
     @JsonSerialize(using = LocalDateTimeSerializer.class)
     private LocalDateTime expirationDate;
     private List<String> attachments;
-    private String solutionExplanation;
     private List<String> relatedChallengeIds;
 }

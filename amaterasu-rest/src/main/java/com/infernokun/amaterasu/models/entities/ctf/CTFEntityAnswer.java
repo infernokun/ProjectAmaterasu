@@ -20,8 +20,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "answered_ctf_entity",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "ctf_entity_id"}))
+@Table(name = "answered_ctf_entity", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "ctf_entity_id"}))
 public class CTFEntityAnswer extends StoredObject {
 
     @ManyToOne
@@ -74,7 +73,6 @@ public class CTFEntityAnswer extends StoredObject {
     )
     private List<Hint> hintsUsed = new ArrayList<>();
 
-    // Optional: Time taken to solve (in seconds)
     @Column(name = "solve_time_seconds")
     private Long solveTimeSeconds;
 
@@ -96,39 +94,24 @@ public class CTFEntityAnswer extends StoredObject {
         }
     }
 
-    /**
-     * Get the most recent answer
-     */
     public CTFEntityAnswerRequest getLatestAnswer() {
         return answers != null && !answers.isEmpty() ?
                 answers.getLast() : null;
     }
 
-    /**
-     * Get the most recent attempt time
-     */
     public LocalDateTime getLatestAttemptTime() {
         return attemptTimes != null && !attemptTimes.isEmpty() ?
                 attemptTimes.getLast() : null;
     }
 
-    /**
-     * Check if max attempts reached
-     */
     public boolean isMaxAttemptsReached() {
         return ctfEntity != null && attempts >= ctfEntity.getMaxAttempts();
     }
 
-    /**
-     * Get remaining attempts
-     */
     public int getRemainingAttempts() {
         return ctfEntity != null ? Math.max(0, ctfEntity.getMaxAttempts() - attempts) : 0;
     }
 
-    /**
-     * Check if challenge is completed (correct or max attempts reached)
-     */
     public boolean isCompleted() {
         return correct || isMaxAttemptsReached();
     }

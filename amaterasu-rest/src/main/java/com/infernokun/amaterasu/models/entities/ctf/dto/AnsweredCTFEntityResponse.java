@@ -1,6 +1,7 @@
 package com.infernokun.amaterasu.models.entities.ctf.dto;
 
 import com.infernokun.amaterasu.models.entities.StoredObject;
+import com.infernokun.amaterasu.models.entities.ctf.Hint;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -18,7 +19,7 @@ public class AnsweredCTFEntityResponse extends StoredObject {
     private LocalDateTime solvedAt;
     private LocalDateTime lastAttemptAt;
     private Integer score;
-    private Integer hintsUsed;
+    private List<Hint> hintsUsed;
     private Long solveTimeSeconds;
     private JoinRoomResponse joinRoomResponse;
 }

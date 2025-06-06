@@ -4,7 +4,7 @@ import lombok.Data;
 
 @Data
 public class HintResponse {
-    private Integer orderIndex;
+    private String id;
     private Integer cost;
     private Boolean isUnlocked;
     private Integer pointsDeducted;

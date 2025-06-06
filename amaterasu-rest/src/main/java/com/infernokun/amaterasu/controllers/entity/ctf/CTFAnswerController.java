@@ -47,6 +47,7 @@ public class CTFAnswerController {
             // If usernames don't match, return unauthorized
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+
         boolean isAnswerCorrect = this.flagService.validateFlag(ctfEntityAnswerRequest);
 
         return buildSuccessResponse("Got some answer", flagService

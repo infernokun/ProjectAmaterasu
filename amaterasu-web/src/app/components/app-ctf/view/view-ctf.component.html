@@ -44,15 +44,38 @@
         </div>
       </div>
 
-      <div class="challenge-hint" *ngIf="viewedChallenge.hints">
+      <div class="challenge-hint" *ngIf="viewedChallenge.hints && this.hintsUsed.length < viewedChallenge.hints.length">
         <ul class="hint-list">
           <li *ngFor="let hint of viewedChallenge.hints">
-            {{!canUseHint(hint)}} {{roomUser?.points}} {{ !(isAnswered$ | async) }}
-            <button class="btn btn-secondary" (click)="useHint(hint)" [disabled]="!!(isAnswered$ | async) || !canUseHint(hint)">
+            <button 
+              *ngIf="!isHintUsed(hint)"
+              class="btn btn-secondary" 
+              (click)="useHint(hint)" 
+              [disabled]="!!(isAnswered$ | async) || !canUseHint(hint)">
               Unlock hint for {{ hint.cost }} points
             </button>
           </li>
         </ul>
+      </div>
+
+      <div class="used-hints-section" *ngIf="hintsUsed.length > 0">
+        <div class="hints-panel">
+          <div class="hints-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <span>Hints Used ({{hintsUsed.length}})</span>
+          </div>
+          <div class="hints-list">
+            <div *ngFor="let hint of hintsUsed; let i = index" class="hint-item">
+              <div class="hint-number">{{i + 1}}</div>
+              <div class="hint-content">{{hint.hint}}</div>
+              <div class="hint-cost">-{{hint.cost}} pts</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <form class="answer-form" (ngSubmit)="checkAnswer(viewedChallenge)">

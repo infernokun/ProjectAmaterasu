@@ -72,9 +72,6 @@ public class FlagService {
                 CTFEntityResponse.class));
 
 
-
-
-
             roomUserOpt.ifPresent(roomUser -> {
                 if (correct) {
                     int points = ctfEntity.getPoints();

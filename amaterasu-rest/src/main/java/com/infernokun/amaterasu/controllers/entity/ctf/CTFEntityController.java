@@ -76,7 +76,7 @@ public class CTFEntityController {
         );
     }
 
-    @GetMapping("by")
+    @GetMapping("/by")
     public ResponseEntity<ApiResponse<List<CTFEntityResponse>>> getCtfEntitiesBy(@RequestParam Map<String, String> params) {
         if (params.containsKey("room")) {
             List<CTFEntity> entities = ctfEntityService.findCTFEntitiesByRoomId((params.get("room")));
@@ -150,12 +150,12 @@ public class CTFEntityController {
         );
     }
 
-    @PostMapping("/use-hint/{hintId}/{roomId}/{userId}/{ctfEntityId}")
+    @PostMapping("/use-hint")
     public ResponseEntity<ApiResponse<CTFEntityHintResponse>> useHint(
-            @PathVariable String hintId,
-            @PathVariable String roomId,
-            @PathVariable String userId,
-            @PathVariable String ctfEntityId) {
+            @RequestParam String hintId,
+            @RequestParam String roomId,
+            @RequestParam String userId,
+            @RequestParam String ctfEntityId) {
 
         // Validate entities exist
         Room room = roomService.findByRoomId(roomId);
@@ -172,10 +172,9 @@ public class CTFEntityController {
             throw new IllegalArgumentException("Hint does not belong to the specified CTF entity");
         }
 
-        // Validate hint can be used
-        if (!hint.getIsUnlocked()) {
+        /*if (!hint.getIsUnlocked()) {
             throw new IllegalStateException("Hint is not unlocked yet");
-        }
+        }*/
 
         if (hint.getUsedAt() != null) {
             throw new IllegalStateException("Hint has already been used");
@@ -215,6 +214,7 @@ public class CTFEntityController {
                 .userId(roomUser.getUser().getId())
                 .roomUserStatus(roomUser.getRoomUserStatus())
                 .build());
+        ctfEntityHintResponse.setRequestedHint(hint);
 
         return buildSuccessResponse("Hint used successfully", ctfEntityHintResponse, HttpStatus.OK);
     }
