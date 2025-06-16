@@ -26,7 +26,7 @@ public class CTFAnswerService {
                         .solvedAt(null)
                         .lastAttemptAt(null)
                         .score(0)
-                        .hintsUsed(new ArrayList<>())
+                        .hintUsages(new ArrayList<>())
                         .solveTimeSeconds(0L)
                         .build());
     }

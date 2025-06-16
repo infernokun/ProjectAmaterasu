@@ -1,10 +1,9 @@
-import { CTFEntity } from "../ctf/ctf-entity.model";
+import { CTFEntityHintUsage } from "../ctf/ctf-entity-hint-usage.model";
 import { FlagAnswer } from "../ctf/flag-answer.model";
 import { StoredObject } from "../stored-object.model";
 import { JoinRoomResponse } from "./join-room-response.model";
 
 export class CTFEntityAnswerResponse extends StoredObject {
-    ctfEntity?: CTFEntity;
     correct?: boolean;
     attempts?: number;
     answers?: FlagAnswer[];
@@ -12,17 +11,14 @@ export class CTFEntityAnswerResponse extends StoredObject {
     solvedAt?: Date;
     lastAttemptAt?: Date;
     score?: number;
-    hintsUsed?: number;
+    hintsUsed?: CTFEntityHintUsage[];
     solveTimeSeconds?: number;
     joinRoomResponse?: JoinRoomResponse;
   
     constructor(serverResult?: any) {
-        super(serverResult);
-        
         if (serverResult) {
-        super(serverResult);
+            super(serverResult);
 
-            this.ctfEntity = serverResult.ctfEntity;
             this.correct = serverResult.correct;
             this.attempts = serverResult.attempts;
             this.answers = serverResult.answers;
@@ -30,7 +26,7 @@ export class CTFEntityAnswerResponse extends StoredObject {
             this.solvedAt = serverResult.solvedAt ? new Date(serverResult.solvedAt) : undefined;
             this.lastAttemptAt = serverResult.lastAttemptAt ? new Date(serverResult.lastAttemptAt) : undefined;
             this.score = serverResult.score;
-            this.hintsUsed = serverResult.hintsUsed;
+            this.hintsUsed = serverResult.hintsUsed ? serverResult.hintsUsed.map((hint: any) => new CTFEntityHintUsage(hint)) : [];
             this.solveTimeSeconds = serverResult.solveTimeSeconds;
             this.joinRoomResponse = serverResult.joinRoomResponse;
         }

@@ -6,7 +6,7 @@ import { CTFEntity } from '../../models/ctf/ctf-entity.model';
 import { FlagAnswer } from '../../models/ctf/flag-answer.model';
 import { BaseService } from '../base.service';
 import { EnvironmentService } from '../environment.service';
-import { CTFEntityAnswerResponse } from '../../models/dto/answered-ctfentity-response.model';
+import { CTFEntityAnswerResponse } from '../../models/dto/ctf-entity-answer-response.model';
 import { CTFEntityHintResponse } from '../../models/dto/ctf-entity-hint-response.model';
 import { CTFEntityAnswer } from '../../models/ctf/ctf-entity-answer.model';
 

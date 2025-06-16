@@ -1,4 +1,5 @@
 import { StoredObject } from '../stored-object.model';
+import { CTFEntityHintUsage } from './ctf-entity-hint-usage.model';
 import { CTFEntity } from './ctf-entity.model';
 import { Hint } from './hint.model';
 
@@ -12,7 +13,7 @@ export class CTFEntityAnswer extends StoredObject {
   solvedAt?: Date;
   lastAttemptAt?: Date;
   score?: number;
-  hintsUsed?: Hint[];
+  hintUsages?: CTFEntityHintUsage[];
   solveTimeSeconds?: number;
 
   constructor(serverResult?: any) {
@@ -28,7 +29,7 @@ export class CTFEntityAnswer extends StoredObject {
       this.solvedAt = serverResult.solvedAt ? new Date(serverResult.solvedAt) : undefined;
       this.lastAttemptAt = serverResult.lastAttemptAt ? new Date(serverResult.lastAttemptAt)  : undefined;
       this.score = serverResult.score;
-      this.hintsUsed = serverResult.hintsUsed ? serverResult.hintsUsed.map((hint: any) => new Hint(hint)) : [];
+      this.hintUsages = serverResult.hintUsages ? serverResult.hintUsages.map((usage: any) => new CTFEntityHintUsage(usage)) : [];
       this.solveTimeSeconds = serverResult.solveTimeSeconds;
     }
   }

@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Entity
 @Getter
@@ -64,14 +65,9 @@ public class CTFEntityAnswer extends StoredObject {
     private Integer score = 0;
 
     @Builder.Default
-    @Column(name = "hints_used")
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "ctf_answer_hints_used",
-            joinColumns = @JoinColumn(name = "ctf_entity_answer_id"),
-            inverseJoinColumns = @JoinColumn(name = "hint_id")
-    )
-    private List<Hint> hintsUsed = new ArrayList<>();
+    @OrderBy("usageOrder ASC")
+    @OneToMany(mappedBy = "ctfEntityAnswer", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    private List<CTFEntityHintUsage> hintUsages = new ArrayList<>();
 
     @Column(name = "solve_time_seconds")
     private Long solveTimeSeconds;
@@ -114,5 +110,22 @@ public class CTFEntityAnswer extends StoredObject {
 
     public boolean isCompleted() {
         return correct || isMaxAttemptsReached();
+    }
+
+    public List<Hint> getHintsUsed() {
+        return hintUsages.stream()
+                .map(CTFEntityHintUsage::getHint)
+                .collect(Collectors.toList());
+    }
+
+    public int getTotalPointsDeductedFromHints() {
+        return hintUsages.stream()
+                .mapToInt(CTFEntityHintUsage::getPointsDeducted)
+                .sum();
+    }
+
+    public boolean hasUsedHint(Hint hint) {
+        return hintUsages.stream()
+                .anyMatch(usage -> usage.getHint().getId().equals(hint.getId()));
     }
 }

@@ -1,102 +1,117 @@
 package com.infernokun.amaterasu.services.entity.ctf;
 
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
-import com.infernokun.amaterasu.models.entities.ctf.Hint;
+import com.infernokun.amaterasu.models.entities.User;
+import com.infernokun.amaterasu.models.entities.ctf.*;
+import com.infernokun.amaterasu.models.entities.ctf.dto.CTFEntityHintResponse;
+import com.infernokun.amaterasu.models.entities.ctf.dto.JoinRoomResponse;
 import com.infernokun.amaterasu.repositories.ctf.HintRepository;
+import com.infernokun.amaterasu.services.entity.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class HintService {
     private final HintRepository hintRepository;
     private final CTFEntityService ctfEntityService;
+    private final RoomService roomService;
+    private final UserService userService;
+    private final RoomUserService roomUserService;
+    private final CTFAnswerService ctfAnswerService;
+    private final ModelMapper modelMapper;
 
     public Hint getHintById(String hintId) {
         return hintRepository.findById(hintId).orElseThrow(()
                 -> new ResourceNotFoundException("Hint not found"));
     }
 
-    // Unlock a hint manually
-    public Hint unlockHint(String hintId) {
-        Hint hint = hintRepository.findById(hintId)
-                .orElseThrow(() -> new ResourceNotFoundException("Hint not found"));
-
-        hint.setIsUnlocked(true);
-        return hintRepository.save(hint);
-    }
-
-    // Use a hint (mark as used and deduct points)
-    public Hint useHint(String hintId, Integer userPoints) {
-        Hint hint = hintRepository.findById(hintId)
-                .orElseThrow(() -> new ResourceNotFoundException("Hint not found"));
-
-        if (!hint.getIsUnlocked()) {
-            throw new IllegalStateException("Hint is not unlocked yet");
-        }
-
-        if (hint.getUsedAt() != null) {
-            throw new IllegalStateException("Hint has already been used");
-        }
-
-        if (userPoints < hint.getCost()) {
-            throw new IllegalStateException("Not enough points to use this hint");
-        }
-
-        hint.setUsedAt(LocalDateTime.now());
-        hint.setPointsDeducted(hint.getCost());
-
-        return hintRepository.save(hint);
-    }
-
     public Hint save(Hint hint) {
         return hintRepository.save(hint);
     }
 
-    // Check if a hint can be used
-    public boolean canUseHint(String hintId, Integer userPoints) {
-        Hint hint = hintRepository.findById(hintId)
-                .orElseThrow(() -> new ResourceNotFoundException("Hint not found"));
+    public CTFEntityHintResponse useHint(String hintId, String roomId, String userId, String ctfEntityId) {
+        // Validate entities exist
+        Room room = roomService.findByRoomId(roomId);
+        User user = userService.findUserById(userId);
+        CTFEntity ctfEntity = ctfEntityService.findCTFEntityById(ctfEntityId);
+        Hint hint = getHintById(hintId);
 
-        return hint.getIsUnlocked() &&
-                hint.getUsedAt() == null &&
-                userPoints >= hint.getCost();
+        // Validate room user exists
+        RoomUser roomUser = roomUserService.findByUserAndRoom(user, room)
+                .orElseThrow(() -> new IllegalArgumentException("User is not part of this room"));
+
+        // Validate hint belongs to the CTF entity
+        validateHintBelongsToEntity(hint, ctfEntityId);
+
+        // Validate user has enough points
+        validateUserHasEnoughPoints(roomUser, hint);
+
+        // Get or create CTF answer
+        CTFEntityAnswer ctfEntityAnswer = ctfAnswerService.findByRoomUserIdAndCtfEntityId(roomUser, ctfEntity);
+
+        // Check if hint already used
+        validateHintNotAlreadyUsed(ctfEntityAnswer, hintId);
+
+        // Process hint usage
+        return processHintUsage(roomUser, hint, ctfEntityAnswer);
     }
 
-    // Create a new hint
-    public Hint createHint(String hintText, Integer orderIndex, Integer cost,
-                           Integer unlockAfterAttempts, String ctfEntityId) {
-        assert unlockAfterAttempts != null;
-
-        Hint hint = new Hint();
-        hint.setHint(hintText);
-        hint.setOrderIndex(orderIndex);
-        hint.setCost(cost != null ? cost : 0);
-        hint.setUnlockAfterAttempts(unlockAfterAttempts);
-        hint.setIsUnlocked(unlockAfterAttempts == 0);
-
-        hint.setCtfEntity(ctfEntityService.findCTFEntityById(ctfEntityId));
-
-        return hintRepository.save(hint);
-    }
-
-    // Update hint order
-    public void updateHintOrder(String hintId, Integer newOrderIndex) {
-        Hint hint = hintRepository.findById(hintId)
-                .orElseThrow(() -> new ResourceNotFoundException("Hint not found"));
-
-        hint.setOrderIndex(newOrderIndex);
-        hintRepository.save(hint);
-    }
-
-    // Delete hint
-    public void deleteHint(String hintId) {
-        if (!hintRepository.existsById(hintId)) {
-            throw new ResourceNotFoundException("Hint not found");
+    private void validateHintBelongsToEntity(Hint hint, String ctfEntityId) {
+        if (!hint.getCtfEntity().getId().equals(ctfEntityId)) {
+            throw new IllegalArgumentException("Hint does not belong to the specified CTF entity");
         }
-        hintRepository.deleteById(hintId);
+    }
+
+    private void validateUserHasEnoughPoints(RoomUser roomUser, Hint hint) {
+        if (roomUser.getPoints() < hint.getCost()) {
+            throw new IllegalStateException("Not enough points to use this hint");
+        }
+    }
+
+    private void validateHintNotAlreadyUsed(CTFEntityAnswer ctfEntityAnswer, String hintId) {
+        if (ctfEntityAnswer.getHintsUsed().stream().anyMatch(h -> h.getId().equals(hintId))) {
+            throw new IllegalStateException("Hint has already been used by this user");
+        }
+    }
+
+    private CTFEntityHintResponse processHintUsage(RoomUser roomUser, Hint hint, CTFEntityAnswer ctfEntityAnswer) {
+        // Deduct points from user
+        roomUser.setPoints(roomUser.getPoints() - hint.getCost());
+        roomUser = roomUserService.save(roomUser);
+
+        CTFEntityHintUsage hintUsage = CTFEntityHintUsage.builder()
+                .ctfEntityAnswer(ctfEntityAnswer)
+                .hint(hint)
+                .pointsDeducted(hint.getCost())
+                .usageOrder(ctfEntityAnswer.getHintUsages().size() + 1)
+                .usedAt(LocalDateTime.now())
+                .build();
+
+        ctfEntityAnswer.getHintUsages().add(hintUsage);
+
+        log.error("adding {} to hints used now at {}", hint.getId(), ctfEntityAnswer.getHintUsages().size());
+        ctfEntityAnswer = ctfAnswerService.saveAnsweredCTFEntity(ctfEntityAnswer);
+
+        // Build and return response
+        return buildHintResponse(ctfEntityAnswer, roomUser, hint);
+    }
+
+    private CTFEntityHintResponse buildHintResponse(CTFEntityAnswer ctfEntityAnswer, RoomUser roomUser, Hint hint) {
+        CTFEntityHintResponse response = modelMapper.map(ctfEntityAnswer, CTFEntityHintResponse.class);
+        response.setJoinRoomResponse(JoinRoomResponse.builder()
+                .points(roomUser.getPoints())
+                .roomId(roomUser.getRoom().getId())
+                .userId(roomUser.getUser().getId())
+                .roomUserStatus(roomUser.getRoomUserStatus())
+                .build());
+        response.setRequestedHint(hint);
+        return response;
     }
 
     // Helper class for statistics

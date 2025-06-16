@@ -69,10 +69,10 @@
             <span>Hints Used ({{hintsUsed.length}})</span>
           </div>
           <div class="hints-list">
-            <div *ngFor="let hint of hintsUsed; let i = index" class="hint-item">
+            <div *ngFor="let hintUsage of hintsUsed; let i = index" class="hint-item">
               <div class="hint-number">{{i + 1}}</div>
-              <div class="hint-content">{{hint.hint}}</div>
-              <div class="hint-cost">-{{hint.cost}} pts</div>
+              <div class="hint-content">{{hintUsage.hint?.hint}}</div>
+              <div class="hint-cost">-{{hintUsage.hint?.cost}} pts</div>
             </div>
           </div>
         </div>

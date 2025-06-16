@@ -1,14 +1,12 @@
 package com.infernokun.amaterasu.services.entity.ctf;
 
-import com.infernokun.amaterasu.models.entities.ctf.dto.CTFEntityAnswerRequest;
-import com.infernokun.amaterasu.models.entities.ctf.dto.AnsweredCTFEntityResponse;
-import com.infernokun.amaterasu.models.entities.ctf.dto.CTFEntityResponse;
-import com.infernokun.amaterasu.models.entities.ctf.dto.JoinRoomResponse;
+import com.infernokun.amaterasu.models.entities.ctf.dto.*;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.*;
 import com.infernokun.amaterasu.repositories.ctf.FlagRepository;
 import com.infernokun.amaterasu.services.entity.UserService;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
@@ -16,7 +14,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -40,55 +38,69 @@ public class FlagService {
                 .anyMatch(flag -> flag.equals(ctfEntityAnswerRequest.getFlag()));
     }
 
-    public AnsweredCTFEntityResponse addAnsweredCTFEntity(String userId, CTFEntityAnswerRequest ctfEntityAnswerRequest, boolean correct) {
+    @Transactional
+    public CTFEntityAnswerResponse addAnsweredCTFEntity(String userId, CTFEntityAnswerRequest ctfEntityAnswerRequest,
+                                                        boolean correct) {
+        // Fetch required entities
         User user = userService.findUserById(userId);
         Room room = roomService.findByRoomId(ctfEntityAnswerRequest.getRoomId());
         CTFEntity ctfEntity = ctfEntityService.findCTFEntityByIdWithFlags(ctfEntityAnswerRequest.getQuestionId());
-        Optional<RoomUser> roomUserOpt = roomUserService.findByUserAndRoom(user, room);
 
+        // Verify user is in the room
+        RoomUser roomUser = roomUserService.findByUserAndRoom(user, room)
+                .orElseThrow(() -> new IllegalStateException("User is not a member of this room"));
+
+        // Get or create answer record - FIX: Use roomUser.getId() instead of user.getId()
+        RoomUser finalRoomUser = roomUser;
         CTFEntityAnswer ctfEntityAnswer = ctfAnswerService
-                .findByRoomUserIdAndCtfEntityIdOptional(user.getId(), ctfEntity.getId())
+                .findByRoomUserIdAndCtfEntityIdOptional(roomUser.getId(), ctfEntity.getId())
                 .orElseGet(() -> CTFEntityAnswer
                         .builder()
-                        .roomUser(roomUserOpt.get())
+                        .roomUser(finalRoomUser)
                         .ctfEntity(ctfEntity)
-                        .correct(correct)
+                        .correct(false)
                         .answers(new ArrayList<>())
                         .attemptTimes(new ArrayList<>())
                         .attempts(0)
                         .build());
 
+        // Update answer record
         ctfEntityAnswer.getAnswers().add(ctfEntityAnswerRequest);
         ctfEntityAnswer.getAttemptTimes().add(LocalDateTime.now());
         ctfEntityAnswer.setAttempts(ctfEntityAnswer.getAttempts() + 1);
         ctfEntityAnswer.setCorrect(correct);
 
+        // Set solved timestamp if correct and not already solved
+        if (correct && ctfEntityAnswer.getSolvedAt() == null) {
+            ctfEntityAnswer.setSolvedAt(LocalDateTime.now());
+        }
+
+        // Save answer
         ctfEntityAnswer = ctfAnswerService.saveAnsweredCTFEntity(ctfEntityAnswer);
 
-        AnsweredCTFEntityResponse answeredCTFEntityResponse = modelMapper.map(ctfEntityAnswer,
-                AnsweredCTFEntityResponse.class);
+        // Update points only if answer is correct and not already solved
+        if (correct && ctfEntityAnswer.getAttempts() == 1) { // First correct attempt
+            roomUser.setPoints(roomUser.getPoints() + ctfEntity.getPoints());
+            roomUser = roomUserService.save(roomUser);
+        }
 
-        answeredCTFEntityResponse.setCtfEntity(modelMapper.map(ctfEntityAnswer.getCtfEntity(),
-                CTFEntityResponse.class));
+        // Build response
+        CTFEntityAnswerResponse response = modelMapper.map(ctfEntityAnswer, CTFEntityAnswerResponse.class);
+        List<CTFEntityHintUsageResponse> hintUsageResponseList = ctfEntityAnswer.getHintUsages()
+                .stream()
+                .map(hintUsage -> modelMapper.map(hintUsage, CTFEntityHintUsageResponse.class))
+                .collect(Collectors.toList());
 
+        response.setHintUsages(hintUsageResponseList);
 
-            roomUserOpt.ifPresent(roomUser -> {
-                if (correct) {
-                    int points = ctfEntity.getPoints();
-                    roomUser.setPoints(roomUser.getPoints() + points);
-                }
+        response.setJoinRoomResponse(JoinRoomResponse.builder()
+                .roomId(ctfEntityAnswerRequest.getRoomId())
+                .points(roomUser.getPoints())
+                .userId(roomUser.getUser().getId())
+                .roomUserStatus(roomUser.getRoomUserStatus())
+                .build());
 
-                roomUser = roomUserService.save(roomUser);
-
-                answeredCTFEntityResponse.setJoinRoomResponse(JoinRoomResponse.builder()
-                        .roomId(ctfEntityAnswerRequest.getRoomId())
-                        .points(roomUser.getPoints())
-                        .userId(roomUser.getUser().getId())
-                        .roomUserStatus(roomUser.getRoomUserStatus())
-                        .build());
-            });
-
-        return answeredCTFEntityResponse;
+        return response;
     }
 
     public List<Flag> getFlagsByCtfEntityId(String ctfEntityId) {

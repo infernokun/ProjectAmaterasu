@@ -13,8 +13,9 @@ import { Hint } from '../../../models/ctf/hint.model';
 import { RoomService } from '../../../services/ctf/room.service';
 import { JoinRoomResponse } from '../../../models/dto/join-room-response.model';
 import { CTFEntityHintResponse } from '../../../models/dto/ctf-entity-hint-response.model';
-import { CTFEntityAnswerResponse } from '../../../models/dto/answered-ctfentity-response.model';
+import { CTFEntityAnswerResponse } from '../../../models/dto/ctf-entity-answer-response.model';
 import { CTFEntityAnswer } from '../../../models/ctf/ctf-entity-answer.model';
+import { CTFEntityHintUsage } from '../../../models/ctf/ctf-entity-hint-usage.model';
 
 @Component({
   selector: 'amaterasu-view-dialog',
@@ -30,7 +31,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private isAnswered = new BehaviorSubject<boolean>(false);
   isAnswered$: Observable<boolean> = this.isAnswered.asObservable();
-  hintsUsed: Hint[] = [];
+  hintsUsed: CTFEntityHintUsage[] = [];
 
   // Status and feedback
   statusMessage: string = '';
@@ -64,6 +65,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   private checkExistingAnswer(): void {
     this.isLoading = true;
 
+
     this.ctfService.answerChallengeCheck(this.viewedChallenge, this.roomService.getCurrentRoom()?.id!)
       .pipe(
         takeUntil(this.destroy$),
@@ -80,7 +82,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
         })
       )
       .subscribe({
-        next: (response: ApiResponse<CTFEntityAnswer>) => {
+        next: (response: ApiResponse<CTFEntityAnswerResponse>) => {
           this.isLoading = false;
           this.handleExistingAnswerResponse(response);
         },
@@ -93,13 +95,13 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   }
 
   isHintUsed(hint: Hint): boolean {
-    return this.hintsUsed.some(h => h.id === hint.id);
+    return this.hintsUsed.some(hintUsage => hintUsage.hint?.id === hint.id);
   }
 
   private handleExistingAnswerResponse(response: ApiResponse<CTFEntityAnswer>): void {
     if (response.data) {
       this.currentAttempts = response.data.attempts || 0;
-      this.hintsUsed = response.data.hintsUsed || [];
+      this.hintsUsed = response.data.hintUsages || [];
 
       if (response.data.correct === true) {
         // Challenge already completed successfully
@@ -122,9 +124,6 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Submit an answer for the challenge
-   */
   checkAnswer(challenge: CTFEntity): void {
     if (!this.answer.trim()) {
       this.showStatus('Please enter an answer', 'error');
@@ -158,9 +157,6 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Submit the answer to the server
-   */
   private submitAnswer(userId: string, roomId: string, challenge: CTFEntity): void {
     const flag = FlagAnswer.create(this.answer.trim(), userId, roomId, challenge.id!);
 
@@ -186,9 +182,6 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
       });
   }
 
-  /**
-   * Handle the response from submitting an answer
-   */
   private handleAnswerResponse(response: ApiResponse<CTFEntityAnswerResponse>): void {
     if (!response.data) {
       this.showStatus('Invalid response from server', 'error');
@@ -217,9 +210,6 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Show status message to user
-   */
   private showStatus(message: string, type: 'success' | 'error' | 'warning' | 'info'): void {
     this.statusMessage = message;
     this.statusType = type;
@@ -234,9 +224,6 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Close the dialog
-   */
   closeDialog(): void {
     this.dialogRef.close({
       answered: this.isAnswered.getValue(),
@@ -244,24 +231,15 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Handle form submission
-   */
   onSubmit(event: Event): void {
     event.preventDefault();
     this.checkAnswer(this.viewedChallenge);
   }
 
-  /**
-   * Get remaining attempts
-   */
   get remainingAttempts(): number {
     return Math.max(0, this.viewedChallenge.maxAttempts! - this.currentAttempts);
   }
 
-  /**
-   * Check if submit should be disabled
-   */
   get isSubmitDisabled(): boolean {
     return this.isAnswered.getValue() || !this.answer.trim() || this.isLoading;
   }
@@ -278,7 +256,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
         if (response.data.requestedHint) {
           this.showStatus(`Hint used: ${response.data.requestedHint.hint}`, 'info');
         }
-        
+
         this.roomService.setCurrentRoomUser(response.data.joinRoomResponse!);
         this.hintsUsed = response.data.hintsUsed || [];
       });
