@@ -72,13 +72,59 @@ public class CTFAnswerController {
         ctfEntityAnswerResponse.setHintUsages(hintUsageResponseList);
 
         ctfEntityAnswerResponse.setJoinRoomResponse(JoinRoomResponse.builder()
-                .roomId(roomId  )
+                .roomId(roomId)
                 .points(roomUserOpt.get().getPoints())
                 .userId(roomUserOpt.get().getUser().getId())
                 .roomUserStatus(roomUserOpt.get().getRoomUserStatus())
                 .build());
 
         return buildSuccessResponse("Challenge status retrieved", ctfEntityAnswerResponse, HttpStatus.OK);
+    }
+
+    @GetMapping("/check/{roomId}")
+    public ResponseEntity<ApiResponse<List<CTFEntityAnswerResponse>>> checkRoomUserChallengeData(
+            @PathVariable @NotBlank String roomId) {
+        final String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        User user = userService.findUserById(userId);
+        Room room = roomService.findByRoomId(roomId);
+        List<CTFEntity> ctfEntities = ctfEntityService.findCTFEntitiesByRoomId(roomId);
+
+        Optional<RoomUser> roomUserOpt = roomUserService.findByUserAndRoom(user, room);
+        if (roomUserOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        // Get all challenge answers for this room user
+        List<CTFEntityAnswer> challengeAnswers = ctfAnswerService.findByRoomUserId(roomUserOpt.get());
+
+        // Convert each CTFEntityAnswer to CTFEntityAnswerResponse
+        List<CTFEntityAnswerResponse> ctfEntityAnswerResponses = challengeAnswers.stream()
+                .map(challengeAnswer -> {
+                    CTFEntityAnswerResponse response = modelMapper.map(challengeAnswer, CTFEntityAnswerResponse.class);
+
+                    // Map hint usages for each challenge answer
+                    List<CTFEntityHintUsageResponse> hintUsageResponseList = challengeAnswer.getHintUsages()
+                            .stream()
+                            .map(hintUsage -> modelMapper.map(hintUsage, CTFEntityHintUsageResponse.class))
+                            .collect(Collectors.toList());
+                    response.setHintUsages(hintUsageResponseList);
+
+                    // Set room user info (this will be the same for all responses)
+                    response.setJoinRoomResponse(JoinRoomResponse.builder()
+                            .roomId(roomId)
+                            .points(roomUserOpt.get().getPoints())
+                            .userId(roomUserOpt.get().getUser().getId())
+                            .roomUserStatus(roomUserOpt.get().getRoomUserStatus())
+                            .build());
+
+                    return response;
+                }).collect(Collectors.toList());
+
+        return buildSuccessResponse("All challenge statuses retrieved", ctfEntityAnswerResponses, HttpStatus.OK);
     }
 
     @PostMapping

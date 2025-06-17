@@ -20,6 +20,37 @@ public class CTFEntityService {
     private final CTFEntityRepository ctfEntityRepository;
     private final FlagRepository flagRepository;
 
+    public CTFEntity findCTFEntityById(String id) {
+        log.info("Fetching CTF entity with id: {}", id);
+
+        return ctfEntityRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("CTF entity not found with id: {}", id);
+                    return new ResourceNotFoundException("CTF entity not found with id: " + id);
+                });
+    }
+
+    public List<CTFEntity> findCTFEntitiesById(List<String> ctfEntityIds) {
+        return ctfEntityRepository.findByIds();
+    }
+
+    public CTFEntity findCTFEntityByIdWithFlags(String id) {
+        log.info("Fetching CTF entity with flags and id: {}", id);
+
+        return ctfEntityRepository.findByIdWithFlags(id)
+                .orElseThrow(() -> new ResourceNotFoundException("CTF entity not found with id: " + id));
+    }
+
+    public List<CTFEntity> findCTFEntitiesByRoomId(String roomId) {
+        log.info("Fetching CTF entities for room: {}", roomId);
+
+        if (roomId == null || roomId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Room ID cannot be null or empty");
+        }
+
+        return ctfEntityRepository.findByRoomId(roomId);
+    }
+
     @Transactional
     public CTFEntity createCTFEntity(CTFEntity ctfEntity) {
         log.info("Creating CTF entity: {}", ctfEntity.getQuestion());
@@ -97,33 +128,6 @@ public class CTFEntityService {
     public List<CTFEntity> findAllWithFlags() {
         log.info("Fetching all CTF entities w/ flags");
         return ctfEntityRepository.findAllWithFlags();
-    }
-
-    public CTFEntity findCTFEntityById(String id) {
-        log.info("Fetching CTF entity with id: {}", id);
-
-        return ctfEntityRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("CTF entity not found with id: {}", id);
-                    return new ResourceNotFoundException("CTF entity not found with id: " + id);
-                });
-    }
-
-    public CTFEntity findCTFEntityByIdWithFlags(String id) {
-        log.info("Fetching CTF entity with flags and id: {}", id);
-
-        return ctfEntityRepository.findByIdWithFlags(id)
-                .orElseThrow(() -> new ResourceNotFoundException("CTF entity not found with id: " + id));
-    }
-
-    public List<CTFEntity> findCTFEntitiesByRoomId(String roomId) {
-        log.info("Fetching CTF entities for room: {}", roomId);
-
-        if (roomId == null || roomId.trim().isEmpty()) {
-            throw new IllegalArgumentException("Room ID cannot be null or empty");
-        }
-
-        return ctfEntityRepository.findByRoomId(roomId);
     }
 
     @Transactional

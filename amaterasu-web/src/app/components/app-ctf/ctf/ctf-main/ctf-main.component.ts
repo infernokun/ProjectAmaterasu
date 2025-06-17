@@ -59,11 +59,13 @@ export class CTFMainComponent implements OnInit, OnDestroy {
         if (!responses) return;
         
         const [roomResponse, joinStatusResponse] = responses;
+
         const joinStatus: ApiResponse<{ [roomId: string]: JoinRoomResponse }> | null = joinStatusResponse as any;
+        const roomRes: ApiResponse<Room> | null = roomResponse;
         
-        if (roomResponse?.data) {
-          this.room.set(roomResponse.data);
-          this.roomService.setCurrentRoom(roomResponse.data);
+        if (roomRes?.data) {
+          this.room.set(roomRes.data);
+          this.roomService.setCurrentRoom(roomRes.data);
         } else {
           this.error.set('Room not found');
         }
@@ -74,12 +76,14 @@ export class CTFMainComponent implements OnInit, OnDestroy {
           this.roomUserStatus.set(status || null);
           this.roomService.setCurrentRoomUser(status || null);
           //this.roomUserStatus.set(joinStatus.data.get(this.roomId!) || null);
+
         } else {
           this.error.set('Failed to check joinable status');
         }
         
         this.loading.set(false);
         console.log('Room loaded:', this.room(), joinStatus);
+
       },
       error: (error) => {
         this.loading.set(false);

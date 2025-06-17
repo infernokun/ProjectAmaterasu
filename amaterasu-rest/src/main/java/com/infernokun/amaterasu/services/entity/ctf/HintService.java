@@ -95,7 +95,6 @@ public class HintService {
 
         ctfEntityAnswer.getHintUsages().add(hintUsage);
 
-        log.error("adding {} to hints used now at {}", hint.getId(), ctfEntityAnswer.getHintUsages().size());
         ctfEntityAnswer = ctfAnswerService.saveAnsweredCTFEntity(ctfEntityAnswer);
 
         // Build and return response

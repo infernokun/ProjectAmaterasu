@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -29,6 +30,10 @@ public class CTFAnswerService {
                         .hintUsages(new ArrayList<>())
                         .solveTimeSeconds(0L)
                         .build());
+    }
+
+    public List<CTFEntityAnswer> findByRoomUserId(RoomUser roomUser) {
+        return ctfAnswerRepository.findByRoomUserId(roomUser.getId());
     }
 
     public Optional<CTFEntityAnswer> findByRoomUserIdAndCtfEntityIdOptional(String roomUserId, String ctfEntityId){
