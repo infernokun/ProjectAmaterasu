@@ -16,6 +16,8 @@ export class CTFEntityAnswer extends StoredObject {
   hintUsages?: CTFEntityHintUsage[];
   solveTimeSeconds?: number;
 
+  ctfEntityId?: string;
+
   constructor(serverResult?: any) {
     super(serverResult);
 
@@ -31,6 +33,7 @@ export class CTFEntityAnswer extends StoredObject {
       this.score = serverResult.score;
       this.hintUsages = serverResult.hintUsages ? serverResult.hintUsages.map((usage: any) => new CTFEntityHintUsage(usage)) : [];
       this.solveTimeSeconds = serverResult.solveTimeSeconds;
+      this.ctfEntityId = serverResult.ctfEntity.id ? serverResult.ctfEntity.id : serverResult.ctfEntityId;
     }
   }
 }

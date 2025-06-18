@@ -1,5 +1,5 @@
-import { Component, OnInit, OnDestroy, ViewEncapsulation } from '@angular/core';
-import { Subject, takeUntil, switchMap, filter, tap, catchError, of, EMPTY, Observable } from 'rxjs';
+import { Component, OnInit, OnDestroy, ViewEncapsulation, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Subject, takeUntil, switchMap, filter, tap, catchError, of, EMPTY, Observable, forkJoin } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
 import { ApiResponse } from '../../../../models/api-response.model';
 import { CTFEntity } from '../../../../models/ctf/ctf-entity.model';
@@ -8,6 +8,7 @@ import { CTFService } from '../../../../services/ctf/ctf.service';
 import { WebsocketService } from '../../../../services/websocket.service';
 import { EditDialogService } from '../../../../services/edit-dialog.service';
 import { DifficultyLevel } from '../../../../enums/difficulty-level.enum';
+import { CTFEntityAnswer } from '../../../../models/ctf/ctf-entity-answer.model';
 
 interface CategoryGroup {
   category: string;
@@ -19,6 +20,7 @@ interface CategoryGroup {
   templateUrl: './ctf-card.component.html',
   styleUrl: './ctf-card.component.scss',
   encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: false
 })
 export class CTFCardComponent implements OnInit, OnDestroy {
@@ -44,7 +46,8 @@ export class CTFCardComponent implements OnInit, OnDestroy {
     private webSocketService: WebsocketService,
     private authService: AuthService,
     private route: ActivatedRoute,
-    private dialogService: EditDialogService
+    private dialogService: EditDialogService,
+    private cdr: ChangeDetectorRef
   ) {
     this.loading$ = this.ctfService.loading$;
   }
@@ -62,11 +65,7 @@ export class CTFCardComponent implements OnInit, OnDestroy {
   private initializeComponent(): void {
     this.busy = true;
     this.error = null;
-
-    this.authService.loading$.subscribe(loading => {
-      console.log('Auth loading state:', loading);
-    });
-
+    
     this.authService.isAuthenticated()
       .pipe(
         filter(isAuth => isAuth === true),
@@ -77,9 +76,29 @@ export class CTFCardComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (challenges: CTFEntity[]) => {
+          // Show challenges immediately
           this.challenges = challenges.map(challenge => new CTFEntity(challenge));
           this.categorizedChallenges = this.categorizeAndSortChallenges(this.challenges);
           this.busy = false;
+          
+          // Load completion status in background
+          this.ctfService.answerChallengeChecks(this.route.snapshot.params['room'])
+            .subscribe((response: ApiResponse<CTFEntityAnswer[]>) => {
+              const answerMap = new Map<string, boolean>();
+              response.data.forEach(answer => {
+                answerMap.set(answer.ctfEntityId!, answer.correct!);
+              });
+              
+              // Update completion status
+              this.challenges.forEach(challenge => {
+                challenge.isComplete = answerMap.get(challenge.id!) || false;
+              });
+              
+              // Re-categorize with completion status
+              this.categorizedChallenges = this.categorizeAndSortChallenges(this.challenges);
+              this.cdr.markForCheck();
+              console.log('Challenges loaded and categorized:', this.categorizedChallenges);
+            });
         },
         error: (error) => {
           console.error('Error loading challenges:', error);

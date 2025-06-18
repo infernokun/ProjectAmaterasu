@@ -105,6 +105,7 @@ public class CTFAnswerController {
         List<CTFEntityAnswerResponse> ctfEntityAnswerResponses = challengeAnswers.stream()
                 .map(challengeAnswer -> {
                     CTFEntityAnswerResponse response = modelMapper.map(challengeAnswer, CTFEntityAnswerResponse.class);
+                    response.setCtfEntityId(challengeAnswer.getCtfEntity().getId());
 
                     // Map hint usages for each challenge answer
                     List<CTFEntityHintUsageResponse> hintUsageResponseList = challengeAnswer.getHintUsages()

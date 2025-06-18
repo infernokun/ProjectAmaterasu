@@ -343,6 +343,21 @@
         color: var(--pure-white);
       }
     }
+
+    .challenge-card.completed {
+      border-left: 4px solid #28a745;
+      opacity: 0.8;
+    }
+
+    .complete-tag {
+      background-color: #28a745 !important;
+      color: white !important;
+    }
+
+    .challenge-title.completed {
+      text-decoration: line-through;
+      color: #6c757d;
+    }
   }
 }
 

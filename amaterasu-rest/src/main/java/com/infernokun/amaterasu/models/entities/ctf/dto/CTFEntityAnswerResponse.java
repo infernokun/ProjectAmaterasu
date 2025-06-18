@@ -17,4 +17,5 @@ public class CTFEntityAnswerResponse {
     private List<CTFEntityHintUsageResponse> hintUsages;
     private Long solveTimeSeconds;
     private JoinRoomResponse joinRoomResponse;
+    private String ctfEntityId;
 }

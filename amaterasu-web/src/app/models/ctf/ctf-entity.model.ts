@@ -26,6 +26,8 @@ export class CTFEntity extends StoredObject {
   solutionExplanation?: string;
   relatedChallengeIds?: string[];
 
+  isComplete: boolean = false;
+
   constructor(serverResult?: any) {
     super(serverResult);
 
@@ -49,6 +51,7 @@ export class CTFEntity extends StoredObject {
       this.attachments = serverResult.attachment;
       this.solutionExplanation = serverResult.solutionExplanation;
       this.relatedChallengeIds = serverResult.relatedChallengeIds;
+      this.isComplete = serverResult.isComplete || false;
     }
   }
 }

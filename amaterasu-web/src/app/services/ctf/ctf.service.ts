@@ -45,6 +45,10 @@ export class CTFService extends BaseService {
     return this.get<ApiResponse<CTFEntityAnswer>>(`${this.requestCTFEntityAnswerUrl}/check?roomId=${roomId}&ctfEntityId=${ctfEntity.id}`);
   }
 
+  answerChallengeChecks(roomId: string): Observable<ApiResponse<CTFEntityAnswer[]>> {
+    return this.get<ApiResponse<CTFEntityAnswer[]>>(`${this.requestCTFEntityAnswerUrl}/check/${roomId}`);
+  }
+
   useHint(hintId: string, roomId: string, userId: string, ctfEntityId: string): Observable<ApiResponse<CTFEntityHintResponse>> {
     return this.post<ApiResponse<CTFEntityHintResponse>>(`${this.requestCTFEntityUrl}/use-hint?hintId=${hintId}&roomId=${roomId}&userId=${userId}&ctfEntityId=${ctfEntityId}`, {});
   }

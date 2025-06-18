@@ -34,8 +34,9 @@ public class FlagService {
     public boolean validateFlag(CTFEntityAnswerRequest ctfEntityAnswerRequest) {
         List<Flag> challengeFlags = getFlagsByCtfEntityId(ctfEntityAnswerRequest.getQuestionId());
 
-        return challengeFlags.stream().map(Flag::getFlag)
-                .anyMatch(flag -> flag.equals(ctfEntityAnswerRequest.getFlag()));
+        return challengeFlags.stream()
+                .map(Flag::getFlag)
+                .anyMatch(flag -> flag.equalsIgnoreCase(ctfEntityAnswerRequest.getFlag()));
     }
 
     @Transactional

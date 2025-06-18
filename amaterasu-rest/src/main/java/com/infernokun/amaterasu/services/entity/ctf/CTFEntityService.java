@@ -30,10 +30,6 @@ public class CTFEntityService {
                 });
     }
 
-    public List<CTFEntity> findCTFEntitiesById(List<String> ctfEntityIds) {
-        return ctfEntityRepository.findByIds();
-    }
-
     public CTFEntity findCTFEntityByIdWithFlags(String id) {
         log.info("Fetching CTF entity with flags and id: {}", id);
 
