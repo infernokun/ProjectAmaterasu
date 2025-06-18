@@ -19,6 +19,14 @@ public class RoomUserService {
         return roomUserRepository.save(roomUser);
     }
 
+    public List<RoomUser> findAllRoomUsers() {
+        return roomUserRepository.findAll();
+    }
+
+    public List<RoomUser> findByRoomIdOrderByPointsDesc(String roomId) {
+        return roomUserRepository.findByRoomIdOrderByPointsDesc(roomId);
+    }
+
     public Optional<RoomUser> findByUserAndRoom(User user, Room room) {
         return roomUserRepository.findByUserAndRoom(user, room);
     }

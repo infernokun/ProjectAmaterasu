@@ -1,4 +1,4 @@
-import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal, WritableSignal } from '@angular/core';
 import { AuthService } from '../../../../services/auth.service';
 import { combineLatest, of, Subject, switchMap, takeUntil } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -18,8 +18,8 @@ export class CTFMainComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   
   loading = signal(true);
-  room = signal<Room | null>(null);
-  roomUserStatus = signal<JoinRoomResponse | null>(null);
+  room: WritableSignal<Room | null> = signal<Room | null>(null);
+  roomUserStatus: WritableSignal<JoinRoomResponse | null> = signal<JoinRoomResponse | null>(null);
   error = signal<string | null>(null);
   roomId: string | null = null;
 
@@ -124,5 +124,14 @@ export class CTFMainComponent implements OnInit, OnDestroy {
           this.roomService.setCurrentRoomUser(response.data || null);
         }
       });
+  }
+
+  goToScoreBoard(room: WritableSignal<Room | null>, event: MouseEvent) {
+    const roomData = room(); 
+    console.log(roomData);
+    
+    if (roomData?.id) {
+      this.router.navigate(['/room', roomData.id, 'scoreboard']);
+    }
   }
 }

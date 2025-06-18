@@ -6,6 +6,7 @@ import com.infernokun.amaterasu.models.entities.ctf.dto.RoomJoinableRequest;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.ctf.RoomUser;
+import com.infernokun.amaterasu.models.entities.ctf.dto.RoomUserResponse;
 import com.infernokun.amaterasu.models.enums.RoomUserStatus;
 import com.infernokun.amaterasu.services.entity.UserService;
 import com.infernokun.amaterasu.services.entity.ctf.RoomService;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.infernokun.amaterasu.utils.AmaterasuConstants.buildSuccessResponse;
 
@@ -81,6 +83,31 @@ public class RoomController {
                         .message("Room retrieved successfully.")
                         .data(room)
                         .build()
+        );
+    }
+
+    @GetMapping("/scoreboard/{roomId}/users")
+    public ResponseEntity<ApiResponse<List<RoomUserResponse>>> getScoreboardUserInfo(@PathVariable String roomId) {
+        // Get room users for the specific room, ordered by points descending
+        List<RoomUser> roomUsers = roomUserService.findByRoomIdOrderByPointsDesc(roomId);
+
+        if (roomUsers.isEmpty()) {
+            return buildSuccessResponse("No users found in this room", Collections.emptyList(), HttpStatus.OK);
+        }
+
+        // Convert to response DTOs using streams for better performance and readability
+        List<RoomUserResponse> roomUserResponses = roomUsers.stream()
+                .map(roomUser -> new RoomUserResponse(
+                        roomUser.getUser().getUsername(),
+                        roomUser.getPoints(),
+                        roomUser.getPointsHistory()
+                ))
+                .collect(Collectors.toList());
+
+        return buildSuccessResponse(
+                String.format("Retrieved %d users for room %s scoreboard", roomUserResponses.size(), roomId),
+                roomUserResponses,
+                HttpStatus.OK
         );
     }
 
@@ -210,7 +237,7 @@ public class RoomController {
         RoomUser roomUser = roomUserOpt.get();
 
         roomUser.setUpdatedAt(LocalDateTime.now());
-        roomUser.setPoints(roomUser.getPoints() + 100);
+        roomUser.updatePoints(roomUser.getPoints() + 100, "dev add button");
         roomUser = roomUserService.save(roomUser);
 
         return buildSuccessResponse(String.format("User %s has %d points in room %s",

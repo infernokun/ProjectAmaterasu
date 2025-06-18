@@ -81,7 +81,8 @@ public class FlagService {
 
         // Update points only if answer is correct and not already solved
         if (correct && ctfEntityAnswer.getAttempts() == 1) { // First correct attempt
-            roomUser.setPoints(roomUser.getPoints() + ctfEntity.getPoints());
+            Integer newPoints = roomUser.getPoints() + ctfEntity.getPoints();
+            roomUser.updatePoints(newPoints, "answered correctly");
             roomUser = roomUserService.save(roomUser);
         }
 

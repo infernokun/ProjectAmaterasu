@@ -6,6 +6,7 @@ import { BaseService } from '../base.service';
 import { Room } from '../../models/ctf/room.model';
 import { EnvironmentService } from '../environment.service';
 import { JoinRoomResponse } from '../../models/dto/join-room-response.model';
+import { RoomUserResponse } from '../../models/ctf/room-user-response.model';
 
 
 @Injectable({
@@ -99,5 +100,9 @@ export class RoomService extends BaseService {
 
   setCurrentRoom(room: Room): void {
     this.currentRoomSubject.next(room);
+  }
+
+  getRoomUsersForScoreboard(roomId: string) {
+    return this.get<ApiResponse<RoomUserResponse[]>>(`${this.reqUrl}/scoreboard/${roomId}/users`);
   }
 }

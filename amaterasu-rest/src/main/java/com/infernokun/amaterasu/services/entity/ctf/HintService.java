@@ -82,7 +82,7 @@ public class HintService {
 
     private CTFEntityHintResponse processHintUsage(RoomUser roomUser, Hint hint, CTFEntityAnswer ctfEntityAnswer) {
         // Deduct points from user
-        roomUser.setPoints(roomUser.getPoints() - hint.getCost());
+        roomUser.updatePoints(roomUser.getPoints() - hint.getCost(), "hint used");
         roomUser = roomUserService.save(roomUser);
 
         CTFEntityHintUsage hintUsage = CTFEntityHintUsage.builder()

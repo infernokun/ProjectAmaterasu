@@ -4,6 +4,10 @@
     <span>Add Points</span>
   </button>
   <p>Points: {{roomUserStatus()?.points}}</p>
+  <button (click)="goToScoreBoard(room, $event)">
+              <mat-icon>score</mat-icon>
+              Scoreboard
+            </button>
   <!-- Show CTF card if user has joined the room -->
   <div *ngIf="isRoomJoined() && !loading()">
     <amaterasu-ctf-card></amaterasu-ctf-card>

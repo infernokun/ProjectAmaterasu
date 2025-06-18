@@ -15,6 +15,8 @@ import java.util.Optional;
 public interface RoomUserRepository extends JpaRepository<RoomUser, Long> {
     Optional<RoomUser> findByUserAndRoom(User user, Room room);
 
+    List<RoomUser> findByRoomIdOrderByPointsDesc(String roomId);
+
     @Query("SELECT ru FROM RoomUser ru WHERE ru.user.id = :userId AND ru.room.id IN :roomIds")
     List<RoomUser> findByUserIdAndRoomIds(@Param("userId") String userId, @Param("roomIds") List<String> roomIds);
 }

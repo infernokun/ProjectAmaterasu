@@ -8,7 +8,6 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MaterialModule } from './material.module';
 import { HomeComponent } from './components/home/home.component';
 import { EnvironmentService } from './services/environment.service';
-import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { LabComponent } from './components/app-lab/lab/lab.component';
 import { CommonModule } from '@angular/common';
 import { AuditLogComponent } from './components/audit-log/audit-log.component';
@@ -42,6 +41,10 @@ import { VMLabBuilderComponent } from './components/app-lab/vm-lab-builder/vm-la
 import { InitializationComponent } from './components/initialization/initialization.component';
 import { ViewCTFComponent } from './components/app-ctf/view/view-ctf.component';
 import { RoomComponent } from './components/app-ctf/room/room.component';
+import { ScoreboardComponent } from './components/app-ctf/scoreboard/scoreboard.component';
+
+import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
+import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 
 export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
   return () => {
@@ -94,7 +97,8 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     RoomComponent,
     CTFMainComponent,
     CTFCardComponent,
-    ViewCTFComponent
+    ViewCTFComponent,
+    ScoreboardComponent
   ],
   imports: [
     BrowserModule,
@@ -105,7 +109,7 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     MaterialModule,
     CommonModule,
     CodeEditorModule,
-    AgGridAngular,
+    AgGridAngular
   ],
   providers: [
     EnvironmentService,
@@ -123,7 +127,8 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     provideCodeEditor({
       editorVersion: '0.44.0',
       baseUrl: '/assets/monaco-editor/min'
-    })
+    }),
+    provideCharts(withDefaultRegisterables())
   ],
   bootstrap: [AppComponent]
 })
