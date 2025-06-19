@@ -71,7 +71,6 @@ export class CTFMainComponent implements OnInit, OnDestroy {
         }
 
         if (joinStatus?.data) {
-          console.log('Join status:', joinStatus.data);
           const status = joinStatus.data[this.roomId!];
           this.roomUserStatus.set(status || null);
           this.roomService.setCurrentRoomUser(status || null);
@@ -128,7 +127,6 @@ export class CTFMainComponent implements OnInit, OnDestroy {
 
   goToScoreBoard(room: WritableSignal<Room | null>, event: MouseEvent) {
     const roomData = room(); 
-    console.log(roomData);
     
     if (roomData?.id) {
       this.router.navigate(['/room', roomData.id, 'scoreboard']);

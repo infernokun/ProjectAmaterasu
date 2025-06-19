@@ -36,7 +36,6 @@ import { AdminActionsComponent } from './admin/admin-actions.component';
 import { AgGridAngular } from 'ag-grid-angular';
 import { AuthInterceptor } from './services/auth/auth-interceptor.service';
 import { CTFMainComponent } from './components/app-ctf/ctf/ctf-main/ctf-main.component';
-import { CTFCardComponent } from './components/app-ctf/ctf/ctf-card/ctf-card.component';
 import { VMLabBuilderComponent } from './components/app-lab/vm-lab-builder/vm-lab-builder.component';
 import { InitializationComponent } from './components/initialization/initialization.component';
 import { ViewCTFComponent } from './components/app-ctf/view/view-ctf.component';
@@ -45,6 +44,7 @@ import { ScoreboardComponent } from './components/app-ctf/scoreboard/scoreboard.
 
 import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { CTFCardComponent } from './components/app-ctf/ctf/ctf-main/ctf-card/ctf-card.component';
 
 export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
   return () => {

@@ -17,7 +17,7 @@ interface ScoreboardUser {
 }
 
 @Component({
-  selector: 'app-scoreboard',
+  selector: 'amaterasu-scoreboard',
   standalone: false,
   templateUrl: './scoreboard.component.html',
   styleUrl: './scoreboard.component.scss'
@@ -38,9 +38,9 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
   readonly trackByUsername = (index: number, user: ScoreboardUser): string => user.username || index.toString();
   currentRoomId = signal<string | null>(null);
   
-  // Chart configuration
-  public lineChartType: ChartType = 'bar';
-  public lineChartData: ChartData<'bar'> = { 
+  // Chart configuration - Changed to line chart
+  public lineChartType: ChartType = 'line';
+  public lineChartData: ChartData<'line'> = { 
     labels: [],
     datasets: [] 
   };
@@ -51,7 +51,7 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
     plugins: {
       title: {
         display: true,
-        text: 'Player Points Ranking',
+        text: 'Player Points Over Time',
         color: '#ffffff',
         font: {
           size: 16,
@@ -59,20 +59,43 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
         }
       },
       legend: {
-        display: false
+        display: true,
+        position: 'bottom',
+        labels: {
+          color: '#ffffff',
+          usePointStyle: true,
+          padding: 15,
+          font: {
+            size: 12
+          }
+        }
+      },
+      tooltip: {
+        mode: 'index',
+        intersect: false,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#ffffff',
+        bodyColor: '#ffffff',
+        borderColor: '#475569',
+        borderWidth: 1
       }
     },
     scales: {
       x: {
         title: {
           display: true,
-          text: 'Players',
+          text: 'Time Progression',
           color: '#ffffff'
         },
         ticks: {
+          color: '#ffffff',
           maxRotation: 45,
           minRotation: 0,
-          color: '#ffffff'
+          maxTicksLimit: 8, // Limit number of ticks to avoid crowding
+          callback: function(value, index, ticks) {
+            // The value is already a formatted string, just return it
+            return this.getLabelForValue(new Date(value).getTime());
+          }
         },
         grid: {
           color: '#475569'
@@ -96,6 +119,15 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
     interaction: {
       intersect: false,
       mode: 'index'
+    },
+    elements: {
+      line: {
+        tension: 0.2
+      },
+      point: {
+        radius: 4,
+        hoverRadius: 6
+      }
     }
   };
   
@@ -155,11 +187,13 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
     
     this.roomService.getRoomUsersForScoreboard(roomId).subscribe({
       next: (response: ApiResponse<RoomUserResponse[]>) => {
+        const roomUsers: RoomUserResponse[] =  response.data.map(roomUser => new RoomUserResponse(roomUser));
+
         console.log('Scoreboard data loaded:', response);
         this.loadingSubject.next(false);
         
         // Transform and set the data
-        const transformedUsers = this.transformToScoreboardUsers(response.data || []);
+        const transformedUsers = this.transformToScoreboardUsers(roomUsers || []);
         console.log('Transformed users:', transformedUsers);
         
         // Update the observable with new data
@@ -176,21 +210,31 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
   }
   
   private transformToScoreboardUsers(roomUsers: RoomUserResponse[]): ScoreboardUser[] {
-    // Sort by points descending
+    const now = new Date();
+    const sampleUsers = [
+      RoomUserResponse.createSample('Sasuke', 623, [
+        { timestamp: new Date("2025-06-17 12:31:00"), pointsChange: 50, totalPoints: 50 },
+        { timestamp: new Date("2025-06-18 18:31:00"), pointsChange: 30, totalPoints: 80 },
+        { timestamp: new Date("2025-06-19 00:31:00"), pointsChange: 43, totalPoints: 123 },
+        { timestamp: new Date("2025-06-19 04:31:00"), pointsChange: 500, totalPoints: 623 }
+      ]),
+      RoomUserResponse.createSample('Naruto', 156, [
+        { timestamp: new Date("2025-06-18 16:31:00"), pointsChange: 40, totalPoints: 40 },
+        { timestamp: new Date("2025-06-18 20:31:00"), pointsChange: 56, totalPoints: 96 },
+        { timestamp: new Date("2025-06-19 04:31:00"), pointsChange: 60, totalPoints: 156 }
+      ]),
+      RoomUserResponse.createSample('Sakura', 98, [
+        { timestamp: new Date("2025-06-18 14:31:00"), pointsChange: 35, totalPoints: 35 },
+        { timestamp: new Date("2025-06-18 22:31:00"), pointsChange: 28, totalPoints: 63 },
+        { timestamp: new Date("2025-06-19 02:31:00"), pointsChange: 35, totalPoints: 98 }
+      ])
+     ];
 
-    roomUsers.push(new RoomUserResponse({ username: 'Sasuke', points: 123, pointsHistory: [] }));
-    roomUsers.push(new RoomUserResponse({ username: 'Naruto', points: 156, pointsHistory: [] }));
-    roomUsers.push(new RoomUserResponse({ username: 'Sakura', points: 98, pointsHistory: [] }));
-    roomUsers.push(new RoomUserResponse({ username: 'Kakashi', points: 189, pointsHistory: [] }));
-    roomUsers.push(new RoomUserResponse({ username: 'Itachi', points: 201, pointsHistory: [] }));
-    roomUsers.push(new RoomUserResponse({ username: 'Gaara', points: 134, pointsHistory: [] }));
-    roomUsers.push(new RoomUserResponse({ username: 'Shikamaru', points: 87, pointsHistory: [] }));
-    roomUsers.push(new RoomUserResponse({ username: 'Neji', points: 145, pointsHistory: [] }));
-    roomUsers.push(new RoomUserResponse({ username: 'Rock Lee', points: 112, pointsHistory: [] }));
-    roomUsers.push(new RoomUserResponse({ username: 'Hinata', points: 76, pointsHistory: [] }));
-    const sorted = [...roomUsers]//.sort((a, b) => (b.points || 0) - (a.points || 0));
+    roomUsers = [...roomUsers, ...sampleUsers];
 
+    console.log('rromUsers', roomUsers)
 
+    const sorted = [...roomUsers].sort((a, b) => (b.points || 0) - (a.points || 0));
     
     // Add ranking with tie handling
     return sorted.map((user, index) => {
@@ -225,7 +269,9 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
     );
   }
   
-  private generateChartData(users: ScoreboardUser[]): ChartData<'bar'> {
+  private generateChartData(users: ScoreboardUser[]): ChartData<'line'> {
+    console.log('Generating chart data for users:', users);
+    
     if (!users || users.length === 0) {
       return { 
         labels: [],
@@ -233,39 +279,111 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
       };
     }
     
-    // Show top 10 users
-    const usersToShow = users.slice(0, 10);
+    // Filter users that have points history
+    const usersWithHistory = users.filter(user => 
+      user.pointsHistory && user.pointsHistory.length > 0
+    );
     
-    if (usersToShow.length === 0) {
+    console.log('Users with history:', usersWithHistory);
+    
+    if (usersWithHistory.length === 0) {
       return { 
         labels: [],
         datasets: [] 
       };
     }
     
-    // Generate colors based on ranking
-    const backgroundColors = usersToShow.map((user) => {
-      if (user.rank === 1) return '#ffd700'; // Gold for 1st place
-      if (user.rank === 2) return '#c0c0c0'; // Silver for 2nd place
-      if (user.rank === 3) return '#cd7f32'; // Bronze for 3rd place
-      return '#dc2626'; // Primary red for others
+    // Get all unique timestamps and sort them
+    const allTimestamps = new Set<number>();
+    usersWithHistory.forEach(user => {
+      user.pointsHistory.forEach(entry => {
+        if (entry.timestamp) {
+          const timestamp = new Date(entry.timestamp);
+          if (!isNaN(timestamp.getTime())) {
+            allTimestamps.add(timestamp.getTime());
+          }
+        }
+      });
     });
     
-    const borderColors = backgroundColors.map(color => 
-      color === '#dc2626' ? '#991b1b' : color
-    );
+    const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
+    const timeLabels = sortedTimestamps.map(timestamp => {
+      const date = new Date(timestamp);
+      return date.toLocaleString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    });
+    
+    console.log('Time labels:', timeLabels);
+    
+    // Generate distinct colors for each user
+    const colors = [
+      '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7',
+      '#dda0dd', '#98d8c8', '#f7dc6f', '#bb8fce', '#85c1e9',
+      '#f8c471', '#82e0aa', '#f1948a', '#85d4f8', '#f9ca24'
+    ];
+    
+    const datasets = usersWithHistory.map((user, index) => {
+      const color = colors[index % colors.length];
+      
+      // Create data points for this user - simplified approach
+      const userData: number[] = [];
+      
+      // For each timestamp, find or interpolate the user's points
+      sortedTimestamps.forEach(timestamp => {
+        // Find exact match first
+        let points = null;
+        const exactMatch = user.pointsHistory.find(entry => {
+          const entryTime = new Date(entry.timestamp!).getTime();
+          return entryTime === timestamp;
+        });
+        
+        if (exactMatch) {
+          points = exactMatch.totalPoints;
+        } else {
+          // Find the most recent entry before this timestamp
+          const previousEntries = user.pointsHistory.filter(entry => {
+            const entryTime = new Date(entry.timestamp!).getTime();
+            return entryTime <= timestamp;
+          }).sort((a, b) => new Date(b.timestamp!).getTime() - new Date(a.timestamp!).getTime());
+          
+          if (previousEntries.length > 0) {
+            points = previousEntries[0].totalPoints;
+          } else {
+            points = 0; // Default to 0 if no previous data
+          }
+        }
+        
+        userData.push(points || 0);
+      });
+      
+      console.log(`User ${user.username} data:`, userData);
+      
+      return {
+        label: user.username,
+        data: userData,
+        borderColor: color,
+        backgroundColor: color + '20', // Add transparency
+        fill: false,
+        tension: 0.1,
+        pointBackgroundColor: color,
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        borderWidth: 3
+      };
+    });
+    
+    console.log('Final datasets:', datasets);
     
     return {
-      labels: usersToShow.map(user => user.username),
-      datasets: [{
-        label: 'Points',
-        data: usersToShow.map(user => user.points),
-        backgroundColor: backgroundColors,
-        borderColor: borderColors,
-        borderWidth: 2,
-        borderRadius: 4,
-        borderSkipped: false,
-      }]
+      labels: timeLabels,
+      datasets: datasets
     };
   }
   

@@ -43,14 +43,14 @@
   <!-- Main Content -->
   <div *ngIf="!(isLoading$ | async)" class="scoreboard-content">
     
-    <!-- Chart Section - Bar Chart -->
+    <!-- Chart Section - Line Chart -->
     <div class="chart-section">
       <div class="chart-header">
-        <h2>Points Ranking</h2>
-        <p>Showing top 10 players</p>
+        <h2>Points Progress Over Time</h2>
+        <p>Track each player's points progression</p>
       </div>
       
-      <div class="chart-container">
+      <div class="chart-container line-chart-container">
         <canvas 
           baseChart
           [data]="lineChartData"

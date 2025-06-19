@@ -1,14 +1,14 @@
 import { Component, OnInit, OnDestroy, ViewEncapsulation, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { Subject, takeUntil, switchMap, filter, tap, catchError, of, EMPTY, Observable, forkJoin } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
-import { ApiResponse } from '../../../../models/api-response.model';
-import { CTFEntity } from '../../../../models/ctf/ctf-entity.model';
-import { AuthService } from '../../../../services/auth.service';
-import { CTFService } from '../../../../services/ctf/ctf.service';
-import { WebsocketService } from '../../../../services/websocket.service';
-import { EditDialogService } from '../../../../services/edit-dialog.service';
-import { DifficultyLevel } from '../../../../enums/difficulty-level.enum';
-import { CTFEntityAnswer } from '../../../../models/ctf/ctf-entity-answer.model';
+import { DifficultyLevel } from '../../../../../enums/difficulty-level.enum';
+import { ApiResponse } from '../../../../../models/api-response.model';
+import { CTFEntityAnswer } from '../../../../../models/ctf/ctf-entity-answer.model';
+import { CTFEntity } from '../../../../../models/ctf/ctf-entity.model';
+import { AuthService } from '../../../../../services/auth.service';
+import { CTFService } from '../../../../../services/ctf/ctf.service';
+import { EditDialogService } from '../../../../../services/edit-dialog.service';
+import { WebsocketService } from '../../../../../services/websocket.service';
 
 interface CategoryGroup {
   category: string;
@@ -108,7 +108,7 @@ export class CTFCardComponent implements OnInit, OnDestroy {
       });
   }
 
-  private loadChallenges(roomId: string) {
+  private loadChallenges(roomId: string): Observable<CTFEntity[]> {
     return this.ctfService.getChallengesByRoom(roomId)
       .pipe(
         tap(() => this.ctfService.loadingSubject.next(true)),
@@ -228,13 +228,13 @@ export class CTFCardComponent implements OnInit, OnDestroy {
   }
 
   public refreshChallenges(): void {
-    const currentRoom = this.route.snapshot.params['room'];
+    const currentRoom: string = this.route.snapshot.params['room'];
     if (currentRoom) {
       this.busy = true;
       this.loadChallenges(currentRoom)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
-          next: (challenges) => {
+          next: (challenges: CTFEntity[]) => {
             this.challenges = challenges;
             this.categorizedChallenges = this.categorizeAndSortChallenges(challenges);
             this.busy = false;
