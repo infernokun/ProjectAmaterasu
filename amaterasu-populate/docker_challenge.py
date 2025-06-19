@@ -13,6 +13,7 @@ def get_challenges(docker_room, admin_user):
                 "Combine 'docker run' with interactive flags."
             ],
             "difficulty": "BEGINNER",
+            "type": "TEXT",
             "points": 50,
             "tags": ["docker", "containers", "interactive", "terminal"],
             "category": "Docker Basics",
@@ -27,6 +28,7 @@ def get_challenges(docker_room, admin_user):
                 "Similar to 'ps' command in Linux but for containers."
             ],
             "difficulty": "BEGINNER",
+            "type": "TEXT",
             "points": 50,
             "tags": ["docker", "containers", "list", "status"],
             "category": "Docker Basics",
@@ -41,6 +43,7 @@ def get_challenges(docker_room, admin_user):
                 "Think about 'pulling' something from a remote location."
             ],
             "difficulty": "BEGINNER",
+            "type": "TEXT",
             "points": 75,
             "tags": ["docker", "images", "registry", "download"],
             "category": "Docker Images",
@@ -55,6 +58,7 @@ def get_challenges(docker_room, admin_user):
                 "It's a single letter flag."
             ],
             "difficulty": "BEGINNER",
+            "type": "TEXT",
             "points": 75,
             "tags": ["docker", "containers", "detached", "background"],
             "category": "Docker Basics",
@@ -69,6 +73,7 @@ def get_challenges(docker_room, admin_user):
                 "Container must be stopped first (unless you force it)."
             ],
             "difficulty": "BEGINNER",
+            "type": "TEXT",
             "points": 100,
             "tags": ["docker", "containers", "remove", "cleanup"],
             "category": "Docker Cleanup",
@@ -85,6 +90,7 @@ def get_challenges(docker_room, admin_user):
                 "Don't forget the build context (current directory)."
             ],
             "difficulty": "EASY",
+            "type": "TEXT",
             "points": 150,
             "tags": ["docker", "build", "dockerfile", "tag"],
             "category": "Docker Images",
@@ -99,6 +105,7 @@ def get_challenges(docker_room, admin_user):
                 "Logs command shows stdout and stderr."
             ],
             "difficulty": "EASY",
+            "type": "TEXT",
             "points": 125,
             "tags": ["docker", "logs", "debugging", "containers"],
             "category": "Docker Debugging",
@@ -113,6 +120,7 @@ def get_challenges(docker_room, admin_user):
                 "Use the volume subcommand."
             ],
             "difficulty": "EASY",
+            "type": "TEXT",
             "points": 175,
             "tags": ["docker", "volumes", "storage", "persistence"],
             "category": "Docker Storage",
@@ -127,6 +135,7 @@ def get_challenges(docker_room, admin_user):
                 "Use exec, not run, for existing containers."
             ],
             "difficulty": "EASY",
+            "type": "TEXT",
             "points": 200,
             "tags": ["docker", "exec", "bash", "shell"],
             "category": "Docker Debugging",
@@ -141,6 +150,7 @@ def get_challenges(docker_room, admin_user):
                 "Use the -p flag for port mapping."
             ],
             "difficulty": "EASY",
+            "type": "TEXT",
             "points": 175,
             "tags": ["docker", "networking", "ports", "nginx"],
             "category": "Docker Networking",
@@ -157,6 +167,7 @@ def get_challenges(docker_room, admin_user):
                 "MySQL typically runs on port 3306."
             ],
             "difficulty": "MEDIUM",
+            "type": "TEXT",
             "points": 250,
             "tags": ["docker", "mysql", "environment", "database"],
             "category": "Docker Applications",
@@ -171,6 +182,7 @@ def get_challenges(docker_room, admin_user):
                 "The 'up' command starts services."
             ],
             "difficulty": "MEDIUM",
+            "type": "TEXT",
             "points": 300,
             "tags": ["docker-compose", "services", "orchestration"],
             "category": "Docker Compose",
@@ -185,6 +197,7 @@ def get_challenges(docker_room, admin_user):
                 "Use the network subcommand."
             ],
             "difficulty": "MEDIUM",
+            "type": "TEXT",
             "points": 275,
             "tags": ["docker", "networking", "bridge", "custom"],
             "category": "Docker Networking",
@@ -199,6 +212,7 @@ def get_challenges(docker_room, admin_user):
                 "Format is source:destination."
             ],
             "difficulty": "MEDIUM",
+            "type": "TEXT",
             "points": 225,
             "tags": ["docker", "copy", "files", "filesystem"],
             "category": "Docker File Operations",
@@ -213,6 +227,7 @@ def get_challenges(docker_room, admin_user):
                 "Format is host-path:container-path."
             ],
             "difficulty": "MEDIUM",
+            "type": "TEXT",
             "points": 350,
             "tags": ["docker", "volumes", "mount", "bind"],
             "category": "Docker Storage",
@@ -229,6 +244,7 @@ def get_challenges(docker_room, admin_user):
                 "Use --target flag to specify the stage."
             ],
             "difficulty": "HARD",
+            "type": "TEXT",
             "points": 450,
             "tags": ["docker", "multi-stage", "build", "production"],
             "category": "Advanced Docker",
@@ -243,6 +259,7 @@ def get_challenges(docker_room, admin_user):
                 "CPU limits can be fractional."
             ],
             "difficulty": "HARD",
+            "type": "TEXT",
             "points": 400,
             "tags": ["docker", "resources", "memory", "cpu"],
             "category": "Docker Resource Management",
@@ -257,6 +274,7 @@ def get_challenges(docker_room, admin_user):
                 "This only works in Swarm mode."
             ],
             "difficulty": "HARD",
+            "type": "TEXT",
             "points": 500,
             "tags": ["docker", "swarm", "secrets", "security"],
             "category": "Docker Swarm",
@@ -271,6 +289,7 @@ def get_challenges(docker_room, admin_user):
                 "This creates a Swarm manager node."
             ],
             "difficulty": "HARD",
+            "type": "TEXT",
             "points": 550,
             "tags": ["docker", "swarm", "cluster", "orchestration"],
             "category": "Docker Swarm",
@@ -285,6 +304,7 @@ def get_challenges(docker_room, admin_user):
                 "Use --publish for port mapping in services."
             ],
             "difficulty": "HARD",
+            "type": "TEXT",
             "points": 475,
             "tags": ["docker", "service", "swarm", "replicas"],
             "category": "Docker Swarm",
@@ -301,6 +321,7 @@ def get_challenges(docker_room, admin_user):
                 "Filters can be based on time using 'until'."
             ],
             "difficulty": "EXPERT",
+            "type": "TEXT",
             "points": 650,
             "tags": ["docker", "prune", "cleanup", "filter"],
             "category": "Docker Maintenance",
@@ -315,6 +336,7 @@ def get_challenges(docker_room, admin_user):
                 "Use output redirection to save to file."
             ],
             "difficulty": "EXPERT",
+            "type": "TEXT",
             "points": 600,
             "tags": ["docker", "export", "backup", "filesystem"],
             "category": "Docker Backup",
@@ -329,6 +351,7 @@ def get_challenges(docker_room, admin_user):
                 "ExposedPorts is under the Config section."
             ],
             "difficulty": "EXPERT",
+            "type": "TEXT",
             "points": 700,
             "tags": ["docker", "inspect", "json", "ports"],
             "category": "Docker Inspection",
@@ -343,6 +366,7 @@ def get_challenges(docker_room, admin_user):
                 "NET_ADMIN allows network administration tasks."
             ],
             "difficulty": "EXPERT",
+            "type": "TEXT",
             "points": 750,
             "tags": ["docker", "security", "capabilities", "linux"],
             "category": "Docker Security",
@@ -357,6 +381,7 @@ def get_challenges(docker_room, admin_user):
                 "The --use flag makes it the active builder."
             ],
             "difficulty": "EXPERT",
+            "type": "TEXT",
             "points": 800,
             "tags": ["docker", "buildx", "multi-platform", "builder"],
             "category": "Advanced Docker",
@@ -395,6 +420,7 @@ def get_challenges(docker_room, admin_user):
             ],
             "category": q["category"],
             "difficultyLevel": q["difficulty"],
+            "ctfType": q["type"],
             "points": q["points"],
             "author": admin_user["username"],
             "tags": q["tags"],

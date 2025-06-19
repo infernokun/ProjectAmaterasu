@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, WritableSignal } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -8,6 +8,7 @@ import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { RoomService } from '../../../services/ctf/room.service';
 import { ApiResponse } from '../../../models/api-response.model';
 import { RoomUserResponse, PointsHistoryEntry } from '../../../models/ctf/room-user-response.model';
+import { PageEvent } from '@angular/material/paginator';
 
 interface ScoreboardUser {
   username: string;
@@ -25,6 +26,12 @@ interface ScoreboardUser {
 export class ScoreboardComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
   private readonly loadingSubject = new BehaviorSubject<boolean>(false);
+  private currentPageSubject = new BehaviorSubject<number>(0);
+
+  
+  pageSize: WritableSignal<number> = signal(10);
+  currentPage: WritableSignal<number> = signal(0);
+  totalItems: WritableSignal<number> = signal(0);
   
   // Observables
   scoreboardUsers$: Observable<ScoreboardUser[]> = of([]);
@@ -158,14 +165,16 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
       startWith(''),
       debounceTime(300),
       distinctUntilChanged(),
-      map(term => (term || '').toLowerCase().trim())
+      map(term => (term || '').toLowerCase().trim()),
+      tap(() => this.resetPagination()) // Reset pagination when search changes
     );
     
     this.filteredUsers$ = combineLatest([
       this.scoreboardUsers$,
-      search$
+      search$,
+      this.currentPageSubject.asObservable()
     ]).pipe(
-      map(([users, searchTerm]) => this.filterUsers(users, searchTerm)),
+      map(([users, searchTerm, currentPage]) => this.filterUsers(users, searchTerm, currentPage)),
       takeUntil(this.destroy$)
     );
     
@@ -260,13 +269,34 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
     });
   }
   
-  private filterUsers(users: ScoreboardUser[], searchTerm: string): ScoreboardUser[] {
-    if (!searchTerm) return users;
+  private filterUsers(users: ScoreboardUser[], searchTerm: string, currentPage: number): ScoreboardUser[] {
+    // First filter by search term
+    const filtered: ScoreboardUser[] = searchTerm 
+      ? users.filter(user =>
+          user.username.toLowerCase().includes(searchTerm) ||
+          user.points.toString().includes(searchTerm)
+        )
+      : users; // Show all users if no search term
+  
+    // Set total items for pagination
+    this.totalItems.set(filtered.length);
+  
+    // Apply pagination to all results (whether filtered or not)
+    const startIndex = currentPage * this.pageSize();
+    const endIndex = startIndex + this.pageSize();
     
-    return users.filter(user =>
-      user.username.toLowerCase().includes(searchTerm) ||
-      user.points.toString().includes(searchTerm)
-    );
+    return filtered.slice(startIndex, endIndex);
+  }
+
+  onPageChange(event: PageEvent) {
+    this.currentPage.set(event.pageIndex);
+    this.pageSize.set(event.pageSize);
+    this.currentPageSubject.next(this.currentPage());
+  }
+  
+  resetPagination() {
+    this.currentPage.set(0);
+    this.currentPageSubject.next(0);
   }
   
   private generateChartData(users: ScoreboardUser[]): ChartData<'line'> {

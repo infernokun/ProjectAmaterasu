@@ -15,6 +15,7 @@ public class CTFEntityRequest {
     private List<FlagRequest> flags;
     private String category;
     private String difficultyLevel;
+    private String ctfType;
     private Integer points;
     private String author;
     private List<String> tags;

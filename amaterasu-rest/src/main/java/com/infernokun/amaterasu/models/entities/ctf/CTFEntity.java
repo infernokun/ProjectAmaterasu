@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import com.infernokun.amaterasu.models.entities.StoredObject;
+import com.infernokun.amaterasu.models.enums.CTFType;
 import com.infernokun.amaterasu.models.enums.DifficultyLevel;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
@@ -40,6 +41,8 @@ public class CTFEntity extends StoredObject {
     private String category;
     @Enumerated(EnumType.STRING)
     private DifficultyLevel difficultyLevel;
+    @Enumerated(EnumType.STRING)
+    private CTFType ctfType;
     @Min(0)
     private Integer points;
     private String author;

@@ -99,6 +99,17 @@
               <span class="points-label">pts</span>
             </div>
           </div>
+
+          <mat-paginator 
+            *ngIf="totalItems() > pageSize()"
+            [length]="totalItems()"
+            [pageSize]="pageSize()"
+            [pageSizeOptions]="[5, 10, 25, 50]"
+            [pageIndex]="currentPage()"
+            (page)="onPageChange($event)"
+            showFirstLastButtons
+            class="pagination-controls">
+          </mat-paginator>
         </div>
 
         <!-- No Search Results -->
