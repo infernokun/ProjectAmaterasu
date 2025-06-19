@@ -3,7 +3,8 @@ import { FormControl } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Observable, BehaviorSubject, Subject, combineLatest, of } from 'rxjs';
-import { takeUntil, startWith, debounceTime, distinctUntilChanged, map, switchMap, tap } from 'rxjs/operators';
+import { takeUntil, startWith, debounceTime, distinctUntilChanged, map, tap } from 'rxjs/operators';
+import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { RoomService } from '../../../services/ctf/room.service';
 import { ApiResponse } from '../../../models/api-response.model';
 import { RoomUserResponse, PointsHistoryEntry } from '../../../models/ctf/room-user-response.model';
@@ -13,12 +14,6 @@ interface ScoreboardUser {
   points: number;
   rank: number;
   pointsHistory: PointsHistoryEntry[];
-}
-
-interface ChartDataPoint {
-  timestamp: Date;
-  points: number;
-  username: string;
 }
 
 @Component({
@@ -32,57 +27,75 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
   private readonly loadingSubject = new BehaviorSubject<boolean>(false);
   
   // Observables
-  roomUsers$: Observable<RoomUserResponse[]> = of([]);
   scoreboardUsers$: Observable<ScoreboardUser[]> = of([]);
   filteredUsers$: Observable<ScoreboardUser[]> = of([]);
-  chartData$: Observable<ChartDataPoint[]> = of([]);
   isLoading$ = this.loadingSubject.asObservable();
   
   // Form controls
   searchControl = new FormControl('');
-  timeRangeControl = new FormControl('7d'); // 1d, 7d, 30d, all
   
   // Component state
   readonly trackByUsername = (index: number, user: ScoreboardUser): string => user.username || index.toString();
   currentRoomId = signal<string | null>(null);
-  showChart = signal<boolean>(false);
-  selectedUser = signal<string | null>(null);
   
-  // Chart options
-  chartOptions = {
+  // Chart configuration
+  public lineChartType: ChartType = 'bar';
+  public lineChartData: ChartData<'bar'> = { 
+    labels: [],
+    datasets: [] 
+  };
+
+  public lineChartOptions: ChartConfiguration['options'] = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       title: {
         display: true,
-        text: 'Points Over Time'
+        text: 'Player Points Ranking',
+        color: '#ffffff',
+        font: {
+          size: 16,
+          weight: 'bold'
+        }
       },
       legend: {
-        display: true,
-        position: 'top' as const
+        display: false
       }
     },
     scales: {
       x: {
-        type: 'time' as const,
-        time: {
-          unit: 'day' as const
-        },
         title: {
           display: true,
-          text: 'Date'
+          text: 'Players',
+          color: '#ffffff'
+        },
+        ticks: {
+          maxRotation: 45,
+          minRotation: 0,
+          color: '#ffffff'
+        },
+        grid: {
+          color: '#475569'
         }
       },
       y: {
         title: {
           display: true,
-          text: 'Points'
+          text: 'Points',
+          color: '#ffffff'
         },
-        beginAtZero: true
+        beginAtZero: true,
+        ticks: {
+          color: '#ffffff'
+        },
+        grid: {
+          color: '#475569'
+        }
       }
     },
     interaction: {
       intersect: false,
-      mode: 'index' as const
+      mode: 'index'
     }
   };
   
@@ -108,20 +121,6 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
   }
   
   private setupObservables(): void {
-    // Setup room users observable
-    this.roomUsers$ = this.currentRoomId() ? of([]) : 
-      this.roomService.getRoomUsersForScoreboard(this.currentRoomId()!).pipe(
-        map((response: ApiResponse<RoomUserResponse[]>) => response.data || []),
-        tap(users => console.log('Room users loaded:', users)),
-        takeUntil(this.destroy$)
-      );
-    
-    // Transform room users to scoreboard users with ranking
-    this.scoreboardUsers$ = this.roomUsers$.pipe(
-      map(users => this.transformToScoreboardUsers(users)),
-      takeUntil(this.destroy$)
-    );
-    
     // Setup filtered users with search
     const search$ = this.searchControl.valueChanges.pipe(
       startWith(''),
@@ -138,17 +137,15 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     );
     
-    // Setup chart data
-    this.chartData$ = combineLatest([
-      this.scoreboardUsers$,
-      this.timeRangeControl.valueChanges.pipe(startWith('7d')),
-      this.selectedUser()! ? of(null) : of(this.selectedUser())
-    ]).pipe(
-      map(([users, timeRange, selectedUser]) => 
-        this.generateChartData(users, timeRange!, selectedUser)
-      ),
+    // Setup chart data - subscribe to update the chart
+    this.scoreboardUsers$.pipe(
+      map(users => this.generateChartData(users)),
+      tap(chartData => {
+        this.lineChartData = chartData;
+        console.log('Chart data updated:', chartData);
+      }),
       takeUntil(this.destroy$)
-    );
+    ).subscribe();
   }
   
   private loadScoreboard(roomId: string): void {
@@ -161,12 +158,15 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
         console.log('Scoreboard data loaded:', response);
         this.loadingSubject.next(false);
         
-        // Update the observable by re-setting up with new data
-        this.roomUsers$ = of(response.data || []);
-        this.scoreboardUsers$ = this.roomUsers$.pipe(
-          map(users => this.transformToScoreboardUsers(users))
-        );
-        this.setupFilteredObservables();
+        // Transform and set the data
+        const transformedUsers = this.transformToScoreboardUsers(response.data || []);
+        console.log('Transformed users:', transformedUsers);
+        
+        // Update the observable with new data
+        this.scoreboardUsers$ = of(transformedUsers);
+        
+        // Re-setup observables with new data
+        this.setupObservables();
       },
       error: (error) => {
         this.loadingSubject.next(false);
@@ -175,26 +175,22 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
     });
   }
   
-  private setupFilteredObservables(): void {
-    const search$ = this.searchControl.valueChanges.pipe(
-      startWith(''),
-      debounceTime(300),
-      distinctUntilChanged(),
-      map(term => (term || '').toLowerCase().trim())
-    );
-    
-    this.filteredUsers$ = combineLatest([
-      this.scoreboardUsers$,
-      search$
-    ]).pipe(
-      map(([users, searchTerm]) => this.filterUsers(users, searchTerm)),
-      takeUntil(this.destroy$)
-    );
-  }
-  
   private transformToScoreboardUsers(roomUsers: RoomUserResponse[]): ScoreboardUser[] {
     // Sort by points descending
-    const sorted = [...roomUsers].sort((a, b) => (b.points || 0) - (a.points || 0));
+
+    roomUsers.push(new RoomUserResponse({ username: 'Sasuke', points: 123, pointsHistory: [] }));
+    roomUsers.push(new RoomUserResponse({ username: 'Naruto', points: 156, pointsHistory: [] }));
+    roomUsers.push(new RoomUserResponse({ username: 'Sakura', points: 98, pointsHistory: [] }));
+    roomUsers.push(new RoomUserResponse({ username: 'Kakashi', points: 189, pointsHistory: [] }));
+    roomUsers.push(new RoomUserResponse({ username: 'Itachi', points: 201, pointsHistory: [] }));
+    roomUsers.push(new RoomUserResponse({ username: 'Gaara', points: 134, pointsHistory: [] }));
+    roomUsers.push(new RoomUserResponse({ username: 'Shikamaru', points: 87, pointsHistory: [] }));
+    roomUsers.push(new RoomUserResponse({ username: 'Neji', points: 145, pointsHistory: [] }));
+    roomUsers.push(new RoomUserResponse({ username: 'Rock Lee', points: 112, pointsHistory: [] }));
+    roomUsers.push(new RoomUserResponse({ username: 'Hinata', points: 76, pointsHistory: [] }));
+    const sorted = [...roomUsers]//.sort((a, b) => (b.points || 0) - (a.points || 0));
+
+
     
     // Add ranking with tie handling
     return sorted.map((user, index) => {
@@ -215,7 +211,7 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
         username: user.username || 'Unknown',
         points: user.points || 0,
         rank: rank,
-        pointsHistory: user.pointsHistory ? [user.pointsHistory] : []
+        pointsHistory: user.pointsHistory ? user.pointsHistory : []
       };
     });
   }
@@ -229,55 +225,48 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
     );
   }
   
-  private generateChartData(users: ScoreboardUser[], timeRange: string, selectedUser: string | null): ChartDataPoint[] {
-    const now = new Date();
-    let startDate: Date;
-    
-    // Calculate start date based on time range
-    switch (timeRange) {
-      case '1d':
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        break;
-      case '7d':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case '30d':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        startDate = new Date(0); // All time
+  private generateChartData(users: ScoreboardUser[]): ChartData<'bar'> {
+    if (!users || users.length === 0) {
+      return { 
+        labels: [],
+        datasets: [] 
+      };
     }
     
-    const chartData: ChartDataPoint[] = [];
+    // Show top 10 users
+    const usersToShow = users.slice(0, 10);
     
-    // Filter users if specific user selected
-    const usersToShow = selectedUser ? 
-      users.filter(u => u.username === selectedUser) : 
-      users.slice(0, 5); // Show top 5 users
+    if (usersToShow.length === 0) {
+      return { 
+        labels: [],
+        datasets: [] 
+      };
+    }
     
-    usersToShow.forEach(user => {
-      user.pointsHistory.forEach(history => {
-        if (history.timestamp && history.timestamp >= startDate) {
-          chartData.push({
-            timestamp: history.timestamp,
-            points: history.totalPoints || 0,
-            username: user.username
-          });
-        }
-      });
+    // Generate colors based on ranking
+    const backgroundColors = usersToShow.map((user) => {
+      if (user.rank === 1) return '#ffd700'; // Gold for 1st place
+      if (user.rank === 2) return '#c0c0c0'; // Silver for 2nd place
+      if (user.rank === 3) return '#cd7f32'; // Bronze for 3rd place
+      return '#dc2626'; // Primary red for others
     });
     
-    return chartData.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-  }
-  
-  // UI Methods
-  toggleChart(): void {
-    this.showChart.set(!this.showChart());
-  }
-  
-  selectUserForChart(username: string): void {
-    const current = this.selectedUser();
-    this.selectedUser.set(current === username ? null : username);
+    const borderColors = backgroundColors.map(color => 
+      color === '#dc2626' ? '#991b1b' : color
+    );
+    
+    return {
+      labels: usersToShow.map(user => user.username),
+      datasets: [{
+        label: 'Points',
+        data: usersToShow.map(user => user.points),
+        backgroundColor: backgroundColors,
+        borderColor: borderColors,
+        borderWidth: 2,
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    };
   }
   
   goBackToRoom(): void {
@@ -306,12 +295,12 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
   
   getPointsChange(user: ScoreboardUser): number {
     if (!user.pointsHistory || user.pointsHistory.length === 0) return 0;
-    return user.pointsHistory[user.pointsHistory.length - 1].pointsChange || 0;
+    return user.pointsHistory[user.pointsHistory.length - 1]?.pointsChange || 0;
   }
   
   getLastActivity(user: ScoreboardUser): Date | null {
     if (!user.pointsHistory || user.pointsHistory.length === 0) return null;
-    return user.pointsHistory[user.pointsHistory.length - 1].timestamp || null;
+    return user.pointsHistory[user.pointsHistory.length - 1]?.timestamp || null;
   }
   
   private handleError(message: string, error: any): void {

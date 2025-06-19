@@ -1,98 +1,126 @@
 <div class="scoreboard-container">
-    <!-- Header Section -->
-    <div class="scoreboard-header">
-      <div class="header-actions">
-        <button mat-icon-button (click)="goBackToRoom()" class="back-button">
-          <mat-icon>arrow_back</mat-icon>
-        </button>
-        <h1 class="scoreboard-title">Scoreboard</h1>
-      </div>
-      
-      <div class="header-controls">
-        <button mat-icon-button (click)="refreshScoreboard()" [disabled]="isLoading$ | async">
-          <mat-icon>refresh</mat-icon>
-        </button>
-      </div>
+  <!-- Simplified Header -->
+  <div class="scoreboard-header">
+    <div class="header-actions">
+      <button mat-icon-button (click)="goBackToRoom()" class="back-button">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <h1 class="scoreboard-title">Leaderboard</h1>
     </div>
-  
-    <!-- Search Section -->
-    <div class="search-section">
-      <mat-form-field appearance="outline" class="search-field">
-        <mat-label>Search players...</mat-label>
-        <input matInput [formControl]="searchControl" placeholder="Enter player name">
-        <mat-icon matSuffix>search</mat-icon>
-      </mat-form-field>
+    
+    <div class="header-controls">
+      <button 
+        mat-icon-button 
+        (click)="refreshScoreboard()" 
+        [disabled]="isLoading$ | async"
+        matTooltip="Refresh">
+        <mat-icon>refresh</mat-icon>
+      </button>
     </div>
-  
-    <!-- Loading State -->
-    <div *ngIf="isLoading$ | async" class="loading-container">
-      <mat-spinner></mat-spinner>
-      <p>Loading scoreboard...</p>
-    </div>
-  
-    <!-- Scoreboard Content -->
-    <div *ngIf="!(isLoading$ | async)" class="scoreboard-content">
-      <!-- Room Info -->
-      <div *ngIf="scoreboardData$ | async as data" class="room-info">
-        <h2>{{ data.roomName }}</h2>
-        <p class="last-updated">Last updated: {{ data.lastUpdated | date:'medium' }}</p>
-      </div>
-  
-      <!-- Scores List -->
-      <div class="scores-container">
-        <div *ngIf="filteredScores$ | async as scores; else noScores">
-          <div *ngIf="scores.length > 0; else emptySearch" class="scores-list">
-            <div 
-              *ngFor="let score of scores; trackBy: trackByScoreId" 
-              class="score-item"
-              [class.top-three]="score.position <= 3"
-              [class.first-place]="score.position === 1"
-              [class.second-place]="score.position === 2"
-              [class.third-place]="score.position === 3">
-              
-              <div class="position-badge">
-                <span class="position-number">{{ score.position }}</span>
-                <mat-icon *ngIf="score.position === 1" class="trophy-icon">emoji_events</mat-icon>
-              </div>
-              
-              <div class="player-info">
-                <h3 class="player-name">{{ score.playerName }}</h3>
-                <p *ngIf="score.timestamp" class="score-time">
-                  {{ score.timestamp | date:'short' }}
-                </p>
-              </div>
-              
-              <div class="score-value">
-                <span class="score-number">{{ score.score | number }}</span>
-                <span class="score-label">pts</span>
-              </div>
-            </div>
-          </div>
-  
-          <!-- Empty Search Results -->
-          <ng-template #emptySearch>
-            <div class="empty-state">
-              <mat-icon class="empty-icon">search_off</mat-icon>
-              <h3>No players found</h3>
-              <p>Try adjusting your search terms</p>
-              <button mat-button (click)="searchControl.setValue('')">
-                Clear Search
-              </button>
-            </div>
-          </ng-template>
-        </div>
-  
-        <!-- No Scores State -->
-        <ng-template #noScores>
-          <div class="empty-state">
-            <mat-icon class="empty-icon">leaderboard</mat-icon>
-            <h3>No scores yet</h3>
-            <p>Scores will appear here once players start playing</p>
-            <button mat-raised-button color="primary" (click)="goBackToRoom()">
-              Back to Room
-            </button>
-          </div>
-        </ng-template>
+  </div>
+
+  <!-- Simplified Controls - Only Search -->
+  <div class="controls-section">
+    <div class="custom-search-field">
+      <label class="search-label">Search players</label>
+      <div class="input-wrapper">
+        <input 
+          type="text" 
+          [formControl]="searchControl" 
+          placeholder="Type player name..."
+          class="search-input">
+        <mat-icon class="search-icon">search</mat-icon>
       </div>
     </div>
   </div>
+
+  <!-- Loading -->
+  <div *ngIf="isLoading$ | async" class="loading-container">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Loading leaderboard...</p>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!(isLoading$ | async)" class="scoreboard-content">
+    
+    <!-- Chart Section - Bar Chart -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <h2>Points Ranking</h2>
+        <p>Showing top 10 players</p>
+      </div>
+      
+      <div class="chart-container">
+        <canvas 
+          baseChart
+          [data]="lineChartData"
+          [options]="lineChartOptions"
+          [type]="lineChartType">
+        </canvas>
+      </div>
+    </div>
+
+    <!-- Player Rankings -->
+    <div class="scoreboard-list-section">
+      <h2>Player List</h2>
+      
+      <div *ngIf="filteredUsers$ | async as users; else noUsers">
+        <div *ngIf="users.length > 0; else emptySearch" class="users-list">
+          <div 
+            *ngFor="let user of users; trackBy: trackByUsername" 
+            class="user-item"
+            [class]="getRankClass(user.rank)">
+            
+            <!-- Rank -->
+            <div class="rank-badge">
+              <span class="rank-number">{{ user.rank }}</span>
+              <mat-icon *ngIf="user.rank === 1" class="trophy-icon">star</mat-icon>
+            </div>
+            
+            <!-- Player Details -->
+            <div class="player-info">
+              <div class="player-name">{{ user.username }}</div>
+              <div class="player-stats">
+                <span class="last-activity" *ngIf="getLastActivity(user) as lastActivity">
+                  {{ lastActivity | date:'MMM d, h:mm a' }}
+                </span>
+                <span class="points-change" 
+                      [class.positive]="getPointsChange(user) > 0"
+                      [class.negative]="getPointsChange(user) < 0"
+                      *ngIf="getPointsChange(user) !== 0">
+                  {{ getPointsChange(user) > 0 ? '+' : '' }}{{ getPointsChange(user) }}
+                </span>
+              </div>
+            </div>
+            
+            <!-- Points -->
+            <div class="points-display">
+              <span class="points-value">{{ user.points | number }}</span>
+              <span class="points-label">pts</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- No Search Results -->
+        <ng-template #emptySearch>
+          <div class="empty-state">
+            <mat-icon class="empty-icon">search_off</mat-icon>
+            <h3>No matches found</h3>
+            <p>Try a different search term</p>
+            <button mat-button (click)="searchControl.setValue('')">Clear Search</button>
+          </div>
+        </ng-template>
+      </div>
+
+      <!-- No Players -->
+      <ng-template #noUsers>
+        <div class="empty-state">
+          <mat-icon class="empty-icon">leaderboard</mat-icon>
+          <h3>No players yet</h3>
+          <p>The leaderboard will appear once players start earning points</p>
+          <button mat-raised-button (click)="goBackToRoom()">Back to Room</button>
+        </div>
+      </ng-template>
+    </div>
+  </div>
+</div>

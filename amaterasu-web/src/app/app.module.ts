@@ -43,7 +43,7 @@ import { ViewCTFComponent } from './components/app-ctf/view/view-ctf.component';
 import { RoomComponent } from './components/app-ctf/room/room.component';
 import { ScoreboardComponent } from './components/app-ctf/scoreboard/scoreboard.component';
 
-import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
+import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 
 export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
@@ -99,6 +99,7 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     CTFCardComponent,
     ViewCTFComponent,
     ScoreboardComponent
+    
   ],
   imports: [
     BrowserModule,
@@ -109,7 +110,8 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     MaterialModule,
     CommonModule,
     CodeEditorModule,
-    AgGridAngular
+    AgGridAngular,
+    BaseChartDirective
   ],
   providers: [
     EnvironmentService,
