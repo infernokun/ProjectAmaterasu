@@ -1,14 +1,17 @@
 package com.infernokun.amaterasu.controllers.entity.ctf;
 
 import com.infernokun.amaterasu.models.ApiResponse;
+import com.infernokun.amaterasu.models.entities.ctf.CTFEntityAnswer;
 import com.infernokun.amaterasu.models.entities.ctf.dto.JoinRoomResponse;
 import com.infernokun.amaterasu.models.entities.ctf.dto.RoomJoinableRequest;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.ctf.RoomUser;
+import com.infernokun.amaterasu.models.entities.ctf.dto.RoomUserProfileResponse;
 import com.infernokun.amaterasu.models.entities.ctf.dto.RoomUserResponse;
 import com.infernokun.amaterasu.models.enums.RoomUserStatus;
 import com.infernokun.amaterasu.services.entity.UserService;
+import com.infernokun.amaterasu.services.entity.ctf.CTFAnswerService;
 import com.infernokun.amaterasu.services.entity.ctf.RoomService;
 import com.infernokun.amaterasu.services.entity.ctf.RoomUserService;
 import lombok.RequiredArgsConstructor;
@@ -16,10 +19,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.infernokun.amaterasu.utils.AmaterasuConstants.buildSuccessResponse;
@@ -33,6 +38,7 @@ public class RoomController {
     private final UserService userService;
     private final RoomUserService roomUserService;
     private final ModelMapper modelMapper;
+    private final CTFAnswerService ctfAnswerService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Room>>> getAllRooms(@RequestParam(required = false)
@@ -86,8 +92,46 @@ public class RoomController {
         );
     }
 
+    @GetMapping("/scoreboard/{roomId}")
+    public ResponseEntity<ApiResponse<RoomUserProfileResponse>> getScoreboardUserInfo(@PathVariable String roomId) {
+        User user = userService.findUserById(SecurityContextHolder.getContext().getAuthentication().getName());
+
+        RoomUser roomUser = roomUserService.findByUserId(user.getId());
+
+        List<CTFEntityAnswer> roomUserAnswers = ctfAnswerService.findByRoomUserId(roomUser);
+
+        AtomicInteger fails = new AtomicInteger();
+        AtomicInteger correct = new AtomicInteger();
+        Map<String, Integer> correctByCategory = new HashMap<>();
+
+        roomUserAnswers.forEach(roomUserAnswer -> {
+            if (roomUserAnswer.getCorrect()) {
+                fails.set(fails.get() + roomUserAnswer.getAttempts() - 1);
+                correct.set(correct.get() + 1);
+                correctByCategory.put(roomUserAnswer.getCtfEntity().getCategory(),
+                        correctByCategory.get(roomUserAnswer.getCtfEntity().getCategory()) != null ?
+                                correctByCategory.get(roomUserAnswer.getCtfEntity().getCategory()) + 1 : 1);
+            } else {
+                fails.set(fails.get() + roomUserAnswer.getAttempts());
+            }
+        });
+
+        RoomUserProfileResponse roomUserProfileResponse = new RoomUserProfileResponse(roomUser.getUser().getUsername(),
+                roomUser.getPoints(), roomUser.getPointsHistory(), fails.get(), correct.get(), correctByCategory);
+
+        RoomUserResponse roomUserResponse = new RoomUserResponse(roomUser.getUser().getUsername(),
+                roomUser.getPoints(),
+                roomUser.getPointsHistory());
+
+        return buildSuccessResponse(
+                String.format("Retrieved %s for room %s scoreboard", roomUserProfileResponse.getUsername(), roomId),
+                roomUserProfileResponse,
+                HttpStatus.OK
+        );
+    }
+
     @GetMapping("/scoreboard/{roomId}/users")
-    public ResponseEntity<ApiResponse<List<RoomUserResponse>>> getScoreboardUserInfo(@PathVariable String roomId) {
+    public ResponseEntity<ApiResponse<List<RoomUserResponse>>> getScoreboardUsersInfo(@PathVariable String roomId) {
         // Get room users for the specific room, ordered by points descending
         List<RoomUser> roomUsers = roomUserService.findByRoomIdOrderByPointsDesc(roomId);
 

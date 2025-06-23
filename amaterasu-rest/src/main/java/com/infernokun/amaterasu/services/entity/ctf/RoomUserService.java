@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.services.entity.ctf;
 
+import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.ctf.RoomUser;
@@ -21,6 +22,11 @@ public class RoomUserService {
 
     public List<RoomUser> findAllRoomUsers() {
         return roomUserRepository.findAll();
+    }
+
+    public RoomUser findByUserId(String userId) {
+        return this.roomUserRepository.findByUserId(userId).orElseThrow(() -> new ResourceNotFoundException(
+                "No room user found by user id " + userId + "!"));
     }
 
     public List<RoomUser> findByRoomIdOrderByPointsDesc(String roomId) {

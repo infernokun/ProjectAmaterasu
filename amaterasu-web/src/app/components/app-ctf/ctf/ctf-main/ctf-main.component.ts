@@ -7,6 +7,7 @@ import { RoomUserStatus } from '../../../../enums/room-user-status.enum';
 import { Room } from '../../../../models/ctf/room.model';
 import { ApiResponse } from '../../../../models/api-response.model';
 import { JoinRoomResponse } from '../../../../models/dto/join-room-response.model';
+import { User } from '../../../../models/user.model';
 
 @Component({
   selector: 'amaterasu-ctf-main',
@@ -27,12 +28,16 @@ export class CTFMainComponent implements OnInit, OnDestroy {
     this.roomUserStatus()?.roomUserStatus === RoomUserStatus.JOINED
   );
 
+  loggedInUser: User | undefined = undefined;
+
   constructor(
     private authService: AuthService,
     private roomService: RoomService,
     private route: ActivatedRoute,
     private router: Router
-  ) {}
+  ) {
+    this.loggedInUser = this.authService.getUser();
+  }
 
   ngOnInit(): void {
     this.loading.set(true);
@@ -130,6 +135,14 @@ export class CTFMainComponent implements OnInit, OnDestroy {
     
     if (roomData?.id) {
       this.router.navigate(['/room', roomData.id, 'scoreboard']);
+    }
+  }
+
+  goToUserScoreBoard(room: WritableSignal<Room | null>, event: MouseEvent) { 
+    const roomData = room(); 
+    
+    if (roomData?.id) {
+      this.router.navigate(['/room', roomData.id, 'scoreboard', this.loggedInUser?.username]);
     }
   }
 }

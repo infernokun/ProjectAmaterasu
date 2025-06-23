@@ -69,22 +69,21 @@ public class FlagService {
         ctfEntityAnswer.getAnswers().add(ctfEntityAnswerRequest);
         ctfEntityAnswer.getAttemptTimes().add(LocalDateTime.now());
         ctfEntityAnswer.setAttempts(ctfEntityAnswer.getAttempts() + 1);
-        ctfEntityAnswer.setCorrect(correct);
 
         // Set solved timestamp if correct and not already solved
         if (correct && ctfEntityAnswer.getSolvedAt() == null) {
             ctfEntityAnswer.setSolvedAt(LocalDateTime.now());
         }
 
-        // Save answer
-        ctfEntityAnswer = ctfAnswerService.saveAnsweredCTFEntity(ctfEntityAnswer);
-
         // Update points only if answer is correct and not already solved
-        if (correct && ctfEntityAnswer.getAttempts() == 1) { // First correct attempt
+        if (correct && !ctfEntityAnswer.getCorrect()) { // First correct attempt
             Integer newPoints = roomUser.getPoints() + ctfEntity.getPoints();
             roomUser.updatePoints(newPoints, "answered correctly");
             roomUser = roomUserService.save(roomUser);
         }
+
+        ctfEntityAnswer.setCorrect(correct);
+        ctfEntityAnswer = ctfAnswerService.saveAnsweredCTFEntity(ctfEntityAnswer);
 
         // Build response
         CTFEntityAnswerResponse response = modelMapper.map(ctfEntityAnswer, CTFEntityAnswerResponse.class);

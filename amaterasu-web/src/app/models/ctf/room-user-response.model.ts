@@ -14,17 +14,26 @@ export interface PointsHistoryEntry {
       pointsChange?: number;
       reason?: string;
     }>;
+    fails?: number;
+    correct?: number;
+    correctByCategory?: { cat: string, val: number };
   }
   
   export class RoomUserResponse {
     username: string;
     points: number;
     pointsHistory: PointsHistoryEntry[];
+    fails: number;
+    correct: number;
+    correctByCategory?: { cat: string, val: number };
   
     constructor(serverResult?: RoomUserServerResponse) {
       this.username = serverResult?.username || 'Unknown User';
       this.points = serverResult?.points || 0;
       this.pointsHistory = this.parsePointsHistory(serverResult?.pointsHistory || []);
+      this.fails = serverResult?.fails || 0;
+      this.correct = serverResult?.correct || 0;
+      this.correctByCategory = serverResult?.correctByCategory;
     }
   
     private parsePointsHistory(serverHistory: Array<{

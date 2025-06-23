@@ -15,11 +15,13 @@ import { VMLabBuilderComponent } from './components/app-lab/vm-lab-builder/vm-la
 import { InitializationComponent } from './components/initialization/initialization.component';
 import { RoomComponent } from './components/app-ctf/room/room.component';
 import { ScoreboardComponent } from './components/app-ctf/scoreboard/scoreboard.component';
+import { PlayerScoreboardComponent } from './components/app-ctf/player-scoreboard/player-scoreboard.component';
 
 const routes: Routes = [
   { path: 'challenges', component: RoomComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'room/:room', component: CTFMainComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'room/:room/scoreboard', component: ScoreboardComponent, canActivate: [AppInitGuard, authGuard] },
+  { path: 'room/:room/scoreboard/:username', component: PlayerScoreboardComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'vm-lab-builder', component: VMLabBuilderComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'teams', component: TeamsComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'users', component: UsersComponent, canActivate: [AppInitGuard, authGuard] },

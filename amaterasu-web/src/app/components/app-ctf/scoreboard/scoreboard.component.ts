@@ -28,7 +28,6 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
   private readonly loadingSubject = new BehaviorSubject<boolean>(false);
   private currentPageSubject = new BehaviorSubject<number>(0);
 
-  
   pageSize: WritableSignal<number> = signal(10);
   currentPage: WritableSignal<number> = signal(0);
   totalItems: WritableSignal<number> = signal(0);

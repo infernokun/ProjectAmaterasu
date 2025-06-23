@@ -45,6 +45,7 @@ import { ScoreboardComponent } from './components/app-ctf/scoreboard/scoreboard.
 import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { CTFCardComponent } from './components/app-ctf/ctf/ctf-main/ctf-card/ctf-card.component';
+import { PlayerScoreboardComponent } from './components/app-ctf/player-scoreboard/player-scoreboard.component';
 
 export function init_app(environmentService: EnvironmentService, appInitService: AppInitService) {
   return () => {
@@ -98,7 +99,8 @@ export function init_app(environmentService: EnvironmentService, appInitService:
     CTFMainComponent,
     CTFCardComponent,
     ViewCTFComponent,
-    ScoreboardComponent
+    ScoreboardComponent,
+    PlayerScoreboardComponent
     
   ],
   imports: [

@@ -102,7 +102,11 @@ export class RoomService extends BaseService {
     this.currentRoomSubject.next(room);
   }
 
-  getRoomUsersForScoreboard(roomId: string) {
+  getRoomUsersForScoreboard(roomId: string): Observable<ApiResponse<RoomUserResponse[]>> {
     return this.get<ApiResponse<RoomUserResponse[]>>(`${this.reqUrl}/scoreboard/${roomId}/users`);
+  }
+
+  getRoomUserForScoreboard(roomId: string): Observable<ApiResponse<RoomUserResponse>>  {
+    return this.get<ApiResponse<RoomUserResponse>>(`${this.reqUrl}/scoreboard/${roomId}`);
   }
 }
