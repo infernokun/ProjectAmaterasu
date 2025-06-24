@@ -104,28 +104,37 @@ public class RoomController {
         AtomicInteger correct = new AtomicInteger();
         Map<String, Integer> correctByCategory = new HashMap<>();
 
+        List<RoomUser> allRoomUsers = roomUserService.findByRoomIdOrderByPointsDesc(roomId);
+
         roomUserAnswers.forEach(roomUserAnswer -> {
             if (roomUserAnswer.getCorrect()) {
+                // Add failed attempts (total attempts - 1 for the correct one)
                 fails.set(fails.get() + roomUserAnswer.getAttempts() - 1);
                 correct.set(correct.get() + 1);
-                correctByCategory.put(roomUserAnswer.getCtfEntity().getCategory(),
-                        correctByCategory.get(roomUserAnswer.getCtfEntity().getCategory()) != null ?
-                                correctByCategory.get(roomUserAnswer.getCtfEntity().getCategory()) + 1 : 1);
+
+                // Track correct answers by category
+                String category = roomUserAnswer.getCtfEntity().getCategory();
+                correctByCategory.put(category,
+                        correctByCategory.getOrDefault(category, 0) + 1);
             } else {
+                // Add all attempts as fails for incorrect answers
                 fails.set(fails.get() + roomUserAnswer.getAttempts());
             }
         });
 
-        RoomUserProfileResponse roomUserProfileResponse = new RoomUserProfileResponse(roomUser.getUser().getUsername(),
-                roomUser.getPoints(), roomUser.getPointsHistory(), fails.get(), correct.get(), correctByCategory);
-
-        RoomUserResponse roomUserResponse = new RoomUserResponse(roomUser.getUser().getUsername(),
+        RoomUserProfileResponse roomUserProfileResponse = new RoomUserProfileResponse(
+                roomUser.getUser().getUsername(),
                 roomUser.getPoints(),
-                roomUser.getPointsHistory());
+                roomUser.getPointsHistory(),
+                fails.get(),
+                correct.get(),
+                correctByCategory,
+                calculateUserRank(allRoomUsers, roomUser)
+        );
 
         return buildSuccessResponse(
                 String.format("Retrieved %s for room %s scoreboard", roomUserProfileResponse.getUsername(), roomId),
-                roomUserProfileResponse,
+                roomUserProfileResponse, // Return the correct object
                 HttpStatus.OK
         );
     }
@@ -317,5 +326,41 @@ public class RoomController {
                         .data(null)
                         .build()
         );
+    }
+
+    private String calculateUserRank(List<RoomUser> allRoomUsers, RoomUser currentUser) {
+        // Find the user's position in the sorted list (1-based ranking)
+        int rank = 1;
+        int currentUserPoints = currentUser.getPoints();
+
+        for (RoomUser user : allRoomUsers) {
+            if (user.getId().equals(currentUser.getId())) {
+                break; // Found our user, rank is current position
+            }
+
+            // Only increment rank if the user has more points
+            if (user.getPoints() > currentUserPoints) {
+                rank++;
+            }
+        }
+
+        return formatRank(rank);
+    }
+
+    private String formatRank(int rank) {
+        if (rank >= 11 && rank <= 13) {
+            return rank + "th";
+        }
+
+        switch (rank % 10) {
+            case 1:
+                return rank + "st";
+            case 2:
+                return rank + "nd";
+            case 3:
+                return rank + "rd";
+            default:
+                return rank + "th";
+        }
     }
 }

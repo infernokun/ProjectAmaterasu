@@ -4,7 +4,7 @@ import { Subject, of, Observable } from 'rxjs';
 import { ApiResponse } from '../../../models/api-response.model';
 import { RoomUserResponse } from '../../../models/ctf/room-user-response.model';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ChartConfiguration, ChartData, ChartOptions, ChartType } from 'chart.js';
+import { ChartConfiguration, ChartData } from 'chart.js';
 import { ActivatedRoute } from '@angular/router';
 
 @Component({
@@ -14,18 +14,37 @@ import { ActivatedRoute } from '@angular/router';
   styleUrl: './player-scoreboard.component.scss'
 })
 export class PlayerScoreboardComponent implements OnInit, OnDestroy {
-  private readonly destroy$ = new Subject<void>();
-  loading: WritableSignal<boolean> = signal(false);
+  private readonly componentDestroyed$ = new Subject<void>();
+  
+  // Loading state
+  isLoadingScoreboardData: WritableSignal<boolean> = signal(false);
+  
+  // User data
+  currentUserScoreboard$: Observable<RoomUserResponse | undefined> = of(undefined);
+  currentUserScoreboard: WritableSignal<RoomUserResponse | undefined> = signal(undefined);
 
-  scoreboardUser$: Observable<RoomUserResponse | undefined> = of(undefined);
+  // Chart types
+  readonly LINE_CHART_TYPE: 'line' = 'line';
+  readonly PIE_CHART_TYPE: 'pie' = 'pie';
 
-  public lineChartType: 'line' = 'line';
-  public lineChartData: ChartData<'line'> = { 
+  // Chart data
+  scoreProgressChartData: ChartData<'line'> = { 
     labels: [],
     datasets: [] 
   };
 
-  public lineChartOptions: ChartConfiguration<'line'>['options'] = {
+  performanceOverviewChartData: ChartData<'pie'> = {
+    labels: [],
+    datasets: []
+  };
+
+  categoryBreakdownChartData: ChartData<'pie'> = {
+    labels: [],
+    datasets: []
+  };
+
+  // Chart configurations
+  scoreProgressChartOptions: ChartConfiguration<'line'>['options'] = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -34,7 +53,7 @@ export class PlayerScoreboardComponent implements OnInit, OnDestroy {
         text: 'Score Progress Over Time',
         color: '#ffffff',
         font: {
-          size: 16,
+          size: 18,
           weight: 'bold'
         }
       },
@@ -118,16 +137,16 @@ export class PlayerScoreboardComponent implements OnInit, OnDestroy {
     }
   };
 
-  public pieChartOptions: ChartConfiguration<'pie'>['options'] = {
+  performanceOverviewChartOptions: ChartConfiguration<'pie'>['options'] = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       title: {
         display: true,
-        text: 'Key Percentages',
+        text: 'Performance Overview',
         color: '#ffffff',
         font: {
-          size: 16,
+          size: 18,
           weight: 'bold'
         }
       },
@@ -144,40 +163,34 @@ export class PlayerScoreboardComponent implements OnInit, OnDestroy {
         }
       },
       tooltip: {
-        mode: 'index',
-        intersect: false,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
         titleColor: '#ffffff',
         bodyColor: '#ffffff',
         borderColor: '#475569',
-        borderWidth: 1
-      }
-    },
-    interaction: {
-      intersect: false,
-      mode: 'index'
-    },
-    elements: {
-      line: {
-        tension: 0.2
-      },
-      point: {
-        radius: 4,
-        hoverRadius: 6
+        borderWidth: 1,
+        callbacks: {
+          label: function(context) {
+            const label = context.label || '';
+            const value = context.parsed;
+            const total = context.dataset.data.reduce((sum: number, val: any) => sum + val, 0);
+            const percentage = ((value / total) * 100).toFixed(1);
+            return `${label}: ${value} (${percentage}%)`;
+          }
+        }
       }
     }
   };
 
-  public pieChartOptions2: ChartConfiguration<'pie'>['options'] = {
+  categoryBreakdownChartOptions: ChartConfiguration<'pie'>['options'] = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       title: {
         display: true,
-        text: 'Category Breakdown',
+        text: 'Success by Category',
         color: '#ffffff',
         font: {
-          size: 16,
+          size: 18,
           weight: 'bold'
         }
       },
@@ -194,151 +207,109 @@ export class PlayerScoreboardComponent implements OnInit, OnDestroy {
         }
       },
       tooltip: {
-        mode: 'index',
-        intersect: false,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
         titleColor: '#ffffff',
         bodyColor: '#ffffff',
         borderColor: '#475569',
-        borderWidth: 1
-      }
-    },
-    interaction: {
-      intersect: false,
-      mode: 'index'
-    },
-    elements: {
-      line: {
-        tension: 0.2
-      },
-      point: {
-        radius: 4,
-        hoverRadius: 6
+        borderWidth: 1,
+        callbacks: {
+          label: function(context) {
+            const label = context.label || '';
+            const value = context.parsed;
+            const total = context.dataset.data.reduce((sum: number, val: any) => sum + val, 0);
+            const percentage = ((value / total) * 100).toFixed(1);
+            return `${label}: ${value} solved (${percentage}%)`;
+          }
+        }
       }
     }
   };
-
-  pieChartData: ChartData<'pie'> = {
-    labels: [],
-    datasets: []
-  }
-
-  pieChartData2: ChartData<'pie'> = {
-    labels: [],
-    datasets: []
-  }
-
-  public pieChartType: 'pie' = 'pie';
   
   constructor(
     private roomService: RoomService, 
     private snackBar: MatSnackBar, 
-    private route: ActivatedRoute
+    private activatedRoute: ActivatedRoute
   ) {}
 
-  ngOnInit() {
-    const roomId = this.route.snapshot.params['room'];
+  ngOnInit(): void {
+    const roomId = this.activatedRoute.snapshot.params['room'];
     if (roomId) {
-      this.loadScoreboard(roomId);
+      this.loadUserScoreboardData(roomId);
     }
   }
 
-  ngOnDestroy() {
-    this.destroy$.next();
-    this.destroy$.complete();
+  ngOnDestroy(): void {
+    this.componentDestroyed$.next();
+    this.componentDestroyed$.complete();
   }
 
-  private loadScoreboard(roomId: string): void {
-    this.loading.set(true);
+  private loadUserScoreboardData(roomId: string): void {
+    this.isLoadingScoreboardData.set(true);
     
     this.roomService.getRoomUserForScoreboard(roomId).subscribe({
-      next: (response: ApiResponse<RoomUserResponse>) => {
-        const roomUser: RoomUserResponse = new RoomUserResponse(response.data);
+      next: (apiResponse: ApiResponse<RoomUserResponse>) => {
+        const userScoreboardData: RoomUserResponse = apiResponse.data;
+        this.currentUserScoreboard.set(apiResponse.data);
+        console.log('User scoreboard data loaded:', userScoreboardData);
         
-        console.log('Scoreboard data loaded:', roomUser);
-        
-        // Generate chart data immediately
-        const chartData = this.generateChartData(roomUser);
-        this.lineChartData = { ...chartData };
-        
-        this.pieChartData = {
-          datasets: [
-            {
-              data: [roomUser.fails, roomUser.correct],
-              backgroundColor: ['#26547c', '#ff6b6b', '#ffd166'],
-            },
-          ],
-        };
-        
-        //const stuff = Array.from(roomUser.correctByCategory?.values()!)
-        
-        console.log(roomUser.correctByCategory);
-
-        const datas: number[] = [];
-
-        for (const key in roomUser.correctByCategory) {
-          console.log(`Key: ${key}, Value: ${roomUser.correctByCategory[key as keyof typeof roomUser.correctByCategory]}`);
-          datas.push(roomUser.correctByCategory[key as keyof typeof roomUser.correctByCategory] as number);
-      }
-        this.pieChartData = {
-          datasets: [
-            {
-              data: datas,
-              backgroundColor: ['#26547c', '#ff6b6b', '#ffd166'],
-            },
-          ],
-        };
-        
-        console.log('Chart data generated:', this.lineChartData);
-        
-        this.loading.set(false);
+        this.generateAllChartData(userScoreboardData);
+        this.isLoadingScoreboardData.set(false);
       },
       error: (error) => {
-        console.error('Error loading scoreboard:', error);
-        this.loading.set(false);
-        this.handleError('Failed to load scoreboard', error);
+        console.error('Error loading user scoreboard data:', error);
+        this.isLoadingScoreboardData.set(false);
+        this.displayErrorMessage('Failed to load scoreboard data', error);
       }
     });
   }
 
-  private generateChartData(user: RoomUserResponse): ChartData<'line'> {
-    console.log('Generating chart data for user:', user);
+  private generateAllChartData(userScoreboardData: RoomUserResponse): void {
+    // Generate line chart for score progress
+    this.scoreProgressChartData = this.generateScoreProgressChartData(userScoreboardData);
     
-    if (!user) {
-      console.log('No user data');
+    // Generate pie chart for performance overview (correct vs fails)
+    this.performanceOverviewChartData = this.generatePerformanceOverviewChartData(userScoreboardData);
+    
+    // Generate pie chart for category breakdown
+    this.categoryBreakdownChartData = this.generateCategoryBreakdownChartData(userScoreboardData);
+    
+    console.log('Score progress chart data:', this.scoreProgressChartData);
+    console.log('Performance overview chart data:', this.performanceOverviewChartData);
+    console.log('Category breakdown chart data:', this.categoryBreakdownChartData);
+  }
+
+  private generateScoreProgressChartData(userScoreboardData: RoomUserResponse): ChartData<'line'> {
+    console.log('Generating score progress chart data for user:', userScoreboardData);
+    
+    if (!userScoreboardData?.pointsHistory || userScoreboardData.pointsHistory.length === 0) {
+      console.log('No points history available');
       return { labels: [], datasets: [] };
     }
     
-    if (!user.pointsHistory || user.pointsHistory.length === 0) {
-      console.log('No points history');
-      return { labels: [], datasets: [] };
-    }
+    console.log('Raw points history:', userScoreboardData.pointsHistory);
     
-    console.log('Raw points history:', user.pointsHistory);
-    
-    // Sort points history by timestamp
-    const sortedHistory = user.pointsHistory
-      .filter(entry => {
-        const isValid = entry.timestamp && !isNaN(new Date(entry.timestamp).getTime());
-        if (!isValid) {
-          console.log('Invalid timestamp entry:', entry);
+    // Filter and sort points history by timestamp
+    const validPointsHistory = userScoreboardData.pointsHistory
+      .filter(historyEntry => {
+        const hasValidTimestamp = historyEntry.timestamp && !isNaN(new Date(historyEntry.timestamp).getTime());
+        if (!hasValidTimestamp) {
+          console.log('Invalid timestamp entry:', historyEntry);
         }
-        return isValid;
+        return hasValidTimestamp;
       })
-      .sort((a, b) => new Date(a.timestamp!).getTime() - new Date(b.timestamp!).getTime());
+      .sort((entryA, entryB) => new Date(entryA.timestamp!).getTime() - new Date(entryB.timestamp!).getTime());
     
-    console.log('Sorted history:', sortedHistory);
+    console.log('Valid sorted history:', validPointsHistory);
     
-    if (sortedHistory.length === 0) {
-      console.log('No valid history entries');
+    if (validPointsHistory.length === 0) {
+      console.log('No valid history entries found');
       return { labels: [], datasets: [] };
     }
     
-    // Create time labels with simpler format
-    const timeLabels = sortedHistory.map((entry, index) => {
-      const date = new Date(entry.timestamp!);
-      // Use a simpler format or just use index for testing
-      return date.toLocaleDateString('en-US', { 
+    // Create formatted time labels
+    const formattedTimeLabels = validPointsHistory.map((historyEntry) => {
+      const entryDate = new Date(historyEntry.timestamp!);
+      return entryDate.toLocaleDateString('en-US', { 
         month: 'short', 
         day: 'numeric',
         hour: 'numeric',
@@ -346,15 +317,15 @@ export class PlayerScoreboardComponent implements OnInit, OnDestroy {
       });
     });
     
-    // Create points data
-    const pointsData = sortedHistory.map(entry => entry.totalPoints || 0);
+    // Extract points data
+    const pointsProgressData = validPointsHistory.map(historyEntry => historyEntry.totalPoints || 0);
     
-    console.log('Final time labels:', timeLabels);
-    console.log('Final points data:', pointsData);
+    console.log('Formatted time labels:', formattedTimeLabels);
+    console.log('Points progress data:', pointsProgressData);
     
-    const dataset = {
-      label: `${user.username || 'Player'} Score`,
-      data: pointsData,
+    const scoreProgressDataset = {
+      label: `${userScoreboardData.username || 'Player'} Score Progress`,
+      data: pointsProgressData,
       borderColor: '#dc2626',
       backgroundColor: 'rgba(220, 38, 127, 0.1)',
       fill: true,
@@ -367,16 +338,93 @@ export class PlayerScoreboardComponent implements OnInit, OnDestroy {
       borderWidth: 3
     };
     
-    const result = {
-      labels: timeLabels,
-      datasets: [dataset]
+    const chartDataResult = {
+      labels: formattedTimeLabels,
+      datasets: [scoreProgressDataset]
     };
     
-    console.log('Generated chart data:', result);
-    return result;
+    console.log('Generated score progress chart data:', chartDataResult);
+    return chartDataResult;
   }
 
-  private handleError(message: string, error: any): void {
+  private generatePerformanceOverviewChartData(userScoreboardData: RoomUserResponse): ChartData<'pie'> {
+    const correctAnswersCount = userScoreboardData.correct || 0;
+    const failedAttemptsCount = userScoreboardData.fails || 0;
+    
+    if (correctAnswersCount === 0 && failedAttemptsCount === 0) {
+      return { labels: [], datasets: [] };
+    }
+
+    return {
+      labels: ['Correct Answers', 'Failed Attempts'],
+      datasets: [
+        {
+          data: [correctAnswersCount, failedAttemptsCount],
+          backgroundColor: ['#10b981', '#ef4444'],
+          borderColor: ['#059669', '#dc2626'],
+          borderWidth: 2,
+          hoverBackgroundColor: ['#34d399', '#f87171'],
+          hoverBorderColor: ['#047857', '#b91c1c'],
+          hoverBorderWidth: 3
+        },
+      ],
+    };
+  }
+
+  private generateCategoryBreakdownChartData(userScoreboardData: RoomUserResponse): ChartData<'pie'> {
+    if (!userScoreboardData.correctByCategory || Object.keys(userScoreboardData.correctByCategory).length === 0) {
+      return { labels: [], datasets: [] };
+    }
+
+    const categoryLabels: string[] = [];
+    const categoryCounts: number[] = [];
+    const categoryColors = [
+      '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', 
+      '#10b981', '#f97316', '#06b6d4', '#ec4899',
+      '#84cc16', '#6366f1', '#f43f5e', '#14b8a6'
+    ];
+    
+    Object.entries(userScoreboardData.correctByCategory).forEach(([categoryName, categoryCount]) => {
+      if (categoryCount && categoryCount > 0) {
+        categoryLabels.push(categoryName);
+        categoryCounts.push(categoryCount);
+      }
+    });
+    
+    if (categoryCounts.length === 0) {
+      return { labels: [], datasets: [] };
+    }
+
+    return {
+      labels: categoryLabels,
+      datasets: [
+        {
+          data: categoryCounts,
+          backgroundColor: categoryColors.slice(0, categoryCounts.length),
+          borderColor: categoryColors.slice(0, categoryCounts.length),
+          borderWidth: 2,
+          hoverBackgroundColor: categoryColors.slice(0, categoryCounts.length).map(color => color + 'CC'),
+          hoverBorderWidth: 3
+        },
+      ],
+    };
+  }
+
+  hasScoreProgressData(): boolean {
+    return this.scoreProgressChartData.datasets.length > 0;
+  }
+
+  hasPerformanceOverviewData(): boolean {
+    return this.performanceOverviewChartData.datasets.length > 0 && 
+           this.performanceOverviewChartData.datasets[0]?.data?.some(dataPoint => dataPoint > 0);
+  }
+
+  hasCategoryBreakdownData(): boolean {
+    return this.categoryBreakdownChartData.datasets.length > 0 && 
+           this.categoryBreakdownChartData.datasets[0]?.data?.some(dataPoint => dataPoint > 0);
+  }
+
+  private displayErrorMessage(message: string, error: any): void {
     console.error(message, error);
     this.snackBar.open(message, 'Close', {
       duration: 5000,

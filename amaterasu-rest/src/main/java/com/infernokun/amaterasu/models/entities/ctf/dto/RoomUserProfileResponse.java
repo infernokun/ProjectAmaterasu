@@ -20,4 +20,5 @@ public class RoomUserProfileResponse {
     private Integer fails;
     private Integer correct;
     private Map<String, Integer> correctByCategory;
+    private String place;
 }

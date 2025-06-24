@@ -1,47 +1,128 @@
-<div class="chart-section">
-  <div class="chart-header">
-    <h2>Score Progress Over Time</h2>
-    <p>Track your score progression</p>
-  </div>
-  
-  <div *ngIf="loading()" class="loading-container">
-    <mat-spinner></mat-spinner>
-    <p>Loading scoreboard data...</p>
-  </div>
-
-  <div 
-  *ngIf="!loading()" 
-  class="chart-container pie-chart-container"
-  style="height: 400px; position: relative;">
-  
-  <div *ngIf="pieChartData.datasets.length === 0" class="no-data-message">
-    <p>No score data available yet. Start playing to see your progress!</p>
-  </div>
-
-  <canvas *ngIf="pieChartData.datasets.length > 0" baseChart [data]="pieChartData" [options]="pieChartOptions"
-    [type]="pieChartType">
-  </canvas>
-
-  <canvas *ngIf="pieChartData2.datasets.length > 0" baseChart [data]="pieChartData2" [options]="pieChartOptions2"
-    [type]="pieChartType">
-  </canvas>
-</div>
-
-  <div 
-    *ngIf="!loading()" 
-    class="chart-container line-chart-container"
-    style="height: 400px; position: relative;">
-    
-    <div *ngIf="lineChartData.datasets.length === 0" class="no-data-message">
-      <p>No score data available yet. Start playing to see your progress!</p>
+<div class="scoreboard-container">
+  <!-- Loading State -->
+  <div *ngIf="isLoadingScoreboardData()" class="loading-section">
+    <div class="loading-content">
+      <mat-spinner diameter="50"></mat-spinner>
+      <h3>Loading Your Performance Data...</h3>
+      <p>Gathering your scoreboard statistics</p>
     </div>
+  </div>
 
-    <canvas 
-      *ngIf="lineChartData.datasets.length > 0"
-      baseChart
-      [data]="lineChartData"
-      [options]="lineChartOptions"
-      [type]="lineChartType">
-    </canvas>
+  <div *ngIf="!isLoadingScoreboardData()" class="user-stats-header">
+    <ng-container *ngIf="currentUserScoreboard() as roomUser">
+      <div class="user-stats-card" 
+           [class.rank-1]="roomUser.place === '1st'"
+           [class.rank-2]="roomUser.place === '2nd'"
+           [class.rank-3]="roomUser.place === '3rd'">
+        
+        <div class="username">
+          <mat-icon>person</mat-icon>
+          {{ roomUser.username }}
+        </div>
+        
+        <div class="stats-row">
+          <div class="stat-item points-stat">
+            <div class="stat-value">{{ roomUser.points }}</div>
+            <div class="stat-label">Points</div>
+          </div>
+          
+          <div class="stat-item rank-stat">
+            <div class="stat-value">{{ roomUser.place }}</div>
+            <div class="stat-label">Rank</div>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!isLoadingScoreboardData()" class="charts-grid">
+    
+    <!-- Performance Overview Chart (Left Pie Chart) -->
+    <section class="chart-section performance-overview-section">
+      <header class="chart-header">
+        <h2>
+          <mat-icon>pie_chart</mat-icon>
+          Performance Overview
+        </h2>
+        <p class="chart-description">Success rate breakdown</p>
+      </header>
+      
+      <div class="chart-container pie-chart-wrapper">
+        <!-- No Data State -->
+        <div *ngIf="!hasPerformanceOverviewData()" class="empty-state">
+          <mat-icon class="empty-icon">donut_large</mat-icon>
+          <h3>No Performance Data</h3>
+          <p>Answer questions to see your success rate!</p>
+        </div>
+        
+        <!-- Chart -->
+        <canvas 
+          *ngIf="hasPerformanceOverviewData()" 
+          baseChart 
+          [data]="performanceOverviewChartData" 
+          [options]="performanceOverviewChartOptions"
+          [type]="PIE_CHART_TYPE">
+        </canvas>
+      </div>
+    </section>
+
+    <!-- Category Breakdown Chart (Right Pie Chart) -->
+    <section class="chart-section category-breakdown-section">
+      <header class="chart-header">
+        <h2>
+          <mat-icon>category</mat-icon>
+          Category Breakdown
+        </h2>
+        <p class="chart-description">Performance by category</p>
+      </header>
+      
+      <div class="chart-container pie-chart-wrapper">
+        <!-- No Data State -->
+        <div *ngIf="!hasCategoryBreakdownData()" class="empty-state">
+          <mat-icon class="empty-icon">assessment</mat-icon>
+          <h3>No Category Data</h3>
+          <p>Solve challenges from different categories!</p>
+        </div>
+        
+        <!-- Chart -->
+        <canvas 
+          *ngIf="hasCategoryBreakdownData()" 
+          baseChart 
+          [data]="categoryBreakdownChartData" 
+          [options]="categoryBreakdownChartOptions"
+          [type]="PIE_CHART_TYPE">
+        </canvas>
+      </div>
+    </section>
+
+    <!-- Score Progress Chart (Full Width Below) -->
+    <section class="chart-section score-progress-section">
+      <header class="chart-header">
+        <h2>
+          <mat-icon>trending_up</mat-icon>
+          Score Progress Over Time
+        </h2>
+        <p class="chart-description">Track your score progression throughout the competition</p>
+      </header>
+      
+      <div class="chart-container line-chart-wrapper">
+        <!-- No Data State -->
+        <div *ngIf="!hasScoreProgressData()" class="empty-state">
+          <mat-icon class="empty-icon">show_chart</mat-icon>
+          <h3>No Progress Data Available</h3>
+          <p>Start solving challenges to see your score progression over time!</p>
+        </div>
+        
+        <!-- Chart -->
+        <canvas 
+          *ngIf="hasScoreProgressData()"
+          baseChart
+          [data]="scoreProgressChartData"
+          [options]="scoreProgressChartOptions"
+          [type]="LINE_CHART_TYPE">
+        </canvas>
+      </div>
+    </section>
   </div>
 </div>

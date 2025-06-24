@@ -16,7 +16,8 @@ export interface PointsHistoryEntry {
     }>;
     fails?: number;
     correct?: number;
-    correctByCategory?: { cat: string, val: number };
+    correctByCategory?: {[key: string]: number};
+    place?: string;
   }
   
   export class RoomUserResponse {
@@ -25,7 +26,8 @@ export interface PointsHistoryEntry {
     pointsHistory: PointsHistoryEntry[];
     fails: number;
     correct: number;
-    correctByCategory?: { cat: string, val: number };
+    correctByCategory?: {[key: string]: number};
+    place?: string;
   
     constructor(serverResult?: RoomUserServerResponse) {
       this.username = serverResult?.username || 'Unknown User';
@@ -34,6 +36,7 @@ export interface PointsHistoryEntry {
       this.fails = serverResult?.fails || 0;
       this.correct = serverResult?.correct || 0;
       this.correctByCategory = serverResult?.correctByCategory;
+      this.place = serverResult?.place || 'N/A';
     }
   
     private parsePointsHistory(serverHistory: Array<{
