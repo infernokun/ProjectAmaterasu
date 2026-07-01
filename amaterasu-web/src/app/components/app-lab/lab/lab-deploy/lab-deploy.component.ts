@@ -458,32 +458,29 @@ export class LabDeployComponent implements OnInit, OnDestroy {
   private handleLabActionError(err: HttpErrorResponse, labId: string): Observable<ApiResponse<LabActionResult>> {
     console.error(`Failed to process lab ${labId}:`, err);
 
-    let errorContent: string;
     let apiResponse: ApiResponse<LabActionResult>;
 
-    try {
-      apiResponse = err.error;
-      errorContent = JSON.stringify(apiResponse, null, 2);
-
-      if (apiResponse.data.labTracker) {
-        const newTrackedLab = new LabTracker(apiResponse.data.labTracker);
-        this.labTrackers.push(newTrackedLab);
-        this.labTrackerService.setLabTrackersByTeam(this.labTrackers);
-      }
-
-      this.labDeploymentService.startLabDeploymentFinish(apiResponse);
-    } catch (e) {
-      errorContent = JSON.stringify(
-        { error: 'Unexpected error format', details: err.message },
-        null,
-        2
-      );
+    // err.error is only a structured ApiResponse when the backend returned a JSON body.
+    // For network failures / timeouts / non-JSON errors it is a string or an Error, so we
+    // must not blindly dereference err.error.data — that was throwing a TypeError.
+    if (err.error && typeof err.error === 'object' && 'data' in err.error) {
+      apiResponse = err.error as ApiResponse<LabActionResult>;
+    } else {
       apiResponse = {
-        code: 404,
-        data: {},
-        message: 'Failed to process lab action'
+        code: err.status || 500,
+        data: {} as LabActionResult,
+        message: (err.error && typeof err.error === 'string' ? err.error : err.message)
+          || 'Failed to process lab action'
       };
     }
+
+    if (apiResponse?.data?.labTracker) {
+      const newTrackedLab = new LabTracker(apiResponse.data.labTracker);
+      this.labTrackers.push(newTrackedLab);
+      this.labTrackerService.setLabTrackersByTeam(this.labTrackers);
+    }
+
+    this.labDeploymentService.startLabDeploymentFinish(apiResponse);
     return of(apiResponse);
   }
 

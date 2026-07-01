@@ -1,4 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Observable, of, Subject } from 'rxjs';
+import { switchMap, takeUntil } from 'rxjs/operators';
 import { ServerType } from '../../../enums/server-type.enum';
 import { ProxmoxVM } from '../../../models/lab/proxmox-vm.model';
 import { EditDialogService } from '../../../services/edit-dialog.service';
@@ -11,24 +13,36 @@ import { RemoteServerService } from '../../../services/lab/remote-server.service
   styleUrl: './vm-lab-builder.component.scss',
   standalone: false
 })
-export class VMLabBuilderComponent implements OnInit {
+export class VMLabBuilderComponent implements OnInit, OnDestroy {
   vms: ProxmoxVM[] = [];
   selectedVMs: ProxmoxVM[] = [];
+
+  private destroy$ = new Subject<void>();
 
   constructor(private proxmoxService: ProxmoxService, private remoteServerService: RemoteServerService,
     private dialog: EditDialogService
   ) { }
 
   ngOnInit(): void {
-    this.remoteServerService.selectedRemoteServer$.subscribe((selectedServer) => {
-      if (!selectedServer) return;
-
-      if (selectedServer.serverType !== ServerType.PROXMOX) { this.vms = []; return; }
-
-      this.proxmoxService.getVMTemplates(selectedServer.id!).subscribe((vms: ProxmoxVM[]) => {
-        this.vms = vms;
-      });
+    // switchMap cancels an in-flight template fetch when the selected server changes,
+    // preventing a slow response for server A from overwriting server B's templates.
+    // takeUntil tears everything down on destroy so navigation doesn't leak subscriptions.
+    this.remoteServerService.selectedRemoteServer$.pipe(
+      switchMap((selectedServer): Observable<ProxmoxVM[]> => {
+        if (!selectedServer || selectedServer.serverType !== ServerType.PROXMOX) {
+          return of([]);
+        }
+        return this.proxmoxService.getVMTemplates(selectedServer.id!);
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe((vms: ProxmoxVM[]) => {
+      this.vms = vms;
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   toggleSelection(vm: ProxmoxVM): void {
