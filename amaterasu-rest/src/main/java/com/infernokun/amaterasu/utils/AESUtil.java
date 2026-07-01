@@ -48,8 +48,7 @@ public class AESUtil {
             SecretKey tmp = factory.generateSecret(spec);
             SecretKey secretKey = new SecretKeySpec(tmp.getEncoded(), ALGORITHM);
 
-            LOGGER.debug("Derived key (bytes): {}", bytesToHex(secretKey.getEncoded())); // Log derived key
-
+            // NB: never log derived key material, even at DEBUG.
             return secretKey.getEncoded();
         } catch (Exception e) {
             LOGGER.error("Key derivation failed!", e);
@@ -62,7 +61,7 @@ public class AESUtil {
         try {
 
             if (encryptedValue == null) {
-                LOGGER.warn("Attempted to decrypt null value");
+                LOGGER.warn("Attempted to encrypt null value");
                 return null; // or throw a specific exception
             }
 
@@ -111,10 +110,6 @@ public class AESUtil {
             System.arraycopy(decoded, SALT_LENGTH, iv, 0, IV_LENGTH);
             System.arraycopy(decoded, SALT_LENGTH + IV_LENGTH, encryptedData, 0, encryptedData.length);
 
-            LOGGER.debug("Salt (bytes): {}", bytesToHex(salt));
-            LOGGER.debug("IV (bytes): {}", bytesToHex(iv));
-            LOGGER.debug("Encrypted data (bytes): {}", bytesToHex(encryptedData));
-
             byte[] key = deriveKey(salt);
             SecretKeySpec secretKey = new SecretKeySpec(key, ALGORITHM);
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
@@ -126,13 +121,5 @@ public class AESUtil {
             LOGGER.error("Decryption failed: {}", e.getMessage());
             throw new CryptoException("Decryption failed: " + e.getMessage());
         }
-    }
-
-    private String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
     }
 }
