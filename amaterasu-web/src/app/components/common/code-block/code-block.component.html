@@ -6,11 +6,11 @@
       Copy to clipboard
     </button>
     <!-- Show the copied status if isCopied is true -->
-    <p *ngIf="isCopied" class="copied-status">
+    <p *ngIf="isCopied()" class="copied-status">
       <mat-icon>check_circle</mat-icon> Copied
     </p>
   </div>
 
-  <ngs-code-editor [theme]="theme" [codeModel]="codeModel!" [readOnly]="readonly" [options]="options" (valueChanged)="onCodeChanged($event)">
-  </ngs-code-editor>
+  <amaterasu-monaco-editor [theme]="theme" [codeModel]="codeModel!" [readOnly]="readonly" [options]="options" (valueChanged)="onCodeChanged($event)">
+  </amaterasu-monaco-editor>
 </div>

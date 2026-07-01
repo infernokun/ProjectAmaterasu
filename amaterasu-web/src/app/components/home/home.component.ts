@@ -1,9 +1,10 @@
 import { Component } from '@angular/core';
+import { LabComponent } from '../app-lab/lab/lab.component';
 
 @Component({
     selector: 'amaterasu-home',
     templateUrl: './home.component.html',
     styleUrl: './home.component.scss',
-    standalone: false
+    imports: [LabComponent]
 })
 export class HomeComponent { }

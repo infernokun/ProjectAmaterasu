@@ -2,8 +2,8 @@
 <div class="login-container">
   <div class="login-header">
     <h2>Sign In</h2>
-    <p *ngIf="!isLocked">Welcome back! Please enter your credentials</p>
-    <p *ngIf="isLocked" class="text-warning">
+    <p *ngIf="!isLocked()">Welcome back! Please enter your credentials</p>
+    <p *ngIf="isLocked()" class="text-warning">
       Account temporarily locked. Please try again in {{Math.ceil(lockoutTimeLeft / 1000)}} seconds.
     </p>
   </div>
@@ -64,7 +64,7 @@
       <a class="forgot-password" (click)="forgotPassword()">Forgot password?</a>
     </div>
     
-    <button type="submit" class="btn btn-primary" [disabled]="busy || isLocked">
+    <button type="submit" class="btn btn-primary" [disabled]="busy || isLocked()">
       <span *ngIf="!busy">Sign In</span>
       <div *ngIf="busy" class="spinner">
         <mat-spinner diameter="20"></mat-spinner>

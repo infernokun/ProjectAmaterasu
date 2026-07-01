@@ -6,12 +6,16 @@ import { AuthService } from '../../services/auth.service';
 import { ApiResponse } from '../../models/api-response.model';
 import { BehaviorSubject, Observable, take } from 'rxjs';
 import { User } from '../../models/user.model';
+import { NgIf, NgFor, AsyncPipe } from '@angular/common';
+import { MatFabButton } from '@angular/material/button';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatIcon } from '@angular/material/icon';
 
 @Component({
-  selector: 'amaterasu-teams',
-  templateUrl: './teams.component.html',
-  styleUrl: './teams.component.scss',
-  standalone: false
+    selector: 'amaterasu-teams',
+    templateUrl: './teams.component.html',
+    styleUrl: './teams.component.scss',
+    imports: [NgIf, MatFabButton, MatTooltip, MatIcon, NgFor, AsyncPipe]
 })
 export class TeamsComponent implements OnInit {
   teams: Team[] = [];

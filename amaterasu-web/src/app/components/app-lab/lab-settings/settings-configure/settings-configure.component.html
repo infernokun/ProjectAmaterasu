@@ -3,22 +3,22 @@
     <h3>Docker Compose Configuration</h3>
 
     <div class="actions-bar">
-        <button type="button" class="btn btn-primary" (click)="isEditMode = !isEditMode">
-            {{ isEditMode ? 'Cancel Editing' : 'Edit Volumes' }}
+        <button type="button" class="btn btn-primary" (click)="isEditMode.set(!isEditMode())">
+            {{ isEditMode() ? 'Cancel Editing' : 'Edit Volumes' }}
         </button>
-        <button *ngIf="isEditMode" type="button" class="btn btn-success" (click)="saveVolumeChanges()"
+        <button *ngIf="isEditMode()" type="button" class="btn btn-success" (click)="saveVolumeChanges()"
             [disabled]="!hasChanges">
             Save Changes
         </button>
     </div>
 
     <div class="compose-content">
-        <pre class="compose-view" [class.edit-mode]="isEditMode">services:
+        <pre class="compose-view" [class.edit-mode]="isEditMode()">services:
   <ng-container *ngFor="let entry of getServiceEntries()">  {{ entry.name }}:
       image: {{ entry.image }}
       <ng-container *ngIf="entry.volumes && entry.volumes.length > 0">volumes:
         <ng-container *ngFor="let vol of entry.volumes; let i = index">- {{ vol }}
-          <ng-container *ngIf="isEditMode">
+          <ng-container *ngIf="isEditMode()">
             <div class="volume-actions">
               <button type="button" class="btn btn-sm btn-outline-primary" 
                       (click)="browseForVolume(entry.name, i)">
@@ -39,7 +39,7 @@
         [attr.directory]="currentUploadIsDirectory ? '' : null">
 
     <!-- Summary of changes -->
-    <div *ngIf="isEditMode && volumeChanges.size > 0" class="changes-summary">
+    <div *ngIf="isEditMode() && volumeChanges.size > 0" class="changes-summary">
         <h4>Pending Changes</h4>
         <ul class="change-list">
             <li *ngFor="let change of getVolumeChanges()">

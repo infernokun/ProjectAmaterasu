@@ -8,18 +8,25 @@ import {
   Output,
   ViewChild,
 } from '@angular/core';
-import { FormControl, Validators } from '@angular/forms';
+import { FormControl, Validators, ReactiveFormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
-import { MatRadioChange } from '@angular/material/radio';
-import { MatFormField } from '@angular/material/select';
+import { MatRadioChange, MatRadioGroup, MatRadioButton } from '@angular/material/radio';
+import { MatFormField, MatSelect, MatOption } from '@angular/material/select';
 import { QuestionBase } from '../../../../models/simple-form-data.model';
 import { REQUIRED } from '../../../../utils/amaterasu.const';
+import { NgIf, NgClass, NgFor, KeyValuePipe } from '@angular/common';
+import { MatFormField as MatFormField_1, MatLabel, MatHint, MatSuffix, MatError } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatIconButton, MatButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatCheckbox } from '@angular/material/checkbox';
+import { DragnDropDirective } from '../../../../directives/dragndrop.directive';
 
 @Component({
     selector: 'amaterasu-dialog-question',
     templateUrl: './dialog-question.component.html',
     styleUrls: ['./dialog-question.component.scss'],
-    standalone: false
+    imports: [NgIf, MatFormField_1, MatLabel, MatInput, ReactiveFormsModule, MatHint, NgClass, MatIconButton, MatSuffix, MatIcon, MatSelect, NgFor, MatOption, MatRadioGroup, MatRadioButton, MatError, MatCheckbox, DragnDropDirective, MatButton, KeyValuePipe]
 })
 export class DialogQuestionComponent implements OnInit {
   @Input() question!: QuestionBase;

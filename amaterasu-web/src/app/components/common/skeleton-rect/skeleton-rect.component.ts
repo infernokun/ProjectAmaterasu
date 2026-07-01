@@ -15,8 +15,7 @@ import { Component, ElementRef } from '@angular/core';
         // background: rgb(239, 241, 246) no-repeat;
       }
     `,
-    ],
-    standalone: false
+    ]
 })
 export class SkeletonRectComponent {
   width?: string;

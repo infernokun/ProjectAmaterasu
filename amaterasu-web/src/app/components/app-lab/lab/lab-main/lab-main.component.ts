@@ -1,4 +1,4 @@
-import { Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, signal } from '@angular/core';
 import {
   catchError,
   combineLatest,
@@ -25,13 +25,27 @@ import { ConfirmationDialogComponent } from '../../../common/dialog/confirmation
 import { LabTracker } from '../../../../models/lab/lab-tracker.model';
 import { Lab } from '../../../../models/lab/lab.model';
 import { RemoteServer, RemoteServerSelectData } from '../../../../models/lab/remote-server.model';
+import { NgFor, NgClass, NgIf, AsyncPipe } from '@angular/common';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatIcon } from '@angular/material/icon';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatButton } from '@angular/material/button';
 
 @Component({
-  selector: 'amaterasu-lab-main',
-  standalone: false,
-  templateUrl: './lab-main.component.html',
-  styleUrl: './lab-main.component.scss',
-  animations: [FADE_ANIMATION],
+    selector: 'amaterasu-lab-main',
+    templateUrl: './lab-main.component.html',
+    styleUrl: './lab-main.component.scss',
+    animations: [FADE_ANIMATION],
+    imports: [
+        NgFor,
+        NgClass,
+        MatTooltip,
+        MatIcon,
+        NgIf,
+        MatProgressSpinner,
+        MatButton,
+        AsyncPipe,
+    ],
 })
 export class LabMainComponent implements OnInit, OnDestroy {
   readonly LabType = LabType;
@@ -43,7 +57,7 @@ export class LabMainComponent implements OnInit, OnDestroy {
   isLoading$: Observable<boolean> | undefined;
   labsLoading$: Observable<Set<string>> | undefined;
 
-  isLoading = true;
+  isLoading = signal(true);
 
   // Private properties
   private labTrackers: LabTracker[] | undefined = undefined;
@@ -92,7 +106,7 @@ export class LabMainComponent implements OnInit, OnDestroy {
         }
 
         // Set loading to false only after both have emitted
-        this.isLoading = false;
+        this.isLoading.set(false);
       });
   }
 

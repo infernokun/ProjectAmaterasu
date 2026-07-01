@@ -1,8 +1,8 @@
 // login.component.ts
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, OnInit, Output, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatDialogRef } from '@angular/material/dialog';
-import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { LoginService } from '../../../services/login.service';
 import { AuthService } from '../../../services/auth.service';
 import { ApiResponse } from '../../../models/api-response.model';
@@ -10,12 +10,14 @@ import { LoginResponse } from '../../../models/dto/login-response.model';
 import { UserService } from '../../../services/user.service';
 import { User } from '../../../models/user.model';
 import { finalize } from 'rxjs/operators';
+import { NgIf } from '@angular/common';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 
 @Component({
-  selector: 'amaterasu-login',
-  templateUrl: './login.component.html',
-  styleUrls: ['./login.component.scss'],
-  standalone: false
+    selector: 'amaterasu-login',
+    templateUrl: './login.component.html',
+    styleUrls: ['./login.component.scss'],
+    imports: [NgIf, ReactiveFormsModule, FormsModule, MatProgressSpinner]
 })
 export class LoginComponent implements OnInit {
   loginForm: FormGroup = new FormGroup({});
@@ -26,7 +28,7 @@ export class LoginComponent implements OnInit {
   errorMessage = '';
   loginAttempts = 0;
   maxLoginAttempts = 5;
-  isLocked = false;
+  isLocked = signal(false);
   lockoutTimeLeft = 0;
   lockoutTimer: any;
   
@@ -75,7 +77,7 @@ export class LoginComponent implements OnInit {
     }
     
     // Check if account is locked
-    if (this.isLocked) {
+    if (this.isLocked()) {
       this.errorMessage = `Account temporarily locked. Please try again in ${Math.ceil(this.lockoutTimeLeft / 1000)} seconds.`;
       return;
     }
@@ -163,7 +165,7 @@ export class LoginComponent implements OnInit {
     
     // Implement account lockout after too many failed attempts
     if (this.loginAttempts >= this.maxLoginAttempts) {
-      this.isLocked = true;
+      this.isLocked.set(true);
       this.lockoutTimeLeft = 60000; // 1 minute lockout
       
       this.errorMessage = `Too many failed attempts. Account temporarily locked for 60 seconds.`;
@@ -171,7 +173,7 @@ export class LoginComponent implements OnInit {
       this.lockoutTimer = setInterval(() => {
         this.lockoutTimeLeft -= 1000;
         if (this.lockoutTimeLeft <= 0) {
-          this.isLocked = false;
+          this.isLocked.set(false);
           this.loginAttempts = 0;
           clearInterval(this.lockoutTimer);
         }

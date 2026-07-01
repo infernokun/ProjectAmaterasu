@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { LabService } from '../../../services/lab/lab.service';
 import { BehaviorSubject, catchError, combineLatest, of, Subject, takeUntil } from 'rxjs';
@@ -9,6 +9,10 @@ import { ApiResponse } from '../../../models/api-response.model';
 
 import { load } from "js-yaml";
 import { LabTracker } from '../../../models/lab/lab-tracker.model';
+import { NgIf, NgFor, DecimalPipe, PercentPipe, KeyValuePipe } from '@angular/common';
+import { SettingsConfigureComponent } from './settings-configure/settings-configure.component';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { DurationPipe } from '../../../pipes/duration.pipe';
 
 export interface Volume {
   source?: string;
@@ -27,10 +31,10 @@ export interface ComposeFile {
 }
 
 @Component({
-  selector: 'amaterasu-lab-settings',
-  templateUrl: './lab-settings.component.html',
-  styleUrl: './lab-settings.component.scss',
-  standalone: false
+    selector: 'amaterasu-lab-settings',
+    templateUrl: './lab-settings.component.html',
+    styleUrl: './lab-settings.component.scss',
+    imports: [NgIf, NgFor, SettingsConfigureComponent, MatProgressSpinner, DecimalPipe, PercentPipe, KeyValuePipe, DurationPipe]
 })
 export class LabSettingsComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
@@ -45,7 +49,7 @@ export class LabSettingsComponent implements OnInit, OnDestroy {
   labTracker: LabTracker | undefined;
   ServerType = ServerType;
 
-  isLoading: boolean = true;
+  isLoading = signal(true);
 
   constructor(private route: ActivatedRoute, private labService: LabService, private labTrackerService: LabTrackerService, private userService: UserService) { }
 
@@ -85,7 +89,7 @@ export class LabSettingsComponent implements OnInit, OnDestroy {
       if (!labTracker.services || labTracker.services.length < 1) {
         this.loadAdditionalSettings(labTracker);
       } else {
-        this.isLoading = false;
+        this.isLoading.set(false);
       }
     });
   }
@@ -93,7 +97,7 @@ export class LabSettingsComponent implements OnInit, OnDestroy {
   private loadAdditionalSettings(labTracker: LabTracker): void {
     if (!labTracker.id || !labTracker.remoteServer?.id) {
       console.error('Missing required IDs to load settings');
-      this.isLoading = false;
+      this.isLoading.set(false);
       return;
     }
 
@@ -102,7 +106,7 @@ export class LabSettingsComponent implements OnInit, OnDestroy {
       .pipe(
         takeUntil(this.destroy$),
         catchError(error => {
-          this.isLoading = false;
+          this.isLoading.set(false);
           console.error('Failed to get lab settings:', error);
           return of({ code: 404, data: {}, message: 'Failed to fetch settings' });
         })
@@ -126,7 +130,7 @@ export class LabSettingsComponent implements OnInit, OnDestroy {
           }
         }
 
-        this.isLoading = false;
+        this.isLoading.set(false);
       });
   }
 }

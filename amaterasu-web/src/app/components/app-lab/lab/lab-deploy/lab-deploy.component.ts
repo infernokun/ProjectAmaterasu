@@ -23,13 +23,29 @@ import { LabActionResult } from '../../../../models/lab/lab-action-result.model'
 import { LabTracker, LabTrackerServicesForm } from '../../../../models/lab/lab-tracker.model';
 import { Lab } from '../../../../models/lab/lab.model';
 import { RemoteServer, RemoteServerSelectData } from '../../../../models/lab/remote-server.model';
+import { NgFor, NgClass, NgIf, AsyncPipe } from '@angular/common';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatIcon } from '@angular/material/icon';
+import { RouterLink } from '@angular/router';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatButton } from '@angular/material/button';
 
 @Component({
-  selector: 'amaterasu-lab-deploy',
-  standalone: false,
-  templateUrl: './lab-deploy.component.html',
-  styleUrl: './lab-deploy.component.scss',
-  animations: [FADE_ANIMATION],
+    selector: 'amaterasu-lab-deploy',
+    templateUrl: './lab-deploy.component.html',
+    styleUrl: './lab-deploy.component.scss',
+    animations: [FADE_ANIMATION],
+    imports: [
+        NgFor,
+        NgClass,
+        NgIf,
+        MatTooltip,
+        MatIcon,
+        RouterLink,
+        MatProgressSpinner,
+        MatButton,
+        AsyncPipe,
+    ],
 })
 export class LabDeployComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();

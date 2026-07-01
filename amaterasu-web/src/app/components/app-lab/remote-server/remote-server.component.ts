@@ -6,12 +6,18 @@ import { ApiResponse } from '../../../models/api-response.model';
 import { BehaviorSubject, Observable, Subject, take, takeUntil } from 'rxjs';
 import { User } from '../../../models/user.model';
 import { RemoteServer, RemoteServerFormData } from '../../../models/lab/remote-server.model';
+import { NgIf, NgFor, AsyncPipe } from '@angular/common';
+import { MatFabButton, MatIconButton } from '@angular/material/button';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatIcon } from '@angular/material/icon';
+import { ReactiveFormsModule } from '@angular/forms';
+import { DurationPipe } from '../../../pipes/duration.pipe';
 
 @Component({
-  selector: 'amaterasu-remote-server',
-  templateUrl: './remote-server.component.html',
-  styleUrls: ['./remote-server.component.scss'],
-  standalone: false
+    selector: 'amaterasu-remote-server',
+    templateUrl: './remote-server.component.html',
+    styleUrls: ['./remote-server.component.scss'],
+    imports: [NgIf, MatFabButton, MatTooltip, MatIcon, NgFor, ReactiveFormsModule, MatIconButton, AsyncPipe, DurationPipe]
 })
 export class RemoteServerComponent implements OnInit, OnDestroy {
   remoteServers: RemoteServer[] = [];

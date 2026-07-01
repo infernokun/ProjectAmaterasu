@@ -1,18 +1,28 @@
 import { Component, ElementRef, Input, ViewChild } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
-import { MatTableDataSource } from '@angular/material/table';
+import { MatSort, MatSortHeader } from '@angular/material/sort';
+import { MatTableDataSource, MatTable, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow, MatNoDataRow } from '@angular/material/table';
 import { LabTrackerService } from '../../services/lab/lab-tracker.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TABLE_ANIMATION } from '../../utils/animations';
 import { LabTracker } from '../../models/lab/lab-tracker.model';
+import { MatFormField, MatLabel, MatPrefix, MatSuffix } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatIcon } from '@angular/material/icon';
+import { NgIf, NgClass, DatePipe } from '@angular/common';
+import { MatIconButton, MatButton } from '@angular/material/button';
+import { MatMenuTrigger, MatMenu } from '@angular/material/menu';
+import { MatSelect, MatOption } from '@angular/material/select';
+import { ReactiveFormsModule, FormsModule } from '@angular/forms';
+import { MatDateRangeInput, MatStartDate, MatEndDate, MatDatepickerToggle, MatDateRangePicker } from '@angular/material/datepicker';
+import { MatTooltip } from '@angular/material/tooltip';
 
 @Component({
-  selector: 'amaterasu-audit-log',
-  templateUrl: './audit-log.component.html',
-  styleUrls: ['./audit-log.component.scss'],
-  animations: [TABLE_ANIMATION],
-  standalone: false
+    selector: 'amaterasu-audit-log',
+    templateUrl: './audit-log.component.html',
+    styleUrls: ['./audit-log.component.scss'],
+    animations: [TABLE_ANIMATION],
+    imports: [MatFormField, MatLabel, MatInput, MatIcon, MatPrefix, NgIf, MatIconButton, MatSuffix, MatButton, MatMenuTrigger, MatMenu, MatSelect, ReactiveFormsModule, FormsModule, MatOption, MatDateRangeInput, MatStartDate, MatEndDate, MatDatepickerToggle, MatDateRangePicker, MatTable, MatSort, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatSortHeader, MatCellDef, MatCell, NgClass, MatTooltip, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow, MatNoDataRow, MatPaginator, DatePipe]
 })
 export class AuditLogComponent {
   @ViewChild('auditLogSort') auditLogSort = new MatSort();

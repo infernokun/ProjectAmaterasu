@@ -6,12 +6,16 @@ import { RoomUserResponse } from '../../../models/ctf/room-user-response.model';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ChartConfiguration, ChartData } from 'chart.js';
 import { ActivatedRoute } from '@angular/router';
+import { NgIf } from '@angular/common';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatIcon } from '@angular/material/icon';
+import { BaseChartDirective } from 'ng2-charts';
 
 @Component({
-  selector: 'app-player-scoreboard',
-  standalone: false,
-  templateUrl: './player-scoreboard.component.html',
-  styleUrl: './player-scoreboard.component.scss'
+    selector: 'app-player-scoreboard',
+    templateUrl: './player-scoreboard.component.html',
+    styleUrl: './player-scoreboard.component.scss',
+    imports: [NgIf, MatProgressSpinner, MatIcon, BaseChartDirective]
 })
 export class PlayerScoreboardComponent implements OnInit, OnDestroy {
   private readonly componentDestroyed$ = new Subject<void>();

@@ -1,9 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
-@Pipe({
-    name: 'bashColoring',
-    standalone: false
-})
+@Pipe({ name: 'bashColoring' })
 export class BashColoringPipe implements PipeTransform {
 
   transform(value: string, applyColor: boolean): string {

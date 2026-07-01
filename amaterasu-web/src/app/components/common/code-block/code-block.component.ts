@@ -5,20 +5,25 @@ import {
   EventEmitter,
   OnInit,
   ChangeDetectorRef,
-  ViewChild,
+  signal,
 } from '@angular/core';
-import { CodeEditorComponent, CodeModel } from '@ngstack/code-editor';
+import { CodeModel, MonacoEditorComponent } from '../monaco-editor/monaco-editor.component';
+import { NgIf } from '@angular/common';
+import { MatButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
 
 @Component({
-  selector: 'amaterasu-code-block',
-  templateUrl: './code-block.component.html',
-  styleUrls: ['./code-block.component.scss'],
-  standalone: false,
+    selector: 'amaterasu-code-block',
+    templateUrl: './code-block.component.html',
+    styleUrls: ['./code-block.component.scss'],
+    imports: [
+        NgIf,
+        MatButton,
+        MatIcon,
+        MonacoEditorComponent,
+    ],
 })
 export class CodeBlockComponent implements OnInit {
-  @ViewChild(CodeEditorComponent, { static: false }) _codeEditor:
-    | CodeEditorComponent
-    | undefined;
   @Input() id: string = '';
   @Input() placeholder: string = '';
   @Input() readonly: boolean = false;
@@ -33,7 +38,7 @@ export class CodeBlockComponent implements OnInit {
   @Output() onVersionChange = new EventEmitter<number>();
   @Output() onChange = new EventEmitter<string>();
 
-  isCopied = false;
+  isCopied = signal(false);
   theme = 'vs-dark';
 
   options = {
@@ -63,10 +68,10 @@ export class CodeBlockComponent implements OnInit {
 
   copyToClipboard() {
     navigator.clipboard.writeText(this.codeModel!.value).then(() => {
-      this.isCopied = true;
+      this.isCopied.set(true);
       // Hide the check mark after 2 seconds
       setTimeout(() => {
-        this.isCopied = false;
+        this.isCopied.set(false);
       }, 2000);
     });
   }
