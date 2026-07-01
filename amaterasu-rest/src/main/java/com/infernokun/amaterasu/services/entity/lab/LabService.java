@@ -184,7 +184,8 @@ public class LabService extends BaseService {
                         .build()
         );
 
-        if (remoteServer.getRemoteServerStats().getStatus() != LabStatus.ACTIVE) {
+        if (remoteServer.getRemoteServerStats() == null
+                || remoteServer.getRemoteServerStats().getStatus() != LabStatus.ACTIVE) {
             return new LabActionResult(false, labTracker,
                     remoteServer.getName() + " is not ACTIVE!");
         }
@@ -195,24 +196,32 @@ public class LabService extends BaseService {
         }
 
         LabActionResult labActionResult = labActionService.startLab(labTracker, remoteServer);
-        labActionResult.getLabTracker().setUpdatedAt(LocalDateTime.now());
-        labActionResult.getLabTracker().setUpdatedBy(user.getId());
-        labActionResult.getLabTracker().setLabStatus(labActionResult.isSuccessful() ? LabStatus.ACTIVE : LabStatus.FAILED);
 
-        if (labActionResult.getLabTracker().getLabStatus().equals(LabStatus.ACTIVE)) {
+        // Unimplemented lab types (DOCKER_CONTAINER/KUBERNETES/UNKNOWN) return an empty result
+        // with a null tracker; fall back to the tracker we already resolved so we never NPE.
+        if (labActionResult.getLabTracker() == null) {
+            labActionResult.setLabTracker(labTracker);
+        }
+
+        LabTracker resultTracker = labActionResult.getLabTracker();
+        resultTracker.setUpdatedAt(LocalDateTime.now());
+        resultTracker.setUpdatedBy(user.getId());
+        resultTracker.setLabStatus(labActionResult.isSuccessful() ? LabStatus.ACTIVE : LabStatus.FAILED);
+
+        if (resultTracker.getLabStatus().equals(LabStatus.ACTIVE) && resultTracker.getServices() != null) {
             AtomicBoolean inactiveService = new AtomicBoolean(false);
-            labActionResult.getLabTracker().getServices().forEach((service -> {
-                if (!service.getState().equals("running")) {
+            resultTracker.getServices().forEach((service -> {
+                if (!"running".equals(service.getState())) {
                     inactiveService.set(true);
                 }
             }));
 
             if (inactiveService.get()) {
-                labActionResult.getLabTracker().setLabStatus(LabStatus.DEGRADED);
+                resultTracker.setLabStatus(LabStatus.DEGRADED);
             }
         }
 
-        labActionResult.getLabTracker().setRemoteServer(remoteServer);
+        resultTracker.setRemoteServer(remoteServer);
 
         try {
             labTrackerService.updateLabTracker(labActionResult.getLabTracker());

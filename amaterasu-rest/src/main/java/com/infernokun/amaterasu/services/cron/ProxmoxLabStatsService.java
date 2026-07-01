@@ -32,7 +32,10 @@ public class ProxmoxLabStatsService extends BaseService {
                 labTracker -> labTracker.getLabStatus() == LabStatus.ACTIVE).toList();
 
         labTrackers.forEach(labTracker -> {
-            if (labTracker.getLabStarted().getLabType() != LabType.VIRTUAL_MACHINE && labTracker.getRemoteServer().getServerType() != ServerType.PROXMOX) return;
+            // Only VM labs running on a Proxmox server should be polled. The previous "&&"
+            // only skipped when BOTH were wrong, so e.g. a VM lab misconfigured onto a Docker
+            // host still hit the Proxmox API. Skip unless it is a VM lab AND on Proxmox.
+            if (labTracker.getLabStarted().getLabType() != LabType.VIRTUAL_MACHINE || labTracker.getRemoteServer().getServerType() != ServerType.PROXMOX) return;
             List<ProxmoxVM> vms = proxmoxService.getVMsByIds(
                     labTracker.getRemoteServer(),
                     labTracker.getVms().stream().map(ProxmoxVM::getVmid).collect(Collectors.toList())

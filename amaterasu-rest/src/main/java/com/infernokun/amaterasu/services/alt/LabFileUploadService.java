@@ -32,16 +32,14 @@ public class LabFileUploadService extends BaseService {
                     e.getMessage(), e);
         }
 
-        String command = String.format(
-                "DIR=%s/%s && mkdir -p $DIR && cd $DIR && " +
-                        "echo \"%s\" > $DIR/%s && cat *",
-                amaterasuConfig.getUploadDir(),
-                lab.getId(),
-                content,
-                lab.getDockerFile()
-        );
-        RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(command,
-                remoteServer);
+        String remotePath = String.format("%s/%s/%s",
+                amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile());
+        RemoteCommandResponse remoteCommandResponse = remoteCommandService.writeRemoteFile(
+                remotePath, content, remoteServer);
+
+        if (remoteCommandResponse.getExitCode() != 0) {
+            throw new FileUploadException("Failed to upload compose file: " + remoteCommandResponse.getBoth());
+        }
 
         String response = remoteCommandResponse.getBoth();
 

@@ -17,7 +17,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
+import java.util.Base64;
 
 @Service
 public class RemoteCommandService extends BaseService {
@@ -47,6 +49,26 @@ public class RemoteCommandService extends BaseService {
         } finally {
             disconnectSession(session, remoteServer);
         }
+    }
+
+    /**
+     * Safely writes {@code content} to {@code remotePath} on the remote server.
+     * <p>
+     * The content is base64-encoded locally and decoded on the remote host, so
+     * arbitrary bytes (quotes, {@code $}, backticks, newlines, YAML with shell
+     * metacharacters, ...) can never be interpreted by the remote shell. This
+     * replaces the previous {@code echo "<content>" | tee} approach, which was
+     * both corruption-prone and a command-injection vector. Parent directories
+     * are created automatically.
+     */
+    public RemoteCommandResponse writeRemoteFile(String remotePath, String content, RemoteServer remoteServer) {
+        String encoded = Base64.getEncoder().encodeToString(content.getBytes(StandardCharsets.UTF_8));
+        // base64 output only contains [A-Za-z0-9+/=], so single-quoting it is safe.
+        // remotePath is server-controlled (config upload dir + ids), also safe to quote.
+        String cmd = String.format(
+                "mkdir -p \"$(dirname '%s')\" && printf '%%s' '%s' | base64 -d > '%s'",
+                remotePath, encoded, remotePath);
+        return handleRemoteCommand(cmd, remoteServer);
     }
 
     public boolean validateConnection(RemoteServer remoteServer) {
@@ -96,7 +118,6 @@ public class RemoteCommandService extends BaseService {
 
             session.setPassword(decryptedPassword);
             session.setConfig("StrictHostKeyChecking", "no");
-            session.setConfig("session.connect", "false");
             session.setConfig("PreferredAuthentications", "publickey,password,keyboard-interactive");
 
             session.connect(timeout);
@@ -143,8 +164,9 @@ public class RemoteCommandService extends BaseService {
     }
 
     private CommandResult executeRemoteCommand(Session session, String command) {
+        ChannelExec channel = null;
         try {
-            ChannelExec channel = (ChannelExec) session.openChannel("exec");
+            channel = (ChannelExec) session.openChannel("exec");
             channel.setCommand(command);
             InputStream inputStream = channel.getInputStream();
             InputStream errorStream = channel.getErrStream();
@@ -155,11 +177,15 @@ public class RemoteCommandService extends BaseService {
             String errorOutput = readStream(errorStream);
             int exitCode = channel.getExitStatus();
 
-            channel.disconnect();
-
             return new CommandResult(output, errorOutput, exitCode);
         } catch (JSchException | IOException e) {
             throw new RemoteCommandException("Exception while running command: " + command);
+        } finally {
+            // Always release the channel; previously a failure between connect and
+            // disconnect leaked the channel until the whole session was torn down.
+            if (channel != null && channel.isConnected()) {
+                channel.disconnect();
+            }
         }
     }
 

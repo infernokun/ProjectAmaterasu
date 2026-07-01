@@ -3,12 +3,6 @@ package com.infernokun.amaterasu.services.alt;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.api.command.CreateContainerResponse;
-import com.github.dockerjava.api.model.Container;
-import com.github.dockerjava.core.*;
-import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
-import com.github.dockerjava.transport.DockerHttpClient;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.models.DockerServiceInfo;
 import com.infernokun.amaterasu.models.LabActionResult;
@@ -19,9 +13,6 @@ import com.infernokun.amaterasu.services.BaseService;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.time.Duration;
 import java.util.*;
 
 @Service
@@ -29,46 +20,9 @@ public class DockerService extends BaseService {
     private final RemoteCommandService remoteCommandService;
     private final AmaterasuConfig amaterasuConfig;
 
-    private DockerClientConfig dockerClientConfig;
-    private DockerClient dockerClient;
-
     public DockerService(RemoteCommandService remoteCommandService, AmaterasuConfig amaterasuConfig) {
         this.remoteCommandService = remoteCommandService;
         this.amaterasuConfig = amaterasuConfig;
-    }
-
-    public void startDockerContainer(String imageName, String host) throws URISyntaxException {
-        DefaultDockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder()
-                .withDockerHost("tcp://" + host + ":2375")
-                .build();
-
-        DockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()
-                .dockerHost(new URI("tcp://" + host + ":2375"))
-                .maxConnections(100)
-                .connectionTimeout(Duration.ofSeconds(30))
-                .responseTimeout(Duration.ofSeconds(45))
-                .build();
-
-        DockerClient dockerClient = DockerClientImpl.getInstance(config, httpClient);
-
-        try {
-            // Try pinging the Docker daemon
-            dockerClient.pingCmd().exec();
-            LOGGER.info("Docker daemon is responsive and running.");
-        } catch (Exception e) {
-            // Log any errors that occur when pinging the Docker daemon
-            LOGGER.error("Error while pinging Docker daemon: {}", e.getMessage());
-        }
-
-        CreateContainerResponse containerResponse = dockerClient.createContainerCmd(imageName)
-                .withName("some-docker-container")
-                .exec();
-
-        dockerClient.startContainerCmd(containerResponse.getId()).exec();
-    }
-
-    public void stopDockerContainer(String containerId) {
-        dockerClient.stopContainerCmd(containerId).exec();
     }
 
     public boolean dockerHealthCheck(RemoteServer remoteServer) {
@@ -94,10 +48,12 @@ public class DockerService extends BaseService {
             String modifiedYAML = modifyDockerComposeYAML(composeYAML, labTracker.getId());
             LOGGER.info("Modified Docker Compose YAML for LabTracker: {}", modifiedYAML);
 
-            // Create the lab tracker-based Docker Compose file
-            String createLabTrackerBasedFileCmd = String.format("DIR=%s/tracker-compose && mkdir -p $DIR && echo \"%s\" | tee $DIR/%s",
-                    amaterasuConfig.getUploadDir(), modifiedYAML, labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
-            RemoteCommandResponse createLabTrackerBasedFileOutput = remoteCommandService.handleRemoteCommand(createLabTrackerBasedFileCmd, remoteServer);
+            // Create the lab tracker-based Docker Compose file (base64-safe write, no shell injection)
+            String trackerComposePath = String.format("%s/tracker-compose/%s",
+                    amaterasuConfig.getUploadDir(),
+                    labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
+            RemoteCommandResponse createLabTrackerBasedFileOutput = remoteCommandService.writeRemoteFile(
+                    trackerComposePath, modifiedYAML, remoteServer);
             LOGGER.info("Docker Compose file creation response: {}", createLabTrackerBasedFileOutput.getBoth());
 
             if (createLabTrackerBasedFileOutput.getExitCode() != 0) {
@@ -126,7 +82,9 @@ public class DockerService extends BaseService {
                         "Failed to inspect Docker container. Exiting.");
             }
 
-            labTracker.setServices(parseDockerInspectOutput(checkTrackerProcessOutput.getBoth().trim()));
+            // Parse stdout only: docker/compose routinely writes warnings to stderr, and
+            // getBoth() would splice those into the JSON and break parsing (false failures).
+            labTracker.setServices(parseDockerInspectOutput(checkTrackerProcessOutput.getOutput().trim()));
 
             return LabActionResult.builder()
                     .labTracker(labTracker)
@@ -139,9 +97,28 @@ public class DockerService extends BaseService {
         }
     }
 
+    /**
+     * Builds a teardown command that works whether or not the tracker compose file
+     * still exists. If the file is present we use {@code docker-compose down}; if a
+     * failure happened before the file was written we fall back to removing any
+     * containers labelled with the compose project id. The old command always passed
+     * {@code -f <file>} and chained with {@code &&}, so a missing file (or a failed
+     * {@code logs}) left containers orphaned on every failure.
+     */
+    private String buildTeardownCommand(LabTracker labTracker) {
+        String composeFileName = labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile();
+        return String.format(
+                "cd %s/tracker-compose && if [ -f %s ]; then docker-compose -p %s -f %s down; " +
+                        "else docker ps -aq --filter label=com.docker.compose.project=%s | xargs -r docker rm -f; fi",
+                amaterasuConfig.getUploadDir(), composeFileName, labTracker.getId(), composeFileName,
+                labTracker.getId());
+    }
+
     public LabActionResult stopDockerComposeOnFail(LabTracker labTracker, RemoteServer remoteServer, String msg) {
-        String stopTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s logs && docker-compose -p %s -f %s down",
-                amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId(), labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
+        // Capture logs (best-effort, separated by ';' so a logs failure never blocks teardown),
+        // then tear the project down.
+        String stopTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s logs 2>/dev/null; %s",
+                amaterasuConfig.getUploadDir(), labTracker.getId(), buildTeardownCommand(labTracker));
         RemoteCommandResponse stopTrackerComposeOutput = remoteCommandService.handleRemoteCommand(stopTrackerComposeCmd, remoteServer);
         if (stopTrackerComposeOutput.getExitCode() != 0) {
             LOGGER.error("Critical failed: Failed to stop the docker compose!!! ({})", msg);
@@ -160,8 +137,7 @@ public class DockerService extends BaseService {
 
     public LabActionResult stopDockerCompose(LabTracker labTracker, RemoteServer remoteServer) {
         try {
-            String stopTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s -f %s down",
-                    amaterasuConfig.getUploadDir(), labTracker.getId(), labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
+            String stopTrackerComposeCmd = buildTeardownCommand(labTracker);
             RemoteCommandResponse stopTrackerComposeOutput = remoteCommandService.handleRemoteCommand(stopTrackerComposeCmd, remoteServer);
             if (stopTrackerComposeOutput.getExitCode() != 0) {
                 LOGGER.error("Failed to stop the docker compose!!!");
@@ -260,35 +236,40 @@ public class DockerService extends BaseService {
             for (JsonNode containerNode : rootNode) {
                 DockerServiceInfo info = new DockerServiceInfo();
 
-                // Extract Name (remove leading "/")
-                info.setName(containerNode.get("Name").asText().substring(1));
+                // Extract Name (remove leading "/"). Use path() throughout so a missing
+                // field yields a MissingNode instead of null -> no NPE on containers that
+                // lack ExposedPorts, Mounts, networks, etc.
+                info.setName(containerNode.path("Name").asText("").replaceFirst("^/", ""));
                 // Extract State
-                info.setState(containerNode.get("State").get("Status").asText());
+                info.setState(containerNode.path("State").path("Status").asText("unknown"));
 
-                // Extract IP addresses
-                containerNode.get("NetworkSettings").get("Networks").fields().forEachRemaining(
+                // Extract IP addresses and network names in a single pass
+                containerNode.path("NetworkSettings").path("Networks").fields().forEachRemaining(
                         entry -> {
-                            String ip = entry.getValue().get("IPAddress").asText();
-
-                            if (!Objects.equals(ip, "")) {
-                                info.getIpAddresses().add(entry.getValue().get("IPAddress").asText());
+                            String ip = entry.getValue().path("IPAddress").asText("");
+                            if (!ip.isEmpty()) {
+                                info.getIpAddresses().add(ip);
                             }
+                            info.getNetworks().add(entry.getKey());
                         });
 
-                containerNode.get("NetworkSettings").get("Networks").fields().forEachRemaining(
-                        entry -> info.getNetworks().add(entry.getKey()));
-
-                // Extract Internal Ports
-                containerNode.get("Config").get("ExposedPorts").fieldNames().forEachRemaining(info.getPorts()::add);
+                // Extract Internal Ports (may be absent for containers with no exposed ports)
+                JsonNode exposedPorts = containerNode.path("Config").path("ExposedPorts");
+                if (exposedPorts.isObject()) {
+                    exposedPorts.fieldNames().forEachRemaining(info.getPorts()::add);
+                }
 
                 // Extract Mounts
-                containerNode.get("Mounts").forEach(mountNode -> {
-                    Map<String, String> newMap = new HashMap<>();
-                    newMap.put("hostVolume", mountNode.get("Source").asText());
-                    newMap.put("containerVolume", mountNode.get("Destination").asText());
+                JsonNode mounts = containerNode.path("Mounts");
+                if (mounts.isArray()) {
+                    mounts.forEach(mountNode -> {
+                        Map<String, String> newMap = new HashMap<>();
+                        newMap.put("hostVolume", mountNode.path("Source").asText(""));
+                        newMap.put("containerVolume", mountNode.path("Destination").asText(""));
 
-                    info.getVolumes().add(newMap);
-                });
+                        info.getVolumes().add(newMap);
+                    });
+                }
 
                 containerInfos.add(info);
             }
@@ -297,9 +278,6 @@ public class DockerService extends BaseService {
         }
 
         return containerInfos;
-    }
-    public List<Container> listContainers() {
-        return dockerClient.listContainersCmd().exec();
     }
 
 }

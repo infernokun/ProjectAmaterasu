@@ -186,25 +186,40 @@ def quick_delete(x):
 
 
 if __name__ == "__main__":
-    # main()
-    quick_delete(get_vmids_with_short_uptime_and_high_vmid())
-    # print(get_vms())
-    # print(get_vm(100))
-    # print(get_vm_config(896545858))
-    # print(get_node_networks())
-    print(qemu(744876730))
-    vms = [102, 104, 105, 106]
+    # WARNING: this module is an experimental Proxmox scratch script, not a service.
+    # It previously ran `quick_delete(...)` unconditionally on every invocation, which
+    # STOPS AND DELETES every VM matching a heuristic (uptime < 10h and vmid > 120) —
+    # including freshly cloned student labs — with no confirmation or dry-run.
+    #
+    # Destructive actions are now gated behind an explicit CLI flag so that simply
+    # running `python main.py` is safe.
+    import argparse
 
-    for vm in vms:
-        config = get_vm_config(vm)["data"]
-        print(config["name"])
-        for key, value in config.items():
-            if key.startswith("net"):
-                print(value)
+    parser = argparse.ArgumentParser(description="Proxmox lab helper (experimental)")
+    parser.add_argument(
+        "--quick-delete",
+        action="store_true",
+        help="Stop and DELETE all VMs with short uptime and high vmid (DESTRUCTIVE).",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="With --quick-delete, only print the vmids that would be deleted.",
+    )
+    args = parser.parse_args()
 
-    """for x in get_node_networks()["data"]:
-        print(
-            x["iface"],
-            x["address"] if "address" in x else "",
-            x["cidr"] if "cidr" in x else "",
-        )"""
+    if args.quick_delete:
+        targets = get_vmids_with_short_uptime_and_high_vmid()
+        print(f"Matched vmids: {targets}")
+        if args.dry_run:
+            print("Dry run: no VMs were stopped or deleted.")
+        else:
+            confirm = input(
+                f"About to STOP and DELETE {len(targets)} VM(s): {targets}. Type 'yes' to proceed: "
+            )
+            if confirm.strip().lower() == "yes":
+                quick_delete(targets)
+            else:
+                print("Aborted.")
+    else:
+        print("Nothing to do. Pass --quick-delete (optionally with --dry-run) to act.")

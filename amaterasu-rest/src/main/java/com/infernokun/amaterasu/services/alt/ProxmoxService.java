@@ -128,7 +128,9 @@ public class ProxmoxService extends BaseService {
                     url, HttpMethod.GET, entity, new ParameterizedTypeReference<>() { }
             );
 
-            if (response.getBody() != null) {
+            // Guard against a null "data" payload (e.g. the VM was deleted out-of-band in the
+            // Proxmox UI). Adding a null here would later NPE when reading vm.getVmid().
+            if (response.getBody() != null && response.getBody().get("data") != null) {
                 filteredVMs.add(response.getBody().get("data"));
             }
         }

@@ -102,8 +102,11 @@ public class LabTrackerService extends BaseService {
 
     public String getTrackerLabLogs(LabTracker labTracker, RemoteServer dockerServer, String service) {
         try {
+            // Resolve single-service logs through compose so the project-scoped container
+            // is found; "docker logs <service>" used the bare service name and never matched
+            // the actual container (named <project>_<service>_N).
             String cmd = service.equals("all") ? String.format("docker-compose -p %s logs", labTracker.getId()) :
-                    String.format("docker logs %s", service);
+                    String.format("docker-compose -p %s logs %s", labTracker.getId(), service);
 
             RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(cmd, dockerServer);
 
@@ -113,44 +116,28 @@ public class LabTrackerService extends BaseService {
         }
     }
 
-    private String getString(Object object) {
-        String cmd;
-        if (object instanceof Lab) {
-            cmd = String.format("DIR=%s/%s && cd $DIR && cat %s",
-                    amaterasuConfig.getUploadDir(), ((Lab) object).getId(), ((Lab) object).getDockerFile());
-        } else if (object instanceof LabTracker) {
-            cmd = String.format("DIR=%s/tracker-compose && cd $DIR && cat %s",
-                    amaterasuConfig.getUploadDir(), ((LabTracker) object).getId() + "_" + ((LabTracker) object)
-                            .getLabStarted().getDockerFile());
-        } else {
-            throw new IllegalArgumentException("Unsupported lab type: " + object.getClass().getName());
-        }
-        return cmd;
-    }
-
     public List<RemoteCommandResponse> addVolumeFiles(LabTracker labTracker, RemoteServer remoteServer,
                                                       List<VolumeChangeRequest> volumeChanges,
                                                       List<MultipartFile> files) {
         List<RemoteCommandResponse> result = new ArrayList<>();
 
         volumeChanges.forEach(volumeChange -> {
-            String content = "";
+            String content;
             try {
                 content = new String(files.get(volumeChange.getIndex()).getBytes(), StandardCharsets.UTF_8);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-            String createFileCmd = "";
-            if (volumeChange.isDirectory()) {
-                createFileCmd = String.format("DIR=%s && cd $DIR && echo \"%s\" | tee %s", volumeChange.getTargetPath(), content, volumeChange.getFileName());
-            } else {
-                createFileCmd = String.format("FILE=%s && rmdir $FILE && echo \"%s\"  | tee $FILE", volumeChange.getTargetPath(), content);
-            }
 
+            // For a directory target the uploaded file lives inside it; for a file target the
+            // path IS the file. Previously the file branch ran "rmdir $FILE" (which errors on a
+            // regular file) and both branches used echo-injection. writeRemoteFile is base64-safe
+            // and creates parent directories as needed.
+            String remotePath = volumeChange.isDirectory()
+                    ? volumeChange.getTargetPath() + "/" + volumeChange.getFileName()
+                    : volumeChange.getTargetPath();
 
-            RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(createFileCmd, remoteServer);
-
-            result.add(remoteCommandResponse);
+            result.add(remoteCommandService.writeRemoteFile(remotePath, content, remoteServer));
         });
         return result;
     }
@@ -165,7 +152,7 @@ public class LabTrackerService extends BaseService {
             return labTracker;
         }
 
-        labTracker.setServices(parseDockerInspectOutput(checkTrackerProcessOutput.getBoth().trim()));
+        labTracker.setServices(parseDockerInspectOutput(checkTrackerProcessOutput.getOutput().trim()));
 
         List<DockerServiceInfo> services = labTracker.getServices().stream().filter(service -> !service.getState().equals("running")).toList();
 
