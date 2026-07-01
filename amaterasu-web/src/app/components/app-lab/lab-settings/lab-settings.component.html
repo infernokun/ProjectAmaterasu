@@ -51,6 +51,15 @@
       <p><strong>CPU Usage:</strong> {{ vm.cpu | percent }} ({{ vm.cpus }} CPU{{ vm.cpus! > 1 ? 's' : '' }})</p>
       <p><strong>Template:</strong> {{ vm.template ? 'Yes' : 'No' }}</p>
     </div>
+
+    <!-- Deploy-time network assignments (selected bridge + IP per VM) -->
+    <div class="network-config" *ngIf="labTracker?.networkConfig?.length">
+      <h3>Network Assignments</h3>
+      <p *ngFor="let net of labTracker?.networkConfig">
+        <strong>VM {{ net.vmid }}:</strong>
+        {{ net.bridge || 'template default' }}<span *ngIf="net.ipAddress"> &mdash; {{ net.ipAddress }}</span>
+      </p>
+    </div>
   </div>
 </div>
 

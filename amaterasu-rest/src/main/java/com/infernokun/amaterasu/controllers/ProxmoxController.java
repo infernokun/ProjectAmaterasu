@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.controllers;
 
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.proxmox.ProxmoxNetwork;
+import com.infernokun.amaterasu.models.proxmox.ProxmoxNetworkAdapter;
 import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.proxmox.ProxmoxVMConfig;
@@ -59,6 +60,30 @@ public class ProxmoxController {
                 .code(HttpStatus.OK.value())
                 .message("Retrieved templateVMs!")
                 .data(proxmoxService.getNodeNetworks(remoteServer))
+                .build());
+    }
+
+    @GetMapping("/adapters")
+    public ResponseEntity<ApiResponse<List<ProxmoxNetworkAdapter>>> getNetworkAdapters(
+            @RequestParam("remoteServerId") String remoteServerId) {
+        RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
+        return ResponseEntity.ok(ApiResponse.<List<ProxmoxNetworkAdapter>>builder()
+                .code(HttpStatus.OK.value())
+                .message("Retrieved selectable network adapters!")
+                .data(proxmoxService.listNetworkAdapters(remoteServer))
+                .build());
+    }
+
+    @GetMapping("/available-ips")
+    public ResponseEntity<ApiResponse<List<String>>> getAvailableIps(
+            @RequestParam("remoteServerId") String remoteServerId,
+            @RequestParam("bridge") String bridge,
+            @RequestParam(name = "count", required = false, defaultValue = "1") Integer count) {
+        RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
+        return ResponseEntity.ok(ApiResponse.<List<String>>builder()
+                .code(HttpStatus.OK.value())
+                .message("Retrieved available IPs!")
+                .data(proxmoxService.getAvailableIps(remoteServer, bridge, count))
                 .build());
     }
 }

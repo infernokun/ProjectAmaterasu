@@ -161,7 +161,8 @@ public class LabController extends BaseController {
         RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
 
         LabActionResult result = labService.startLab(labRequest.getLabId(),
-                labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
+                labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer,
+                labRequest.getNetworkConfig());
 
         return ResponseEntity.status(result.isSuccessful() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.<LabActionResult>builder()

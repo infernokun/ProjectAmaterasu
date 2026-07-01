@@ -3,9 +3,11 @@ package com.infernokun.amaterasu.models.entities.lab;
 import com.infernokun.amaterasu.models.DockerServiceInfo;
 import com.infernokun.amaterasu.models.entities.StoredObject;
 import com.infernokun.amaterasu.models.entities.Team;
+import com.infernokun.amaterasu.models.proxmox.LabNetworkConfig;
 import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.helper.DockerServiceInfoConverter;
+import com.infernokun.amaterasu.models.helper.LabNetworkConfigListConverter;
 import com.infernokun.amaterasu.models.helper.ProxmoxVMListConverter;
 import jakarta.persistence.*;
 import lombok.*;
@@ -36,6 +38,10 @@ public class LabTracker extends StoredObject {
     @Convert(converter = ProxmoxVMListConverter.class)
     @Builder.Default
     private List<ProxmoxVM> vms = new ArrayList<>();
+    @Column(columnDefinition = "TEXT")
+    @Convert(converter = LabNetworkConfigListConverter.class)
+    @Builder.Default
+    private List<LabNetworkConfig> networkConfig = new ArrayList<>();
     @ManyToOne
     @JoinColumn(name = "remote_server_id")
     private RemoteServer remoteServer;

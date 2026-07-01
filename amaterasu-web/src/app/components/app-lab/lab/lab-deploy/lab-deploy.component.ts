@@ -3,7 +3,7 @@ import { User } from '../../../../models/user.model';
 import { LabStatus } from '../../../../enums/lab-status.enum';
 import { BehaviorSubject, catchError, finalize, Observable, of, Subject, takeUntil } from 'rxjs';
 import { LabTrackerService } from '../../../../services/lab/lab-tracker.service';
-import { LabRequest } from '../../../../models/dto/lab-request.model';
+import { LabRequest, LabVmNetworkConfig } from '../../../../models/dto/lab-request.model';
 import { EditDialogService } from '../../../../services/edit-dialog.service';
 import { LabType } from '../../../../enums/lab-type.enum';
 import { RemoteServerService } from '../../../../services/lab/remote-server.service';
@@ -121,9 +121,14 @@ export class LabDeployComponent implements OnInit, OnDestroy {
         getServerType(lab.labType!)
       );
 
-    const remoteServerSelectFormData = new RemoteServerSelectData({
-      remoteServer: remoteServers$,
-    });
+    const isProxmox = lab.labType === LabType.VIRTUAL_MACHINE;
+    const vmCount = lab.vmIds?.length ?? 1;
+
+    const remoteServerSelectFormData = new RemoteServerSelectData(
+      { remoteServer: remoteServers$ },
+      isProxmox,
+      vmCount
+    );
 
     let dialogCancelled = true;
 
@@ -135,7 +140,8 @@ export class LabDeployComponent implements OnInit, OnDestroy {
         }
 
         dialogCancelled = false;
-        const labRequest = this.createLabRequest(lab, response.remoteServer);
+        const networkConfig = this.buildNetworkConfig(lab, response);
+        const labRequest = this.createLabRequest(lab, response.remoteServer, networkConfig);
         this.sendStartRequest(labRequest);
       })
       .pipe(takeUntil(this.destroy$))
@@ -147,7 +153,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       });
   }
 
-  private createLabRequest(lab: Lab, remoteServerId: string): LabRequest {
+  private createLabRequest(lab: Lab, remoteServerId: string, networkConfig?: LabVmNetworkConfig[]): LabRequest {
     const teamLabTrackerIds: string[] = this.user?.team?.teamActiveLabs ?? [];
 
     // Find the most recent lab tracker for this lab
@@ -168,7 +174,32 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       userId: this.user?.id,
       labTrackerId: latestLabTracker?.id || '',
       remoteServerId: remoteServerId,
+      networkConfig: networkConfig,
     };
+  }
+
+  /**
+   * Maps the deploy dialog's single bridge choice and comma-separated IP list onto the lab's
+   * VM template ids, producing one { vmid, bridge, ipAddress } entry per VM. Returns undefined
+   * for non-Proxmox labs or when no adapter was chosen so the backend keeps template networking.
+   */
+  private buildNetworkConfig(lab: Lab, response: any): LabVmNetworkConfig[] | undefined {
+    if (lab.labType !== LabType.VIRTUAL_MACHINE || !response?.networkAdapter) {
+      return undefined;
+    }
+
+    const ips: string[] = (response.ipAddresses ?? '')
+      .split(',')
+      .map((ip: string) => ip.trim())
+      .filter((ip: string) => ip.length > 0);
+
+    const vmIds: number[] = lab.vmIds ?? [];
+
+    return vmIds.map((vmid, index) => ({
+      vmid: vmid,
+      bridge: response.networkAdapter,
+      ipAddress: ips[index],
+    }));
   }
 
   sendStartRequest(labRequest: LabRequest): void {

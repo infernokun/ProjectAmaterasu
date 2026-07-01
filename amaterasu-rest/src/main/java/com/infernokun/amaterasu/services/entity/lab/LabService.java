@@ -13,6 +13,7 @@ import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.enums.LabType;
+import com.infernokun.amaterasu.models.proxmox.LabNetworkConfig;
 import com.infernokun.amaterasu.repositories.lab.LabFileChangeLogRepository;
 import com.infernokun.amaterasu.repositories.lab.LabRepository;
 import com.infernokun.amaterasu.services.alt.LabFileUploadService;
@@ -168,6 +169,11 @@ public class LabService extends BaseService {
 
     @Transactional(dontRollbackOn = ResourceNotFoundException.class)
     public LabActionResult startLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
+        return startLab(labId, userId, labTrackerId, remoteServer, null);
+    }
+
+    public LabActionResult startLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer,
+                                    List<LabNetworkConfig> networkConfig) {
         LOGGER.info("lab id {} user id {}, lab tracker id {}", labId, userId, labTrackerId);
 
         Lab lab = findLabById(labId);
@@ -190,6 +196,13 @@ public class LabService extends BaseService {
                     remoteServer.getName() + " is not ACTIVE!");
         }
 
+
+        // Persist the deploy-time bridge/IP selections so the Proxmox path can apply them
+        // and a later redeploy can reuse them. Guard against an empty payload wiping a
+        // previously-stored config on redeploy.
+        if (networkConfig != null && !networkConfig.isEmpty()) {
+            labTracker.setNetworkConfig(networkConfig);
+        }
 
         if (labTracker.getId() == null) {
             labTracker = labTrackerService.createLabTracker(labTracker);

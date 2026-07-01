@@ -95,8 +95,12 @@ export class RemoteServerFormData extends SimpleFormData {
 }
 
 export class RemoteServerSelectData extends SimpleFormData {
-  constructor(observables?: ObservableMap) {
+  // Number of VMs being deployed; drives how many IPs to auto-fill (Proxmox labs).
+  vmCount: number = 1;
+
+  constructor(observables?: ObservableMap, isProxmox: boolean = false, vmCount: number = 1) {
     super('remoteServerSelect');
+    this.vmCount = vmCount > 0 ? vmCount : 1;
 
     this.questions.push(
       new DropDownQuestion({
@@ -109,5 +113,25 @@ export class RemoteServerSelectData extends SimpleFormData {
             : undefined,
       })
     );
+
+    // Network adapter + IP selection only applies to Proxmox VM deployments. The options
+    // and IP values are populated dynamically once a remote server is chosen (see
+    // AddDialogFormComponent), which is why no asyncData is wired here.
+    if (isProxmox) {
+      this.questions.push(
+        new DropDownQuestion({
+          label: 'Network Adapter',
+          key: 'networkAdapter',
+          options: [],
+          hint: 'IPs are auto-filled from this bridge; edit as needed',
+        }),
+        new TextQuestion({
+          label: 'IP Address(es)',
+          key: 'ipAddresses',
+          hint: 'Comma-separated, one per VM',
+          size: 100,
+        })
+      );
+    }
   }
 }

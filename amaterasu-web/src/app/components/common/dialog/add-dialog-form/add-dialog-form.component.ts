@@ -21,6 +21,7 @@ import { SimpleFormData } from '../../../../models/simple-form-data.model';
 import { LabService } from '../../../../services/lab/lab.service';
 import { MessageService } from '../../../../services/message.service';
 import { RemoteServerService } from '../../../../services/lab/remote-server.service';
+import { ProxmoxService } from '../../../../services/lab/proxmox.service';
 import { REQUIRED } from '../../../../utils/amaterasu.const';
 import { RemoteServer } from '../../../../models/lab/remote-server.model';
 import { SkeletonDirective } from '../../../../directives/skeleton.directive';
@@ -72,6 +73,7 @@ export class AddDialogFormComponent
     private messageService: MessageService,
     private remoteServerService: RemoteServerService,
     private labService: LabService,
+    private proxmoxService: ProxmoxService,
     private cdr: ChangeDetectorRef
   ) { }
 
@@ -174,6 +176,9 @@ export class AddDialogFormComponent
 
     if (component.question.options.length > 0) {
       component.formControl.setValue(component.question.options[0].value);
+      // Kick off Proxmox adapter loading for the initially-selected server, if the
+      // deploy dialog included the network-adapter question.
+      this.loadNetworkAdapters(component.question.options[0].value);
     }
 
     this.labLock(data[0]);
@@ -188,7 +193,79 @@ export class AddDialogFormComponent
           this.labLock(item);
         }
       });
+      // Re-load bridges/IPs whenever the target server changes.
+      this.loadNetworkAdapters(event.value);
     }
+
+    if (event.key === 'networkAdapter') {
+      this.loadAvailableIps(event.value);
+    }
+  }
+
+  /**
+   * Populates the 'networkAdapter' dropdown from the selected Proxmox server, auto-selects the
+   * first bridge, and triggers IP auto-fill. No-op when the dialog has no adapter question.
+   */
+  private loadNetworkAdapters(remoteServerId: string): void {
+    const adapterComponent = this.questionComponents?.find(
+      (q) => q.question.key === 'networkAdapter'
+    );
+    if (!adapterComponent || !remoteServerId) {
+      return;
+    }
+
+    const subscription = this.proxmoxService
+      .getNetworkAdapters(remoteServerId)
+      .subscribe({
+        next: (adapters) => {
+          adapterComponent.question.options = adapters
+            .filter((a) => a.iface)
+            .map((a) => ({
+              key: a.availableIpCount != null ? `${a.iface} (${a.availableIpCount} free)` : a.iface!,
+              value: a.iface!,
+              disabled: false,
+            }));
+
+          if (adapterComponent.question.options.length > 0) {
+            const first = adapterComponent.question.options[0].value;
+            adapterComponent.formControl.setValue(first);
+            this.loadAvailableIps(first);
+          }
+        },
+        error: (err) => console.error('Failed to load network adapters:', err),
+      });
+
+    this.subscriptions.add(subscription);
+  }
+
+  /**
+   * Fetches available IPs for the chosen bridge (one per VM) and fills the editable
+   * 'ipAddresses' field with a comma-separated list the operator can adjust.
+   */
+  private loadAvailableIps(bridge: string): void {
+    const ipComponent = this.questionComponents?.find(
+      (q) => q.question.key === 'ipAddresses'
+    );
+    const remoteServerId = this.questionComponents?.find(
+      (q) => q.question.key === 'remoteServer'
+    )?.formControl?.value;
+
+    if (!ipComponent || !bridge || !remoteServerId) {
+      return;
+    }
+
+    const vmCount = (this.data as any).vmCount ?? 1;
+
+    const subscription = this.proxmoxService
+      .getAvailableIps(remoteServerId, bridge, vmCount)
+      .subscribe({
+        next: (ips) => {
+          ipComponent.formControl.setValue((ips ?? []).join(', '));
+        },
+        error: (err) => console.error('Failed to load available IPs:', err),
+      });
+
+    this.subscriptions.add(subscription);
   }
 
   private handleTeamData(

@@ -6,6 +6,7 @@ import { DockerServiceInfo } from "./docker-service-info.model";
 import { Lab } from "./lab.model";
 import { ProxmoxVM } from "./proxmox-vm.model";
 import { RemoteServer } from "./remote-server.model";
+import { LabVmNetworkConfig } from "../dto/lab-request.model";
 
 export class LabTracker extends StoredObject {
   labStarted?: Lab;
@@ -13,6 +14,7 @@ export class LabTracker extends StoredObject {
   labOwner?: Team;
   services?: DockerServiceInfo[];
   vms?: ProxmoxVM[];
+  networkConfig?: LabVmNetworkConfig[];
   remoteServer?: RemoteServer;
 
   constructor(serverResult?: any) {
@@ -24,6 +26,7 @@ export class LabTracker extends StoredObject {
       this.labOwner = serverResult.labOwner;
       this.services = serverResult.services ?? [];
       this.vms = serverResult.vms ?? [];
+      this.networkConfig = serverResult.networkConfig ?? [];
       this.remoteServer = serverResult.remoteServer;
     }
   }

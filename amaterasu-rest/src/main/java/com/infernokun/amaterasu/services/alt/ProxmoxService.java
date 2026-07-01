@@ -12,6 +12,7 @@ import com.infernokun.amaterasu.models.proxmox.*;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.entity.lab.LabTrackerService;
 import com.infernokun.amaterasu.utils.AESUtil;
+import com.infernokun.amaterasu.utils.IpUtils;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.config.ConnectionConfig;
@@ -37,8 +38,6 @@ import java.security.cert.X509Certificate;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -322,16 +321,24 @@ public class ProxmoxService extends BaseService {
         }
         LOGGER.info("Stage: START AND CLONE");
 
-        // Ensure amaterasu0 bridge exists
-        ensureNodeBridgeExists(remoteServer, "amaterasu0", "10.254.0.1", "255.255.0.0");
-
         AtomicInteger failures = new AtomicInteger();
         List<String> responses = new ArrayList<>();
+
+        // Index the deploy-time network selections by the template VM they apply to.
+        Map<Integer, LabNetworkConfig> networkByTemplate = new HashMap<>();
+        if (labTracker.getNetworkConfig() != null) {
+            labTracker.getNetworkConfig().stream()
+                    .filter(cfg -> cfg.getVmid() != null)
+                    .forEach(cfg -> networkByTemplate.put(cfg.getVmid(), cfg));
+        }
 
         List<ProxmoxVM> vms = getVMTemplates(remoteServer).stream()
                 .filter(v -> labTracker.getLabStarted().getVmIds().contains(v.getVmid()))
                 .toList();
+
+        // Remember which template each clone came from so we can look up its bridge/IP.
         List<ProxmoxVM> clonedVMs = new ArrayList<>();
+        Map<Integer, LabNetworkConfig> networkByClone = new HashMap<>();
 
         vms.forEach(vm -> {
             LOGGER.info("Stage: CLONE START {}", vm.getName());
@@ -339,7 +346,7 @@ public class ProxmoxService extends BaseService {
                     "-" + labTracker.getLabStarted().getName() + "-" + vm.getName());
 
             try {
-                int newVmid = 100 + ThreadLocalRandom.current().nextInt(999999900);
+                int newVmid = pickFreeVmid(remoteServer);
 
                 // Clone VM Request
                 String cloneUrl = String.format("https://%s:8006/api2/json/nodes/%s/qemu/%s/clone",
@@ -362,35 +369,32 @@ public class ProxmoxService extends BaseService {
                     return;
                 }
 
-                vm.setVmid(newVmid);
-                ProxmoxVM clonedVm = new ProxmoxVM(newVmid, vm);
-                clonedVMs.add(clonedVm);
+                LabNetworkConfig cfg = networkByTemplate.get(vm.getVmid());
+                if (cfg != null) {
+                    networkByClone.put(newVmid, cfg);
+                }
 
+                clonedVMs.add(new ProxmoxVM(newVmid, vm));
             } catch (Exception e) {
                 LOGGER.error("Error processing VM {} ({}): {}", vm.getName(), newVmName, e.getMessage());
                 failures.incrementAndGet();
             }
         });
 
-        int nextAbrIndex = getNodeNetworks(remoteServer).stream()
-                .map(ProxmoxNetwork::getIface)
-                .filter(iface -> iface.startsWith("abr"))
-                .map(iface -> iface.replace("abr", ""))
-                .filter(num -> num.matches("\\d+"))
-                .mapToInt(Integer::parseInt)
-                .max()
-                .orElse(-1) + 1;
-
-        clonedVMs.forEach(clonedVM -> modifyProxmoxVMConfig(clonedVM.getVmid(), remoteServer, nextAbrIndex));
+        // Attach each clone to the operator-selected bridge and assign its IP, rather than
+        // shunting every VM onto an isolated, DHCP-less bridge (the cause of clones coming up
+        // with no working network). With no selection we leave the template's networking intact.
+        clonedVMs.forEach(clonedVM ->
+                applyVmNetworkConfig(clonedVM.getVmid(), remoteServer, networkByClone.get(clonedVM.getVmid())));
 
         // Now start the cloned VMs
-        vms.forEach(vm -> startProxmoxVM(vm, remoteServer, responses, failures));
+        clonedVMs.forEach(vm -> startProxmoxVM(vm, remoteServer, responses, failures));
 
-        boolean allVMsStarted = waitForVMsToReachStatus(vms, remoteServer, "running");
+        boolean allVMsStarted = waitForVMsToReachStatus(clonedVMs, remoteServer, "running");
 
         List<ProxmoxVM> filteredVMs =
                 getVMs(remoteServer).stream()
-                        .filter(vm -> vms.stream().anyMatch(v -> v.getVmid() == vm.getVmid()))
+                        .filter(vm -> clonedVMs.stream().anyMatch(v -> v.getVmid() == vm.getVmid()))
                         .toList();
 
         labTracker.setVms(filteredVMs);
@@ -401,6 +405,180 @@ public class ProxmoxService extends BaseService {
                 .isSuccessful(failures.get() == 0 && allVMsStarted)
                 .output(String.join("\n", responses + "\n" + filteredVMs))
                 .build();
+    }
+
+    /**
+     * Picks a VM id that is not already in use on the node. The previous approach used an
+     * unbounded random id with no collision check; here we retry a bounded number of times
+     * against the live id set before giving up.
+     */
+    private int pickFreeVmid(RemoteServer remoteServer) {
+        Set<Integer> used = getVMs(remoteServer).stream()
+                .map(ProxmoxVM::getVmid)
+                .collect(Collectors.toSet());
+        for (int attempt = 0; attempt < 50; attempt++) {
+            int candidate = 100 + ThreadLocalRandom.current().nextInt(999999900);
+            if (!used.contains(candidate)) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("Unable to allocate a free VM id on " + remoteServer.getIpAddress());
+    }
+
+    /**
+     * Applies the operator's bridge + IP choice to a freshly-cloned VM. Bridge remapping and
+     * the guest-agent flag are sent first; the cloud-init {@code ipconfig0} is sent as a
+     * separate request so a template without a cloud-init drive fails only that step instead
+     * of dropping the working bridge change. A no-op when {@code cfg} is null (keep template net).
+     */
+    private void applyVmNetworkConfig(Integer vmId, RemoteServer remoteServer, LabNetworkConfig cfg) {
+        ProxmoxVMConfig vmConfig = pollForVmConfig(remoteServer, vmId);
+
+        Map<String, String> updates = new HashMap<>();
+        // Always enable the guest agent so stats/IP reporting works.
+        updates.put("agent", "1");
+
+        String gateway = null;
+        Integer prefix = null;
+
+        if (cfg != null && cfg.getBridge() != null && !cfg.getBridge().isBlank()) {
+            // Resolve the selected bridge's addressing for the cloud-init gateway/prefix.
+            Optional<ProxmoxNetwork> bridge = getNodeNetworks(remoteServer).stream()
+                    .filter(n -> cfg.getBridge().equals(n.getIface()))
+                    .findFirst();
+            if (bridge.isPresent()) {
+                gateway = IpUtils.firstIpv4(bridge.get().getAddress());
+                prefix = IpUtils.prefixFromCidr(bridge.get().getCidr());
+            }
+
+            // Re-point every existing adapter at the chosen bridge, preserving model/MAC/firewall.
+            if (vmConfig != null && vmConfig.getNetworks() != null) {
+                for (Map.Entry<String, String> entry : vmConfig.getNetworks().entrySet()) {
+                    String rewritten = entry.getValue().replaceAll("bridge=[^,]+", "bridge=" + cfg.getBridge());
+                    updates.put(entry.getKey(), rewritten);
+                }
+            }
+        }
+
+        updateVmNetworkConfig(remoteServer, vmId, updates);
+
+        // Static IP via cloud-init. Sent separately so a non-cloud-init template doesn't abort
+        // the bridge change above; updateVmNetworkConfig already isolates/logs failures.
+        if (cfg != null && cfg.getIpAddress() != null && !cfg.getIpAddress().isBlank()) {
+            int cidrPrefix = (prefix != null) ? prefix : 24;
+            StringBuilder ipconfig = new StringBuilder("ip=")
+                    .append(cfg.getIpAddress().trim()).append('/').append(cidrPrefix);
+            if (gateway != null) {
+                ipconfig.append(",gw=").append(gateway);
+            }
+            updateVmNetworkConfig(remoteServer, vmId, Map.of("ipconfig0", ipconfig.toString()));
+        }
+
+        verifyVmNetworkConfig(remoteServer, vmId, cfg);
+    }
+
+    /** Reads the VM config back after an update and logs whether the bridge/IP actually stuck. */
+    private void verifyVmNetworkConfig(RemoteServer remoteServer, Integer vmId, LabNetworkConfig cfg) {
+        if (cfg == null) {
+            return;
+        }
+        try {
+            ProxmoxVMConfig applied = getVmConfigById(remoteServer, vmId);
+            if (applied == null) {
+                LOGGER.warn("Could not read back config for VM {} to verify network settings", vmId);
+                return;
+            }
+            if (cfg.getBridge() != null) {
+                boolean onBridge = applied.getNetworks().values().stream()
+                        .anyMatch(v -> v.contains("bridge=" + cfg.getBridge()));
+                if (!onBridge) {
+                    LOGGER.warn("VM {} not attached to expected bridge {} after update", vmId, cfg.getBridge());
+                }
+            }
+            if (cfg.getIpAddress() != null && applied.getIpConfigs().values().stream()
+                    .noneMatch(v -> v.contains(cfg.getIpAddress()))) {
+                LOGGER.warn("VM {} did not receive expected IP {} (template may lack a cloud-init drive)",
+                        vmId, cfg.getIpAddress());
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to verify network config for VM {}: {}", vmId, e.getMessage());
+        }
+    }
+
+    /**
+     * Lists the node's selectable bridges for the deploy dropdown, annotated with a best-effort
+     * count of free host addresses. Only bridges that expose a CIDR (i.e. carry a subnet we can
+     * address into) are returned.
+     */
+    public List<ProxmoxNetworkAdapter> listNetworkAdapters(RemoteServer remoteServer) {
+        Set<String> used = collectUsedIps(remoteServer);
+        return getNodeNetworks(remoteServer).stream()
+                .filter(n -> n.getIface() != null && n.getCidr() != null)
+                .filter(n -> n.getIface().startsWith("vmbr") || n.getIface().startsWith("abr")
+                        || n.getIface().startsWith("amaterasu"))
+                .map(n -> {
+                    List<String> hosts = IpUtils.hostAddresses(n.getCidr(), 0);
+                    String gateway = IpUtils.firstIpv4(n.getAddress());
+                    long free = hosts.stream()
+                            .filter(ip -> !ip.equals(gateway) && !used.contains(ip))
+                            .count();
+                    return ProxmoxNetworkAdapter.builder()
+                            .iface(n.getIface())
+                            .cidr(n.getCidr())
+                            .gateway(gateway)
+                            .availableIpCount((int) free)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Returns up to {@code count} free host addresses on the given bridge, excluding the bridge's
+     * own gateway address and any IP already assigned to a VM on the node.
+     */
+    public List<String> getAvailableIps(RemoteServer remoteServer, String bridge, int count) {
+        Optional<ProxmoxNetwork> network = getNodeNetworks(remoteServer).stream()
+                .filter(n -> bridge != null && bridge.equals(n.getIface()))
+                .findFirst();
+        if (network.isEmpty() || network.get().getCidr() == null) {
+            return List.of();
+        }
+        String gateway = IpUtils.firstIpv4(network.get().getAddress());
+        Set<String> used = collectUsedIps(remoteServer);
+
+        List<String> available = new ArrayList<>();
+        for (String host : IpUtils.hostAddresses(network.get().getCidr(), 0)) {
+            if (host.equals(gateway) || used.contains(host)) {
+                continue;
+            }
+            available.add(host);
+            if (count > 0 && available.size() >= count) {
+                break;
+            }
+        }
+        return available;
+    }
+
+    /** Gathers every IPv4 address currently assigned via ipconfig* across the node's VMs. */
+    private Set<String> collectUsedIps(RemoteServer remoteServer) {
+        Set<String> used = new HashSet<>();
+        for (ProxmoxVM vm : getVMs(remoteServer)) {
+            try {
+                ProxmoxVMConfig config = getVmConfigById(remoteServer, vm.getVmid());
+                if (config == null) {
+                    continue;
+                }
+                config.getIpConfigs().values().forEach(ipconfig -> {
+                    String ip = IpUtils.firstIpv4(ipconfig);
+                    if (ip != null) {
+                        used.add(ip);
+                    }
+                });
+            } catch (Exception e) {
+                LOGGER.debug("Skipping used-IP scan for VM {}: {}", vm.getVmid(), e.getMessage());
+            }
+        }
+        return used;
     }
 
     public LabActionResult startProxmoxLab(LabTracker labTracker, RemoteServer remoteServer) {
@@ -552,82 +730,6 @@ public class ProxmoxService extends BaseService {
             LOGGER.warn("No network configuration found for VM {} on server {} after waiting.", vmId, remoteServer.getIpAddress());
         }
         return proxmoxVMConfig;
-    }
-
-    private void modifyProxmoxVMConfig(Integer vmId, RemoteServer remoteServer, int startingIndex) {
-        ProxmoxVMConfig proxmoxVMConfig = pollForVmConfig(remoteServer, vmId);
-        LOGGER.info("VM {} network config found: {}", vmId, proxmoxVMConfig);
-
-        if (proxmoxVMConfig == null || proxmoxVMConfig.getNetworks().isEmpty()) {
-            LOGGER.warn("No network configuration found for VM {} on server {}", vmId, remoteServer.getIpAddress());
-            return;
-        }
-
-        Map<String, String> updatedNetworks = new HashMap<>();
-
-        // Get the node's network interfaces so we can look up IP and CIDR details
-        List<ProxmoxNetwork> nodeNetworks = getNodeNetworks(remoteServer);
-
-        // Build a mapping from the original bridge (e.g., "vmbr1") to a new bridge name (e.g., "abr0", "abr1", etc.)
-        Map<String, String> bridgeMapping = new HashMap<>();
-
-        // Iterate through each network interface from the VM config
-        for (Map.Entry<String, String> entry : proxmoxVMConfig.getNetworks().entrySet()) {
-            String netKey = entry.getKey();    // e.g., "net0", "net1"
-            String netValue = entry.getValue();  // e.g., "virtio=MAC,bridge=vmbr1,firewall=1"
-
-            // Look for a "bridge=vmbrX" pattern
-            Matcher matcher = Pattern.compile("bridge=(vmbr\\d+)").matcher(netValue);
-            if (matcher.find()) {
-                String originalBridge = matcher.group(1);
-
-                // If we haven't already mapped this original bridge, assign the next available abrN
-                if (!bridgeMapping.containsKey(originalBridge)) {
-                    LOGGER.error("{} on {}: Found a bridge to replace.. ", originalBridge, vmId);
-                    String newBridge = "abr" + startingIndex;
-                    bridgeMapping.put(originalBridge, newBridge);
-                    startingIndex++;
-
-                    // Look up the original bridge's details (IP and CIDR) from the node's network list
-                    Optional<ProxmoxNetwork> origNetOpt = nodeNetworks.stream()
-                            .filter(n -> originalBridge.equals(n.getIface()))
-                            .findFirst();
-                    String ipAddress = null;
-                    String cidr = null;
-                    if (origNetOpt.isPresent()) {
-                        ProxmoxNetwork origNet = origNetOpt.get();
-                        ipAddress = origNet.getAddress();
-                        cidr = origNet.getCidr();
-                    }
-                    // Convert CIDR to netmask if available
-                    String netmask = (cidr != null) ? cidrToNetmask(cidr) : null;
-
-                    LOGGER.error("{} on {}: Found ip and cidr {}/{} ", originalBridge, vmId, ipAddress, netmask);
-
-                    // Ensure the new team-specific bridge exists on the node
-                    ensureNodeBridgeExists(remoteServer, newBridge, ipAddress, netmask);
-                }
-                // Replace the original bridge in the VM's network configuration with the new bridge name
-                String newBridge = bridgeMapping.get(originalBridge);
-                String updatedNetValue = netValue.replace("bridge=" + originalBridge, "bridge=" + newBridge);
-                        //.replaceAll("virtio=([0-9A-Fa-f:]+)", "virtio=" + generateRandomMac());
-                updatedNetworks.put(netKey, updatedNetValue);
-            }
-        }
-
-        int maxNetIndex = updatedNetworks.keySet().stream()
-                .map(key -> key.replace("net", ""))
-                .filter(num -> num.matches("\\d+"))
-                .mapToInt(Integer::parseInt)
-                .max()
-                .orElse(-1);
-
-        updatedNetworks.put("net" + (maxNetIndex + 1),
-                "virtio=" + generateRandomMac() + ",bridge=amaterasu0,firewall=1");
-        updatedNetworks.put("agent", "1");
-
-        // Update the VM configuration in Proxmox with the modified network settings
-        updateVmNetworkConfig(remoteServer, vmId, updatedNetworks);
     }
 
     private void ensureNodeBridgeExists(RemoteServer remoteServer, String bridgeName, String ipAddress, String netmask) {
