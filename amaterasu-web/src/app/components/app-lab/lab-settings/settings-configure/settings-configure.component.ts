@@ -1,9 +1,10 @@
-import { Component, ElementRef, Input, ViewChild } from '@angular/core';
+import { Component, ElementRef, Input, ViewChild, signal } from '@angular/core';
 import { Subject, takeUntil } from 'rxjs';
 import { ServerType } from '../../../../enums/server-type.enum';
 import { ComposeFile, Volume } from '../lab-settings.component';
 import { LabTrackerService } from '../../../../services/lab/lab-tracker.service';
 import { LabTracker } from '../../../../models/lab/lab-tracker.model';
+import { NgIf, NgFor } from '@angular/common';
 
 export interface VolumeChange {
   serviceName: string;
@@ -15,10 +16,10 @@ export interface VolumeChange {
 }
 
 @Component({
-  selector: 'amaterasu-settings-configure',
-  standalone: false,
-  templateUrl: './settings-configure.component.html',
-  styleUrl: './settings-configure.component.scss',
+    selector: 'amaterasu-settings-configure',
+    templateUrl: './settings-configure.component.html',
+    styleUrl: './settings-configure.component.scss',
+    imports: [NgIf, NgFor],
 })
 export class SettingsConfigureComponent {
   // Existing properties
@@ -31,7 +32,7 @@ export class SettingsConfigureComponent {
   ServerType = ServerType;
 
   // New properties for volume editing
-  isEditMode = false;
+  isEditMode = signal(false);
   volumeChanges = new Map<string, VolumeChange>(); // Key is "serviceName-index"
   currentEditingService?: string;
   currentEditingIndex?: number;
@@ -190,7 +191,7 @@ export class SettingsConfigureComponent {
           console.log('Files uploaded successfully', response);
           // Clear the changes after successful upload
           this.volumeChanges.clear();
-          this.isEditMode = false;
+          this.isEditMode.set(false);
 
           // Optionally reload the lab tracker to reflect changes
         },

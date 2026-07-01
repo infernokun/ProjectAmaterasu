@@ -21,17 +21,17 @@
   <!-- Content Section -->
   <mat-dialog-content class="dialog-content">
     <!-- Regular content display -->
-    <div *ngIf="!isCode" class="text-lg enable-crlf">
+    <div *ngIf="!isCode()" class="text-lg enable-crlf">
       {{ data.content }}
     </div>
     
     <!-- Code editor display -->
-    <div *ngIf="isCode" class="code-editor-wrapper">
+    <div *ngIf="isCode()" class="code-editor-wrapper">
       <amaterasu-code-block 
         id="code-editor" 
         [codeModel]="output" 
         [fileType]="fileType"
-        [readonly]="isReadOnly"
+        [readonly]="isReadOnly()"
         [versions]="[1, 2, 3]" 
         (onChange)="onCodeChange($event)" 
         (onVersionChange)="onVersionSelected($event)">

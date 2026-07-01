@@ -8,12 +8,25 @@ import { Room } from '../../../../models/ctf/room.model';
 import { ApiResponse } from '../../../../models/api-response.model';
 import { JoinRoomResponse } from '../../../../models/dto/join-room-response.model';
 import { User } from '../../../../models/user.model';
+import { MatMenuItem } from '@angular/material/menu';
+import { MatIcon } from '@angular/material/icon';
+import { NgIf } from '@angular/common';
+import { CTFCardComponent } from './ctf-card/ctf-card.component';
+import { MatButton } from '@angular/material/button';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 
 @Component({
-  selector: 'amaterasu-ctf-main',
-  templateUrl: './ctf-main.component.html',
-  styleUrl: './ctf-main.component.scss',
-  standalone: false,
+    selector: 'amaterasu-ctf-main',
+    templateUrl: './ctf-main.component.html',
+    styleUrl: './ctf-main.component.scss',
+    imports: [
+        MatMenuItem,
+        MatIcon,
+        NgIf,
+        CTFCardComponent,
+        MatButton,
+        MatProgressSpinner,
+    ],
 })
 export class CTFMainComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();

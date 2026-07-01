@@ -25,13 +25,29 @@ import { DateUtils } from '../../../utils/date-utils';
 import { LabTracker } from '../../../models/lab/lab-tracker.model';
 import { RemoteServer } from '../../../models/lab/remote-server.model';
 import { Lab, LabDTO, LabFormData } from '../../../models/lab/lab.model';
+import { NgIf, NgFor, AsyncPipe } from '@angular/common';
+import { MatButton, MatFabButton } from '@angular/material/button';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatIcon } from '@angular/material/icon';
+import { LabMainComponent } from './lab-main/lab-main.component';
+import { LabDeployComponent } from './lab-deploy/lab-deploy.component';
 
 @Component({
-  selector: 'amaterasu-lab',
-  templateUrl: './lab.component.html',
-  styleUrl: './lab.component.scss',
-  animations: [],
-  standalone: false,
+    selector: 'amaterasu-lab',
+    templateUrl: './lab.component.html',
+    styleUrl: './lab.component.scss',
+    animations: [],
+    imports: [
+        NgIf,
+        MatButton,
+        MatFabButton,
+        MatTooltip,
+        MatIcon,
+        NgFor,
+        LabMainComponent,
+        LabDeployComponent,
+        AsyncPipe,
+    ],
 })
 export class LabComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();

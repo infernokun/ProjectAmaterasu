@@ -1,16 +1,21 @@
 import { Component, NgZone, OnInit } from '@angular/core';
-import { FormControl, FormGroup } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { AppInitService } from '../../services/app-init.service';
 import { ApplicationInfo } from '../../models/application-info.model';
 import { ApiResponse } from '../../models/api-response.model';
 import { Router } from '@angular/router';
 import { Observable, of } from 'rxjs';
+import { NgIf, AsyncPipe } from '@angular/common';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatCheckbox } from '@angular/material/checkbox';
+import { MatButton } from '@angular/material/button';
 
 @Component({
-  selector: 'amaterasu-initialization',
-  templateUrl: './initialization.component.html',
-  styleUrls: ['./initialization.component.scss'],
-  standalone: false
+    selector: 'amaterasu-initialization',
+    templateUrl: './initialization.component.html',
+    styleUrls: ['./initialization.component.scss'],
+    imports: [NgIf, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatCheckbox, MatButton, AsyncPipe]
 })
 export class InitializationComponent implements OnInit {
   formGroup: FormGroup;

@@ -1,5 +1,9 @@
 import { Component, Inject } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef, MatDialogContent, MatDialogActions, MatDialogClose } from '@angular/material/dialog';
+import { NgClass, NgIf } from '@angular/common';
+import { MatIcon } from '@angular/material/icon';
+import { CdkScrollable } from '@angular/cdk/scrolling';
+import { MatButton } from '@angular/material/button';
 
 export interface ConfirmationDialogData {
   title: string;
@@ -10,10 +14,10 @@ export interface ConfirmationDialogData {
 }
 
 @Component({
-  selector: 'amaterasu-confirmation-dialog',
-  templateUrl: './confirmation-dialog.component.html',
-  styleUrl: './confirmation-dialog.component.scss',
-  standalone: false
+    selector: 'amaterasu-confirmation-dialog',
+    templateUrl: './confirmation-dialog.component.html',
+    styleUrl: './confirmation-dialog.component.scss',
+    imports: [NgClass, MatIcon, CdkScrollable, MatDialogContent, MatDialogActions, MatButton, MatDialogClose, NgIf]
 })
 export class ConfirmationDialogComponent {
   constructor(

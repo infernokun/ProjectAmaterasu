@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
+import { Component, Inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { AuthService } from '../../../services/auth.service';
 import { BehaviorSubject, catchError, Observable, of, take, throwError, Subject } from 'rxjs';
@@ -16,12 +16,15 @@ import { CTFEntityHintResponse } from '../../../models/dto/ctf-entity-hint-respo
 import { CTFEntityAnswerResponse } from '../../../models/dto/ctf-entity-answer-response.model';
 import { CTFEntityAnswer } from '../../../models/ctf/ctf-entity-answer.model';
 import { CTFEntityHintUsage } from '../../../models/ctf/ctf-entity-hint-usage.model';
+import { NgIf, NgFor, NgClass, AsyncPipe } from '@angular/common';
+import { ReactiveFormsModule, FormsModule } from '@angular/forms';
+import { MatButton } from '@angular/material/button';
 
 @Component({
-  selector: 'amaterasu-view-dialog',
-  templateUrl: './view-ctf.component.html',
-  styleUrl: './view-ctf.component.scss',
-  standalone: false
+    selector: 'amaterasu-view-dialog',
+    templateUrl: './view-ctf.component.html',
+    styleUrl: './view-ctf.component.scss',
+    imports: [NgIf, NgFor, ReactiveFormsModule, FormsModule, MatButton, NgClass, AsyncPipe]
 })
 export class ViewCTFComponent implements OnInit, OnDestroy {
   viewedChallenge!: CTFEntity;
@@ -37,7 +40,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   statusMessage: string = '';
   statusType: 'success' | 'error' | 'warning' | 'info' = 'info';
   currentAttempts: number = 0;
-  isLoading: boolean = false;
+  isLoading = signal(false);
 
   roomUser: JoinRoomResponse | undefined;
 
@@ -63,7 +66,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   }
 
   private checkExistingAnswer(): void {
-    this.isLoading = true;
+    this.isLoading.set(true);
 
 
     this.ctfService.answerChallengeCheck(this.viewedChallenge, this.roomService.getCurrentRoom()?.id!)
@@ -83,11 +86,11 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (response: ApiResponse<CTFEntityAnswerResponse>) => {
-          this.isLoading = false;
+          this.isLoading.set(false);
           this.handleExistingAnswerResponse(response);
         },
         error: (error) => {
-          this.isLoading = false;
+          this.isLoading.set(false);
           console.error('Unexpected error:', error);
           this.showStatus('An unexpected error occurred', 'error');
         }
@@ -134,7 +137,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
       return; // Already answered
     }
 
-    this.isLoading = true;
+    this.isLoading.set(true);
     this.statusMessage = ''; // Clear previous status
 
     this.authService.user$.pipe(
@@ -143,14 +146,14 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
     ).subscribe({
       next: (user: User | undefined) => {
         if (!user || !user.id) {
-          this.isLoading = false;
+          this.isLoading.set(false);
           this.showStatus('Authentication required', 'error');
           return;
         }
         this.submitAnswer(user.id, this.roomService.getCurrentRoomUser().roomId!, challenge);
       },
       error: (error) => {
-        this.isLoading = false;
+        this.isLoading.set(false);
         console.error('Auth error:', error);
         this.showStatus('Authentication error', 'error');
       }
@@ -164,11 +167,11 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response: ApiResponse<CTFEntityAnswerResponse>) => {
-          this.isLoading = false;
+          this.isLoading.set(false);
           this.handleAnswerResponse(response);
         },
         error: (error: HttpErrorResponse) => {
-          this.isLoading = false;
+          this.isLoading.set(false);
           console.error('Submit answer error:', error);
 
           if (error.status === 429) {
@@ -241,7 +244,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
   }
 
   get isSubmitDisabled(): boolean {
-    return this.isAnswered.getValue() || !this.answer.trim() || this.isLoading;
+    return this.isAnswered.getValue() || !this.answer.trim() || this.isLoading();
   }
 
   useHint(hint: Hint) {

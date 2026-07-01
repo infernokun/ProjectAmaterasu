@@ -8,8 +8,8 @@ describe('CtfMainComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [CTFMainComponent]
-    })
+    imports: [CTFMainComponent]
+})
       .compileComponents();
 
     fixture = TestBed.createComponent(CTFMainComponent);

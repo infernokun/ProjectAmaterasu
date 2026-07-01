@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, signal, WritableSignal } from '@angular/core';
-import { FormControl } from '@angular/forms';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Observable, BehaviorSubject, Subject, combineLatest, of } from 'rxjs';
@@ -8,7 +8,13 @@ import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { RoomService } from '../../../services/ctf/room.service';
 import { ApiResponse } from '../../../models/api-response.model';
 import { RoomUserResponse, PointsHistoryEntry } from '../../../models/ctf/room-user-response.model';
-import { PageEvent } from '@angular/material/paginator';
+import { PageEvent, MatPaginator } from '@angular/material/paginator';
+import { MatIconButton, MatButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
+import { NgIf, NgFor, AsyncPipe, DecimalPipe, DatePipe } from '@angular/common';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { BaseChartDirective } from 'ng2-charts';
 
 interface ScoreboardUser {
   username: string;
@@ -18,10 +24,10 @@ interface ScoreboardUser {
 }
 
 @Component({
-  selector: 'amaterasu-scoreboard',
-  standalone: false,
-  templateUrl: './scoreboard.component.html',
-  styleUrl: './scoreboard.component.scss'
+    selector: 'amaterasu-scoreboard',
+    templateUrl: './scoreboard.component.html',
+    styleUrl: './scoreboard.component.scss',
+    imports: [MatIconButton, MatIcon, MatTooltip, ReactiveFormsModule, NgIf, MatProgressSpinner, BaseChartDirective, NgFor, MatPaginator, MatButton, AsyncPipe, DecimalPipe, DatePipe]
 })
 export class ScoreboardComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();

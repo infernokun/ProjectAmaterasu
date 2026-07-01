@@ -8,8 +8,8 @@ describe('CTFHomeComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [RoomComponent]
-    })
+    imports: [RoomComponent]
+})
       .compileComponents();
 
     fixture = TestBed.createComponent(RoomComponent);

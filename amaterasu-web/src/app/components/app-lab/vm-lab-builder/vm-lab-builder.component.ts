@@ -6,12 +6,13 @@ import { ProxmoxVM } from '../../../models/lab/proxmox-vm.model';
 import { EditDialogService } from '../../../services/edit-dialog.service';
 import { ProxmoxService } from '../../../services/lab/proxmox.service';
 import { RemoteServerService } from '../../../services/lab/remote-server.service';
+import { NgFor, NgClass, DecimalPipe } from '@angular/common';
 
 @Component({
-  selector: 'amaterasu-vm-lab-builder',
-  templateUrl: './vm-lab-builder.component.html',
-  styleUrl: './vm-lab-builder.component.scss',
-  standalone: false
+    selector: 'amaterasu-vm-lab-builder',
+    templateUrl: './vm-lab-builder.component.html',
+    styleUrl: './vm-lab-builder.component.scss',
+    imports: [NgFor, NgClass, DecimalPipe]
 })
 export class VMLabBuilderComponent implements OnInit, OnDestroy {
   vms: ProxmoxVM[] = [];

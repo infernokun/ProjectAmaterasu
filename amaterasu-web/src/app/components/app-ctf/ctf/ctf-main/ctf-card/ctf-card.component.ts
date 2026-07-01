@@ -9,6 +9,8 @@ import { AuthService } from '../../../../../services/auth.service';
 import { CTFService } from '../../../../../services/ctf/ctf.service';
 import { EditDialogService } from '../../../../../services/edit-dialog.service';
 import { WebsocketService } from '../../../../../services/websocket.service';
+import { NgIf, NgFor, NgClass, AsyncPipe, SlicePipe } from '@angular/common';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 
 interface CategoryGroup {
   category: string;
@@ -16,12 +18,12 @@ interface CategoryGroup {
 }
 
 @Component({
-  selector: 'amaterasu-ctf-card',
-  templateUrl: './ctf-card.component.html',
-  styleUrl: './ctf-card.component.scss',
-  encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: false
+    selector: 'amaterasu-ctf-card',
+    templateUrl: './ctf-card.component.html',
+    styleUrl: './ctf-card.component.scss',
+    encapsulation: ViewEncapsulation.None,
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [NgIf, MatProgressSpinner, NgFor, NgClass, AsyncPipe, SlicePipe]
 })
 export class CTFCardComponent implements OnInit, OnDestroy {
   public challenges: CTFEntity[] = [];

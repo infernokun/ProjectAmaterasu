@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { BehaviorSubject, Observable, Subject, combineLatest, debounceTime, distinctUntilChanged, finalize, map, startWith, takeUntil } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { FormControl } from '@angular/forms';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ApiResponse } from '../../../models/api-response.model';
 import { Room, RoomFormData } from '../../../models/ctf/room.model';
 import { RoomService } from '../../../services/ctf/room.service';
@@ -10,12 +10,17 @@ import { AuthService } from '../../../services/auth.service';
 import { RoomUserStatus } from '../../../enums/room-user-status.enum';
 import { Router } from '@angular/router';
 import { JoinRoomResponse } from '../../../models/dto/join-room-response.model';
+import { NgIf, NgFor, NgClass, AsyncPipe, DatePipe } from '@angular/common';
+import { MatIconButton, MatButton } from '@angular/material/button';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatIcon } from '@angular/material/icon';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 
 @Component({
-  selector: 'amaterasu-ctf-room',
-  templateUrl: './room.component.html',
-  styleUrls: ['./room.component.scss'],
-  standalone: false
+    selector: 'amaterasu-ctf-room',
+    templateUrl: './room.component.html',
+    styleUrls: ['./room.component.scss'],
+    imports: [ReactiveFormsModule, NgIf, MatIconButton, MatTooltip, MatIcon, MatButton, NgFor, NgClass, MatProgressSpinner, AsyncPipe, DatePipe]
 })
 export class RoomComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();

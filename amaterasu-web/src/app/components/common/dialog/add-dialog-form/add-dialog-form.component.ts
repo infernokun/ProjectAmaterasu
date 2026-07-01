@@ -7,9 +7,10 @@ import {
   OnInit,
   QueryList,
   ViewChildren,
+  signal,
 } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef, MatDialogTitle, MatDialogClose } from '@angular/material/dialog';
 import { forkJoin, Observable, of, Subscription } from 'rxjs';
 import { map, take } from 'rxjs/operators';
 
@@ -22,12 +23,20 @@ import { MessageService } from '../../../../services/message.service';
 import { RemoteServerService } from '../../../../services/lab/remote-server.service';
 import { REQUIRED } from '../../../../utils/amaterasu.const';
 import { RemoteServer } from '../../../../models/lab/remote-server.model';
+import { SkeletonDirective } from '../../../../directives/skeleton.directive';
+import { NgFor } from '@angular/common';
 
 @Component({
-  selector: 'amaterasu-add-dialog-form',
-  templateUrl: './add-dialog-form.component.html',
-  styleUrls: ['./add-dialog-form.component.scss'],
-  standalone: false,
+    selector: 'amaterasu-add-dialog-form',
+    templateUrl: './add-dialog-form.component.html',
+    styleUrls: ['./add-dialog-form.component.scss'],
+    imports: [
+        SkeletonDirective,
+        MatDialogTitle,
+        NgFor,
+        DialogQuestionComponent,
+        MatDialogClose,
+    ],
 })
 export class AddDialogFormComponent
   implements OnInit, AfterViewInit, OnDestroy {
@@ -37,7 +46,7 @@ export class AddDialogFormComponent
   dynamicForm!: FormGroup;
   private subscriptions = new Subscription();
 
-  isLoading = false;
+  isLoading = signal(false);
 
   // Constants
   private readonly REQUIRED_VALIDATION_TYPES = ['remoteServer', 'lab'];
@@ -67,7 +76,7 @@ export class AddDialogFormComponent
   ) { }
 
   ngOnInit(): void {
-    this.isLoading = true;
+    this.isLoading.set(true);
     this.initializeFormData();
     this.dynamicForm = this.fb.group({});
   }
@@ -91,12 +100,12 @@ export class AddDialogFormComponent
       }
     });
 
-    this.isLoading = false;
+    this.isLoading.set(false);
   }
 
   private setupFormControls(): void {
     if (!this.questionComponents) {
-      this.isLoading = false;
+      this.isLoading.set(false);
       return;
     }
 

@@ -1,81 +1,69 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import { User } from './models/user.model';
-import { Observable, Subject, takeUntil, map, startWith, combineLatest, distinctUntilChanged, shareReplay, filter } from 'rxjs';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { Subject, of, takeUntil, map, startWith, combineLatest, distinctUntilChanged, shareReplay } from 'rxjs';
 import { AuthService } from './services/auth.service';
 import { EditDialogService } from './services/edit-dialog.service';
 import { Role } from './enums/role.enum';
 import { AppInitService } from './services/app-init.service';
-import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
-
-declare var require: any;
-const { version: appVersion } = require('../../package.json');
+import { RouterLink, RouterOutlet } from '@angular/router';
+import { APP_VERSION } from './version';
+import { NgIf } from '@angular/common';
+import { MatToolbar } from '@angular/material/toolbar';
+import { MatIconButton } from '@angular/material/button';
+import { MatMenuTrigger, MatMenu, MatMenuItem } from '@angular/material/menu';
+import { MatIcon } from '@angular/material/icon';
+import { MatDivider } from '@angular/material/divider';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 
 @Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.scss',
-  standalone: false,
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'app-root',
+    templateUrl: './app.component.html',
+    styleUrl: './app.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [NgIf, MatToolbar, RouterLink, MatIconButton, MatMenuTrigger, MatIcon, MatMenu, MatMenuItem, MatDivider, RouterOutlet, MatProgressSpinner]
 })
 export class AppComponent implements OnInit, OnDestroy {
+  private authService = inject(AuthService);
+  private dialogService = inject(EditDialogService);
+  private appInitService = inject(AppInitService);
+
   title = 'Project Amaterasu';
   header: string = 'UNCLASSIFIED';
   footer: string = 'UNCLASSIFIED';
-  appVersion: any = appVersion;
+  appVersion = APP_VERSION;
   bannerDisplayStyle: string = 'green-white';
-
-  // Combined loading states
-  loggedInUser$: Observable<User | undefined>;
-  isAuthLoading$: Observable<boolean>;
-  isAppReady$: Observable<boolean>;
-  showAuthButtons$: Observable<boolean>;
   Role = Role;
 
-  initializationComplete$: Observable<boolean> | undefined;
+  private readonly initializationComplete$ = this.appInitService.initializationComplete$ ?? of(false);
+
+  // Auth loading state - true while checking authentication or before init completes
+  private readonly isAuthLoading$ = combineLatest([
+    this.authService.loading$,
+    this.appInitService.isInitialized()
+  ]).pipe(
+    map(([authLoading, appInitialized]) => authLoading || !appInitialized),
+    startWith(true)
+  );
+
+  // App ready when initialization is complete AND auth check is done
+  private readonly isAppReady$ = combineLatest([
+    this.initializationComplete$.pipe(
+      map(() => true),
+      distinctUntilChanged(),
+      shareReplay(1),
+      startWith(false)
+    ),
+    this.isAuthLoading$
+  ]).pipe(
+    map(([initComplete, authLoading]) => initComplete && !authLoading)
+  );
+
+  // Reactive state surfaced to the template as signals (replaces the async pipe).
+  protected readonly loggedInUser = toSignal(this.authService.user$, { initialValue: undefined });
+  protected readonly initializationComplete = toSignal(this.initializationComplete$, { initialValue: false });
+  protected readonly isAppReady = toSignal(this.isAppReady$, { initialValue: false });
 
   private unsubscribe$ = new Subject<void>();
-
-  constructor(
-    private authService: AuthService,
-    private dialogService: EditDialogService,
-    private appInitService: AppInitService,
-    private cdr: ChangeDetectorRef,
-    private router: Router,
-    private route: ActivatedRoute
-  ) {
-    this.loggedInUser$ = this.authService.user$;
-    this.initializationComplete$ = this.appInitService.initializationComplete$;
-
-    // Auth loading state - true when checking authentication
-    this.isAuthLoading$ = combineLatest([
-      this.authService.loading$,
-      this.appInitService.isInitialized()
-    ]).pipe(
-      map(([authLoading, appInitialized]) => authLoading || !appInitialized),
-      startWith(true) // Start with loading = true
-    );
-
-    // App ready when initialization is complete AND auth check is done
-    this.isAppReady$ = combineLatest([
-      this.initializationComplete$.pipe(
-        map(() => true),
-        distinctUntilChanged(),
-        shareReplay(1),
-        startWith(false)
-      ),
-      this.isAuthLoading$
-    ]).pipe(
-      map(([initComplete, authLoading]) => initComplete && !authLoading)
-    );
-
-    // Only show auth buttons when app is ready AND user is not authenticated
-    this.showAuthButtons$ = combineLatest([
-      this.isAppReady$,
-      this.loggedInUser$
-    ]).pipe(
-      map(([appReady, user]) => appReady && !user)
-    );
-  }
 
   ngOnInit(): void {
     // Remove the explicit checkAuthentication() call
@@ -97,13 +85,6 @@ export class AppComponent implements OnInit, OnDestroy {
     this.unsubscribe$.next();
     this.unsubscribe$.complete();
   }
-
-  private triggerChangeDetection() {
-    this.cdr.markForCheck();
-  }
-
-  // Remove the checkAuthentication method entirely
-  // The AuthService constructor handles this automatically
 
   openLoginModal(): void {
     this.dialogService.openLoginDialog().subscribe((res: any) => {

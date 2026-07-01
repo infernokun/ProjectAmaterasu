@@ -17,14 +17,27 @@ import {
   ModuleRegistry,
 } from 'ag-grid-community';
 import { AdminActionsComponent } from '../../admin/admin-actions.component';
+import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { NgIf, AsyncPipe } from '@angular/common';
+import { MatTooltip } from '@angular/material/tooltip';
+import { AgGridAngular } from 'ag-grid-angular';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 @Component({
-  selector: 'amaterasu-users',
-  templateUrl: './users.component.html',
-  styleUrl: './users.component.scss',
-  standalone: false,
+    selector: 'amaterasu-users',
+    templateUrl: './users.component.html',
+    styleUrl: './users.component.scss',
+    imports: [
+        MatButton,
+        MatIcon,
+        NgIf,
+        MatIconButton,
+        MatTooltip,
+        AgGridAngular,
+        AsyncPipe,
+    ],
 })
 export class UsersComponent implements OnInit {
   users: User[] = [];

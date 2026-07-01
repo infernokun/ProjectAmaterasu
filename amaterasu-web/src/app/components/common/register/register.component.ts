@@ -1,12 +1,14 @@
 // register.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { LoginService } from '../../../services/login.service';
 import { finalize, takeUntil } from 'rxjs/operators';
 import { Subject } from 'rxjs';
 import { ApiResponse } from '../../../models/api-response.model';
+import { NgIf } from '@angular/common';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 
 interface PasswordStrength {
   text: string;
@@ -15,10 +17,10 @@ interface PasswordStrength {
 }
 
 @Component({
-  selector: 'amaterasu-register',
-  templateUrl: './register.component.html',
-  styleUrls: ['./register.component.scss'],
-  standalone: false
+    selector: 'amaterasu-register',
+    templateUrl: './register.component.html',
+    styleUrls: ['./register.component.scss'],
+    imports: [ReactiveFormsModule, NgIf, MatProgressSpinner]
 })
 export class RegisterComponent implements OnInit, OnDestroy {
   readonly MIN_USERNAME_LENGTH = 3;

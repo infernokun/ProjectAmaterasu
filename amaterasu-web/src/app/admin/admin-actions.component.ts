@@ -7,6 +7,9 @@ import {
 
 import { ICellRendererParams } from 'ag-grid-community';
 import { ICellRendererAngularComp } from 'ag-grid-angular';
+import { NgIf } from '@angular/common';
+import { MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
 
 export interface AdminActionRendererParams extends ICellRendererParams {
   viewClick: (data: any) => void;
@@ -15,8 +18,8 @@ export interface AdminActionRendererParams extends ICellRendererParams {
 }
 
 @Component({
-  selector: 'amaterasu-admin-action',
-  template: `
+    selector: 'amaterasu-admin-action',
+    template: `
     <span class="row">
       <button *ngIf="!params || !params.data || (!!params.data && !!params.viewClick)" mat-icon-button aria-label="View" class="table-action" color="primary" matToolTip="View" (click)="view()">
         <mat-icon class="sm-icon">visibility</mat-icon>
@@ -29,7 +32,7 @@ export interface AdminActionRendererParams extends ICellRendererParams {
       </button>
     </span>
   `,
-  styles: [`
+    styles: [`
     .row {
       display: flex;
       height: 100%;
@@ -72,9 +75,13 @@ export interface AdminActionRendererParams extends ICellRendererParams {
       color: #f44336;
     }
   `],
-  encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: false,
+    encapsulation: ViewEncapsulation.None,
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [
+        NgIf,
+        MatIconButton,
+        MatIcon,
+    ],
 })
 export class AdminActionsComponent implements ICellRendererAngularComp {
     params?: AdminActionRendererParams;

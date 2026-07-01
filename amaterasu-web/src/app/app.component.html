@@ -1,4 +1,4 @@
-<div class="main-body" *ngIf="initializationComplete$ | async; else loading">
+<div class="main-body" *ngIf="initializationComplete(); else loading">
   <header class="header-footer {{ bannerDisplayStyle }}">
     <b>{{ header }}</b>
   </header>
@@ -89,7 +89,7 @@
     <!-- User Section -->
     <div class="toolbar-section user-section">
       <!-- User Info -->
-      <article *ngIf="(loggedInUser$ | async) as user;" class="user-info">
+      <article *ngIf="loggedInUser() as user;" class="user-info">
         <div class="user-details">
           <span class="user-name">{{ user?.username }}</span>
           <span class="team-name">({{ user?.team?.name }})</span>
@@ -98,13 +98,13 @@
       </article>
 
       <!-- User Menu Button -->
-      <button class="menu-button" mat-icon-button [matMenuTriggerFor]="userMenu" *ngIf="(isAppReady$ | async)">
+      <button class="menu-button" mat-icon-button [matMenuTriggerFor]="userMenu" *ngIf="isAppReady()">
         <mat-icon>account_circle</mat-icon>
       </button>
 
       <!-- User Menu -->
       <mat-menu #userMenu="matMenu" class="user-actions-menu">
-        <ng-container *ngIf="(loggedInUser$ | async) as user; else guestMenu">
+        <ng-container *ngIf="loggedInUser() as user; else guestMenu">
           <div class="user-menu-header">
             <span class="user-menu-name">{{ user.username }}</span>
             <span class="user-menu-role">{{ user.role }}</span>

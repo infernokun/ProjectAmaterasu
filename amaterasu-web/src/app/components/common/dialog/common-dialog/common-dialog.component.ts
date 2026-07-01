@@ -1,22 +1,27 @@
-import { Component, Inject } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { CodeModel } from '@ngstack/code-editor';
+import { Component, Inject, signal } from '@angular/core';
+import { MAT_DIALOG_DATA, MatDialogRef, MatDialogTitle, MatDialogContent, MatDialogActions } from '@angular/material/dialog';
+import { CodeModel } from '../../monaco-editor/monaco-editor.component';
 import { QuestionBase } from '../../../../models/simple-form-data.model';
-import { FormControl } from '@angular/forms';
-import { MatSelectChange } from '@angular/material/select';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { MatSelectChange, MatSelect, MatOption } from '@angular/material/select';
 import { ApiResponse } from '../../../../models/api-response.model';
 import { LabTracker } from '../../../../models/lab/lab-tracker.model';
+import { NgIf, NgFor } from '@angular/common';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { CdkScrollable } from '@angular/cdk/scrolling';
+import { CodeBlockComponent } from '../../code-block/code-block.component';
+import { MatButton } from '@angular/material/button';
 
 @Component({
-  selector: 'amaterasu-common-dialog',
-  templateUrl: './common-dialog.component.html',
-  styleUrls: ['./common-dialog.component.scss'],
-  standalone: false
+    selector: 'amaterasu-common-dialog',
+    templateUrl: './common-dialog.component.html',
+    styleUrls: ['./common-dialog.component.scss'],
+    imports: [MatDialogTitle, NgIf, NgFor, MatFormField, MatLabel, MatSelect, ReactiveFormsModule, MatOption, CdkScrollable, MatDialogContent, CodeBlockComponent, MatDialogActions, MatButton]
 })
 export class CommonDialogComponent {
   output: CodeModel;
-  isCode: boolean = false;
-  isReadOnly: boolean = false;
+  isCode = signal(false);
+  isReadOnly = signal(false);
   fileType: string = '';
   options: { questions: QuestionBase[], current: string, async: Function, labTracker: LabTracker };
 
@@ -33,8 +38,8 @@ export class CommonDialogComponent {
       uri: 'main.' + data.fileType,
       value: data.content,
     };
-    this.isCode = data.isCode;
-    this.isReadOnly = data.isReadOnly;
+    this.isCode.set(data.isCode);
+    this.isReadOnly.set(data.isReadOnly);
     this.options = data.options;
 
     if (this.options) {
