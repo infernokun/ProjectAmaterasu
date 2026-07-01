@@ -34,9 +34,17 @@ public class FlagService {
     public boolean validateFlag(CTFEntityAnswerRequest ctfEntityAnswerRequest) {
         List<Flag> challengeFlags = getFlagsByCtfEntityId(ctfEntityAnswerRequest.getQuestionId());
 
-        return challengeFlags.stream()
-                .map(Flag::getFlag)
-                .anyMatch(flag -> flag.equalsIgnoreCase(ctfEntityAnswerRequest.getFlag()));
+        // Trim to tolerate copy-paste whitespace, and honour each flag's caseSensitive
+        // setting (previously always case-insensitive, ignoring the field entirely).
+        String submitted = ctfEntityAnswerRequest.getFlag() == null
+                ? "" : ctfEntityAnswerRequest.getFlag().trim();
+
+        return challengeFlags.stream().anyMatch(flag -> {
+            String expected = flag.getFlag() == null ? "" : flag.getFlag().trim();
+            return Boolean.TRUE.equals(flag.getCaseSensitive())
+                    ? expected.equals(submitted)
+                    : expected.equalsIgnoreCase(submitted);
+        });
     }
 
     @Transactional
@@ -79,10 +87,17 @@ public class FlagService {
         if (correct && !ctfEntityAnswer.getCorrect()) { // First correct attempt
             Integer newPoints = roomUser.getPoints() + ctfEntity.getPoints();
             roomUser.updatePoints(newPoints, "answered correctly");
+            ctfEntityAnswer.setScore(ctfEntity.getPoints());
             roomUser = roomUserService.save(roomUser);
         }
 
-        ctfEntityAnswer.setCorrect(correct);
+        // Never downgrade an already-solved challenge back to unsolved. Previously this
+        // unconditionally wrote the current attempt's correctness, so a wrong answer after
+        // solving flipped correct=false and the next correct answer re-awarded points
+        // (infinite points). Only ever upgrade to solved.
+        if (correct) {
+            ctfEntityAnswer.setCorrect(true);
+        }
         ctfEntityAnswer = ctfAnswerService.saveAnsweredCTFEntity(ctfEntityAnswer);
 
         // Build response

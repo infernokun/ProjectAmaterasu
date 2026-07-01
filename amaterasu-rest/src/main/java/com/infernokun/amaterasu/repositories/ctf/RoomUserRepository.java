@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface RoomUserRepository extends JpaRepository<RoomUser, Long> {
+public interface RoomUserRepository extends JpaRepository<RoomUser, String> {
     Optional<RoomUser> findByUserAndRoom(User user, Room room);
 
     List<RoomUser> findByRoomIdOrderByPointsDesc(String roomId);

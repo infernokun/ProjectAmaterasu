@@ -2,6 +2,8 @@ package com.infernokun.amaterasu.exceptions;
 
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.LabActionResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -11,6 +13,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ChallengeNotAnsweredException.class)
     public ResponseEntity<ApiResponse<String>> handleChallengeNotAnsweredException(
@@ -129,8 +133,21 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<?>> handleOptimisticLockingFailure(OptimisticLockingFailureException ex) {
+        LOGGER.warn("Optimistic locking conflict: {}", ex.getMessage());
+        ApiResponse<?> response = ApiResponse.<String>builder()
+                .code(HttpStatus.CONFLICT.value())
+                .message("The resource was modified concurrently, please retry.")
+                .data(null)
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.CONFLICT);
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<?>> handleRuntimeException(RuntimeException ex) {
+        // Previously unhandled 500s were invisible in the logs; log the full stack here.
+        LOGGER.error("Unhandled RuntimeException", ex);
         ApiResponse<?> response = ApiResponse.<String>builder()
                 .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .message("RuntimeException: " + ex.getMessage())
@@ -141,6 +158,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<?>> handleGeneralException(Exception ex) {
+        LOGGER.error("Unhandled exception", ex);
         ApiResponse<?> response = ApiResponse.<String>builder()
                 .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .message("Exception: " + ex.getMessage())

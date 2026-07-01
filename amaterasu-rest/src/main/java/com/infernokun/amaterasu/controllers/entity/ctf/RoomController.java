@@ -5,6 +5,7 @@ import com.infernokun.amaterasu.models.entities.ctf.CTFEntityAnswer;
 import com.infernokun.amaterasu.models.entities.ctf.dto.JoinRoomResponse;
 import com.infernokun.amaterasu.models.entities.ctf.dto.RoomJoinableRequest;
 import com.infernokun.amaterasu.models.entities.User;
+import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.ctf.RoomUser;
 import com.infernokun.amaterasu.models.entities.ctf.dto.RoomUserProfileResponse;
@@ -96,7 +97,12 @@ public class RoomController {
     public ResponseEntity<ApiResponse<RoomUserProfileResponse>> getScoreboardUserInfo(@PathVariable String roomId) {
         User user = userService.findUserById(SecurityContextHolder.getContext().getAuthentication().getName());
 
-        RoomUser roomUser = roomUserService.findByUserId(user.getId());
+        // Scope the lookup to the requested room: findByUserId ignores roomId and returns an
+        // arbitrary RoomUser (and throws if the user has joined more than one room).
+        Room room = roomService.findByRoomId(roomId);
+        RoomUser roomUser = roomUserService.findByUserAndRoom(user, room)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User is not a member of room " + roomId));
 
         List<CTFEntityAnswer> roomUserAnswers = ctfAnswerService.findByRoomUserId(roomUser);
 
@@ -108,8 +114,9 @@ public class RoomController {
 
         roomUserAnswers.forEach(roomUserAnswer -> {
             if (roomUserAnswer.getCorrect()) {
-                // Add failed attempts (total attempts - 1 for the correct one)
-                fails.set(fails.get() + roomUserAnswer.getAttempts() - 1);
+                // Add failed attempts (total attempts - 1 for the correct one); clamp at 0
+                // so a correct answer recorded with 0 attempts can't produce negative fails.
+                fails.set(fails.get() + Math.max(0, roomUserAnswer.getAttempts() - 1));
                 correct.set(correct.get() + 1);
 
                 // Track correct answers by category
