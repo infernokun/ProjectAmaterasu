@@ -1,4 +1,4 @@
-FROM docker:dind
+FROM docker:29.2.0-dind-alpine3.23
 
 RUN apk update && apk add --no-cache openssh-client=9.9_p2-r0 openssh-server=9.9_p2-r0 bash
 
