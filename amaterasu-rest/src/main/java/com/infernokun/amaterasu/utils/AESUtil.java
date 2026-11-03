@@ -48,7 +48,6 @@ public class AESUtil {
             SecretKey tmp = factory.generateSecret(spec);
             SecretKey secretKey = new SecretKeySpec(tmp.getEncoded(), ALGORITHM);
 
-            // NB: never log derived key material, even at DEBUG.
             return secretKey.getEncoded();
         } catch (Exception e) {
             LOGGER.error("Key derivation failed!", e);

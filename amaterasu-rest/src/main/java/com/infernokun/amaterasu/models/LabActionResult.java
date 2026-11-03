@@ -12,8 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LabActionResult {
-    // Without this, Lombok's isSuccessful() getter makes Jackson emit "successful",
-    // but the Angular LabActionResult model reads "isSuccessful". Pin the JSON name.
+    // Keep the JSON name "isSuccessful" to match the web model.
     @JsonProperty("isSuccessful")
     private boolean isSuccessful;
     private LabTracker labTracker;

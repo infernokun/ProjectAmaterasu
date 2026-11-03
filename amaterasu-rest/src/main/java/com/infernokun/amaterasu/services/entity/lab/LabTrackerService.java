@@ -102,9 +102,7 @@ public class LabTrackerService extends BaseService {
 
     public String getTrackerLabLogs(LabTracker labTracker, RemoteServer dockerServer, String service) {
         try {
-            // Resolve single-service logs through compose so the project-scoped container
-            // is found; "docker logs <service>" used the bare service name and never matched
-            // the actual container (named <project>_<service>_N).
+            // Go through compose so the project-scoped container is found
             String cmd = service.equals("all") ? String.format("docker-compose -p %s logs", labTracker.getId()) :
                     String.format("docker-compose -p %s logs %s", labTracker.getId(), service);
 
@@ -129,10 +127,6 @@ public class LabTrackerService extends BaseService {
                 throw new RuntimeException(e);
             }
 
-            // For a directory target the uploaded file lives inside it; for a file target the
-            // path IS the file. Previously the file branch ran "rmdir $FILE" (which errors on a
-            // regular file) and both branches used echo-injection. writeRemoteFile is base64-safe
-            // and creates parent directories as needed.
             String remotePath = volumeChange.isDirectory()
                     ? volumeChange.getTargetPath() + "/" + volumeChange.getFileName()
                     : volumeChange.getTargetPath();

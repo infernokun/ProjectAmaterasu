@@ -86,6 +86,10 @@ export class RoomService extends BaseService {
     this.currentRoomUserSubject.next(roomUser);
   }
 
+  peekCurrentRoomUser(): JoinRoomResponse | undefined {
+    return this.currentRoomUserSubject.value ?? undefined;
+  }
+
   getCurrentRoomUser(): JoinRoomResponse {
     if (!this.currentRoomUserSubject.value) {
       throw new Error('Current room user is not set');

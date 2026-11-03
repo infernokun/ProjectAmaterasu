@@ -173,6 +173,9 @@ public class LabService extends BaseService {
         Lab lab = findLabById(labId);
         User user = this.userService.findUserById(userId);
         Team userTeam = user.getTeam();
+        if (userTeam == null) {
+            return new LabActionResult(false, null, "User must be on a team to start a lab");
+        }
         LOGGER.info("Starting lab...");
 
         Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
@@ -197,8 +200,7 @@ public class LabService extends BaseService {
 
         LabActionResult labActionResult = labActionService.startLab(labTracker, remoteServer);
 
-        // Unimplemented lab types (DOCKER_CONTAINER/KUBERNETES/UNKNOWN) return an empty result
-        // with a null tracker; fall back to the tracker we already resolved so we never NPE.
+        // Unimplemented lab types return a null tracker
         if (labActionResult.getLabTracker() == null) {
             labActionResult.setLabTracker(labTracker);
         }
@@ -260,6 +262,9 @@ public class LabService extends BaseService {
         String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy @ hh:mma"));
 
         LabActionResult labActionResult = labActionService.stopLab(findLabById(labId), existingLabTracker, remoteServer);
+        if (labActionResult.getLabTracker() == null) {
+            labActionResult.setLabTracker(existingLabTracker);
+        }
 
         labActionResult.getLabTracker().setUpdatedAt(LocalDateTime.now());
         labActionResult.getLabTracker().setUpdatedBy(userService.findUserById(userId).getId());
@@ -284,6 +289,9 @@ public class LabService extends BaseService {
         }
 
         Team userTeam = userService.findUserById(userId).getTeam();
+        if (userTeam == null) {
+            return new LabActionResult(false, existingLabTracker, "User must be on a team to delete a lab");
+        }
 
         LOGGER.info("Deleting lab...");
 

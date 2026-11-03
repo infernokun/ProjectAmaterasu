@@ -476,9 +476,7 @@ export class LabDeployComponent implements OnInit, OnDestroy {
 
     let apiResponse: ApiResponse<LabActionResult>;
 
-    // err.error is only a structured ApiResponse when the backend returned a JSON body.
-    // For network failures / timeouts / non-JSON errors it is a string or an Error, so we
-    // must not blindly dereference err.error.data — that was throwing a TypeError.
+    // err.error is not an ApiResponse for network or non-JSON errors
     if (err.error && typeof err.error === 'object' && 'data' in err.error) {
       apiResponse = err.error as ApiResponse<LabActionResult>;
     } else {

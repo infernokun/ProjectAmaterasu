@@ -34,8 +34,6 @@ public class FlagService {
     public boolean validateFlag(CTFEntityAnswerRequest ctfEntityAnswerRequest) {
         List<Flag> challengeFlags = getFlagsByCtfEntityId(ctfEntityAnswerRequest.getQuestionId());
 
-        // Trim to tolerate copy-paste whitespace, and honour each flag's caseSensitive
-        // setting (previously always case-insensitive, ignoring the field entirely).
         String submitted = ctfEntityAnswerRequest.getFlag() == null
                 ? "" : ctfEntityAnswerRequest.getFlag().trim();
 
@@ -59,7 +57,11 @@ public class FlagService {
         RoomUser roomUser = roomUserService.findByUserAndRoom(user, room)
                 .orElseThrow(() -> new IllegalStateException("User is not a member of this room"));
 
-        // Get or create answer record - FIX: Use roomUser.getId() instead of user.getId()
+        if (ctfEntity.getRoom() == null || !room.getId().equals(ctfEntity.getRoom().getId())) {
+            throw new IllegalArgumentException("Challenge does not belong to this room");
+        }
+
+        // Get or create answer record
         RoomUser finalRoomUser = roomUser;
         CTFEntityAnswer ctfEntityAnswer = ctfAnswerService
                 .findByRoomUserIdAndCtfEntityIdOptional(roomUser.getId(), ctfEntity.getId())
@@ -72,6 +74,10 @@ public class FlagService {
                         .attemptTimes(new ArrayList<>())
                         .attempts(0)
                         .build());
+
+        if (!ctfEntityAnswer.getCorrect() && ctfEntityAnswer.isMaxAttemptsReached()) {
+            throw new IllegalStateException("Maximum attempts reached");
+        }
 
         // Update answer record
         ctfEntityAnswer.getAnswers().add(ctfEntityAnswerRequest);
@@ -91,10 +97,7 @@ public class FlagService {
             roomUser = roomUserService.save(roomUser);
         }
 
-        // Never downgrade an already-solved challenge back to unsolved. Previously this
-        // unconditionally wrote the current attempt's correctness, so a wrong answer after
-        // solving flipped correct=false and the next correct answer re-awarded points
-        // (infinite points). Only ever upgrade to solved.
+        // Never downgrade a solved challenge
         if (correct) {
             ctfEntityAnswer.setCorrect(true);
         }

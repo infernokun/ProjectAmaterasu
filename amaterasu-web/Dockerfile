@@ -1,16 +1,15 @@
-# syntax=docker/dockerfile:1.4.2
 # Stage 1: Compile
-FROM node:lts-bullseye AS compile-stage
+FROM node:24-bookworm-slim AS compile-stage
 
 WORKDIR /app/
 
 # Install pnpm globally
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10
 
-COPY --link *.json pnpm-lock.yaml /app/
+COPY --link *.json pnpm-lock.yaml pnpm-workspace.yaml /app/
 COPY --link src/ /app/src/
 
-RUN --mount=type=cache,target=/root/.npm/_cacache \
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
   --mount=type=secret,id=npmrc,dst=/root/.npmrc \
   set -eux \
   && pnpm install --frozen-lockfile \
@@ -41,7 +40,7 @@ COPY --chmod=755 ./scripts/docker-entrypoint.sh /docker-entrypoint.sh
 VOLUME [ "/etc/nginx" ]
 
 EXPOSE 80
-HEALTHCHECK --start-period=5s CMD curl --fail http://localhost/ || exit 1
+HEALTHCHECK --start-period=5s CMD wget -q --spider http://localhost/health || exit 1
 
 USER nginx
 

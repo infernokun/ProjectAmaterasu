@@ -2,13 +2,13 @@ import groovy.json.JsonSlurper
 
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.4.2'
+	id 'org.springframework.boot' version '3.5.16'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.infernokun'
 
-// ─── Dynamically set version from package.json ─────────────────────────────────
+// Dynamically set version from package.json
 def packageJson = new File(rootDir, "package.json")
 if (packageJson.exists()) {
 	def parsedJson = new JsonSlurper().parseText(packageJson.text)
@@ -57,22 +57,16 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
-	implementation 'com.github.docker-java:docker-java:3.5.1'
-	implementation 'com.github.docker-java:docker-java-transport-httpclient5:3.4.1'
-	implementation 'org.apache.httpcomponents.client5:httpclient5:5.4.2'
-	implementation 'io.fabric8:kubernetes-client:7.1.0'
-	implementation 'com.github.mwiede:jsch:0.2.23'
-	implementation 'org.bitbucket.b_c:jose4j:0.9.6'
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
-	implementation 'org.mapstruct:mapstruct:1.5.5.Final'
-	implementation 'org.modelmapper:modelmapper:3.1.1'
+	implementation 'org.apache.httpcomponents.client5:httpclient5'
+	implementation 'com.github.mwiede:jsch:2.28.8'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17'
+	implementation 'org.modelmapper:modelmapper:3.2.8'
 
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'org.postgresql:postgresql'
 
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
-	annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
 	annotationProcessor 'org.projectlombok:lombok'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -82,7 +76,7 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-// ─── Inject version into application.yml ──────────────────────────────────────
+// Inject version into application.yml
 tasks.register('injectVersionIntoProperties') {
 	doLast {
 		def propsFile = file("src/main/resources/application.yml")
@@ -90,7 +84,7 @@ tasks.register('injectVersionIntoProperties') {
 		if (!propsFile.exists()) {
 			propsFile.createNewFile()
 			propsFile.text = "app:\n  version: ${project.version}\n"
-			println "✅ application.yml created with version ${project.version}"
+			println "application.yml created with version ${project.version}"
 			return
 		}
 
@@ -140,11 +134,11 @@ tasks.register('injectVersionIntoProperties') {
 		}
 
 		propsFile.text = newLines.join('\n')
-		println "✅ Injected version ${project.version} into application.yml"
+		println "Injected version ${project.version} into application.yml"
 	}
 }
 
-// ─── Hook into the build lifecycle ────────────────────────────────────────────
+// Hook into the build lifecycle
 processResources.dependsOn injectVersionIntoProperties
 
 tasks.named('test') {

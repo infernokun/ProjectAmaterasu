@@ -162,7 +162,7 @@ public class RemoteStatsService extends BaseService {
                             () -> createNewStats(remoteServer, statsFromJson)
                     );
         } else {
-            createNewStats(remoteServer, new RemoteServerStats());
+            createNewStats(remoteServer, statsFromJson);
         }
     }
 
@@ -231,10 +231,11 @@ public class RemoteStatsService extends BaseService {
 
 
     private void createNewStats(RemoteServer remoteServer, RemoteServerStats statsFromJson) {
-        statsFromJson.setRemoteServer(remoteServer);
-        statsFromJson.setStatus(LabStatus.ACTIVE);
+        RemoteServerStats stats = statsFromJson != null ? statsFromJson : new RemoteServerStats();
+        stats.setRemoteServer(remoteServer);
+        stats.setStatus(statsFromJson != null ? LabStatus.ACTIVE : LabStatus.OFFLINE);
 
-        RemoteServerStats savedStats = remoteServerStatsService.createStats(statsFromJson);
+        RemoteServerStats savedStats = remoteServerStatsService.createStats(stats);
 
         remoteServer.setRemoteServerStats(savedStats);
 

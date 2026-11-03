@@ -57,7 +57,7 @@ public class RemoteServerStatsController extends BaseController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<RemoteServerStats>> updateStats(
             @PathVariable String id, @RequestBody RemoteServerStats stats) {
-        //stats.setId(id);
+        stats.setId(id);
         RemoteServerStats updatedStats = remoteServerStatsService.updateStats(stats);
         return ResponseEntity.ok(
                 ApiResponse.<RemoteServerStats>builder()

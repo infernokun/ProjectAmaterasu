@@ -96,8 +96,6 @@ export class RemoteServerComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Keep the local selection and the shared service selection in sync so that lab
-  // creation (createNewLab) and the VM builder see the server the user actually picked.
   private selectServer(server: RemoteServer): void {
     this.selectedServer = server;
     this.remoteServerService.setSelectedRemoteServer(server);

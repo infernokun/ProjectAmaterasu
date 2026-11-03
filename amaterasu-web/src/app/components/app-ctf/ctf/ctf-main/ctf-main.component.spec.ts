@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { CTFMainComponent } from './ctf-main.component';
 
 describe('CtfMainComponent', () => {
@@ -8,9 +10,13 @@ describe('CtfMainComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-    imports: [CTFMainComponent]
-})
-      .compileComponents();
+      imports: [CTFMainComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([])
+      ]
+    }).compileComponents();
 
     fixture = TestBed.createComponent(CTFMainComponent);
     component = fixture.componentInstance;

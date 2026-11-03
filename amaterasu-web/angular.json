@@ -33,13 +33,7 @@
                                 "glob": "**/*",
                                 "input": "node_modules/monaco-editor/min",
                                 "output": "assets/monaco-editor/min"
-                            },
-                            {
-                                "glob": "**/*",
-                                "input": "node_modules/monaco-editor/min-maps",
-                                "output": "assets/monaco-editor/min-maps"
-                              }
-                              
+                            }
                         ],
                         "styles": [
                             "src/styles.scss"
@@ -104,6 +98,7 @@
                             "zone.js/testing"
                         ],
                         "tsConfig": "tsconfig.spec.json",
+                        "karmaConfig": "karma.conf.js",
                         "inlineStyleLanguage": "scss",
                         "assets": [
                             "src/favicon.ico",
@@ -121,4 +116,4 @@
     "cli": {
       "analytics": false
     }
-}
+}

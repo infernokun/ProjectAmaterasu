@@ -1,4 +1,4 @@
-FROM docker:dind
+FROM docker:29.9.2-dind-alpine3.24
 
 # Install your additional packages
 RUN apk add --no-cache openssh-server shadow sudo bash nano
@@ -30,4 +30,4 @@ RUN echo '#!/bin/sh' > /usr/local/bin/start-entrypoint.sh && \
     chmod +x /usr/local/bin/start-entrypoint.sh
 
 # Use CMD instead of ENTRYPOINT
-CMD ["/usr/local/bin/start-entrypoint.sh"]
+CMD ["/usr/local/bin/start-entrypoint.sh"]

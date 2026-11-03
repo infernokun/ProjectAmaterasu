@@ -1,18 +1,24 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
+import { CTFCardComponent } from './ctf-card.component';
 
-import { CtfCardComponent } from './ctf-card.component';
-
-describe('CtfCardComponent', () => {
-  let component: CtfCardComponent;
-  let fixture: ComponentFixture<CtfCardComponent>;
+describe('CTFCardComponent', () => {
+  let component: CTFCardComponent;
+  let fixture: ComponentFixture<CTFCardComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-    imports: [CtfCardComponent]
-})
-    .compileComponents();
-    
-    fixture = TestBed.createComponent(CtfCardComponent);
+      imports: [CTFCardComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([])
+      ]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(CTFCardComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

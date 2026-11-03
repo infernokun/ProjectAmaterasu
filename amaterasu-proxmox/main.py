@@ -1,23 +1,24 @@
-import time
-import urllib3
-import requests
-from dotenv import load_dotenv
 import os
+import time
+
+import requests
+import urllib3
+from dotenv import load_dotenv
 
 # Suppress InsecureRequestWarning
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Proxmox API details
 load_dotenv()
-PROXMOX_HOST = "https://10.0.0.250:8006"
+PROXMOX_HOST = os.getenv("PROXMOX_HOST", "https://10.0.0.250:8006")
 TOKEN_ID = os.getenv("TOKEN_ID")
 TOKEN_SECRET = os.getenv("TOKEN_SECRET")
 HEADERS = {
     "Authorization": f"PVEAPIToken={TOKEN_ID}={TOKEN_SECRET}",
     "Content-Type": "application/json",
 }
-NODE = "inferno"
-TEAM_ID = "185CPT"
+NODE = os.getenv("PROXMOX_NODE", "inferno")
+TEAM_ID = os.getenv("TEAM_ID", "185CPT")
 
 
 def clone_vm(source_vmid: int, new_vmid: int, name: str, description: str):
@@ -66,7 +67,6 @@ def stop_vm(vmid: int):
 def delete_vm(vmid: int):
     """Deletes a VM in Proxmox."""
     url = f"{PROXMOX_HOST}/api2/json/nodes/{NODE}/qemu/{vmid}"
-    payload = {"node": NODE, "vmid": vmid}
     response = requests.delete(url, headers=HEADERS, verify=False)
 
     if response.status_code == 200:
@@ -82,6 +82,7 @@ def delete_vm(vmid: int):
 def get_vms():
     url = f"{PROXMOX_HOST}/api2/json/nodes/{NODE}/qemu"
     response = requests.get(url, headers=HEADERS, verify=False)
+    response.raise_for_status()
     return response.json()
 
 
@@ -90,7 +91,8 @@ def get_vm(vmid):
     response = requests.get(url, headers=HEADERS, verify=False)
     if response.status_code == 200:
         return response.json()
-    return {url, response.status_code}
+    print(f"Request to {url} failed ({response.status_code}):", response.text)
+    return None
 
 
 def get_vmids_with_short_uptime_and_high_vmid(
@@ -119,9 +121,6 @@ def get_vmids_with_short_uptime_and_high_vmid(
     except requests.exceptions.RequestException as e:
         print(f"Error during API request: {e}")
         return []
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        return []
 
 
 def get_vm_config(vmid: int):
@@ -129,7 +128,8 @@ def get_vm_config(vmid: int):
     response = requests.get(url, headers=HEADERS, verify=False)
     if response.status_code == 200:
         return response.json()
-    return {url, response.status_code}
+    print(f"Request to {url} failed ({response.status_code}):", response.text)
+    return None
 
 
 def get_node_networks():
@@ -137,7 +137,8 @@ def get_node_networks():
     response = requests.get(url, headers=HEADERS, verify=False)
     if response.status_code == 200:
         return response.json()
-    return {url, response.status_code}
+    print(f"Request to {url} failed ({response.status_code}):", response.text)
+    return None
 
 
 def qemu(vmid):
@@ -145,7 +146,8 @@ def qemu(vmid):
     response = requests.get(url, headers=HEADERS, verify=False)
     if response.status_code == 200:
         return response.json()
-    return {url, response.status_code}
+    print(f"Request to {url} failed ({response.status_code}):", response.text)
+    return None
 
 
 def main():
@@ -186,13 +188,8 @@ def quick_delete(x):
 
 
 if __name__ == "__main__":
-    # WARNING: this module is an experimental Proxmox scratch script, not a service.
-    # It previously ran `quick_delete(...)` unconditionally on every invocation, which
-    # STOPS AND DELETES every VM matching a heuristic (uptime < 10h and vmid > 120) —
-    # including freshly cloned student labs — with no confirmation or dry-run.
-    #
-    # Destructive actions are now gated behind an explicit CLI flag so that simply
-    # running `python main.py` is safe.
+    # quick_delete stops and deletes every VM matching the uptime/vmid heuristic,
+    # so it only runs behind an explicit flag and a confirmation prompt.
     import argparse
 
     parser = argparse.ArgumentParser(description="Proxmox lab helper (experimental)")

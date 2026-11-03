@@ -1,11 +1,8 @@
 #!/usr/bin/python3
 
-from enum import Flag
-import requests
-from datetime import datetime, timedelta
-import json as JSON
 
 import docker_challenge
+import requests
 import room
 
 url = "http://127.0.0.1:8080/amaterasu-rest/api"

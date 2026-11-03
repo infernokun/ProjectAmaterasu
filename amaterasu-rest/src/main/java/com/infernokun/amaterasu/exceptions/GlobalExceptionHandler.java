@@ -8,8 +8,12 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -144,9 +148,38 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.CONFLICT);
     }
 
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<String>> handleNoResourceFoundException(NoResourceFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, "No endpoint " + ex.getHttpMethod() + " /" + ex.getResourcePath());
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<String>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        return buildResponse(HttpStatus.METHOD_NOT_ALLOWED, ex.getMessage());
+    }
+
+    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
+    public ResponseEntity<ApiResponse<String>> handleBadRequest(RuntimeException ex) {
+        LOGGER.warn("Rejected request: {}", ex.getMessage());
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<String>> handleMessageNotReadable(HttpMessageNotReadableException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Malformed request body");
+    }
+
+    private static ResponseEntity<ApiResponse<String>> buildResponse(HttpStatus status, String message) {
+        ApiResponse<String> response = ApiResponse.<String>builder()
+                .code(status.value())
+                .message(message)
+                .data(null)
+                .build();
+        return new ResponseEntity<>(response, status);
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<?>> handleRuntimeException(RuntimeException ex) {
-        // Previously unhandled 500s were invisible in the logs; log the full stack here.
         LOGGER.error("Unhandled RuntimeException", ex);
         ApiResponse<?> response = ApiResponse.<String>builder()
                 .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
@@ -158,6 +191,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<?>> handleGeneralException(Exception ex) {
+        if (ex instanceof ErrorResponse errorResponse) {
+            HttpStatus status = HttpStatus.valueOf(errorResponse.getStatusCode().value());
+            return new ResponseEntity<>(ApiResponse.<String>builder()
+                    .code(status.value())
+                    .message(ex.getMessage())
+                    .data(null)
+                    .build(), status);
+        }
         LOGGER.error("Unhandled exception", ex);
         ApiResponse<?> response = ApiResponse.<String>builder()
                 .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
@@ -166,4 +207,4 @@ public class GlobalExceptionHandler {
                 .build();
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
-}
+}

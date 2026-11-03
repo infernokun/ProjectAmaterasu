@@ -128,8 +128,7 @@ public class ProxmoxService extends BaseService {
                     url, HttpMethod.GET, entity, new ParameterizedTypeReference<>() { }
             );
 
-            // Guard against a null "data" payload (e.g. the VM was deleted out-of-band in the
-            // Proxmox UI). Adding a null here would later NPE when reading vm.getVmid().
+            // VM may have been deleted outside the app
             if (response.getBody() != null && response.getBody().get("data") != null) {
                 filteredVMs.add(response.getBody().get("data"));
             }
@@ -362,9 +361,7 @@ public class ProxmoxService extends BaseService {
                     return;
                 }
 
-                vm.setVmid(newVmid);
-                ProxmoxVM clonedVm = new ProxmoxVM(newVmid, vm);
-                clonedVMs.add(clonedVm);
+                clonedVMs.add(new ProxmoxVM(newVmid, vm));
 
             } catch (Exception e) {
                 LOGGER.error("Error processing VM {} ({}): {}", vm.getName(), newVmName, e.getMessage());
@@ -383,14 +380,14 @@ public class ProxmoxService extends BaseService {
 
         clonedVMs.forEach(clonedVM -> modifyProxmoxVMConfig(clonedVM.getVmid(), remoteServer, nextAbrIndex));
 
-        // Now start the cloned VMs
-        vms.forEach(vm -> startProxmoxVM(vm, remoteServer, responses, failures));
+        // Only touch the clones so a failed clone never leaves the template in the tracker
+        clonedVMs.forEach(vm -> startProxmoxVM(vm, remoteServer, responses, failures));
 
-        boolean allVMsStarted = waitForVMsToReachStatus(vms, remoteServer, "running");
+        boolean allVMsStarted = waitForVMsToReachStatus(clonedVMs, remoteServer, "running");
 
         List<ProxmoxVM> filteredVMs =
                 getVMs(remoteServer).stream()
-                        .filter(vm -> vms.stream().anyMatch(v -> v.getVmid() == vm.getVmid()))
+                        .filter(vm -> clonedVMs.stream().anyMatch(v -> v.getVmid() == vm.getVmid()))
                         .toList();
 
         labTracker.setVms(filteredVMs);
