@@ -75,7 +75,10 @@ jobs:
           done
           git diff --exit-code -- '*requirements*.txt'
       - name: Install
-        run: uv pip install --require-hashes -r requirements-dev.txt -r amaterasu-proxmox/requirements.txt -r amaterasu-populate/requirements.txt
+        run: |
+          uv venv
+          uv pip install --require-hashes -r requirements-dev.txt -r amaterasu-proxmox/requirements.txt -r amaterasu-populate/requirements.txt
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
       - name: Lint
         run: ruff check .
       - name: Smoke test
