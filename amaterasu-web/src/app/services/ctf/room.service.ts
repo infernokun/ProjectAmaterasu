@@ -78,10 +78,6 @@ export class RoomService extends BaseService {
     this.roomJoinableSubject.next(roomJoinables || new Map<string, JoinRoomResponse>());
   }
 
-  addPoints(roomId: string, userId: string): Observable<ApiResponse<JoinRoomResponse>> {
-    return this.post<ApiResponse<JoinRoomResponse>>(`${this.reqUrl}/add-points/${roomId}/${userId}`, { });
-  }
-
   setCurrentRoomUser(roomUser: JoinRoomResponse): void {
     this.currentRoomUserSubject.next(roomUser);
   }

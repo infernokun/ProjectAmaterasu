@@ -1,0 +1,173 @@
+@if (tracker(); as t) {
+  <header class="page-head">
+    <div class="stack tight">
+      <div class="row"><span class="tag">{{ typeLabel() }}</span><app-status-badge [state]="state()" /></div>
+      <h1 class="h1">{{ t.labStarted?.name }}</h1>
+      <div class="small muted row">
+        <span>On <strong class="dim">{{ server()?.name ?? 'no server yet' }}</strong></span><span aria-hidden="true">·</span>
+        <app-mono-id [value]="t.id!" [copyable]="true" label="lab id" />
+        @if (since()) {
+          <span aria-hidden="true">·</span><span>{{ since() }}</span>
+        }
+      </div>
+    </div>
+    <div class="row">
+      <button type="button" class="btn" (click)="refresh()" [disabled]="refreshing()">
+        <app-icon name="refresh" [spin]="refreshing()" />Refresh
+      </button>
+      @if (can()?.canResume) {
+        <button type="button" class="btn primary" (click)="resume()"><app-icon name="play" />Resume</button>
+      }
+      @if (can()?.canStartFresh) {
+        <button type="button" class="btn primary" (click)="resume()"><app-icon name="play" />Start fresh copy</button>
+      }
+      @if (can()?.canPause) {
+        <button type="button" class="btn" (click)="pause()" title="Bring the lab down and keep its progress"><app-icon name="pause" />Pause</button>
+      }
+      @if (can()?.working) {
+        <button type="button" class="btn" disabled><app-icon name="spinner" [spin]="true" />{{ meta(state()).label }}</button>
+      }
+      @if (can()?.canStop) {
+        <button type="button" class="btn danger" (click)="stop()"><app-icon name="stop" />Stop</button>
+      }
+    </div>
+  </header>
+
+  @if (state() === 'PAUSED') {
+    <div class="banner info"><app-icon name="pause" /><div>This lab is paused. {{ pauseHelp() }}. Resume to keep working.</div></div>
+  }
+  @if (state() === 'FAILED') {
+    <div class="banner bad"><app-icon name="alert" /><div>The last action on this lab failed. Check the logs, then start a fresh copy.</div></div>
+  }
+
+  <div class="cols">
+    <div class="col-main console-main">
+      <div class="tabs" role="tablist" aria-label="Lab console">
+        <button type="button" class="tab" role="tab" [class.on]="tab() === 'units'" [attr.aria-selected]="tab() === 'units'" (click)="tab.set('units')">
+          {{ vm() ? 'VMs' : 'Services' }}<span class="nav-count">{{ unitCount() }}</span>
+        </button>
+        @if (!vm()) {
+          <button type="button" class="tab" role="tab" [class.on]="tab() === 'logs'" [attr.aria-selected]="tab() === 'logs'" (click)="tab.set('logs')">Logs</button>
+          <button type="button" class="tab" role="tab" [class.on]="tab() === 'files'" [attr.aria-selected]="tab() === 'files'" (click)="tab.set('files')">Files</button>
+        }
+        <button type="button" class="tab" role="tab" [class.on]="tab() === 'activity'" [attr.aria-selected]="tab() === 'activity'" (click)="tab.set('activity')">Activity</button>
+      </div>
+
+      @switch (tab()) {
+        @case ('units') {
+          @if (!vm()) {
+            <div class="card flush">
+              @if (services().length) {
+                <div class="table-wrap">
+                  <table class="t">
+                    <thead><tr><th>Service</th><th>State</th><th>Address</th><th>Ports</th><th>Network</th><th class="r">Actions</th></tr></thead>
+                    <tbody>
+                      @for (service of services(); track service.name; let i = $index) {
+                        <tr>
+                          <td><strong class="mono">{{ serviceNames()[i] }}</strong>
+                            @if (service.image) {<div class="small muted mono">{{ service.image }}</div>}</td>
+                          <td><app-status-badge [tone]="serviceTone(service)" [label]="service.state" /></td>
+                          <td class="mono small">{{ list(service.ipAddresses) }}</td>
+                          <td class="mono small">{{ list(service.ports) }}</td>
+                          <td class="mono small muted">{{ list(service.networks) }}</td>
+                          <td class="r"><div class="row end">
+                            <button type="button" class="btn sm ghost" (click)="showLogs(serviceNames()[i])">Logs</button>
+                            <button type="button" class="btn sm" (click)="restart(serviceNames()[i])" [disabled]="!can() || can()!.working || !serverOnline()">
+                              <app-icon name="refresh" size="sm" />Restart</button>
+                          </div></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <app-empty-state icon="compose" title="No containers right now"
+                  [message]="state() === 'STOPPED' ? 'This copy was destroyed. Start a fresh copy to get its services back.' : 'Services show here once the lab is running. Refresh to check again.'" />
+              }
+            </div>
+          } @else {
+            @if (vms().length) {
+              <div class="grid">
+                @for (machine of vms(); track machine.vmid) {
+                  <article class="card stack">
+                    <div class="row between"><strong class="mono">{{ machine.name }}</strong><app-status-badge [tone]="vmTone(machine)" [label]="machine.status ?? 'unknown'" /></div>
+                    <div class="small muted">VMID <app-mono-id [value]="'' + machine.vmid" [copyable]="true" label="VMID" /></div>
+                    <div class="meter-row"><span class="muted">CPU</span><div class="bar info"><span [style.width.%]="cpuPct(machine)"></span></div><span class="num dim">{{ cpuPct(machine) }}% of {{ machine.cpus }} vCPU</span></div>
+                    <div class="meter-row"><span class="muted">Memory</span><div class="bar info"><span [style.width.%]="memPct(machine)"></span></div><span class="num dim">{{ gib(machine.mem) }}</span></div>
+                  </article>
+                }
+              </div>
+            } @else {
+              <div class="card"><app-empty-state icon="monitor" title="No VMs right now" message="VMs show here once the lab is running. Refresh to check again." /></div>
+            }
+            @if (t.bridges?.length) {
+              <div class="banner"><app-icon name="shield" /><div>These VMs share private bridge <span class="mono">{{ t.bridges!.join(', ') }}</span>. It has no host address, so the lab cannot reach other teams or the Proxmox node.</div></div>
+            }
+          }
+        }
+        @case ('logs') {
+          <app-lab-logs [tracker]="t" [services]="serviceNames()" [(service)]="logService" />
+        }
+        @case ('files') {
+          <app-lab-files [tracker]="t" />
+        }
+        @case ('activity') {
+          <div class="card flush">
+            @if (activity() === null) {
+              <div class="card-body"><app-skeleton [count]="4" label="Loading activity" /></div>
+            } @else {
+              <div class="feed">
+                @for (line of activity(); track line.id) {
+                  <div class="feed-item">
+                    <div class="feed-ico" [class]="line.tone ? 's-' + line.tone : ''"><app-icon [name]="line.icon" size="sm" /></div>
+                    <div class="grow"><div><strong>{{ line.who }}</strong> {{ line.text }}</div>
+                      <div class="small muted">{{ line.detail ? line.detail + ' · ' : '' }}{{ ago(line.at) }}</div></div>
+                  </div>
+                } @empty {
+                  <app-empty-state icon="file" title="No activity yet" message="Starts, pauses, stops and file changes for this lab show here." />
+                }
+              </div>
+            }
+          </div>
+        }
+      }
+    </div>
+
+    <aside class="col-rail console-rail">
+      <section class="card stack" aria-labelledby="life-h">
+        <h2 class="h2" id="life-h">Lifecycle</h2>
+        <div class="stack tight small">
+          <div class="life-row"><span class="muted">Pause</span><span class="dim help-text">{{ pauseHelp() }}</span></div>
+          <div class="life-row"><span class="muted">Resume</span><span class="dim help-text">Starts the same copy again</span></div>
+          <div class="life-row"><span class="muted">Stop</span><span class="dim help-text">{{ stopHelp() }}</span></div>
+          <div class="life-row"><span class="muted">Remove</span><span class="dim help-text">Stops it and takes it off your team</span></div>
+        </div>
+      </section>
+      <section class="card stack" aria-labelledby="about-h">
+        <h2 class="h2" id="about-h">About this lab</h2>
+        <div class="stack tight small">
+          @if (t.labStarted?.description) {
+            <p class="dim about-desc">{{ t.labStarted.description }}</p>
+          }
+          <div class="row between"><span class="muted">Version</span><span class="mono">{{ t.labStarted?.version || '-' }}</span></div>
+          @if (t.labStarted?.capacity) {
+            <div class="row between"><span class="muted">Capacity</span><span>{{ t.labStarted.capacity }} team copies</span></div>
+          }
+          <div class="row between"><span class="muted">Team</span><span>{{ t.labOwner?.name ?? '-' }}</span></div>
+          <div class="row between"><span class="muted">Server</span>
+            <span>{{ server()?.name ?? '-' }}@if (server()) { · <span [class]="serverOnline() ? 's-active' : 's-bad'">{{ serverOnline() ? 'online' : 'offline' }}</span>}</span></div>
+          <div class="row between"><span class="muted">Last change</span><span>{{ ago(t.updatedAt) || '-' }}</span></div>
+        </div>
+      </section>
+      <a class="btn ghost" routerLink="/labs"><app-icon name="flask" />All team labs</a>
+    </aside>
+  </div>
+} @else if (loadError()) {
+  <section class="card">
+    <app-empty-state icon="alert" title="This lab could not be opened" [message]="loadError()">
+      <a class="btn sm" routerLink="/labs">Back to labs</a>
+    </app-empty-state>
+  </section>
+} @else {
+  <app-skeleton variant="card" [count]="2" label="Loading lab" />
+}

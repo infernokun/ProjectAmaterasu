@@ -8,7 +8,7 @@ import { IconComponent } from './icon.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
-    <span class="mono value" [title]="value()">{{ value() }}</span>
+    <span class="mono value" [title]="value()">{{ text() || value() }}</span>
     @if (copyable()) {
       <button type="button" class="copy" (click)="copy()" [attr.aria-label]="copied() ? 'Copied' : 'Copy ' + (label() || value())">
         <app-icon [name]="copied() ? 'check' : 'copy'" size="sm" />
@@ -27,6 +27,8 @@ export class MonoIdComponent {
   private readonly clipboard = inject(Clipboard);
 
   readonly value = input.required<string>();
+  /** Shown instead of the value, e.g. a shortened id; Copy still copies the whole value. */
+  readonly text = input<string>();
   readonly copyable = input(false);
   /** What the value is, for the copy button's accessible name. */
   readonly label = input<string>();

@@ -17,10 +17,19 @@ export class CrumbsService {
   private readonly override = signal<Crumb[] | null>(null);
   readonly custom = this.override.asReadonly();
 
+  private path = '';
+
   constructor() {
     inject(Router).events
       .pipe(filter(event => event instanceof NavigationStart), takeUntilDestroyed())
-      .subscribe(() => this.override.set(null));
+      .subscribe(event => {
+        // A change of query params alone (a selected tab or challenge) keeps the page's breadcrumb
+        const path = event.url.split(/[?#]/)[0];
+        if (path !== this.path) {
+          this.path = path;
+          this.override.set(null);
+        }
+      });
   }
 
   set(crumbs: Crumb[]): void {

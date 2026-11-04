@@ -1,0 +1,21 @@
+.console-main {
+  gap: 18px;
+}
+
+.console-rail {
+  flex: 1 1 300px;
+}
+
+.help-text {
+  text-align: right;
+}
+
+.about-desc {
+  margin: 0 0 4px;
+}
+
+.life-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 12px;
+}
