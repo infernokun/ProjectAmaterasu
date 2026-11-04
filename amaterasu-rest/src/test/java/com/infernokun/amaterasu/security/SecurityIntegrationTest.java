@@ -37,6 +37,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -271,5 +272,56 @@ class SecurityIntegrationTest {
                 .andExpect(status().isForbidden());
         mvc.perform(post("/api/room/add-points/some-room/" + other.getId()).header("Authorization", "Bearer " + member))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void changingPasswordSignsOutOtherSessions() throws Exception {
+        User user = createUser(Role.MEMBER, null);
+        JsonNode first = login(user.getUsername(), "password123");
+        String oldAccess = first.get("accessToken").asText();
+        String oldRefresh = first.get("refreshToken").asText();
+        Thread.sleep(1100); // access tokens carry whole-second timestamps
+
+        postJson("/api/auth/password", Map.of("currentPassword", "wrong-one", "newPassword", "newpassword1"), oldAccess)
+                .andExpect(status().isUnauthorized());
+        String body = postJson("/api/auth/password",
+                Map.of("currentPassword", "password123", "newPassword", "newpassword1"), oldAccess)
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String newAccess = objectMapper.readTree(body).get("data").get("accessToken").asText();
+
+        mvc.perform(get("/api/labs").header("Authorization", "Bearer " + oldAccess)).andExpect(status().isUnauthorized());
+        postJson("/api/auth/refresh", Map.of("refreshToken", oldRefresh), null).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/labs").header("Authorization", "Bearer " + newAccess)).andExpect(status().isOk());
+        login(user.getUsername(), "newpassword1");
+    }
+
+    @Test
+    void disabledUsersAreLockedOutImmediately() throws Exception {
+        User user = createUser(Role.MEMBER, null);
+        JsonNode session = login(user.getUsername(), "password123");
+        String access = session.get("accessToken").asText();
+        Thread.sleep(1100);
+
+        String admin = accessToken("test_admin", "test_password");
+        mvc.perform(put("/api/user/" + user.getId() + "/disabled")
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"disabled\":true}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/labs").header("Authorization", "Bearer " + access)).andExpect(status().isUnauthorized());
+        postJson("/api/auth/refresh", Map.of("refreshToken", session.get("refreshToken").asText()), null)
+                .andExpect(status().isUnauthorized());
+        postJson("/api/auth/login", Map.of("username", user.getUsername(), "password", "password123"), null)
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void adminsCannotDisableThemselves() throws Exception {
+        String admin = accessToken("test_admin", "test_password");
+        String adminId = userRepository.findByUsernameIgnoreCase("test_admin").orElseThrow().getId();
+        mvc.perform(put("/api/user/" + adminId + "/disabled")
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"disabled\":true}"))
+                .andExpect(status().isBadRequest());
     }
 }

@@ -68,6 +68,11 @@ public class RefreshTokenService extends BaseService {
             }
             throw new TokenException("Refresh token expired or revoked");
         }
+        if (!current.getUser().isEnabled()) {
+            current.revoke("Account disabled");
+            refreshTokenRepository.save(current);
+            throw new TokenException("Refresh token expired or revoked");
+        }
         if (current.isExpired()) {
             current.revoke("Expired");
             refreshTokenRepository.save(current);

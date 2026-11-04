@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.config;
 
+import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.utils.RSAKeyProperties;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
@@ -48,6 +49,7 @@ public class SecurityConfig {
     public static final String TOKEN_ISSUER = "amaterasu";
 
     private final RSAKeyProperties keys;
+    private final UserRepository userRepository;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -145,7 +147,8 @@ public class SecurityConfig {
     public JwtDecoder jwtDecoder() {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(keys.getPublicKey()).build();
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
-                JwtValidators.createDefaultWithIssuer(TOKEN_ISSUER)));
+                JwtValidators.createDefaultWithIssuer(TOKEN_ISSUER),
+                new ActiveUserTokenValidator(userRepository)));
         return decoder;
     }
 

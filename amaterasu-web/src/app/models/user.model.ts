@@ -7,6 +7,7 @@ export class User extends StoredObject {
   username?: string;
   team?: Team;
   role?: Role;
+  disabled?: boolean;
 
   constructor(serverResult?: any) {
     if (serverResult) {
@@ -15,6 +16,7 @@ export class User extends StoredObject {
       this.username = serverResult.username;
       this.team = serverResult.team;
       this.role = serverResult.role as Role;
+      this.disabled = !!serverResult.disabled;
     }
   }
 }

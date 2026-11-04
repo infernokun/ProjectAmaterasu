@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 import { User, UserFormData } from '../../models/user.model';
 import { UserService } from '../../services/user.service';
 import { TeamService } from '../../services/team.service';
@@ -27,6 +27,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 
 @Component({
     selector: 'amaterasu-users',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './users.component.html',
     styleUrl: './users.component.scss',
     imports: [
@@ -257,8 +258,7 @@ export class UsersComponent implements OnInit {
   }
 
   getActiveUsersCount(): number {
-    return -1;
-    //return this.users.filter(user => user.active !== false).length;
+    return this.users.filter(user => !user.disabled).length;
   }
 
   getTeamsCount(): number {

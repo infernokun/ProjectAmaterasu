@@ -74,57 +74,6 @@ export class AuthInterceptor implements HttpInterceptor {
     return url.includes('/api/auth/') || url.includes('/api/application-info');
   }
 
-  private handle401Error(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    console.log('🔄 Handling 401 error for:', request.url);
-    console.log('🔄 isRefreshing:', this.isRefreshing);
-
-    if (!this.isRefreshing) {
-      this.isRefreshing = true;
-      this.refreshTokenSubject.next(null);
-
-      console.log('🔄 Starting token refresh...');
-
-      return this.authService.forceTokenRefresh().pipe(
-        switchMap((success: boolean) => {
-          console.log('🔄 Token refresh result:', success);
-          this.isRefreshing = false;
-
-          if (success) {
-            const newAccessToken = this.authService.getAccessToken();
-            console.log('🔄 New access token available:', !!newAccessToken);
-            this.refreshTokenSubject.next(newAccessToken);
-
-            if (newAccessToken) {
-              console.log('🔄 Retrying original request with new token for:', request.url);
-              return next.handle(this.addTokenHeader(request, newAccessToken));
-            }
-          }
-
-          console.log('🔄 Refresh failed, logging out');
-          // Refresh failed, redirect to login
-          this.authService.logout();
-          return throwError(() => new Error('Token refresh failed'));
-        }),
-        catchError((error) => {
-          console.log('🔄 Token refresh error:', error);
-          this.isRefreshing = false;
-          this.authService.logout();
-          return throwError(() => error);
-        })
-      );
-    }
-
-    console.log('⏳ Refresh in progress, queuing request for:', request.url);
-    // If refresh is in progress, wait for it to complete
-    return this.refreshTokenSubject.pipe(
-      filter(token => token !== null),
-      take(1),
-      switchMap((token) => {
-        console.log('⏳ Retrying queued request with token for:', request.url, 'Token available:', !!token);
-        return next.handle(this.addTokenHeader(request, token));
-      })
-    );
-  }
   private handleTokenRefreshAndRetry(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
     console.log('🔄 Handling token refresh for retry of:', request.url);
 
@@ -150,12 +99,14 @@ export class AuthInterceptor implements HttpInterceptor {
             } else {
               // Should not happen if refresh was successful, but handle defensively
               console.error('🔄 Refresh reported success but no new access token found.');
+              this.refreshTokenSubject.next('');
               this.authService.logout();
               return throwError(() => new Error('Token refresh failed (no new token)'));
             }
           } else {
             // Refresh failed, logout
             console.log('🔄 Refresh failed, logging out');
+            this.refreshTokenSubject.next('');
             this.authService.logout();
             return throwError(() => new Error('Token refresh failed'));
           }
@@ -163,6 +114,7 @@ export class AuthInterceptor implements HttpInterceptor {
         catchError((error) => {
           console.log('🔄 Token refresh error during refresh attempt:', error);
           this.isRefreshing = false;
+          this.refreshTokenSubject.next('');
           this.authService.logout();
           // Propagate the original refresh error
           return throwError(() => error);
@@ -172,9 +124,12 @@ export class AuthInterceptor implements HttpInterceptor {
       console.log('⏳ Refresh in progress, queuing request for retry:', request.url);
       // If a refresh is already in progress, wait for it to complete
       return this.refreshTokenSubject.pipe(
-        filter(token => token !== null), // Wait until refreshTokenSubject emits a non-null value (the new token)
-        take(1), // Take only the first emitted value
+        filter(token => token !== null), // Wait until the refresh finishes; '' means it failed
+        take(1),
         switchMap((token) => {
+          if (!token) {
+            return throwError(() => new Error('Token refresh failed'));
+          }
           console.log('⏳ Retrying queued request with new token for:', request.url, 'Token available:', !!token);
           // Retry the original request with the newly available token
           return next.handle(this.addTokenHeader(request, token));

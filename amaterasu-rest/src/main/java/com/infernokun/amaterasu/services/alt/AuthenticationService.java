@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.services.alt;
 
 import com.infernokun.amaterasu.exceptions.AuthFailedException;
 import com.infernokun.amaterasu.exceptions.WrongPasswordException;
+import com.infernokun.amaterasu.models.entities.alt.ChangePasswordRequest;
 import com.infernokun.amaterasu.models.entities.alt.LoginResponse;
 import com.infernokun.amaterasu.models.entities.alt.RegistrationRequest;
 import com.infernokun.amaterasu.models.entities.User;
@@ -20,6 +21,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.regex.Pattern;
 
 
@@ -46,11 +49,7 @@ public class AuthenticationService extends BaseService {
         if (!USERNAME.matcher(username).matches()) {
             throw new IllegalArgumentException("Username must be 3 to 32 letters, numbers, dots, dashes or underscores");
         }
-        int passwordLength = request.getPassword().getBytes(StandardCharsets.UTF_8).length;
-        if (passwordLength < MIN_PASSWORD_LENGTH || passwordLength > MAX_PASSWORD_LENGTH) {
-            throw new IllegalArgumentException("Password must be " + MIN_PASSWORD_LENGTH + " to "
-                    + MAX_PASSWORD_LENGTH + " characters");
-        }
+        validatePassword(request.getPassword());
         if (userService.existsByUsernameIgnoreCase(username)) {
             throw new AuthFailedException("Username already exists!");
         }
@@ -80,6 +79,53 @@ public class AuthenticationService extends BaseService {
             loginAttemptService.recordFailure(username, address);
             LOGGER.warn("Login failed for username {} from {}", username, address);
             throw new WrongPasswordException("Invalid username or password");
+        }
+    }
+
+    /** Changes the caller's password and signs out every other session, keeping this one signed in. */
+    public LoginResponse changePassword(String userId, ChangePasswordRequest change, HttpServletRequest request) {
+        User user = userService.findUserById(userId);
+        if (change == null || change.getCurrentPassword() == null
+                || !passwordEncoder.matches(change.getCurrentPassword(), user.getPassword())) {
+            throw new WrongPasswordException("Current password is incorrect");
+        }
+        validatePassword(change.getNewPassword());
+        user.setPassword(passwordEncoder.encode(change.getNewPassword()));
+        invalidateSessions(user);
+
+        RefreshTokenService.Tokens tokens = refreshTokenService.issue(user, request);
+        return new LoginResponse(tokens.accessToken(), user, tokens.refreshToken());
+    }
+
+    public User resetPassword(String userId, String newPassword) {
+        User user = userService.findUserById(userId);
+        validatePassword(newPassword);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        return invalidateSessions(user);
+    }
+
+    public User setDisabled(String userId, boolean disabled, String actingUserId) {
+        if (userId.equals(actingUserId)) {
+            throw new IllegalArgumentException("You cannot disable your own account");
+        }
+        User user = userService.findUserById(userId);
+        user.setDisabled(disabled);
+        return disabled ? invalidateSessions(user) : userRepository.save(user);
+    }
+
+    // Revokes refresh tokens and every access token issued before now
+    private User invalidateSessions(User user) {
+        user.setSessionsValidAfter(Instant.now().truncatedTo(ChronoUnit.SECONDS));
+        User saved = userRepository.save(user);
+        refreshTokenService.revokeAllUserSessions(user.getId(), "Password changed or account disabled");
+        return saved;
+    }
+
+    private static void validatePassword(String password) {
+        int length = password == null ? 0 : password.getBytes(StandardCharsets.UTF_8).length;
+        if (length < MIN_PASSWORD_LENGTH || length > MAX_PASSWORD_LENGTH) {
+            throw new IllegalArgumentException("Password must be " + MIN_PASSWORD_LENGTH + " to "
+                    + MAX_PASSWORD_LENGTH + " characters");
         }
     }
 

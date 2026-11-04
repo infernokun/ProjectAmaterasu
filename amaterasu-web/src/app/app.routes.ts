@@ -9,7 +9,7 @@ import { UsersComponent } from './components/users/users.component';
 import { AppInitGuard } from './guards/app-init.guard';
 import { TeamsComponent } from './components/teams/teams.component';
 import { CTFMainComponent } from './components/app-ctf/ctf/ctf-main/ctf-main.component';
-import { authGuard, homeAuthGuard } from './guards/auth.guard';
+import { adminGuard, authGuard, homeAuthGuard } from './guards/auth.guard';
 import { VMLabBuilderComponent } from './components/app-lab/vm-lab-builder/vm-lab-builder.component';
 import { InitializationComponent } from './components/initialization/initialization.component';
 import { RoomComponent } from './components/app-ctf/room/room.component';
@@ -23,7 +23,7 @@ export const routes: Routes = [
   { path: 'room/:room/scoreboard/:username', component: PlayerScoreboardComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'vm-lab-builder', component: VMLabBuilderComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'teams', component: TeamsComponent, canActivate: [AppInitGuard, authGuard] },
-  { path: 'users', component: UsersComponent, canActivate: [AppInitGuard, authGuard] },
+  { path: 'users', component: UsersComponent, canActivate: [AppInitGuard, adminGuard] },
   { path: 'lab/settings/:name', component: LabSettingsComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'remote-server', component: RemoteServerComponent, canActivate: [AppInitGuard, authGuard] },
   { path: 'code', component: CodeBlockComponent, canActivate: [AppInitGuard, authGuard] },
