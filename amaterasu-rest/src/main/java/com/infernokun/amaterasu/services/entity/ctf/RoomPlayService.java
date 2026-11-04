@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -290,10 +291,17 @@ public class RoomPlayService {
 
     private static List<RoomStandings.Point> history(RoomUser player) {
         List<RoomStandings.Point> points = new ArrayList<>();
-        if (player.getCreatedAt() != null) {
-            points.add(new RoomStandings.Point(toInstant(player.getCreatedAt()), 0));
+        List<PointsHistoryEntry> entries = orEmpty(player.getPointsHistory());
+        // History times are stored to the second, so the starting zero must not land after them
+        LocalDateTime start = player.getCreatedAt() != null ? player.getCreatedAt().truncatedTo(ChronoUnit.SECONDS) : null;
+        if (!entries.isEmpty() && entries.getFirst().getTimestamp() != null
+                && (start == null || entries.getFirst().getTimestamp().isBefore(start))) {
+            start = entries.getFirst().getTimestamp();
         }
-        for (PointsHistoryEntry entry : orEmpty(player.getPointsHistory())) {
+        if (start != null) {
+            points.add(new RoomStandings.Point(toInstant(start), 0));
+        }
+        for (PointsHistoryEntry entry : entries) {
             points.add(new RoomStandings.Point(toInstant(entry.getTimestamp()), value(entry.getTotalPoints())));
         }
         return points;
