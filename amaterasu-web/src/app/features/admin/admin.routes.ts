@@ -1,29 +1,23 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
 import { page } from '../../core/page';
 
-const placeholder = () => import('../../shared/ui/placeholder-page.component').then(m => m.PlaceholderPageComponent);
-
-// Screens marked legacy still use the previous components until they are rebuilt.
 export const ADMIN_ROUTES: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'users' },
   page({
     path: 'users',
-    loadComponent: () => import('../../components/users/users.component').then(m => m.UsersComponent),
-    data: { section: 'Admin', title: 'Users and teams', legacy: true },
+    loadComponent: () => import('./users/admin-users.page').then(m => m.AdminUsersPage),
+    data: { section: 'Admin', title: 'Users and teams' },
   }),
-  page({
-    path: 'teams',
-    loadComponent: () => import('../../components/teams/teams.component').then(m => m.TeamsComponent),
-    data: { section: 'Admin', title: 'Users and teams', legacy: true },
-  }),
+  { path: 'teams', redirectTo: () => inject(Router).createUrlTree(['/admin/users'], { queryParams: { tab: 'teams' } }) },
   page({
     path: 'servers',
-    loadComponent: () => import('../../components/app-lab/remote-server/remote-server.component').then(m => m.RemoteServerComponent),
-    data: { section: 'Admin', title: 'Servers', legacy: true },
+    loadComponent: () => import('./servers/admin-servers.page').then(m => m.AdminServersPage),
+    data: { section: 'Admin', title: 'Servers' },
   }),
   page({
     path: 'audit',
-    loadComponent: placeholder,
-    data: { section: 'Admin', title: 'Audit log', description: 'Lab, user and score changes, newest first.' },
+    loadComponent: () => import('./audit/audit.page').then(m => m.AuditPage),
+    data: { section: 'Admin', title: 'Audit log' },
   }),
 ];

@@ -19,7 +19,7 @@ const LEGACY_REDIRECTS: Routes = [
     redirectTo: ({ queryParams }) => inject(Router).createUrlTree(queryParams['id'] ? ['/labs', queryParams['id']] : ['/labs']),
   },
   { path: 'users', redirectTo: '/admin/users' },
-  { path: 'teams', redirectTo: '/admin/teams' },
+  { path: 'teams', redirectTo: () => inject(Router).createUrlTree(['/admin/users'], { queryParams: { tab: 'teams' } }) },
   { path: 'remote-server', redirectTo: '/admin/servers' },
   { path: 'log', redirectTo: '/admin/audit' },
   { path: 'team-log', redirectTo: '/admin/audit' },
