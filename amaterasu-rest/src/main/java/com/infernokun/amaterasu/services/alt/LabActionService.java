@@ -1,13 +1,20 @@
 package com.infernokun.amaterasu.services.alt;
 
 import com.infernokun.amaterasu.models.LabActionResult;
-import com.infernokun.amaterasu.models.entities.lab.Lab;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.services.BaseService;
 import org.springframework.stereotype.Service;
 
+/**
+ * Routes lab actions to the Docker or Proxmox implementation.
+ * <ul>
+ *   <li>start: deploys the lab, or resumes it if it was paused</li>
+ *   <li>pause: brings the lab down but keeps containers and VM disks</li>
+ *   <li>teardown: removes everything, so the next start is a fresh copy</li>
+ * </ul>
+ */
 @Service
 public class LabActionService extends BaseService {
     private final DockerService dockerService;
@@ -19,86 +26,37 @@ public class LabActionService extends BaseService {
     }
 
     public LabActionResult startLab(LabTracker labTracker, RemoteServer remoteServer) {
-        switch (labTracker.getLabStarted().getLabType()) {
-            case DOCKER_CONTAINER ->  {
-                return new LabActionResult();
-            }
-            case DOCKER_COMPOSE -> {
-                if (remoteServer.getServerType() != ServerType.DOCKER_HOST)
-                    return new LabActionResult(false, labTracker, "Server NOT DockerHost");
-                return dockerService.startDockerCompose(labTracker, remoteServer);
-            }
-            case VIRTUAL_MACHINE -> {
-                if (remoteServer.getServerType() != ServerType.PROXMOX)
-                    return new LabActionResult(false, labTracker, "Server NOT Proxmox");
-                return labTracker.getVms().isEmpty() ? proxmoxService.startAndCloneProxmoxLab(labTracker, remoteServer) :
-                        proxmoxService.startProxmoxLab(labTracker, remoteServer);
-            }
-            case KUBERNETES -> {
-                String type = "kubernetes";
-                return new LabActionResult();
-            }
-            case UNKNOWN -> {
-                String type = "unknown";
-                return new LabActionResult();
-            }
-            default -> {
-                String type = "uhh";
-                return new LabActionResult();
-            }
-        }
+        return switch (labTracker.getLabStarted().getLabType()) {
+            case DOCKER_COMPOSE -> remoteServer.getServerType() != ServerType.DOCKER_HOST
+                    ? new LabActionResult(false, labTracker, "Server NOT DockerHost")
+                    : dockerService.startDockerCompose(labTracker, remoteServer);
+            case VIRTUAL_MACHINE -> remoteServer.getServerType() != ServerType.PROXMOX
+                    ? new LabActionResult(false, labTracker, "Server NOT Proxmox")
+                    : labTracker.getVms().isEmpty()
+                    ? proxmoxService.deployProxmoxLab(labTracker, remoteServer)
+                    : proxmoxService.resumeProxmoxLab(labTracker, remoteServer);
+            default -> notSupported(labTracker);
+        };
     }
 
-    public LabActionResult stopLab(Lab lab, LabTracker labTracker, RemoteServer remoteServer) {
-        switch (lab.getLabType()) {
-            case DOCKER_CONTAINER ->  {
-                return new LabActionResult();
-            }
-            case DOCKER_COMPOSE -> {
-                return dockerService.stopDockerCompose(labTracker, remoteServer);
-            }
-            case VIRTUAL_MACHINE -> {
-                return proxmoxService.stopProxmoxLab(labTracker, remoteServer);
-            }
-            case KUBERNETES -> {
-                String type = "kubernetes";
-                return new LabActionResult();
-
-            }
-            case UNKNOWN -> {
-                String type = "unknown";
-                return new LabActionResult();
-            }
-            default -> {
-                String type = "uhh";
-                return new LabActionResult();
-            }
-        }
+    public LabActionResult pauseLab(LabTracker labTracker, RemoteServer remoteServer) {
+        return switch (labTracker.getLabStarted().getLabType()) {
+            case DOCKER_COMPOSE -> dockerService.pauseDockerCompose(labTracker, remoteServer);
+            case VIRTUAL_MACHINE -> proxmoxService.pauseProxmoxLab(labTracker, remoteServer);
+            default -> notSupported(labTracker);
+        };
     }
 
-    public LabActionResult deleteLab(LabTracker labTracker, RemoteServer remoteServer) {
-        switch (labTracker.getLabStarted().getLabType()) {
-            case DOCKER_CONTAINER ->  {
-                return new LabActionResult();
-            }
-            case DOCKER_COMPOSE -> {
-                return dockerService.stopDockerCompose(labTracker, remoteServer);
-            }
-            case VIRTUAL_MACHINE -> {
-                return proxmoxService.deleteProxmoxLab(labTracker, remoteServer);
-            }
-            case KUBERNETES -> {
-                String type = "kubernetes";
-                return new LabActionResult();
-            }
-            case UNKNOWN -> {
-                String type = "unknown";
-                return new LabActionResult();
-            }
-            default -> {
-                String type = "uhh";
-                return new LabActionResult();
-            }
-        }
+    public LabActionResult teardownLab(LabTracker labTracker, RemoteServer remoteServer) {
+        return switch (labTracker.getLabStarted().getLabType()) {
+            case DOCKER_COMPOSE -> dockerService.teardownDockerCompose(labTracker, remoteServer);
+            case VIRTUAL_MACHINE -> proxmoxService.teardownProxmoxLab(labTracker, remoteServer);
+            default -> notSupported(labTracker);
+        };
+    }
+
+    private static LabActionResult notSupported(LabTracker labTracker) {
+        return new LabActionResult(false, labTracker,
+                "Lab type " + labTracker.getLabStarted().getLabType() + " is not supported yet");
     }
 }

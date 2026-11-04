@@ -43,6 +43,24 @@
         "iface": "lo",
         "method": "loopback",
         "type": "loopback"
+      },
+      {
+        "active": 1,
+        "address": "10.10.0.1",
+        "autostart": 1,
+        "bridge_ports": "",
+        "bridge_vlan_aware": 0,
+        "cidr": "10.10.0.1/24",
+        "comments": "lab network",
+        "exists": 1,
+        "families": [
+          "inet"
+        ],
+        "iface": "vmbr1",
+        "method": "static",
+        "netmask": "255.255.255.0",
+        "priority": 5,
+        "type": "bridge"
       }
     ]
   }

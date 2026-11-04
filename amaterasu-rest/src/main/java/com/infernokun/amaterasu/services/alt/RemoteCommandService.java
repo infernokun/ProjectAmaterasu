@@ -1,6 +1,5 @@
 package com.infernokun.amaterasu.services.alt;
 
-import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.RemoteCommandException;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
@@ -13,34 +12,34 @@ import com.jcraft.jsch.Session;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
-import java.util.Base64;
+import java.time.Duration;
 
 @Service
 public class RemoteCommandService extends BaseService {
-    private final AmaterasuConfig amaterasuConfig;
+    public static final Duration DEFAULT_TIMEOUT = Duration.ofMinutes(15);
+    private static final int CONNECT_TIMEOUT_MS = 30_000;
+
     private final AESUtil aesUtil;
 
-    public RemoteCommandService(AmaterasuConfig amaterasuConfig, AESUtil aesUtil) {
-        this.amaterasuConfig = amaterasuConfig;
+    public RemoteCommandService(AESUtil aesUtil) {
         this.aesUtil = aesUtil;
     }
 
     @Transactional(noRollbackFor = RemoteCommandException.class)
     public RemoteCommandResponse handleRemoteCommand(String cmd, RemoteServer remoteServer) throws RemoteCommandException {
+        return handleRemoteCommand(cmd, remoteServer, null, DEFAULT_TIMEOUT);
+    }
+
+    public RemoteCommandResponse handleRemoteCommand(String cmd, RemoteServer remoteServer, byte[] stdin,
+                                                     Duration timeout) throws RemoteCommandException {
         Session session = null;
         try {
-            // Get connected session using the shared method
-            session = getConnectedSession(remoteServer);
-
-            // Execute the command
-            CommandResult result = executeRemoteCommand(session, cmd);
-            return new RemoteCommandResponse(result.output(), result.error(), result.exitCode());
+            session = getConnectedSession(remoteServer, CONNECT_TIMEOUT_MS);
+            return executeRemoteCommand(session, cmd, stdin, timeout);
         } catch (RemoteCommandException e) {
             LOGGER.error("Exception while running command for server {}: {}", remoteServer.getId(), e.getMessage());
             return new RemoteCommandResponse("", e.getMessage(), 1);
@@ -51,54 +50,41 @@ public class RemoteCommandService extends BaseService {
         }
     }
 
-    /**
-     * Writes content to a remote file via base64 so the shell never interprets it.
-     * Parent directories are created as needed.
-     */
+    /** Writes a remote file by streaming the bytes over stdin, creating parent directories. */
+    public RemoteCommandResponse writeRemoteFile(String remotePath, byte[] content, RemoteServer remoteServer) {
+        String path = shellQuote(remotePath);
+        String cmd = String.format("mkdir -p \"$(dirname %s)\" && cat > %s", path, path);
+        return handleRemoteCommand(cmd, remoteServer, content, DEFAULT_TIMEOUT);
+    }
+
     public RemoteCommandResponse writeRemoteFile(String remotePath, String content, RemoteServer remoteServer) {
-        String encoded = Base64.getEncoder().encodeToString(content.getBytes(StandardCharsets.UTF_8));
-        String cmd = String.format(
-                "mkdir -p \"$(dirname '%s')\" && printf '%%s' '%s' | base64 -d > '%s'",
-                remotePath, encoded, remotePath);
-        return handleRemoteCommand(cmd, remoteServer);
+        return writeRemoteFile(remotePath, content.getBytes(StandardCharsets.UTF_8), remoteServer);
     }
 
     public boolean validateConnection(RemoteServer remoteServer) {
         Session session = null;
         try {
-            // Get connected session using the shared method
-            session = getConnectedSession(remoteServer, 30000); // Shorter timeout for validation
-
-            // Run a simple test command
-            CommandResult result = executeRemoteCommand(session, "echo CONNECTION_TEST_SUCCESSFUL");
-
-            // Verify the output contains our test string
-            boolean isValid = result.output().contains("CONNECTION_TEST_SUCCESSFUL");
-
+            session = getConnectedSession(remoteServer, CONNECT_TIMEOUT_MS);
+            RemoteCommandResponse result = executeRemoteCommand(session, "echo CONNECTION_TEST_SUCCESSFUL",
+                    null, Duration.ofSeconds(30));
+            boolean isValid = result.getOutput().contains("CONNECTION_TEST_SUCCESSFUL");
             LOGGER.info("Connection validation for server {}: {}", remoteServer.getName(),
                     isValid ? "SUCCESSFUL" : "FAILED");
-
             return isValid;
         } catch (Exception e) {
-            LOGGER.error("Connection validation failed for server {} ({}:{}): {}", remoteServer.getName(), remoteServer.getIpAddress(), remoteServer.getPort(), e.getMessage());
+            LOGGER.error("Connection validation failed for server {} ({}:{}): {}", remoteServer.getName(),
+                    remoteServer.getIpAddress(), remoteServer.getPort(), e.getMessage());
             return false;
         } finally {
             disconnectSession(session, remoteServer);
         }
     }
 
-// Private helper methods to reduce duplication
-
-    /**
-     * Creates and returns a connected SSH session
-     */
-    private Session getConnectedSession(RemoteServer remoteServer) throws RemoteCommandException {
-        return getConnectedSession(remoteServer, 60000); // Default timeout
+    /** Wraps a value in single quotes for safe use as one POSIX shell word. */
+    public static String shellQuote(String value) {
+        return "'" + value.replace("'", "'\\''") + "'";
     }
 
-    /**
-     * Creates and returns a connected SSH session with specified timeout
-     */
     private Session getConnectedSession(RemoteServer remoteServer, int timeout) throws RemoteCommandException {
         JSch jSch = new JSch();
         Session session = null;
@@ -114,7 +100,7 @@ public class RemoteCommandService extends BaseService {
 
             session.connect(timeout);
 
-            session.setPassword(""); // Clear the password after use
+            session.setPassword("");
             return session;
         } catch (JSchException e) {
             disconnectSession(session, remoteServer);
@@ -122,21 +108,15 @@ public class RemoteCommandService extends BaseService {
         }
     }
 
-    /**
-     * Decrypts and normalizes the server password
-     */
     private String decryptPassword(RemoteServer remoteServer) throws RemoteCommandException {
-        String originalPassword = remoteServer.getPassword();
-
         try {
-            String decryptedPassword = aesUtil.decrypt(originalPassword);
+            String decryptedPassword = aesUtil.decrypt(remoteServer.getPassword());
 
             if (decryptedPassword == null || decryptedPassword.isEmpty()) {
                 LOGGER.error("Decrypted password is null or empty for server: {}", remoteServer.getId());
                 throw new IllegalArgumentException("Decrypted password is null or empty!");
             }
 
-            // Normalize the decrypted password
             return Normalizer.normalize(decryptedPassword, Normalizer.Form.NFKC);
         } catch (Exception e) {
             LOGGER.error("Error decrypting password for server: {}", remoteServer.getId());
@@ -144,9 +124,6 @@ public class RemoteCommandService extends BaseService {
         }
     }
 
-    /**
-     * Safely disconnects a session if it's connected
-     */
     private void disconnectSession(Session session, RemoteServer remoteServer) {
         if (session != null && session.isConnected()) {
             session.disconnect();
@@ -155,43 +132,42 @@ public class RemoteCommandService extends BaseService {
         }
     }
 
-    private CommandResult executeRemoteCommand(Session session, String command) {
+    private RemoteCommandResponse executeRemoteCommand(Session session, String command, byte[] stdin, Duration timeout) {
         ChannelExec channel = null;
         try {
             channel = (ChannelExec) session.openChannel("exec");
             channel.setCommand(command);
-            InputStream inputStream = channel.getInputStream();
-            InputStream errorStream = channel.getErrStream();
 
-            channel.connect(60000);
+            // JSch writes both streams from its own thread, so neither can fill up and block the other
+            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+            channel.setOutputStream(stdout, true);
+            channel.setErrStream(stderr, true);
+            channel.setInputStream(stdin != null ? new ByteArrayInputStream(stdin) : null);
 
-            String output = readStream(inputStream);
-            String errorOutput = readStream(errorStream);
-            int exitCode = channel.getExitStatus();
+            channel.connect(CONNECT_TIMEOUT_MS);
 
-            return new CommandResult(output, errorOutput, exitCode);
-        } catch (JSchException | IOException e) {
-            throw new RemoteCommandException("Exception while running command: " + command);
+            long deadline = System.nanoTime() + timeout.toNanos();
+            while (!channel.isClosed()) {
+                if (System.nanoTime() > deadline) {
+                    throw new RemoteCommandException("Command timed out after " + timeout.toSeconds() + "s");
+                }
+                Thread.sleep(100);
+            }
+
+            return new RemoteCommandResponse(
+                    stdout.toString(StandardCharsets.UTF_8).trim(),
+                    stderr.toString(StandardCharsets.UTF_8).trim(),
+                    channel.getExitStatus());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RemoteCommandException("Interrupted while running command");
+        } catch (JSchException e) {
+            throw new RemoteCommandException("Exception while running command: " + e.getMessage());
         } finally {
             if (channel != null && channel.isConnected()) {
                 channel.disconnect();
             }
-        }
-    }
-
-    private String readStream(InputStream stream) throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-        StringBuilder output = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            output.append(line).append("\n");
-        }
-        return output.toString().trim();
-    }
-
-    private record CommandResult(String output, String error, int exitCode) {
-        public boolean isSuccess() {
-            return error.isEmpty();
         }
     }
 }

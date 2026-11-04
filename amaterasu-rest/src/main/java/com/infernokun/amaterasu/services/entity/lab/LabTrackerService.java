@@ -1,44 +1,49 @@
 package com.infernokun.amaterasu.services.entity.lab;
 
-import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.LabReadinessException;
 import com.infernokun.amaterasu.exceptions.RemoteCommandException;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.DockerServiceInfo;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
+import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.alt.VolumeChangeRequest;
 import com.infernokun.amaterasu.models.entities.lab.Lab;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
-import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.enums.LabStatus;
+import com.infernokun.amaterasu.models.enums.LabType;
+import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
 import com.infernokun.amaterasu.repositories.lab.LabTrackerRepository;
 import com.infernokun.amaterasu.services.BaseService;
+import com.infernokun.amaterasu.services.alt.DockerService;
 import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import com.infernokun.amaterasu.services.entity.TeamService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
-import static com.infernokun.amaterasu.services.alt.DockerService.parseDockerInspectOutput;
+import java.util.Set;
 
 @Service
 public class LabTrackerService extends BaseService {
     private final TeamService teamService;
     private final LabTrackerRepository labTrackerRepository;
-    private final AmaterasuConfig amaterasuConfig;
     private final RemoteCommandService remoteCommandService;
+    private final DockerService dockerService;
 
-    public LabTrackerService(TeamService teamService, LabTrackerRepository labTrackerRepository, AmaterasuConfig amaterasuConfig, RemoteCommandService remoteCommandService) {
+    public LabTrackerService(TeamService teamService, LabTrackerRepository labTrackerRepository,
+                             RemoteCommandService remoteCommandService, DockerService dockerService) {
         this.teamService = teamService;
         this.labTrackerRepository = labTrackerRepository;
-        this.amaterasuConfig = amaterasuConfig;
         this.remoteCommandService = remoteCommandService;
+        this.dockerService = dockerService;
     }
 
     public List<LabTracker> findAllLabTrackers() {
@@ -52,6 +57,10 @@ public class LabTrackerService extends BaseService {
     public List<LabTracker> findLabTrackerByTeamId(String teamId) {
         Team labOwner = teamService.findTeamById(teamId);
         return labTrackerRepository.findLabTrackersByLabOwner(labOwner);
+    }
+
+    public List<LabTracker> findByLabStarted(Lab lab) {
+        return labTrackerRepository.findByLabStarted(lab);
     }
 
     public List<LabTracker> findLabTrackerByLabStatus(LabStatus labStatus) {
@@ -71,19 +80,18 @@ public class LabTrackerService extends BaseService {
     }
 
     public LabTracker deleteLabTracker(String id) {
-        Optional<LabTracker> deletedLabTrackerOptional = findLabTrackerById(id);
-
-        if (deletedLabTrackerOptional.isEmpty()) {
-            throw new ResourceNotFoundException("Lab tracker with ID " + id + " not found!");
-        }
-
-        LabTracker deletedLabTracker = deletedLabTrackerOptional.get();
+        LabTracker deletedLabTracker = findLabTrackerById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Lab tracker with ID " + id + " not found!"));
         labTrackerRepository.deleteById(id);
         return deletedLabTracker;
     }
 
+    @Transactional
+    public boolean updateVmsIfStatus(LabTracker labTracker, List<ProxmoxVM> vms, LabStatus status, LabStatus expected) {
+        return labTrackerRepository.updateVmsIfStatus(labTracker.getId(), vms, status, expected) > 0;
+    }
+
     public LabTracker updateLabTracker(LabTracker labTracker) {
-        findLabTrackerById(labTracker.getId());
         labTracker.setUpdatedAt(LocalDateTime.now());
         return labTrackerRepository.save(labTracker);
     }
@@ -91,77 +99,97 @@ public class LabTrackerService extends BaseService {
     public String getLabLogs(LabTracker labTracker, RemoteServer remoteServer, String service) {
         switch (labTracker.getLabStarted().getLabType()) {
             case DOCKER_COMPOSE -> {
-                return getTrackerLabLogs(labTracker, remoteServer, service);
+                try {
+                    return dockerService.getLogs(labTracker, serverFor(labTracker, remoteServer), service);
+                } catch (RemoteCommandException e) {
+                    throw new LabReadinessException(e.getMessage());
+                }
             }
-            case DOCKER_CONTAINER -> {
-                throw new LabReadinessException("coming one day...");
-            }
+            case DOCKER_CONTAINER -> throw new LabReadinessException("coming one day...");
             default -> throw new LabReadinessException("Lab type not implemented...");
         }
     }
 
-    public String getTrackerLabLogs(LabTracker labTracker, RemoteServer dockerServer, String service) {
-        try {
-            // Go through compose so the project-scoped container is found
-            String cmd = service.equals("all") ? String.format("docker-compose -p %s logs", labTracker.getId()) :
-                    String.format("docker-compose -p %s logs %s", labTracker.getId(), service);
-
-            RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(cmd, dockerServer);
-
-            return remoteCommandResponse.getBoth();
-        } catch (RemoteCommandException e) {
-            throw new LabReadinessException(e.getMessage());
-        }
-    }
-
+    /**
+     * Writes uploaded files into the tracker's volume directory and restarts the services that use
+     * them. Files and volume changes are paired by their position in the request.
+     */
     public List<RemoteCommandResponse> addVolumeFiles(LabTracker labTracker, RemoteServer remoteServer,
                                                       List<VolumeChangeRequest> volumeChanges,
                                                       List<MultipartFile> files) {
-        List<RemoteCommandResponse> result = new ArrayList<>();
+        if (volumeChanges.size() != files.size()) {
+            throw new IllegalArgumentException("Expected " + volumeChanges.size() + " files but got " + files.size());
+        }
+        RemoteServer server = serverFor(labTracker, remoteServer);
+        Path volumeRoot = Path.of(dockerService.trackerVolumeDir(labTracker)).normalize();
 
-        volumeChanges.forEach(volumeChange -> {
-            String content;
-            try {
-                content = new String(files.get(volumeChange.getIndex()).getBytes(), StandardCharsets.UTF_8);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+        List<RemoteCommandResponse> result = new ArrayList<>();
+        Set<String> touchedServices = new LinkedHashSet<>();
+
+        for (int i = 0; i < volumeChanges.size(); i++) {
+            VolumeChangeRequest volumeChange = volumeChanges.get(i);
+            Path target = Path.of(volumeChange.getTargetPath()).normalize();
+            if (volumeChange.isDirectory()) {
+                String fileName = Path.of(volumeChange.getFileName()).getFileName().toString();
+                target = target.resolve(fileName).normalize();
+            }
+            if (!target.startsWith(volumeRoot) || target.equals(volumeRoot)) {
+                throw new IllegalArgumentException("Upload path is outside this lab's volumes: " + volumeChange.getTargetPath());
             }
 
-            String remotePath = volumeChange.isDirectory()
-                    ? volumeChange.getTargetPath() + "/" + volumeChange.getFileName()
-                    : volumeChange.getTargetPath();
+            byte[] content;
+            try {
+                content = files.get(i).getBytes();
+            } catch (IOException e) {
+                throw new IllegalStateException("Could not read uploaded file " + volumeChange.getFileName(), e);
+            }
 
-            result.add(remoteCommandService.writeRemoteFile(remotePath, content, remoteServer));
-        });
+            result.add(remoteCommandService.writeRemoteFile(target.toString(), content, server));
+            if (volumeChange.getServiceName() != null) {
+                touchedServices.add(volumeChange.getServiceName());
+            }
+        }
+
+        if (!touchedServices.isEmpty() && result.stream().allMatch(RemoteCommandResponse::isSuccess)) {
+            result.add(dockerService.restartServices(labTracker, server, touchedServices));
+        }
         return result;
     }
 
     public LabTracker refreshLabTracker(LabTracker labTracker) {
-        // Check the Docker process status
-        String checkTrackerProcessCmd = String.format("cd %s/tracker-compose && docker-compose -p %s ps -qa | xargs docker inspect",
-                amaterasuConfig.getUploadDir(), labTracker.getId());
-        RemoteCommandResponse checkTrackerProcessOutput = remoteCommandService.handleRemoteCommand(checkTrackerProcessCmd, labTracker.getRemoteServer());
-
-        if (checkTrackerProcessOutput.getExitCode() != 0) {
+        if (labTracker.getLabStarted().getLabType() != LabType.DOCKER_COMPOSE || labTracker.getRemoteServer() == null
+                || labTracker.getLabStatus() == LabStatus.STOPPED || labTracker.getLabStatus() == LabStatus.DELETED) {
             return labTracker;
         }
 
-        labTracker.setServices(parseDockerInspectOutput(checkTrackerProcessOutput.getOutput().trim()));
+        Optional<List<DockerServiceInfo>> services = dockerService.inspectServices(labTracker, labTracker.getRemoteServer());
+        if (services.isEmpty()) {
+            return labTracker;
+        }
+        labTracker.setServices(services.get());
 
-        List<DockerServiceInfo> services = labTracker.getServices().stream().filter(service -> !service.getState().equals("running")).toList();
+        long notRunning = services.get().stream().filter(service -> !"running".equals(service.getState())).count();
+        if (labTracker.getLabStatus() == LabStatus.PAUSED && notRunning == services.get().size()) {
+            return labTrackerRepository.save(labTracker);
+        }
 
-        if (services.size() == labTracker.getServices().size()) {
+        if (services.get().isEmpty() || notRunning == services.get().size()) {
             labTracker.setLabStatus(LabStatus.FAILED);
-        } else if (services.size() < labTracker.getServices().size() && !services.isEmpty()) {
+        } else if (notRunning > 0) {
             labTracker.setLabStatus(LabStatus.DEGRADED);
         } else {
             labTracker.setLabStatus(LabStatus.ACTIVE);
         }
-        
+
         return labTrackerRepository.save(labTracker);
     }
 
-    public void deleteAll() {
-        this.labTrackerRepository.deleteAll();
+    /** The server a tracker was deployed on wins over whatever server the client sent. */
+    public static RemoteServer serverFor(LabTracker labTracker, RemoteServer requested) {
+        return labTracker.getRemoteServer() != null ? labTracker.getRemoteServer() : requested;
+    }
+
+    public void deleteAll(List<LabTracker> labTrackers) {
+        this.labTrackerRepository.deleteAll(labTrackers);
     }
 }

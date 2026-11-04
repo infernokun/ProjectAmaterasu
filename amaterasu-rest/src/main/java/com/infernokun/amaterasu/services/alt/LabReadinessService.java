@@ -1,6 +1,5 @@
 package com.infernokun.amaterasu.services.alt;
 
-import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.LabReadinessException;
 import com.infernokun.amaterasu.exceptions.RemoteCommandException;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
@@ -14,90 +13,50 @@ import org.yaml.snakeyaml.Yaml;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.infernokun.amaterasu.services.alt.RemoteCommandService.shellQuote;
+
 @Service
 public class LabReadinessService extends BaseService {
     private final RemoteCommandService remoteCommandService;
-    private final AmaterasuConfig amaterasuConfig;
+    private final DockerService dockerService;
 
-    public LabReadinessService(RemoteCommandService remoteCommandService, AmaterasuConfig amaterasuConfig) {
+    public LabReadinessService(RemoteCommandService remoteCommandService, DockerService dockerService) {
         this.remoteCommandService = remoteCommandService;
-        this.amaterasuConfig = amaterasuConfig;
+        this.dockerService = dockerService;
     }
 
     public boolean checkDockerComposeReadiness(Lab lab, RemoteServer dockerServer) {
         try {
-            String cmd = String.format("DIR=%s/%s && cd $DIR && docker-compose -f %s config",
-                    amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile());
-
-            RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(cmd, dockerServer);
-
-            int exitCode = remoteCommandResponse.getExitCode();
-            if (exitCode != 0) {
-                LOGGER.error("Error running checkDockerComposeReadiness: {}", remoteCommandResponse.getBoth());
+            String cmd = DockerService.COMPOSE_FN + "dc -f " + shellQuote(dockerService.labFilePath(lab)) + " config -q";
+            RemoteCommandResponse response = remoteCommandService.handleRemoteCommand(cmd, dockerServer);
+            if (!response.isSuccess()) {
+                LOGGER.error("Error running checkDockerComposeReadiness: {}", response.getBoth());
             }
-            return remoteCommandResponse.getExitCode() == 0;
+            return response.isSuccess();
         } catch (RemoteCommandException e) {
             throw new LabReadinessException(e.getMessage());
         }
     }
 
-    public  Map<String, Object> getDockerComposeFile(Object object, RemoteServer dockerServer) {
-        try {
-            String cmd = getString(object);
-
-            RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(cmd, dockerServer);
-            String yamlContent = remoteCommandResponse.getBoth();
-
-            Yaml yaml = new Yaml();
-
-            // Parse YAML into a Map
-            Map<String, Object> yamlMap = yaml.load(yamlContent);
-
-            // Create a response Map containing both JSON and raw YAML
-            Map<String, Object> result = new HashMap<>();
-            result.put("yml", yamlContent);
-            result.put("json", yamlMap);
-
-            // Convert Map to JSON string
-            return result;
-        } catch (RemoteCommandException e) {
-            throw new LabReadinessException(e.getMessage());
-        }
-    }
-
-    private String getString(Object object) {
-        String cmd;
-        if (object instanceof Lab) {
-            cmd = String.format("DIR=%s/%s && cd $DIR && cat %s",
-                    amaterasuConfig.getUploadDir(), ((Lab) object).getId(), ((Lab) object).getDockerFile());
-        } else if (object instanceof LabTracker) {
-            cmd = String.format("DIR=%s/tracker-compose && cd $DIR && cat %s",
-                    amaterasuConfig.getUploadDir(), ((LabTracker) object).getId() + "_" + ((LabTracker) object).getLabStarted().getDockerFile());
+    public Map<String, Object> getDockerComposeFile(Object object, RemoteServer dockerServer) {
+        String path;
+        if (object instanceof Lab lab) {
+            path = dockerService.labFilePath(lab);
+        } else if (object instanceof LabTracker labTracker) {
+            path = dockerService.trackerFilePath(labTracker);
         } else {
             throw new IllegalArgumentException("Unsupported lab type: " + object.getClass().getName());
         }
-        return cmd;
-    }
 
-    public Map<String, Object> getTrackerComposeFile(LabTracker labTracker, RemoteServer dockerServer) {
         try {
-            String cmd = String.format("DIR=%s/tracker-compose && cd $DIR && cat %s",
-                    amaterasuConfig.getUploadDir(), labTracker.getId() + "_" +labTracker.getLabStarted().getDockerFile());
-
-            RemoteCommandResponse remoteCommandResponse = remoteCommandService.handleRemoteCommand(cmd, dockerServer);
-            String yamlContent = remoteCommandResponse.getBoth();
-
-            Yaml yaml = new Yaml();
-
-            // Parse YAML into a Map
-            Map<String, Object> yamlMap = yaml.load(yamlContent);
-
-            // Create a response Map containing both JSON and raw YAML
+            RemoteCommandResponse response = remoteCommandService.handleRemoteCommand("cat " + shellQuote(path), dockerServer);
+            if (!response.isSuccess()) {
+                throw new LabReadinessException("Could not read compose file: " + response.getError());
+            }
+            String yamlContent = response.getOutput();
             Map<String, Object> result = new HashMap<>();
             result.put("yml", yamlContent);
-            result.put("json", yamlMap);
-
-            // Convert Map to JSON string
+            result.put("json", new Yaml().load(yamlContent));
             return result;
         } catch (RemoteCommandException e) {
             throw new LabReadinessException(e.getMessage());

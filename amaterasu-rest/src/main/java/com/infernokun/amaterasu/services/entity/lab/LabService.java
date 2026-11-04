@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.services.entity.lab;
 
+import com.infernokun.amaterasu.components.LabActionGuard;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.FileUploadException;
 import com.infernokun.amaterasu.exceptions.LabReadinessException;
@@ -30,7 +31,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class LabService extends BaseService {
@@ -45,13 +45,14 @@ public class LabService extends BaseService {
     private final LabFileChangeLogRepository labFileChangeLogRepository;
 
     private final AmaterasuConfig amaterasuConfig;
+    private final LabActionGuard labActionGuard;
 
     public LabService(
             LabRepository labRepository, UserService userService,
             TeamService teamService, LabTrackerService labTrackerService,
             LabActionService labActionService, LabFileUploadService labFileUploadService,
             LabReadinessService labReadinessService, LabFileChangeLogRepository labFileChangeLogRepository,
-            AmaterasuConfig amaterasuConfig) {
+            AmaterasuConfig amaterasuConfig, LabActionGuard labActionGuard) {
         this.labRepository = labRepository;
         this.userService = userService;
         this.teamService = teamService;
@@ -61,6 +62,12 @@ public class LabService extends BaseService {
         this.labReadinessService = labReadinessService;
         this.labFileChangeLogRepository = labFileChangeLogRepository;
         this.amaterasuConfig = amaterasuConfig;
+        this.labActionGuard = labActionGuard;
+    }
+
+    static String composeFileSlug(String name) {
+        String slug = name.toLowerCase().replaceAll("[^a-z0-9._-]+", "-").replaceAll("^-+|-+$", "");
+        return slug.isEmpty() ? "lab" : slug;
     }
 
     public List<Lab> findAllLabs() {
@@ -81,7 +88,7 @@ public class LabService extends BaseService {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
 
         // Construct the dockerFile name with cleaned-up name and timestamp
-        lab.setDockerFile(lab.getName().toLowerCase().replace(" ", "-") + "_" + timestamp + ".yml");
+        lab.setDockerFile(composeFileSlug(lab.getName()) + "_" + timestamp + ".yml");
         lab.setReady(false);
 
         // Save the lab with the updated dockerFile name
@@ -101,7 +108,7 @@ public class LabService extends BaseService {
                         .description(labRequest.getDescription())
                         .labType(labRequest.getLabType())
                         .ready(false)
-                        .dockerFile(labRequest.getName().toLowerCase().replace(" ", "-") + "_" + timestamp + ".yml")
+                        .dockerFile(composeFileSlug(labRequest.getName()) + "_" + timestamp + ".yml")
                         .version(labRequest.getVersion())
                         .capacity(labRequest.getCapacity())
                         .build();
@@ -141,7 +148,7 @@ public class LabService extends BaseService {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
 
         for (Lab lab : labs) {
-            lab.setDockerFile(lab.getName().toLowerCase().replace(" ", "-") + "_" + timestamp + ".yml");
+            lab.setDockerFile(composeFileSlug(lab.getName()) + "_" + timestamp + ".yml");
         }
         return labRepository.saveAll(labs);
     }
@@ -168,6 +175,18 @@ public class LabService extends BaseService {
 
     @Transactional(dontRollbackOn = ResourceNotFoundException.class)
     public LabActionResult startLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
+        String trackerKey = labTrackerId == null || labTrackerId.isBlank() ? null : labTrackerId;
+        if (!labActionGuard.tryAcquire(trackerKey)) {
+            return new LabActionResult(false, null, "Another action is already running for this lab");
+        }
+        try {
+            return doStartLab(labId, userId, labTrackerId, remoteServer);
+        } finally {
+            labActionGuard.release(trackerKey);
+        }
+    }
+
+    private LabActionResult doStartLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
         LOGGER.info("lab id {} user id {}, lab tracker id {}", labId, userId, labTrackerId);
 
         Lab lab = findLabById(labId);
@@ -176,64 +195,62 @@ public class LabService extends BaseService {
         if (userTeam == null) {
             return new LabActionResult(false, null, "User must be on a team to start a lab");
         }
-        LOGGER.info("Starting lab...");
 
-        Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
+        Optional<LabTracker> existing = labTrackerService.findLabTrackerById(labTrackerId)
+                .filter(tracker -> tracker.getLabStatus() != LabStatus.DELETED);
+        LabTracker labTracker = existing.orElseGet(() -> LabTracker.builder()
+                .labStarted(lab)
+                .labOwner(userTeam)
+                .build());
 
-        LabTracker labTracker = labTrackerOptional.orElseGet(() ->
-                LabTracker.builder()
-                        .labStarted(lab)
-                        .labOwner(userTeam)
-                        .build()
-        );
+        // A lab that still has containers or VMs must be resumed where it lives
+        if (labTracker.getRemoteServer() != null && hasDeployment(labTracker)
+                && !labTracker.getRemoteServer().getId().equals(remoteServer.getId())) {
+            return new LabActionResult(false, labTracker, "Lab is deployed on " + labTracker.getRemoteServer().getName()
+                    + ". Resume it there or stop it before moving to " + remoteServer.getName() + ".");
+        }
+        RemoteServer server = hasDeployment(labTracker) ? LabTrackerService.serverFor(labTracker, remoteServer) : remoteServer;
 
-        if (remoteServer.getRemoteServerStats() == null
-                || remoteServer.getRemoteServerStats().getStatus() != LabStatus.ACTIVE) {
-            return new LabActionResult(false, labTracker,
-                    remoteServer.getName() + " is not ACTIVE!");
+        if (server.getRemoteServerStats() == null || server.getRemoteServerStats().getStatus() != LabStatus.ACTIVE) {
+            return new LabActionResult(false, labTracker, server.getName() + " is not ACTIVE!");
         }
 
+        if (!usesCapacity(labTracker) && lab.getCapacity() != null && lab.getCapacity() > 0) {
+            long inUse = labTrackerService.findByLabStarted(lab).stream().filter(LabService::usesCapacity).count();
+            if (inUse >= lab.getCapacity()) {
+                return new LabActionResult(false, labTracker,
+                        lab.getName() + " is at capacity (" + lab.getCapacity() + " running)");
+            }
+        }
 
+        labTracker.setRemoteServer(server);
         if (labTracker.getId() == null) {
             labTracker = labTrackerService.createLabTracker(labTracker);
         }
 
-        LabActionResult labActionResult = labActionService.startLab(labTracker, remoteServer);
-
-        // Unimplemented lab types return a null tracker
+        LabActionResult labActionResult = labActionService.startLab(labTracker, server);
         if (labActionResult.getLabTracker() == null) {
             labActionResult.setLabTracker(labTracker);
         }
 
         LabTracker resultTracker = labActionResult.getLabTracker();
-        resultTracker.setUpdatedAt(LocalDateTime.now());
         resultTracker.setUpdatedBy(user.getId());
         resultTracker.setLabStatus(labActionResult.isSuccessful() ? LabStatus.ACTIVE : LabStatus.FAILED);
 
-        if (resultTracker.getLabStatus().equals(LabStatus.ACTIVE) && resultTracker.getServices() != null) {
-            AtomicBoolean inactiveService = new AtomicBoolean(false);
-            resultTracker.getServices().forEach((service -> {
-                if (!"running".equals(service.getState())) {
-                    inactiveService.set(true);
-                }
-            }));
-
-            if (inactiveService.get()) {
-                resultTracker.setLabStatus(LabStatus.DEGRADED);
-            }
+        if (resultTracker.getLabStatus() == LabStatus.ACTIVE && resultTracker.getServices() != null
+                && resultTracker.getServices().stream().anyMatch(service -> !"running".equals(service.getState()))) {
+            resultTracker.setLabStatus(LabStatus.DEGRADED);
         }
 
-        resultTracker.setRemoteServer(remoteServer);
-
         try {
-            labTrackerService.updateLabTracker(labActionResult.getLabTracker());
+            labTrackerService.updateLabTracker(resultTracker);
         } catch (Exception e) {
             labActionResult.setSuccessful(false);
             return labActionResult;
         }
 
-        if (!userTeam.getTeamActiveLabs().contains(labActionResult.getLabTracker().getId())) {
-            userTeam.getTeamActiveLabs().add(labActionResult.getLabTracker().getId());
+        if (!userTeam.getTeamActiveLabs().contains(resultTracker.getId())) {
+            userTeam.getTeamActiveLabs().add(resultTracker.getId());
             try {
                 teamService.updateTeam(userTeam);
             } catch (Exception e) {
@@ -244,121 +261,157 @@ public class LabService extends BaseService {
         return labActionResult;
     }
 
+    /** Brings the lab down but keeps its containers or VM disks. */
+    @Transactional
+    public LabActionResult pauseLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
+        String trackerKey = labTrackerId == null || labTrackerId.isBlank() ? null : labTrackerId;
+        if (!labActionGuard.tryAcquire(trackerKey)) {
+            return new LabActionResult(false, null, "Another action is already running for this lab");
+        }
+        try {
+            return doPauseLab(labId, userId, labTrackerId, remoteServer);
+        } finally {
+            labActionGuard.release(trackerKey);
+        }
+    }
+
+    private LabActionResult doPauseLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
+        LOGGER.info("Pausing lab {} by user {} with lab tracker {}", labId, userId, labTrackerId);
+        LabTracker labTracker = activeTracker(labTrackerId);
+        if (labTracker == null) {
+            return new LabActionResult(false, null, "Lab tracker not found");
+        }
+        LabActionResult result = labActionService.pauseLab(labTracker, LabTrackerService.serverFor(labTracker, remoteServer));
+        return saveResult(result, labTracker, userId, LabStatus.PAUSED);
+    }
+
+    /** Removes the lab's containers or VMs. The tracker stays with the team and the next start is a fresh copy. */
     @Transactional
     public LabActionResult stopLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
-        LOGGER.info("Stopping lab with id {} by user id {} and lab tracker id {}", labId, userId, labTrackerId);
-
-        Optional<LabTracker> existingLabTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
-
-        LabTracker existingLabTracker;
-        if (existingLabTrackerOptional.isPresent()) {
-            existingLabTracker = existingLabTrackerOptional.get();
-        } else {
-            return new LabActionResult(false, null, "Lab tracker not found");
+        String trackerKey = labTrackerId == null || labTrackerId.isBlank() ? null : labTrackerId;
+        if (!labActionGuard.tryAcquire(trackerKey)) {
+            return new LabActionResult(false, null, "Another action is already running for this lab");
         }
-
-        LOGGER.info("Stopping lab...");
-
-        String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy @ hh:mma"));
-
-        LabActionResult labActionResult = labActionService.stopLab(findLabById(labId), existingLabTracker, remoteServer);
-        if (labActionResult.getLabTracker() == null) {
-            labActionResult.setLabTracker(existingLabTracker);
+        try {
+            return doStopLab(labId, userId, labTrackerId, remoteServer);
+        } finally {
+            labActionGuard.release(trackerKey);
         }
-
-        labActionResult.getLabTracker().setUpdatedAt(LocalDateTime.now());
-        labActionResult.getLabTracker().setUpdatedBy(userService.findUserById(userId).getId());
-        labActionResult.getLabTracker().setLabStatus(labActionResult.isSuccessful() ? LabStatus.STOPPED : LabStatus.ACTIVE);
-
-        labTrackerService.updateLabTracker(labActionResult.getLabTracker());
-
-        return labActionResult;
     }
 
+    private LabActionResult doStopLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
+        LOGGER.info("Stopping lab {} by user {} with lab tracker {}", labId, userId, labTrackerId);
+        LabTracker labTracker = activeTracker(labTrackerId);
+        if (labTracker == null) {
+            return new LabActionResult(false, null, "Lab tracker not found");
+        }
+        LabActionResult result = labActionService.teardownLab(labTracker, LabTrackerService.serverFor(labTracker, remoteServer));
+        return saveResult(result, labTracker, userId, LabStatus.STOPPED);
+    }
+
+    /** Tears the lab down and removes it from the team. */
     @Transactional
     public LabActionResult deleteLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
-        LOGGER.info("Deleting lab with id {} by user id {} and lab tracker id {}", labId, userId, labTrackerId);
+        String trackerKey = labTrackerId == null || labTrackerId.isBlank() ? null : labTrackerId;
+        if (!labActionGuard.tryAcquire(trackerKey)) {
+            return new LabActionResult(false, null, "Another action is already running for this lab");
+        }
+        try {
+            return doDeleteLab(labId, userId, labTrackerId, remoteServer);
+        } finally {
+            labActionGuard.release(trackerKey);
+        }
+    }
 
-        Optional<LabTracker> existingLabTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
-
-        LabTracker existingLabTracker;
-        if (existingLabTrackerOptional.isPresent()) {
-            existingLabTracker = existingLabTrackerOptional.get();
-        } else {
+    private LabActionResult doDeleteLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
+        LOGGER.info("Deleting lab {} by user {} with lab tracker {}", labId, userId, labTrackerId);
+        LabTracker labTracker = activeTracker(labTrackerId);
+        if (labTracker == null) {
             return new LabActionResult(false, null, "Lab tracker not found");
         }
-
-        Team userTeam = userService.findUserById(userId).getTeam();
-        if (userTeam == null) {
-            return new LabActionResult(false, existingLabTracker, "User must be on a team to delete a lab");
+        Team team = labTracker.getLabOwner() != null ? labTracker.getLabOwner() : userService.findUserById(userId).getTeam();
+        if (team == null) {
+            return new LabActionResult(false, labTracker, "Lab has no team");
         }
 
-        LOGGER.info("Deleting lab...");
-
-        LabActionResult labActionResult = labActionService.deleteLab(existingLabTracker, remoteServer);
-
-        if (labActionResult.isSuccessful()) {
-            try {
-                existingLabTracker.setLabStatus(LabStatus.DELETED);
-                userTeam.getTeamActiveLabs().remove(existingLabTracker.getId());
-                userTeam.getTeamDeletedLabs().add(existingLabTracker.getId());
-                teamService.updateTeam(userTeam);
-                labTrackerService.updateLabTracker(existingLabTracker);
-            } catch (Exception e) {
-                throw new RuntimeException("Error during lab deletion: " + e.getMessage());
-            }
-        } else {
-            LOGGER.warn("Lab deletion failed for lab {}", labId);
-            throw new RuntimeException("Lab deletion failed for lab " + labId + "\n" + labActionResult.getOutput());
+        LabActionResult result = labActionService.teardownLab(labTracker, LabTrackerService.serverFor(labTracker, remoteServer));
+        if (result.getLabTracker() == null) {
+            result.setLabTracker(labTracker);
+        }
+        if (!result.isSuccessful()) {
+            labTracker.setLabStatus(LabStatus.FAILED);
+            labTrackerService.updateLabTracker(labTracker);
+            LOGGER.warn("Lab deletion failed for lab {}: {}", labId, result.getOutput());
+            return result;
         }
 
-        return labActionResult;
+        markDeleted(labTracker, team, userId);
+        return result;
     }
 
-
-    private Optional<LabTracker> handleLabStop(Lab lab, User user, LabTracker existingLabTracker, boolean successfulStop, LocalDateTime now, String formattedDate) {
-        existingLabTracker.setUpdatedAt(now);
-        existingLabTracker.setUpdatedBy(user.getId());
-
-        if (!successfulStop) {
-            existingLabTracker.setLabStatus(LabStatus.FAILED);
-            labTrackerService.updateLabTracker(existingLabTracker);
-            LOGGER.info("{} failed stop by {} at {}, status is {}", lab.getName(), user.getUsername(), formattedDate, existingLabTracker.getLabStatus());
-            return Optional.of(existingLabTracker);
-        }
-
-        existingLabTracker.setLabStatus(LabStatus.STOPPED);
-        labTrackerService.updateLabTracker(existingLabTracker);
-        LOGGER.info("{} stopped by {} at {}, status is {}", lab.getName(), user.getUsername(), formattedDate, existingLabTracker.getLabStatus());
-        return Optional.of(existingLabTracker);
-    }
-
+    /**
+     * Removes a lab from the team. Anything still deployed is torn down first so nothing is left
+     * running without a tracker.
+     */
+    @Transactional
     public LabTracker deleteLabFromTeam(String labId, String userId, String labTrackerId) {
-        Lab stoppedLab = this.findLabById(labId);
-        User stoppedBy = this.userService.findUserById(userId);
-
-        Team userTeam = stoppedBy.getTeam();
-
-        if (userTeam.getTeamActiveLabs().contains(labTrackerId)) {
-            userTeam.getTeamDeletedLabs().add(labTrackerId);
-            userTeam.getTeamActiveLabs().remove(labTrackerId);
-
-            Optional<LabTracker> labTrackerOptional = labTrackerService
-                    .findLabTrackerById(labTrackerId);
-
-            if (labTrackerOptional.isEmpty()) {
-                throw new ResourceNotFoundException("Lab tracker not found!");
-            }
-
-            LabTracker labTracker = labTrackerOptional.get();
-            labTracker.setLabStatus(LabStatus.DELETED);
-
-            LabTracker updatedLabTracker = labTrackerService.updateLabTracker(labTracker);
-            teamService.updateTeam(userTeam);
-
-            return updatedLabTracker;
+        User user = this.userService.findUserById(userId);
+        Team userTeam = user.getTeam();
+        if (userTeam == null || !userTeam.getTeamActiveLabs().contains(labTrackerId)) {
+            throw new ResourceNotFoundException("Lab not found in this team!");
         }
-        throw new ResourceNotFoundException("Lab not found in this team!");
+
+        LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lab tracker not found!"));
+
+        if (hasDeployment(labTracker) && labTracker.getRemoteServer() != null) {
+            LabActionResult result = labActionService.teardownLab(labTracker, labTracker.getRemoteServer());
+            if (!result.isSuccessful()) {
+                throw new IllegalStateException("Could not tear down the lab before removing it: " + result.getOutput());
+            }
+        }
+
+        return markDeleted(labTracker, userTeam, userId);
+    }
+
+    private LabTracker markDeleted(LabTracker labTracker, Team team, String userId) {
+        labTracker.setLabStatus(LabStatus.DELETED);
+        labTracker.setUpdatedBy(userId);
+        team.getTeamActiveLabs().remove(labTracker.getId());
+        if (!team.getTeamDeletedLabs().contains(labTracker.getId())) {
+            team.getTeamDeletedLabs().add(labTracker.getId());
+        }
+        teamService.updateTeam(team);
+        return labTrackerService.updateLabTracker(labTracker);
+    }
+
+    private LabTracker activeTracker(String labTrackerId) {
+        return labTrackerService.findLabTrackerById(labTrackerId)
+                .filter(tracker -> tracker.getLabStatus() != LabStatus.DELETED)
+                .orElse(null);
+    }
+
+    private LabActionResult saveResult(LabActionResult result, LabTracker labTracker, String userId, LabStatus onSuccess) {
+        if (result.getLabTracker() == null) {
+            result.setLabTracker(labTracker);
+        }
+        LabTracker tracker = result.getLabTracker();
+        tracker.setUpdatedBy(userId);
+        tracker.setLabStatus(result.isSuccessful() ? onSuccess : LabStatus.FAILED);
+        labTrackerService.updateLabTracker(tracker);
+        return result;
+    }
+
+    /** True while the tracker still owns containers or VMs on its server. */
+    private static boolean hasDeployment(LabTracker labTracker) {
+        LabStatus status = labTracker.getLabStatus();
+        return status != null && status != LabStatus.STOPPED && status != LabStatus.DELETED
+                && status != LabStatus.NONE;
+    }
+
+    private static boolean usesCapacity(LabTracker labTracker) {
+        LabStatus status = labTracker.getLabStatus();
+        return status == LabStatus.ACTIVE || status == LabStatus.DEGRADED || status == LabStatus.PAUSED;
     }
 
     public boolean checkDockerComposeValidity(String labId, RemoteServer remoteServer) {
@@ -404,8 +457,12 @@ public class LabService extends BaseService {
     }
 
     public boolean deleteLabItem(String labId) {
-        if (!labRepository.existsById(labId)) {
+        Optional<Lab> lab = labRepository.findById(labId);
+        if (lab.isEmpty()) {
             return false;
+        }
+        if (labTrackerService.findByLabStarted(lab.get()).stream().anyMatch(LabService::hasDeployment)) {
+            throw new IllegalStateException("Stop or delete every deployment of " + lab.get().getName() + " first");
         }
 
         labFileChangeLogRepository.deleteByLabId(labId);
@@ -420,6 +477,6 @@ public class LabService extends BaseService {
         team.setTeamDeletedLabs(new ArrayList<>());
 
         teamService.updateTeam(team);
-        labTrackerService.deleteAll();
+        labTrackerService.deleteAll(labTrackerService.findLabTrackerByTeamId(teamId));
     }
 }

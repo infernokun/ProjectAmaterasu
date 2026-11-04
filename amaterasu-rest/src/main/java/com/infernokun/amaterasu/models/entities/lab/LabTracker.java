@@ -7,6 +7,7 @@ import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.helper.DockerServiceInfoConverter;
 import com.infernokun.amaterasu.models.helper.ProxmoxVMListConverter;
+import com.infernokun.amaterasu.models.helper.StringListConverter;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.List;
@@ -36,6 +37,10 @@ public class LabTracker extends StoredObject {
     @Convert(converter = ProxmoxVMListConverter.class)
     @Builder.Default
     private List<ProxmoxVM> vms = new ArrayList<>();
+    @Column(columnDefinition = "TEXT")
+    @Convert(converter = StringListConverter.class)
+    @Builder.Default
+    private List<String> bridges = new ArrayList<>();
     @ManyToOne
     @JoinColumn(name = "remote_server_id")
     private RemoteServer remoteServer;

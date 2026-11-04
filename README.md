@@ -68,6 +68,18 @@ openssl rsa -pubout -in private.pem -out public.pem
 
 On first start the API creates an admin account from `amaterasu.defaultAdminUsername` and `amaterasu.defaultAdminPassword` in `application-local.yml`. Change the password after logging in.
 
+## Lab lifecycle
+
+| Action | Docker Compose lab | Proxmox VM lab |
+| ------ | ------------------ | -------------- |
+| Start  | Copies the lab's compose file for this deployment and runs `up -d` | Clones every template, puts the clones on private bridges for this lab and starts them |
+| Pause  | `stop`: containers are kept, so progress survives | Graceful shutdown: VMs and disks are kept |
+| Resume | `up -d` on the existing containers | Starts the existing VMs |
+| Stop   | `down -v`: removes containers, volumes and uploaded files | Destroys the clones and removes the lab's bridges |
+| Delete | Stop, then removes the lab from the team | Stop, then removes the lab from the team |
+
+Each deployment is its own Compose project, so published ports and fixed container, volume and network names are dropped to let several teams run the same lab on one host. Each VM lab gets its own `abrN` bridges with no host address, so labs cannot reach each other or the Proxmox host's networks. Students reach VMs through the Proxmox console.
+
 ## Development
 
 API (needs Postgres and Redis, see `amaterasu-dev`):
@@ -80,6 +92,12 @@ Web (served on port 4300):
 
 ```bash
 cd amaterasu-web && pnpm install && pnpm start
+```
+
+A Proxmox API mock with tasks, clone locks and bridges lives in `amaterasu-proxmox/mock`:
+
+```bash
+cd amaterasu-proxmox/mock && pnpm install && pnpm start
 ```
 
 ### Tests

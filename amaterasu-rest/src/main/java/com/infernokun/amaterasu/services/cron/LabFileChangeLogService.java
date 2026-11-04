@@ -101,9 +101,8 @@ public class LabFileChangeLogService extends BaseService {
 
     private LocalDateTime fetchRemoteFileTimestamp(Lab lab, RemoteServer remoteServer) {
         try {
-            String statsCmd = String.format("stat -c %%Y %s/%s/%s",
-                    amaterasuConfig.getUploadDir(), lab.getId(), lab.getDockerFile()
-            );
+            String statsCmd = "stat -c %Y " + RemoteCommandService.shellQuote(
+                    amaterasuConfig.getUploadDir() + "/" + lab.getId() + "/" + lab.getDockerFile());
 
             RemoteCommandResponse response = remoteCommandService.handleRemoteCommand(
                     statsCmd, remoteServer);
@@ -113,7 +112,7 @@ public class LabFileChangeLogService extends BaseService {
                 return LocalDateTime.MIN;
             }
 
-            String output = response.getBoth().trim();
+            String output = response.getOutput().trim();
             if (output.contains("No such file")) {
                 LOGGER.warn("File not found on server {}: {}", remoteServer.getId(), statsCmd);
                 return LocalDateTime.MIN;

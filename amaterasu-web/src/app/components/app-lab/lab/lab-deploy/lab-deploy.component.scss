@@ -218,6 +218,15 @@
         }
       }
       
+      &.pause {
+        background-color: #f39c12;
+        color: white;
+
+        &:hover:not([disabled]) {
+          background-color: #d68910;
+        }
+      }
+
       &.stop {
         background-color: #e74c3c;
         color: white;

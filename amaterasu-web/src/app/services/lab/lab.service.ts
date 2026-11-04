@@ -87,6 +87,11 @@ export class LabService extends BaseService {
     );
   }
 
+  pauseLab(labRequest: LabRequest): Observable<ApiResponse<LabActionResult>> {
+    return this.post<ApiResponse<LabActionResult>>(this.environmentService.settings?.restUrl + '/labs/pause',
+      labRequest);
+  }
+
   stopLab(labRequest: LabRequest): Observable<ApiResponse<any>> {
     return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/stop',
       labRequest);
