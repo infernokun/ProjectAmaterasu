@@ -52,19 +52,11 @@ public class RemoteCommandService extends BaseService {
     }
 
     /**
-     * Safely writes {@code content} to {@code remotePath} on the remote server.
-     * <p>
-     * The content is base64-encoded locally and decoded on the remote host, so
-     * arbitrary bytes (quotes, {@code $}, backticks, newlines, YAML with shell
-     * metacharacters, ...) can never be interpreted by the remote shell. This
-     * replaces the previous {@code echo "<content>" | tee} approach, which was
-     * both corruption-prone and a command-injection vector. Parent directories
-     * are created automatically.
+     * Writes content to a remote file via base64 so the shell never interprets it.
+     * Parent directories are created as needed.
      */
     public RemoteCommandResponse writeRemoteFile(String remotePath, String content, RemoteServer remoteServer) {
         String encoded = Base64.getEncoder().encodeToString(content.getBytes(StandardCharsets.UTF_8));
-        // base64 output only contains [A-Za-z0-9+/=], so single-quoting it is safe.
-        // remotePath is server-controlled (config upload dir + ids), also safe to quote.
         String cmd = String.format(
                 "mkdir -p \"$(dirname '%s')\" && printf '%%s' '%s' | base64 -d > '%s'",
                 remotePath, encoded, remotePath);
@@ -181,8 +173,6 @@ public class RemoteCommandService extends BaseService {
         } catch (JSchException | IOException e) {
             throw new RemoteCommandException("Exception while running command: " + command);
         } finally {
-            // Always release the channel; previously a failure between connect and
-            // disconnect leaked the channel until the whole session was torn down.
             if (channel != null && channel.isConnected()) {
                 channel.disconnect();
             }

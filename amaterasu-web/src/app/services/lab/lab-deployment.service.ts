@@ -37,7 +37,7 @@ export class LabDeploymentService {
     // Emit response
     this.deployLabResponseSubject.next(response);
 
-    // Remove lab from loading state (response.data can be null on error paths)
+    // Remove lab from loading state
     const labId = response?.data?.labTracker?.labStarted?.id;
     if (labId) {
       this.finishLabDeployment(labId);

@@ -35,7 +35,7 @@ public class CTFEntity extends StoredObject {
     @OneToMany(mappedBy = "ctfEntity", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JsonManagedReference
     private List<Hint> hints = new ArrayList<>();
-    @OneToMany(mappedBy = "ctfEntity", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "ctfEntity", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonManagedReference
     private List<Flag> flags = new ArrayList<>();
     private String category;

@@ -48,7 +48,7 @@ public class DockerService extends BaseService {
             String modifiedYAML = modifyDockerComposeYAML(composeYAML, labTracker.getId());
             LOGGER.info("Modified Docker Compose YAML for LabTracker: {}", modifiedYAML);
 
-            // Create the lab tracker-based Docker Compose file (base64-safe write, no shell injection)
+            // Create the lab tracker-based Docker Compose file
             String trackerComposePath = String.format("%s/tracker-compose/%s",
                     amaterasuConfig.getUploadDir(),
                     labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile());
@@ -82,8 +82,7 @@ public class DockerService extends BaseService {
                         "Failed to inspect Docker container. Exiting.");
             }
 
-            // Parse stdout only: docker/compose routinely writes warnings to stderr, and
-            // getBoth() would splice those into the JSON and break parsing (false failures).
+            // Parse stdout only, compose writes warnings to stderr.
             labTracker.setServices(parseDockerInspectOutput(checkTrackerProcessOutput.getOutput().trim()));
 
             return LabActionResult.builder()
@@ -98,12 +97,8 @@ public class DockerService extends BaseService {
     }
 
     /**
-     * Builds a teardown command that works whether or not the tracker compose file
-     * still exists. If the file is present we use {@code docker-compose down}; if a
-     * failure happened before the file was written we fall back to removing any
-     * containers labelled with the compose project id. The old command always passed
-     * {@code -f <file>} and chained with {@code &&}, so a missing file (or a failed
-     * {@code logs}) left containers orphaned on every failure.
+     * Tears down with docker-compose when the file exists, otherwise removes
+     * containers by compose project label.
      */
     private String buildTeardownCommand(LabTracker labTracker) {
         String composeFileName = labTracker.getId() + "_" + labTracker.getLabStarted().getDockerFile();
@@ -115,8 +110,7 @@ public class DockerService extends BaseService {
     }
 
     public LabActionResult stopDockerComposeOnFail(LabTracker labTracker, RemoteServer remoteServer, String msg) {
-        // Capture logs (best-effort, separated by ';' so a logs failure never blocks teardown),
-        // then tear the project down.
+        // Capture logs first; a logs failure should not block teardown.
         String stopTrackerComposeCmd = String.format("cd %s/tracker-compose && docker-compose -p %s logs 2>/dev/null; %s",
                 amaterasuConfig.getUploadDir(), labTracker.getId(), buildTeardownCommand(labTracker));
         RemoteCommandResponse stopTrackerComposeOutput = remoteCommandService.handleRemoteCommand(stopTrackerComposeCmd, remoteServer);
@@ -236,9 +230,7 @@ public class DockerService extends BaseService {
             for (JsonNode containerNode : rootNode) {
                 DockerServiceInfo info = new DockerServiceInfo();
 
-                // Extract Name (remove leading "/"). Use path() throughout so a missing
-                // field yields a MissingNode instead of null -> no NPE on containers that
-                // lack ExposedPorts, Mounts, networks, etc.
+                // Extract Name (remove leading "/")
                 info.setName(containerNode.path("Name").asText("").replaceFirst("^/", ""));
                 // Extract State
                 info.setState(containerNode.path("State").path("Status").asText("unknown"));
@@ -253,7 +245,7 @@ public class DockerService extends BaseService {
                             info.getNetworks().add(entry.getKey());
                         });
 
-                // Extract Internal Ports (may be absent for containers with no exposed ports)
+                // Extract Internal Ports
                 JsonNode exposedPorts = containerNode.path("Config").path("ExposedPorts");
                 if (exposedPorts.isObject()) {
                     exposedPorts.fieldNames().forEachRemaining(info.getPorts()::add);

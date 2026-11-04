@@ -37,7 +37,10 @@ public class RemoteServerStatsService extends BaseService {
     }
 
     public RemoteServerStats updateStats(RemoteServerStats updatedStats) {
-        findStatsById(updatedStats.getId());
+        RemoteServerStats existingStats = findStatsById(updatedStats.getId());
+        if (updatedStats.getRemoteServer() == null) {
+            updatedStats.setRemoteServer(existingStats.getRemoteServer());
+        }
         updatedStats.setUpdatedAt(LocalDateTime.now());
         RemoteServerStats savedRemoteServerStats = remoteServerStatsRepository.save(updatedStats);
 

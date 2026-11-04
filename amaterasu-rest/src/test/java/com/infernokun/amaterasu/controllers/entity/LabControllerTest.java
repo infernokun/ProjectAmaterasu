@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.controllers.entity.lab.LabController;
 import com.infernokun.amaterasu.exceptions.GlobalExceptionHandler;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
+import com.infernokun.amaterasu.models.LabActionRequest;
 import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.entities.lab.dto.LabRequest;
 import com.infernokun.amaterasu.models.entities.lab.Lab;
@@ -42,7 +43,7 @@ class LabControllerTest {
 
     private Lab lab;
     private LabRequest labRequest;
-    private com.infernokun.amaterasu.models.LabRequest labRequest;
+    private LabActionRequest labActionRequest;
     private LabActionResult labActionResult;
     private LabTracker labTracker;
     private RemoteServer remoteServer;
@@ -85,12 +86,11 @@ class LabControllerTest {
         lab.setId("1");
 
         labRequest = new LabRequest();
-
-        labRequest = new com.infernokun.amaterasu.models.LabRequest();
-        labRequest.setLabId("1");
-        labRequest.setRemoteServerId("rs1");
-        labRequest.setUserId("user1");
-        labRequest.setLabTrackerId("lt1");
+        labActionRequest = new LabActionRequest();
+        labActionRequest.setLabId("1");
+        labActionRequest.setRemoteServerId("rs1");
+        labActionRequest.setUserId("user1");
+        labActionRequest.setLabTrackerId("lt1");
 
         labActionResult = new LabActionResult();
 
@@ -220,7 +220,7 @@ class LabControllerTest {
 
         mockMvc.perform(post("/api/labs/stop")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(labRequest)))
+                        .content(objectMapper.writeValueAsString(labActionRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
     }
@@ -232,7 +232,7 @@ class LabControllerTest {
 
         mockMvc.perform(post("/api/labs/delete")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(labRequest)))
+                        .content(objectMapper.writeValueAsString(labActionRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
     }
@@ -243,7 +243,7 @@ class LabControllerTest {
 
         mockMvc.perform(post("/api/labs/delete-lab-from-team")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(labRequest)))
+                        .content(objectMapper.writeValueAsString(labActionRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.id").value("lt1"));
@@ -256,7 +256,7 @@ class LabControllerTest {
 
         mockMvc.perform(post("/api/labs/delete-lab-from-team")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(labRequest)))
+                        .content(objectMapper.writeValueAsString(labActionRequest)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value(404));
     }
@@ -266,7 +266,7 @@ class LabControllerTest {
         // For the /dev endpoint, which returns void, we only check status.
         mockMvc.perform(post("/api/labs/dev")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(labRequest)))
+                        .content(objectMapper.writeValueAsString(labActionRequest)))
                 .andExpect(status().isOk());
     }
 }

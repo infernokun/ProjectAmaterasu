@@ -15,9 +15,7 @@ import {
 } from '@angular/core';
 
 /**
- * Shape of a Monaco editor model. Mirrors the small subset of the old
- * `@ngstack/code-editor` `CodeModel` that the app actually used, so the
- * migration to a direct Monaco wrapper is a drop-in for callers.
+ * Shape of a Monaco editor model used by the app.
  */
 export interface CodeModel {
   language: string;
@@ -25,8 +23,7 @@ export interface CodeModel {
   value: string;
 }
 
-// Monaco is loaded lazily from the copied assets via its AMD loader instead of
-// being bundled. `main.ts` already configures `MonacoEnvironment.getWorkerUrl`.
+// Loaded lazily through the AMD loader from the assets copied in angular.json.
 const MONACO_BASE_URL = '/assets/monaco-editor/min';
 let monacoLoader: Promise<any> | null = null;
 

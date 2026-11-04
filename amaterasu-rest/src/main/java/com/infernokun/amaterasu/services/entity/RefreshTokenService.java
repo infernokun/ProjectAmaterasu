@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -118,12 +119,12 @@ public class RefreshTokenService extends BaseService {
         String currentUserAgent = request.getHeader("User-Agent");
 
         // Log suspicious activity (optional - you can make this stricter)
-        if (!token.getIpAddress().equals(currentIP)) {
+        if (!Objects.equals(token.getIpAddress(), currentIP)) {
             LOGGER.warn("IP address changed for refresh token. User: {}, Old: {}, New: {}",
                     token.getUser().getId(), token.getIpAddress(), currentIP);
         }
 
-        if (!token.getUserAgent().equals(currentUserAgent)) {
+        if (!Objects.equals(token.getUserAgent(), currentUserAgent)) {
             LOGGER.warn("User agent changed for refresh token. User: {}", token.getUser().getId());
         }
     }

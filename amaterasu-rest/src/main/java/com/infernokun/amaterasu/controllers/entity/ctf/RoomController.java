@@ -97,8 +97,6 @@ public class RoomController {
     public ResponseEntity<ApiResponse<RoomUserProfileResponse>> getScoreboardUserInfo(@PathVariable String roomId) {
         User user = userService.findUserById(SecurityContextHolder.getContext().getAuthentication().getName());
 
-        // Scope the lookup to the requested room: findByUserId ignores roomId and returns an
-        // arbitrary RoomUser (and throws if the user has joined more than one room).
         Room room = roomService.findByRoomId(roomId);
         RoomUser roomUser = roomUserService.findByUserAndRoom(user, room)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -114,8 +112,7 @@ public class RoomController {
 
         roomUserAnswers.forEach(roomUserAnswer -> {
             if (roomUserAnswer.getCorrect()) {
-                // Add failed attempts (total attempts - 1 for the correct one); clamp at 0
-                // so a correct answer recorded with 0 attempts can't produce negative fails.
+                // Failed attempts, excluding the correct one
                 fails.set(fails.get() + Math.max(0, roomUserAnswer.getAttempts() - 1));
                 correct.set(correct.get() + 1);
 
@@ -263,7 +260,7 @@ public class RoomController {
         eachRoomForUser.forEach(roomUser -> roomStatus.put(roomUser.getRoom().getId(), JoinRoomResponse.builder()
                         .points(roomUser.getPoints())
                         .roomId(roomUser.getRoom().getId())
-                        .userId(roomUser.getId())
+                        .userId(roomUser.getUser().getId())
                         .roomUserStatus(roomUser.getRoomUserStatus())
                 .build()));
 
@@ -301,7 +298,7 @@ public class RoomController {
         roomUser = roomUserService.save(roomUser);
 
         return buildSuccessResponse(String.format("User %s has %d points in room %s",
-                roomUser.getUser().getUsername(), roomUser.getPoints() + 100, roomUser.getRoom().getName()),
+                roomUser.getUser().getUsername(), roomUser.getPoints(), roomUser.getRoom().getName()),
                 JoinRoomResponse.builder()
                         .points(roomUser.getPoints())
                         .roomId(roomUser.getRoom().getId())
@@ -312,8 +309,15 @@ public class RoomController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Room>> updateRoom(@PathVariable String id, @RequestBody Room room) {
-        room.setId(id);
-        Room updatedRoom = this.roomService.saveRoom(room);
+        Room existingRoom = this.roomService.findByRoomId(id);
+        if (room.getName() != null) {
+            existingRoom.setName(room.getName());
+        }
+        if (room.getSurroundTag() != null) {
+            existingRoom.setSurroundTag(room.getSurroundTag());
+        }
+        existingRoom.setUpdatedAt(LocalDateTime.now());
+        Room updatedRoom = this.roomService.saveRoom(existingRoom);
         return ResponseEntity.ok(
                 ApiResponse.<Room>builder()
                         .code(HttpStatus.OK.value())
@@ -370,4 +374,4 @@ public class RoomController {
                 return rank + "th";
         }
     }
-}
+}

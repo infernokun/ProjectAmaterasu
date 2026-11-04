@@ -1,117 +1,107 @@
 # ProjectAmaterasu
 
-**ProjectAmaterasu** is a modular project designed to integrate several components for seamless functionality across different platforms. The project consists of three main components:
+[![CI](https://github.com/infernokun/ProjectAmaterasu/actions/workflows/ci.yml/badge.svg)](https://github.com/infernokun/ProjectAmaterasu/actions/workflows/ci.yml)
+
+ProjectAmaterasu is a virtual lab orchestration application. It deploys Docker Compose and Proxmox VM labs to remote servers and runs CTF style rooms with scoring.
 
 ## Components
 
-### 1. **amaterasu-pg**
+| Directory            | Description                                                                 |
+| -------------------- | --------------------------------------------------------------------------- |
+| `amaterasu-rest`     | Spring Boot 3.5 REST API (Java 21). Postgres for storage, Redis for caching. |
+| `amaterasu-web`      | Angular 22 frontend served by nginx, which also proxies `/api` to the API.  |
+| `amaterasu-proxmox`  | Python helper CLI for Proxmox and a mock Proxmox API under `mock/`.         |
+| `amaterasu-populate` | Scripts that seed sample rooms and challenges through the API.              |
+| `amaterasu-dev`      | Compose files for local Postgres, pgAdmin, Redis and a Docker-in-Docker host. |
+| `amaterasu-sample`   | Example lab compose file.                                                    |
 
-- **Description**: A `docker-compose.yml` setup for a Postgres database that supports the application.
-
-### 2. **amaterasu-rest**
-
-- **Description**: This service is the RESTful API layer that provides endpoints for communication between the backend and frontend or external services.
-- **Key Features**:
-  - CRUD operations for managing resources.
-  - Authentication and authorization mechanisms.
-  - JSON-based data exchange.
-
-### 3. **amaterasu-web**
-
-- **Description**: The Angular-based user interface, offering a front-facing application for end users.
-- **Key Features**:
-  - Responsive design for various devices.
-  - Integration with `amaterasu-rest` to fetch dynamic content.
-
-## Installation
-
-To get started with **ProjectAmaterasu**, follow these steps:
-
-1. **Download the docker-compose.yml**:
+## Running with Docker Compose
 
 ```bash
 wget https://raw.githubusercontent.com/infernokun/ProjectAmaterasu/refs/heads/main/docker-compose.yml
 ```
 
-2. **Set up environment variables**:
-
-   - You can create `.env` files in the respective component directories or define environment variables directly in the `docker-compose.yml` file.
-
-3. **Run the application**:  
-   **Ensure you have Docker and Docker Compose installed.**  
-   Then, run the following command to start all the services:
-
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-This will bring up the following services:
+This starts:
 
-- **amaterasu-web**: The front-end Angular application.
-- **amaterasu-db**: The PostgreSQL database.
-- **amaterasu-rest**: The RESTful API layer.
+- `amaterasu-web` on port `8764`
+- `amaterasu-rest` on port `8765` (context path `/amaterasu-rest`)
+- `amaterasu-db` (Postgres 17)
+- `amaterasu-redis` (Redis 8)
 
-## Usage
+The API generates an RSA key pair for signing JWTs on first start and stores it in the `amaterasu-rest` volume. To use your own keys, mount them and set `RSA_PRIVATE_KEY_PATH` and `RSA_PUBLIC_KEY_PATH`:
 
-**Work In Progress**  
-Details on using the application and accessing the services will be added soon.
+```bash
+openssl genpkey -algorithm RSA -out private.pem -pkeyopt rsa_keygen_bits:2048
+```
 
-## Docker Compose Setup
+```bash
+openssl rsa -pubout -in private.pem -out public.pem
+```
 
-The `docker-compose.yml` file is configured to set up all services. Here is a breakdown of the services included in the file:
+### Environment variables
 
-### **amaterasu-web** (Frontend)
+`amaterasu-rest`:
 
-- **Description**: The Angular application that serves as the front-end UI for end users.
-- **Ports**:
-  - Exposes port 80 on the container, mapped to port 8764 on the host.
-- **Environment Variables**:
-  - `BASE_URL`: The base URL for the web application.
-  - `REST_URL`: The URL to the API layer (for integration).
-- **Dependencies**:
-  - Depends on `amaterasu-db` being healthy before starting.
+| Variable               | Default                          | Description                          |
+| ---------------------- | -------------------------------- | ------------------------------------ |
+| `DB_IP`                | `amaterasu-db`                   | Postgres host                        |
+| `DB_PORT`              | `5432`                           | Postgres port                        |
+| `DB_NAME`              | `amaterasu`                      | Database name                        |
+| `DB_USER` / `DB_PASS`  | `amaterasu` / `amaterasu`        | Database credentials                 |
+| `REDIS_HOST`           | `amaterasu-redis`                | Redis host                           |
+| `REDIS_PASSWORD`       | `amaterasu`                      | Redis password                       |
+| `DOCKER_COMPOSE_PATH`  | `/var/tmp/amaterasu`             | Working directory for lab files      |
+| `ENCRYPTION_KEY`       | `secret_key`                     | Key used to encrypt stored secrets. Change this. |
+| `RSA_PRIVATE_KEY_PATH` | `/var/tmp/amaterasu/private.pem` | JWT signing key                      |
+| `RSA_PUBLIC_KEY_PATH`  | `/var/tmp/amaterasu/public.pem`  | JWT verification key                 |
 
-### **amaterasu-db** (Database)
+`amaterasu-web`:
 
-- **Description**: A PostgreSQL database to store application data.
-- **Ports**:
-  - Exposes the default PostgreSQL port `5432`.
-- **Environment Variables**:
-  - `POSTGRES_USER`: The PostgreSQL user (default: `amaterasu`).
-  - `POSTGRES_PASSWORD`: The PostgreSQL password (default: `amaterasu`).
-  - `POSTGRES_DB`: The PostgreSQL database name (default: `amaterasu`).
-- **Volumes**:
-  - Persist data using the volume `./amaterasu-db:/var/lib/postgresql/data`.
-- **Healthcheck**:
-  - The healthcheck ensures that PostgreSQL is up and ready before other services attempt to connect.
+| Variable   | Description                         |
+| ---------- | ----------------------------------- |
+| `BASE_URL` | Public URL of the web app           |
+| `REST_URL` | API base URL, `/api` behind nginx   |
 
-### **amaterasu-rest** (Backend)
+On first start the API creates an admin account from `amaterasu.defaultAdminUsername` and `amaterasu.defaultAdminPassword` in `application-local.yml`. Change the password after logging in.
 
-- **Description**: The RESTful API layer that interacts with the database and the front-end.
-- **Ports**:
-  - Exposes port `8080` on the container, mapped to port `8765` on the host.
-- **Environment Variables**:
-  - `DOCKER_COMPOSE_PATH`: Path to the Docker Compose directory (default: `/var/tmp/amaterasu`).
-  - `DB_IP`: The IP address or hostname for the PostgreSQL database.
-  - `DB_NAME`: The PostgreSQL database name.
-  - `DB_USER`: The PostgreSQL user.
-  - `DB_PASS`: The PostgreSQL password.
-  - `DB_PORT`: The PostgreSQL port (default: `5432`).
-  - `ENCRYPTION_KEY`: A randomly generated encryption key (using OpenSSL if not set).
-- **Dependencies**:
-  - Depends on `amaterasu-db` being ready before starting.
+## Development
+
+API (needs Postgres and Redis, see `amaterasu-dev`):
+
+```bash
+cd amaterasu-rest && ./gradlew bootRun
+```
+
+Web (served on port 4300):
+
+```bash
+cd amaterasu-web && pnpm install && pnpm start
+```
+
+### Tests
+
+```bash
+cd amaterasu-rest && ./gradlew test
+```
+
+```bash
+cd amaterasu-web && pnpm exec ng test --watch=false --browsers=ChromeHeadlessCI
+```
+
+```bash
+ruff check .
+```
+
+CI runs all of the above plus Docker image builds on every pull request.
 
 ## Troubleshooting
 
-- Ensure that Docker and Docker Compose are properly installed on your machine.
-- Check the logs of any service if it doesn't start correctly:
-
 ```bash
-docker-compose logs [service_name]
+docker compose logs amaterasu-rest
 ```
 
-This will display logs for a specific service, such as `amaterasu-web`, `amaterasu-db`, or `amaterasu-rest`.
-
-# RSA stuff
-openssl genpkey -algorithm RSA -out private.key -pkeyopt rsa_keygen_bits:409
-openssl rsa -pubout -in private.key -out public.key
+The API health endpoint is `http://localhost:8765/amaterasu-rest/health`.

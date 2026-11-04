@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "answered_ctf_entity", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "ctf_entity_id"}))
+@Table(name = "answered_ctf_entity", uniqueConstraints = @UniqueConstraint(columnNames = {"room_user_id", "ctf_entity_id"}))
 public class CTFEntityAnswer extends StoredObject {
 
     @ManyToOne
@@ -101,11 +101,14 @@ public class CTFEntityAnswer extends StoredObject {
     }
 
     public boolean isMaxAttemptsReached() {
-        return ctfEntity != null && attempts >= ctfEntity.getMaxAttempts();
+        return ctfEntity != null && ctfEntity.getMaxAttempts() != null && attempts >= ctfEntity.getMaxAttempts();
     }
 
     public int getRemainingAttempts() {
-        return ctfEntity != null ? Math.max(0, ctfEntity.getMaxAttempts() - attempts) : 0;
+        if (ctfEntity == null || ctfEntity.getMaxAttempts() == null) {
+            return Integer.MAX_VALUE;
+        }
+        return Math.max(0, ctfEntity.getMaxAttempts() - attempts);
     }
 
     public boolean isCompleted() {

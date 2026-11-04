@@ -58,7 +58,6 @@ export class AppComponent implements OnInit, OnDestroy {
     map(([initComplete, authLoading]) => initComplete && !authLoading)
   );
 
-  // Reactive state surfaced to the template as signals (replaces the async pipe).
   protected readonly loggedInUser = toSignal(this.authService.user$, { initialValue: undefined });
   protected readonly initializationComplete = toSignal(this.initializationComplete$, { initialValue: false });
   protected readonly isAppReady = toSignal(this.isAppReady$, { initialValue: false });

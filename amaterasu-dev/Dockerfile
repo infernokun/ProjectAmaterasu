@@ -1,6 +1,6 @@
-FROM docker:dind
+FROM docker:29.9.2-dind-alpine3.24
 
-RUN apk update && apk add --no-cache openssh-client=9.9_p2-r0 openssh-server=9.9_p2-r0 bash
+RUN apk add --no-cache openssh-client openssh-server bash
 
 RUN adduser -D -g '' amaterasu
 RUN echo "amaterasu:amaterasu" | chpasswd

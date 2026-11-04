@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from random import randint
+
 
 def get_challenges(docker_room, admin_user):
     questions_flags_hints = [

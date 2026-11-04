@@ -13,7 +13,7 @@ public class KeyGeneratorUtility {
             keyPairGenerator.initialize(2048);
             keyPair = keyPairGenerator.generateKeyPair();
         } catch (Exception ex) {
-            throw new IllegalStateException();
+            throw new IllegalStateException("Unable to generate RSA key pair", ex);
 
         }
 

@@ -25,9 +25,6 @@ export class VMLabBuilderComponent implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit(): void {
-    // switchMap cancels an in-flight template fetch when the selected server changes,
-    // preventing a slow response for server A from overwriting server B's templates.
-    // takeUntil tears everything down on destroy so navigation doesn't leak subscriptions.
     this.remoteServerService.selectedRemoteServer$.pipe(
       switchMap((selectedServer): Observable<ProxmoxVM[]> => {
         if (!selectedServer || selectedServer.serverType !== ServerType.PROXMOX) {

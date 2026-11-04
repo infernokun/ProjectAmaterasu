@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -175,11 +176,35 @@ public class CTFEntityService {
     }
 
     private void updateEntityFields(CTFEntity existingEntity, CTFEntity updatedEntity) {
+        Optional.ofNullable(updatedEntity.getQuestion()).ifPresent(existingEntity::setQuestion);
+        Optional.ofNullable(updatedEntity.getMaxAttempts()).ifPresent(existingEntity::setMaxAttempts);
+        Optional.ofNullable(updatedEntity.getDescription()).ifPresent(existingEntity::setDescription);
+        Optional.ofNullable(updatedEntity.getCategory()).ifPresent(existingEntity::setCategory);
+        Optional.ofNullable(updatedEntity.getDifficultyLevel()).ifPresent(existingEntity::setDifficultyLevel);
+        Optional.ofNullable(updatedEntity.getCtfType()).ifPresent(existingEntity::setCtfType);
+        Optional.ofNullable(updatedEntity.getPoints()).ifPresent(existingEntity::setPoints);
+        Optional.ofNullable(updatedEntity.getAuthor()).ifPresent(existingEntity::setAuthor);
+        Optional.ofNullable(updatedEntity.getTags()).ifPresent(existingEntity::setTags);
+        Optional.ofNullable(updatedEntity.getVisible()).ifPresent(existingEntity::setVisible);
+        Optional.ofNullable(updatedEntity.getIsActive()).ifPresent(existingEntity::setIsActive);
+        Optional.ofNullable(updatedEntity.getReleaseDate()).ifPresent(existingEntity::setReleaseDate);
+        Optional.ofNullable(updatedEntity.getExpirationDate()).ifPresent(existingEntity::setExpirationDate);
+        Optional.ofNullable(updatedEntity.getAttachments()).ifPresent(existingEntity::setAttachments);
+        Optional.ofNullable(updatedEntity.getSolutionExplanation()).ifPresent(existingEntity::setSolutionExplanation);
+        Optional.ofNullable(updatedEntity.getRelatedChallengeIds()).ifPresent(existingEntity::setRelatedChallengeIds);
 
-        // Handle flags update if needed
         if (!CollectionUtils.isEmpty(updatedEntity.getFlags())) {
-            // You might want to implement a more sophisticated flag update logic here
-            existingEntity.setFlags(updatedEntity.getFlags());
+            // Replace in place so orphanRemoval deletes flags that were removed
+            existingEntity.getFlags().clear();
+            updatedEntity.getFlags().forEach(source -> {
+                Flag flag = new Flag();
+                flag.setFlag(source.getFlag());
+                flag.setSurroundWithTag(source.getSurroundWithTag());
+                flag.setCaseSensitive(source.getCaseSensitive());
+                flag.setWeight(source.getWeight());
+                flag.setCtfEntity(existingEntity);
+                existingEntity.getFlags().add(flag);
+            });
         }
     }
 }

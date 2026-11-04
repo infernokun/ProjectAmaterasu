@@ -52,7 +52,7 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
     private roomService: RoomService
   ) {
     this.viewedChallenge = { ...data };
-    this.roomUser = this.roomService.getCurrentRoomUser();
+    this.roomUser = this.roomService.peekCurrentRoomUser();
   }
 
   ngOnInit(): void {
@@ -150,7 +150,13 @@ export class ViewCTFComponent implements OnInit, OnDestroy {
           this.showStatus('Authentication required', 'error');
           return;
         }
-        this.submitAnswer(user.id, this.roomService.getCurrentRoomUser().roomId!, challenge);
+        const roomId = this.roomUser?.roomId ?? this.roomService.getCurrentRoom()?.id;
+        if (!roomId) {
+          this.isLoading.set(false);
+          this.showStatus('Join the room before answering', 'error');
+          return;
+        }
+        this.submitAnswer(user.id, roomId, challenge);
       },
       error: (error) => {
         this.isLoading.set(false);
