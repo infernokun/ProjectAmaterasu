@@ -1,0 +1,11 @@
+{
+  "name": "amaterasu-proxmox",
+  "version": "0.0.1",
+  "description": "Proxmox lab helper CLI and Proxmox API mock",
+  "scripts": {
+    "venv:init": "uv venv && uv pip install --require-hashes -r requirements.txt",
+    "start": "uv run --no-project python main.py",
+    "mock": "cd mock && pnpm install && pnpm start",
+    "docker:build": "export PROJECT=$(jq -r .name package.json) VERSION=$(jq -r .version package.json) && docker buildx build --pull --build-arg GIT_SHA=$(git rev-parse --short HEAD) -t infernokun/$PROJECT:$VERSION -t infernokun/$PROJECT:latest ."
+  }
+}

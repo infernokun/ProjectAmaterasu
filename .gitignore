@@ -1,3 +1,35 @@
-.env
+# Java / Gradle
+build/
+.gradle/
+*.class
+*.log
+logs/
+
+# Node / Angular
+node_modules/
+.angular/
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+.venv/
+venv/
+.ruff_cache/
+
+# IDE
+.idea/
+*.iml
+.vscode/*
+!.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env files hold secrets: only the committed *.example templates are tracked
+.env
+.env.*
+!.env.example
+
+# Local compose overrides
+*.override.yml

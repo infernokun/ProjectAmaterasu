@@ -1,17 +1,18 @@
 services:
   amaterasu-web:
-    image: infernokun/amaterasu-web:latest
+    image: ${REGISTRY:-docker.io}/${NAMESPACE:-infernokun}/amaterasu-web:${TAG:-latest}
     #build: ./amaterasu-web
     restart: always
     environment:
       - BASE_URL=http://amaterasu-web
       - REST_URL=/api
     ports:
-      - "8764:80"
+      - "${WEB_PORT:-8764}:80"
     volumes:
       - amaterasu-web:/var/log/nginx
     depends_on:
-      - amaterasu-rest
+      amaterasu-rest:
+        condition: service_healthy
 
   amaterasu-db:
     image: postgres:17.11
@@ -41,12 +42,14 @@ services:
       retries: 5
 
   amaterasu-rest:
-    image: infernokun/amaterasu-rest:latest
+    image: ${REGISTRY:-docker.io}/${NAMESPACE:-infernokun}/amaterasu-rest:${TAG:-latest}
     #build: ./amaterasu-rest
     restart: always
     ports:
-      - "8765:8080"
+      # Loopback only: the API has no authentication yet, and nginx reaches it over the network
+      - "${REST_BIND:-127.0.0.1}:${REST_PORT:-8765}:8080"
     environment:
+      TZ: "UTC"
       DOCKER_COMPOSE_PATH: "${DOCKER_COMPOSE_PATH:-/var/tmp/amaterasu}"
       DB_IP: "${POSTGRES_IP:-amaterasu-db}"
       DB_NAME: "${POSTGRES_DB:-amaterasu}"

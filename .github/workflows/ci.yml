@@ -64,11 +64,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@v7
         with:
+          version: "0.13.7"
           python-version: "3.14"
+      - name: Lockfiles match requirements.in
+        run: |
+          for r in amaterasu-proxmox/requirements amaterasu-populate/requirements requirements-dev; do
+            uv pip compile --quiet --universal --generate-hashes --python-version 3.14 $r.in -o $r.txt
+          done
+          git diff --exit-code -- '*requirements*.txt'
       - name: Install
-        run: pip install ruff -r amaterasu-proxmox/requirements.txt
+        run: |
+          uv venv
+          uv pip install --require-hashes -r requirements-dev.txt -r amaterasu-proxmox/requirements.txt -r amaterasu-populate/requirements.txt
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
       - name: Lint
         run: ruff check .
       - name: Smoke test
@@ -90,5 +100,6 @@ jobs:
         with:
           context: ${{ matrix.image }}
           push: false
+          build-args: GIT_SHA=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
