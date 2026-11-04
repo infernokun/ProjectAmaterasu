@@ -3,8 +3,6 @@ import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { SimpleFormData } from '../models/simple-form-data.model';
 import { map, Observable } from 'rxjs';
 import { StoredObject } from '../models/stored-object.model';
-import { LoginComponent } from '../components/common/login/login.component';
-import { RegisterComponent } from '../components/common/register/register.component';
 import { ComponentType } from '@angular/cdk/overlay';
 import { AddDialogFormComponent } from '../components/common/dialog/add-dialog-form/add-dialog-form.component';
 import { CTFEntity } from '../models/ctf/ctf-entity.model';
@@ -40,18 +38,6 @@ export class EditDialogService {
         }
       })
     );
-  }
-
-  openLoginDialog(): Observable<any> {
-    const config = new MatDialogConfig();
-    config.disableClose = false;
-    return this.openForm(undefined, LoginComponent, config);
-  }
-
-  openRegisterDialog(): Observable<any> {
-    const config = new MatDialogConfig();
-    config.disableClose = false;
-    return this.openForm(undefined, RegisterComponent, config);
   }
 
   openViewDialog(formData: CTFEntity): Observable<any> {

@@ -57,8 +57,7 @@
       </div>
 
       <div class="settings-link" *ngIf="labTracker.labStatus !== 'NONE'">
-        <a [routerLink]="['/lab/settings', formatLabName(labTracker.labStarted?.name!)]"
-          [queryParams]="{ id: labTracker.id }">
+        <a [routerLink]="['/labs', labTracker.id]">
           <mat-icon>settings</mat-icon> Configure
         </a>
         <a *ngIf="labTracker.labStatus != LabStatus.STOPPED"

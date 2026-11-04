@@ -1,0 +1,88 @@
+// Design tokens. Dark is the default; light applies when chosen, or when the system asks for it
+// and the person has not picked a theme (the theme store sets data-theme on <html>).
+
+@mixin dark {
+  --bg: #0E1013;
+  --surface: #15181D;
+  --surface-2: #1B1F26;
+  --surface-3: #232831;
+  --border: #2A2F38;
+  --border-2: #3A414D;
+  --text: #E8EAED;
+  --text-2: #AAB0BA;
+  --text-3: #8A919C;
+  --accent: #F26B3A;
+  --accent-hover: #FF7C4D;
+  --accent-ink: #1A0B05;
+  --accent-soft: rgba(242, 107, 58, .14);
+  --ok: #3FB97A;
+  --info: #5B9BF0;
+  --pause: #A48BF0;
+  --warn: #E9B949;
+  --bad: #F2555A;
+  --off: #8A919C;
+  --focus: #7DB3FF;
+  --scrim: rgba(5, 6, 8, .66);
+  --shadow: 0 12px 32px rgba(0, 0, 0, .45);
+  color-scheme: dark;
+}
+
+@mixin light {
+  --bg: #F5F6F8;
+  --surface: #FFFFFF;
+  --surface-2: #F1F3F6;
+  --surface-3: #E7EAEF;
+  --border: #DCE0E6;
+  --border-2: #C4CAD3;
+  --text: #14171C;
+  --text-2: #434A55;
+  --text-3: #5D6470;
+  --accent: #C9431A;
+  --accent-hover: #B23A14;
+  --accent-ink: #FFFFFF;
+  --accent-soft: rgba(201, 67, 26, .09);
+  --ok: #1E7F4E;
+  --info: #2563C9;
+  --pause: #6B4FD1;
+  --warn: #946200;
+  --bad: #C62E33;
+  --off: #646B76;
+  --focus: #2563C9;
+  --scrim: rgba(20, 23, 28, .4);
+  --shadow: 0 12px 32px rgba(20, 23, 28, .14);
+  color-scheme: light;
+}
+
+:root {
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+
+  // Type scale
+  --fs-xs: 12px;
+  --fs-sm: 12.5px;
+  --fs-base: 14px;
+  --fs-md: 15px;
+  --fs-lg: 16px;
+  --fs-xl: 26px;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+
+  --sidebar-width: 248px;
+
+  @include dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    @include light;
+  }
+}
+
+:root[data-theme="light"] {
+  @include light;
+}

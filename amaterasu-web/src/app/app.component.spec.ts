@@ -8,30 +8,21 @@ describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        provideRouter([])
-      ]
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     }).compileComponents();
   });
 
-  it('should create the app', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    expect(app).toBeTruthy();
-  });
-
-  it(`should have as title 'Project Amaterasu'`, () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    expect(app.title).toEqual('Project Amaterasu');
-  });
-
-  it('should render the loading state before initialization completes', () => {
+  it('shows the classification banner above and below the page', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.loading-text')?.textContent).toContain('Loading application...');
+    const banners = (fixture.nativeElement as HTMLElement).querySelectorAll('.classification');
+    expect(banners.length).toBe(2);
+    expect(banners[0].textContent).toContain('UNCLASSIFIED');
+  });
+
+  it('shows a loading state until the first page is ready', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.loading-text')?.textContent).toContain('Loading');
   });
 });

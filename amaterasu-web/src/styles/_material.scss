@@ -1,0 +1,118 @@
+@use '@angular/material' as mat;
+
+// Material M3 theme whose system colors point at the design tokens, so Material components
+// follow the light and dark tokens without a second theme.
+html {
+  @include mat.theme((
+    color: (
+      primary: mat.$orange-palette,
+      tertiary: mat.$blue-palette,
+      theme-type: color-scheme,
+    ),
+    typography: (
+      plain-family: var(--font-sans),
+      brand-family: var(--font-sans),
+      bold-weight: 600,
+      medium-weight: 500,
+      regular-weight: 400,
+    ),
+    density: 0,
+  ), $overrides: (
+    primary: var(--accent),
+    on-primary: var(--accent-ink),
+    primary-container: var(--accent-soft),
+    on-primary-container: var(--text),
+    inverse-primary: var(--accent),
+    secondary: var(--text-2),
+    on-secondary: var(--bg),
+    secondary-container: var(--surface-3),
+    on-secondary-container: var(--text),
+    tertiary: var(--info),
+    on-tertiary: var(--bg),
+    tertiary-container: var(--surface-3),
+    on-tertiary-container: var(--text),
+    error: var(--bad),
+    on-error: #fff,
+    error-container: color-mix(in srgb, var(--bad) 14%, var(--surface)),
+    on-error-container: var(--text),
+    background: var(--bg),
+    on-background: var(--text),
+    surface: var(--surface),
+    on-surface: var(--text),
+    surface-variant: var(--surface-2),
+    on-surface-variant: var(--text-2),
+    surface-dim: var(--bg),
+    surface-bright: var(--surface-2),
+    surface-tint: transparent,
+    surface-container-lowest: var(--bg),
+    surface-container-low: var(--surface),
+    surface-container: var(--surface),
+    surface-container-high: var(--surface-2),
+    surface-container-highest: var(--surface-3),
+    inverse-surface: var(--text),
+    inverse-on-surface: var(--bg),
+    outline: var(--border-2),
+    outline-variant: var(--border),
+    corner-extra-small: var(--radius-xs),
+    corner-small: var(--radius),
+    corner-medium: var(--radius-lg),
+    corner-large: var(--radius-xl),
+    corner-extra-large: var(--radius-xl),
+  ));
+
+  @include mat.dialog-overrides((
+    container-color: var(--surface),
+    container-shape: var(--radius-xl),
+    container-elevation-shadow: var(--shadow),
+    subhead-color: var(--text),
+    supporting-text-color: var(--text-2),
+  ));
+
+  @include mat.snack-bar-overrides((
+    container-color: var(--text),
+    supporting-text-color: var(--bg),
+    button-color: var(--bg),
+    container-shape: var(--radius-md),
+  ));
+
+  @include mat.menu-overrides((
+    container-color: var(--surface),
+    container-shape: var(--radius-md),
+    item-label-text-color: var(--text),
+    item-icon-color: var(--text-2),
+  ));
+
+  @include mat.tooltip-overrides((
+    container-color: var(--text),
+    supporting-text-color: var(--bg),
+  ));
+
+  @include mat.sidenav-overrides((
+    container-background-color: var(--surface),
+    container-text-color: var(--text),
+    content-background-color: var(--bg),
+    content-text-color: var(--text),
+    container-shape: 0,
+    scrim-color: var(--scrim),
+  ));
+
+  @include mat.table-overrides((
+    background-color: var(--surface),
+    header-headline-color: var(--text-3),
+    header-headline-size: var(--fs-xs),
+    header-headline-weight: 600,
+    row-item-label-text-color: var(--text),
+    row-item-outline-color: var(--border),
+    row-item-label-text-size: 13.5px,
+  ));
+
+  @include mat.tabs-overrides((
+    active-indicator-color: var(--accent),
+    active-label-text-color: var(--text),
+    inactive-label-text-color: var(--text-2),
+    divider-color: var(--border),
+  ));
+}
+
+@include mat.elevation-classes();
+@include mat.app-background();

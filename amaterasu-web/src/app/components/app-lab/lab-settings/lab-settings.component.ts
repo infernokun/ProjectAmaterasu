@@ -63,7 +63,7 @@ export class LabSettingsComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(([paramMap, queryParamMap]) => {
       this.labName = paramMap.get('name') || '';
-      this.labId = queryParamMap.get('id') || '';
+      this.labId = paramMap.get('trackerId') || queryParamMap.get('id') || '';
 
       if (!this.labId) {
         console.error('No lab ID provided');

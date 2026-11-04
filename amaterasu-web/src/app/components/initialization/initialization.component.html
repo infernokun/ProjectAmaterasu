@@ -1,38 +1,41 @@
-<div *ngIf="!(isInitialized$ | async)"></div>
-<div class="app-init-container">
-  <div class="form-container" [formGroup]="formGroup">
-    <div class="row width-100-percent form-field-container">
-      <mat-form-field floatLabel="always">
-        <mat-label>Name</mat-label>
-        <input formControlName="name" type="text" matInput>
-      </mat-form-field>
-    </div>
-
-    <div class="row width-100-percent form-field-container">
-      <mat-form-field floatLabel="always">
-        <mat-label>Description</mat-label>
-        <input formControlName="description" type="text" matInput>
-      </mat-form-field>
-    </div>
-
-    <div formGroupName="settings">
+<main class="setup">
+  <form class="card stack loose" [formGroup]="form" (ngSubmit)="submit()" aria-labelledby="setup-title" novalidate>
+    <div class="brand">
+      <div class="brand-mark"><app-icon name="brand" /></div>
       <div>
-        <mat-label for="enableDarkMode">Enable Dark Mode</mat-label>
-        <mat-checkbox id="enableDarkMode" formControlName="enableDarkMode"></mat-checkbox>
-      </div>
-
-      <div>
-        <mat-label for="language">Language</mat-label>
-        <select id="language" formControlName="language">
-          <option value="en">English</option>
-          <option value="es">Spanish</option>
-          <option value="fr">French</option>
-        </select>
+        <div class="brand-name">Amaterasu</div>
+        <div class="brand-sub">Labs and CTF</div>
       </div>
     </div>
-
-    <div class="button-container">
-      <button mat-raised-button color="primary" (click)="handleAction()">Submit</button>
+    <div class="stack tight">
+      <h1 class="h1" id="setup-title">Set up Amaterasu</h1>
+      <p class="sub">Name this installation. Everyone sees the name and description on the sign in page.</p>
     </div>
-  </div>
-</div>
+
+    <label class="field">
+      <span class="label">Name</span>
+      <input class="input" formControlName="name" placeholder="Winter Range 2026" [class.err]="nameMissing()" [attr.aria-invalid]="nameMissing()">
+      @if (nameMissing()) {
+        <span class="help err-text">Give the installation a name</span>
+      }
+    </label>
+
+    <label class="field">
+      <span class="label">Description</span>
+      <input class="input" formControlName="description" placeholder="Labs and challenges for the winter cohort">
+      <span class="help">Optional</span>
+    </label>
+
+    @if (error()) {
+      <div class="banner bad" role="alert"><app-icon name="alert" /><div>{{ error() }}</div></div>
+    }
+
+    <button type="submit" class="btn primary block" [disabled]="busy()">
+      @if (busy()) {
+        <app-icon name="spinner" size="sm" [spin]="true" />Saving
+      } @else {
+        Finish setup
+      }
+    </button>
+  </form>
+</main>

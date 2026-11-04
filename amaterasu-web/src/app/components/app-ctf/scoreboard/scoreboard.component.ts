@@ -154,7 +154,7 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
   }
   
   ngOnInit(): void {
-    const roomId = this.route.snapshot.params['room'];
+    const roomId = this.route.snapshot.params['roomId'];
     this.currentRoomId.set(roomId);
     this.loadScoreboard(roomId);
   }
@@ -426,7 +426,7 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
   goBackToRoom(): void {
     const roomId = this.currentRoomId();
     if (roomId) {
-      this.router.navigate(['/room', roomId]);
+      this.router.navigate(['/rooms', roomId]);
     }
   }
   

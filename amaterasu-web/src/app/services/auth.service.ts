@@ -300,7 +300,7 @@ export class AuthService implements OnDestroy {
 
   private performLogout(): void {
     this.clearAuthState();
-    this.router.navigate(['/login']);
+    this.router.navigate(['/welcome']);
     console.log('Logout completed');
   }
 

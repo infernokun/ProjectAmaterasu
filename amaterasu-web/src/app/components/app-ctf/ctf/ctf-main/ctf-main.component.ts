@@ -58,7 +58,7 @@ export class CTFMainComponent implements OnInit, OnDestroy {
     
     this.route.params.pipe(
       switchMap(params => {
-        this.roomId = params['room'];
+        this.roomId = params['roomId'];
         if (!this.roomId) {
           this.error.set('Invalid room ID');
           this.loading.set(false);
@@ -129,7 +129,7 @@ export class CTFMainComponent implements OnInit, OnDestroy {
   }
 
   browseRooms(): void {
-    this.router.navigate(['/challenges']);
+    this.router.navigate(['/rooms']);
   }
 
   addPoints(): void {
@@ -148,7 +148,7 @@ export class CTFMainComponent implements OnInit, OnDestroy {
     const roomData = room(); 
     
     if (roomData?.id) {
-      this.router.navigate(['/room', roomData.id, 'scoreboard']);
+      this.router.navigate(['/rooms', roomData.id, 'scoreboard']);
     }
   }
 
@@ -156,7 +156,7 @@ export class CTFMainComponent implements OnInit, OnDestroy {
     const roomData = room(); 
     
     if (roomData?.id) {
-      this.router.navigate(['/room', roomData.id, 'scoreboard', this.loggedInUser?.username]);
+      this.router.navigate(['/rooms', roomData.id, 'scoreboard', this.loggedInUser?.username]);
     }
   }
 }

@@ -1,44 +1,30 @@
-* {
-    margin: 0;
-    padding: 0;
+:host {
+  display: block;
+  flex: 1 1 auto;
+  overflow: auto;
 }
 
-body, html {
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+.setup {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
 }
 
-.app-init-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%; 
+.card {
+  width: 100%;
+  max-width: 480px;
+  padding: 28px;
 }
 
-.form-container {
-    width: 50%;
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    border: 2px solid #ddd;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+.brand {
+  padding: 0;
 }
 
-.form-field-container {
-    margin-bottom: 16px;
+.sub {
+  margin-top: 4px;
 }
 
-mat-form-field {
-    width: 100%;
-}
-
-mat-label { 
-    color: black
-}
-
-.button-container {
-    display: flex;
-    justify-content: center;
+.err-text {
+  color: var(--bad);
 }

@@ -237,7 +237,7 @@ export class PlayerScoreboardComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    const roomId = this.activatedRoute.snapshot.params['room'];
+    const roomId = this.activatedRoute.snapshot.params['roomId'];
     if (roomId) {
       this.loadUserScoreboardData(roomId);
     }

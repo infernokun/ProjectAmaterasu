@@ -72,8 +72,8 @@ export class CTFCardComponent implements OnInit, OnDestroy {
       .pipe(
         filter(isAuth => isAuth === true),
         switchMap(() => this.route.params),
-        filter(params => !!params['room']),
-        switchMap(params => this.loadChallenges(params['room'])),
+        filter(params => !!params['roomId']),
+        switchMap(params => this.loadChallenges(params['roomId'])),
         takeUntil(this.destroy$)
       )
       .subscribe({
@@ -84,7 +84,7 @@ export class CTFCardComponent implements OnInit, OnDestroy {
           this.busy = false;
           
           // Load completion status in background
-          this.ctfService.answerChallengeChecks(this.route.snapshot.params['room'])
+          this.ctfService.answerChallengeChecks(this.route.snapshot.params['roomId'])
             .subscribe((response: ApiResponse<CTFEntityAnswer[]>) => {
               const answerMap = new Map<string, boolean>();
               response.data.forEach(answer => {
@@ -230,7 +230,7 @@ export class CTFCardComponent implements OnInit, OnDestroy {
   }
 
   public refreshChallenges(): void {
-    const currentRoom: string = this.route.snapshot.params['room'];
+    const currentRoom: string = this.route.snapshot.params['roomId'];
     if (currentRoom) {
       this.busy = true;
       this.loadChallenges(currentRoom)
