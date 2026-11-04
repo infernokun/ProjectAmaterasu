@@ -3,7 +3,6 @@ package com.infernokun.amaterasu.services.alt;
 import com.infernokun.amaterasu.exceptions.AuthFailedException;
 import com.infernokun.amaterasu.exceptions.WrongPasswordException;
 import com.infernokun.amaterasu.models.entities.alt.ChangePasswordRequest;
-import com.infernokun.amaterasu.models.entities.alt.LoginResponse;
 import com.infernokun.amaterasu.models.entities.alt.RegistrationRequest;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.enums.Role;
@@ -63,7 +62,7 @@ public class AuthenticationService extends BaseService {
         return true;
     }
 
-    public LoginResponse login(String username, String password, HttpServletRequest request) {
+    public RefreshTokenService.Tokens login(String username, String password, HttpServletRequest request) {
         String address = request.getRemoteAddr();
         loginAttemptService.checkAllowed(username, address);
         try {
@@ -72,8 +71,7 @@ public class AuthenticationService extends BaseService {
             User user = (User) auth.getPrincipal();
             loginAttemptService.recordSuccess(username);
 
-            RefreshTokenService.Tokens tokens = refreshTokenService.issue(user, request);
-            return new LoginResponse(tokens.accessToken(), user, tokens.refreshToken());
+            return refreshTokenService.issue(user, request);
         } catch (AuthenticationException e) {
             // Same answer for an unknown user and a wrong password
             loginAttemptService.recordFailure(username, address);
@@ -83,7 +81,7 @@ public class AuthenticationService extends BaseService {
     }
 
     /** Changes the caller's password and signs out every other session, keeping this one signed in. */
-    public LoginResponse changePassword(String userId, ChangePasswordRequest change, HttpServletRequest request) {
+    public RefreshTokenService.Tokens changePassword(String userId, ChangePasswordRequest change, HttpServletRequest request) {
         User user = userService.findUserById(userId);
         if (change == null || change.getCurrentPassword() == null
                 || !passwordEncoder.matches(change.getCurrentPassword(), user.getPassword())) {
@@ -92,9 +90,7 @@ public class AuthenticationService extends BaseService {
         validatePassword(change.getNewPassword());
         user.setPassword(passwordEncoder.encode(change.getNewPassword()));
         invalidateSessions(user);
-
-        RefreshTokenService.Tokens tokens = refreshTokenService.issue(user, request);
-        return new LoginResponse(tokens.accessToken(), user, tokens.refreshToken());
+        return refreshTokenService.issue(user, request);
     }
 
     public User resetPassword(String userId, String newPassword) {
@@ -129,9 +125,8 @@ public class AuthenticationService extends BaseService {
         }
     }
 
-    public LoginResponse refreshToken(String refreshToken, HttpServletRequest request) {
-        RefreshTokenService.Tokens tokens = refreshTokenService.refresh(refreshToken, request);
-        return new LoginResponse(tokens.accessToken(), tokens.user(), tokens.refreshToken());
+    public RefreshTokenService.Tokens refreshToken(String refreshToken, HttpServletRequest request) {
+        return refreshTokenService.refresh(refreshToken, request);
     }
 
     public void logout(String refreshToken) {

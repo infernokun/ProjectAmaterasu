@@ -33,6 +33,8 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.io.IOException;
@@ -69,8 +71,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/application-info").permitAll()
                         .requestMatchers("/", "/health", "/error", "/actuator/health/**",
                                 "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        // Only sends heartbeats
-                        .requestMatchers("/socket-handler/**").permitAll()
 
                         // Administration
                         .requestMatchers("/actuator/**").hasRole(admin)
@@ -110,6 +110,7 @@ public class SecurityConfig {
 
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
+                        .bearerTokenResolver(bearerTokenResolver())
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                         .authenticationEntryPoint((request, response, e) ->
                                 writeError(response, HttpStatus.UNAUTHORIZED, "Authentication required"))
@@ -122,6 +123,16 @@ public class SecurityConfig {
                                 writeError(response, HttpStatus.FORBIDDEN, "Access denied")));
 
         return http.build();
+    }
+
+    // Browsers can't set headers on a websocket handshake, so the socket passes the token as access_token
+    @Bean
+    public BearerTokenResolver bearerTokenResolver() {
+        DefaultBearerTokenResolver headerOnly = new DefaultBearerTokenResolver();
+        DefaultBearerTokenResolver headerOrQuery = new DefaultBearerTokenResolver();
+        headerOrQuery.setAllowUriQueryParameter(true);
+        return request -> request.getRequestURI().startsWith(request.getContextPath() + "/socket-handler/")
+                ? headerOrQuery.resolve(request) : headerOnly.resolve(request);
     }
 
     private static void writeError(jakarta.servlet.http.HttpServletResponse response, HttpStatus status,

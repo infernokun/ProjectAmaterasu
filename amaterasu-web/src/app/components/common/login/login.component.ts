@@ -94,15 +94,9 @@ export class LoginComponent implements OnInit {
       .subscribe({
         next: (response: ApiResponse<LoginResponse>) => {
           const accessToken = response.data?.accessToken;
-          const refreshToken = response.data?.refreshToken;
           
           if (!accessToken) {
             this.handleLoginError('No valid access token received');
-            return;
-          }
-          
-          if (!refreshToken) {
-            this.handleLoginError('No valid refresh token received');
             return;
           }
           
@@ -113,11 +107,11 @@ export class LoginComponent implements OnInit {
           
           try {
             // Validate access token structure
-            const tokenPayload = JSON.parse(atob(accessToken.split('.')[1]));
+            const tokenPayload = this.authService.decodeToken(accessToken);
             console.log('Access token payload (for validation):', tokenPayload);
             
             // Validate token expiry
-            if (!tokenPayload.exp || tokenPayload.exp * 1000 <= Date.now()) {
+            if (!tokenPayload?.exp || tokenPayload.exp * 1000 <= Date.now()) {
               this.handleLoginError('Received expired access token');
               return;
             }
@@ -137,8 +131,8 @@ export class LoginComponent implements OnInit {
             const user = new User(response.data.user);
             console.log('Logging in user:', response.data.user);
             
-            // NEW: Pass both access token and refresh token
-            this.authService.setPayload(user, accessToken, refreshToken);
+            // The refresh token was set as an HttpOnly cookie by the response
+            this.authService.setPayload(user, accessToken);
             
             this.router.navigate(['/home']);
             this.dialogRef.close(true);
@@ -160,6 +154,8 @@ export class LoginComponent implements OnInit {
     if (error.status === 401 || error === 'No valid JWT token received' || error === 'No user data received') {
       this.wrongPassword = true;
       this.errorMessage = 'Invalid username or password';
+    } else if (error.status === 429) {
+      this.errorMessage = error.error?.message || 'Too many attempts, try again later';
     } else {
       this.errorMessage = `Login failed: ${error.message || error}`;
     }

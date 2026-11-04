@@ -19,6 +19,8 @@ if (packageJson.exists()) {
 
 bootRun {
 	systemProperty 'app.version', project.version
+	// Lets the web dev server (npm run start:web) call the API and receive the refresh cookie
+	environment 'ALLOWED_ORIGINS', System.getenv('ALLOWED_ORIGINS') ?: 'http://localhost:4300'
 }
 
 test {

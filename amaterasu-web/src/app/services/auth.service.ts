@@ -11,7 +11,6 @@ import { UserService } from './user.service';
 export interface UserPayload {
   user: User;
   accessToken: string;
-  refreshToken: string;
 }
 
 @Injectable({
@@ -31,9 +30,11 @@ export class AuthService implements OnDestroy {
   private isRefreshing = false;
   private refreshTokenSubject: BehaviorSubject<string | null> = new BehaviorSubject<string | null>(null);
 
-  // Token storage keys
-  private readonly ACCESS_TOKEN_KEY = 'accessToken';
-  private readonly REFRESH_TOKEN_KEY = 'refreshToken';
+  // The access token is only kept in memory and the refresh token is an HttpOnly cookie, so a script
+  // injected into the page can't read either. This flag only says a cookie refresh is worth trying.
+  private accessToken: string | null = null;
+  private readonly SESSION_HINT_KEY = 'amaterasu.signedIn';
+  private readonly LEGACY_TOKEN_KEYS = ['accessToken', 'refreshToken'];
   private readonly TOKEN_REFRESH_BUFFER = 2 * 60 * 1000; // 2 minutes before expiry
 
   private lastActivityTime: number = Date.now();
@@ -46,8 +47,18 @@ export class AuthService implements OnDestroy {
     private router: Router,
     private userService: UserService
   ) {
+    this.LEGACY_TOKEN_KEYS.forEach(key => localStorage.removeItem(key));
     this.startSmartTokenRefresh();
     this.trackUserActivity();
+    this.followSignOutInOtherTabs();
+  }
+
+  private followSignOutInOtherTabs(): void {
+    window.addEventListener('storage', (event) => {
+      if (event.key === this.SESSION_HINT_KEY && !event.newValue && this.accessToken) {
+        this.performLogout();
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -78,7 +89,7 @@ export class AuthService implements OnDestroy {
       return;
     }
 
-    const accessToken = this.getStoredAccessToken();
+    const accessToken = this.accessToken;
     if (!accessToken) {
       return;
     }
@@ -122,49 +133,37 @@ export class AuthService implements OnDestroy {
   }
 
   isAuthenticated(): Observable<boolean> {
-    const accessToken = this.getStoredAccessToken();
-    const refreshToken = this.getStoredRefreshToken();
+    const accessToken = this.accessToken;
 
-    // No tokens at all
-    if (!accessToken && !refreshToken) {
-      console.log('No access or refresh token found');
-      this.clearAuthState();
-      return of(false);
+    // After a reload the access token is gone; the refresh cookie restores the session
+    if (!accessToken) {
+      return this.hasSessionHint() ? this.performTokenRefresh() : of(false);
     }
 
-    // Have refresh token but no access token - try to refresh
-    if (!accessToken && refreshToken) {
-      console.log('No access token, attempting refresh...');
-      return this.performTokenRefresh();
-    }
-
-    // Have access token - validate it
-    const decodedToken = this.decodeToken(accessToken!);
+    const decodedToken = this.decodeToken(accessToken);
     if (!decodedToken || !this.isTokenStructureValid(decodedToken)) {
       console.log('Invalid access token structure');
       this.clearAuthState();
       return of(false);
     }
 
-    // Check if access token is expired
     if (this.isTokenExpired(decodedToken)) {
       console.log('Access token expired, attempting refresh...');
       return this.performTokenRefresh();
     }
 
-    console.log('Access token valid, setting up auth state...');
-    return this.setupAuthFromValidToken(accessToken!, decodedToken);
+    if (this.payloadSubject.value?.accessToken === accessToken) {
+      return of(true);
+    }
+    return this.setupAuthFromValidToken(accessToken, decodedToken);
   }
 
-  setPayload(user: User, accessToken: string, refreshToken: string): void {
-    const payload: Readonly<UserPayload> = {
-      user: user,
-      accessToken: accessToken,
-      refreshToken: refreshToken
-    };
+  setPayload(user: User, accessToken: string): void {
+    const payload: Readonly<UserPayload> = { user, accessToken };
 
     // Store first: subscribers start making requests as soon as the user is emitted
-    this.storeTokens(accessToken, refreshToken);
+    this.accessToken = accessToken;
+    localStorage.setItem(this.SESSION_HINT_KEY, '1');
     this.payloadSubject.next(payload);
     this.userSubject.next(user);
     this.setLoading(false);
@@ -179,8 +178,9 @@ export class AuthService implements OnDestroy {
       if (!token || token.split('.').length !== 3) {
         return null;
       }
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload;
+      // JWTs use base64url, which atob does not accept as is
+      const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(atob(base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=')));
     } catch (error) {
       console.warn('Failed to decode token:', error);
       return null;
@@ -209,13 +209,6 @@ export class AuthService implements OnDestroy {
   }
 
   private setupAuthFromValidToken(accessToken: string, decodedToken: any): Observable<boolean> {
-    const refreshToken = this.getStoredRefreshToken();
-    if (!refreshToken) {
-      console.log('Missing refresh token');
-      this.clearAuthState();
-      return of(false);
-    }
-
     // Always fetch full user object from server using ID in token
     console.log('Fetching full user data from server for user ID:', decodedToken.sub);
     return this.userService.getUserById(decodedToken.sub).pipe(
@@ -226,7 +219,7 @@ export class AuthService implements OnDestroy {
           return false;
         }
         console.log('Full user data retrieved:', user);
-        this.setPayload(user, accessToken, refreshToken);
+        this.setPayload(user, accessToken);
         return true;
       }),
       catchError((error) => this.handleAuthError('Failed to fetch user', error))
@@ -234,9 +227,7 @@ export class AuthService implements OnDestroy {
   }
 
   performTokenRefresh(): Observable<boolean> {
-    const refreshToken = this.getStoredRefreshToken();
-    if (!refreshToken) {
-      console.log('No refresh token available');
+    if (!this.hasSessionHint()) {
       this.clearAuthState();
       return of(false);
     }
@@ -253,14 +244,13 @@ export class AuthService implements OnDestroy {
     this.refreshTokenSubject.next(null);
     this.setLoading(true);
 
-    return this.loginService.refreshToken(refreshToken).pipe(
+    return this.loginService.refreshToken().pipe(
       map((response: ApiResponse<LoginResponse>) => {
-        if (!response?.data?.accessToken || !response?.data?.refreshToken) {
+        if (!response?.data?.accessToken) {
           throw new Error('Invalid refresh response');
         }
 
         const newAccessToken = response.data.accessToken;
-        const newRefreshToken = response.data.refreshToken;
 
         const decodedToken = this.decodeToken(newAccessToken);
         if (!decodedToken || !this.isTokenStructureValid(decodedToken)) {
@@ -274,7 +264,7 @@ export class AuthService implements OnDestroy {
         }
 
         console.log('Token refreshed, using user data from response:', user);
-        this.setPayload(user, newAccessToken, newRefreshToken);
+        this.setPayload(new User(user), newAccessToken);
         this.refreshTokenSubject.next(newAccessToken);
         this.isRefreshing = false;
 
@@ -283,7 +273,7 @@ export class AuthService implements OnDestroy {
       }),
       catchError((error) => {
         this.isRefreshing = false;
-        this.refreshTokenSubject.next(null);
+        this.refreshTokenSubject.next(''); // releases callers waiting on this refresh
         return this.handleAuthError('Token refresh failed', error);
       })
     );
@@ -292,10 +282,9 @@ export class AuthService implements OnDestroy {
   logout(): void {
     this.setLoading(true);
 
-    const refreshToken = this.getStoredRefreshToken();
-    if (refreshToken) {
-      // Attempt server-side logout with refresh token
-      this.loginService.logout(refreshToken).pipe(
+    if (this.hasSessionHint()) {
+      // Revokes the session and clears the refresh cookie
+      this.loginService.logout().pipe(
         timeout(5000),
         catchError((error) => {
           console.warn('Server logout failed, proceeding with local logout:', error);
@@ -316,7 +305,8 @@ export class AuthService implements OnDestroy {
   }
 
   private clearAuthState(): void {
-    this.removeStoredTokens();
+    this.accessToken = null;
+    localStorage.removeItem(this.SESSION_HINT_KEY);
     this.payloadSubject.next(undefined);
     this.userSubject.next(undefined);
     this.setLoading(false);
@@ -350,28 +340,13 @@ export class AuthService implements OnDestroy {
     return this.userSubject.value;
   }
 
-  // Helper methods for token storage
-  private getStoredAccessToken(): string | null {
-    return localStorage.getItem(this.ACCESS_TOKEN_KEY);
-  }
-
-  private getStoredRefreshToken(): string | null {
-    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
-  }
-
-  private storeTokens(accessToken: string, refreshToken: string): void {
-    localStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
-  }
-
-  private removeStoredTokens(): void {
-    localStorage.removeItem(this.ACCESS_TOKEN_KEY);
-    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+  private hasSessionHint(): boolean {
+    return localStorage.getItem(this.SESSION_HINT_KEY) === '1';
   }
 
   // Public method to get current access token (for HTTP interceptors)
   public getAccessToken(): string | null {
-    return this.getStoredAccessToken();
+    return this.accessToken;
   }
 
   // Public method to manually refresh token

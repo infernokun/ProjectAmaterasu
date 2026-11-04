@@ -23,7 +23,9 @@ amaterasu:
   defaultAdminUsername: test_admin
   defaultAdminPassword: test_password
   uploadDir: "${java.io.tmpdir}/amaterasu-test"
-  encryptionKey: "test-encryption-key"
+  encryptionKey: "test-encryption-key-at-least-32-characters"
+  # No Redis in tests; FallbackAttemptCounterTest covers the switch
+  throttleStore: memory
   sshPort: 22
   chatSocket: ""
 

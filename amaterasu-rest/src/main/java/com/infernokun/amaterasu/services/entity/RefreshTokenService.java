@@ -43,6 +43,7 @@ public class RefreshTokenService extends BaseService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtEncoder jwtEncoder;
 
+    /** refreshToken is null when the caller already holds the current one. */
     public record Tokens(String accessToken, String refreshToken, User user) {
     }
 
@@ -62,7 +63,13 @@ public class RefreshTokenService extends BaseService {
             boolean rotated = ROTATED.equals(current.getRevokedReason());
             boolean withinGrace = current.getRevokedAt() != null
                     && current.getRevokedAt().plus(ROTATION_GRACE).isAfter(Instant.now());
-            if (rotated && !withinGrace) {
+            if (rotated && withinGrace) {
+                // Two tabs refreshed with the same cookie at once; the other one already rotated it
+                RefreshToken successor = activeTokenForSession(current);
+                if (successor != null && current.getUser().isEnabled()) {
+                    return new Tokens(generateAccessToken(current.getUser()), null, current.getUser());
+                }
+            } else if (rotated) {
                 LOGGER.warn("Refresh token reuse detected for user {}; revoking all sessions", current.getUser().getId());
                 revokeAllUserSessions(current.getUser().getId(), "Refresh token reuse");
             }
@@ -86,6 +93,14 @@ public class RefreshTokenService extends BaseService {
         RefreshToken next = createRefreshToken(current.getUser(), request, current.getSessionId(),
                 current.getExpirationDate());
         return new Tokens(generateAccessToken(current.getUser()), next.getRawToken(), current.getUser());
+    }
+
+    private RefreshToken activeTokenForSession(RefreshToken token) {
+        return refreshTokenRepository.findAllByUserId(token.getUser().getId()).stream()
+                .filter(other -> token.getSessionId().equals(other.getSessionId()))
+                .filter(other -> !other.isRevoked() && !other.isExpired())
+                .findFirst()
+                .orElse(null);
     }
 
     public String generateAccessToken(User user) {
