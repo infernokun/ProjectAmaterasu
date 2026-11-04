@@ -1,4 +1,4 @@
-import { Component, NgZone, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, NgZone, OnInit } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { AppInitService } from '../../services/app-init.service';
 import { ApplicationInfo } from '../../models/application-info.model';
@@ -13,6 +13,7 @@ import { MatButton } from '@angular/material/button';
 
 @Component({
     selector: 'amaterasu-initialization',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './initialization.component.html',
     styleUrls: ['./initialization.component.scss'],
     imports: [NgIf, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatCheckbox, MatButton, AsyncPipe]

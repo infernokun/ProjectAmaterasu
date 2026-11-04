@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogContent, MatDialogActions, MatDialogClose } from '@angular/material/dialog';
 import { NgClass, NgIf } from '@angular/common';
 import { MatIcon } from '@angular/material/icon';
@@ -15,6 +15,7 @@ export interface ConfirmationDialogData {
 
 @Component({
     selector: 'amaterasu-confirmation-dialog',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './confirmation-dialog.component.html',
     styleUrl: './confirmation-dialog.component.scss',
     imports: [NgClass, MatIcon, CdkScrollable, MatDialogContent, MatDialogActions, MatButton, MatDialogClose, NgIf]

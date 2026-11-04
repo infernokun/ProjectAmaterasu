@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
   ElementRef,
@@ -24,6 +25,7 @@ import { DragnDropDirective } from '../../../../directives/dragndrop.directive';
 
 @Component({
     selector: 'amaterasu-dialog-question',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './dialog-question.component.html',
     styleUrls: ['./dialog-question.component.scss'],
     imports: [NgIf, MatFormField_1, MatLabel, MatInput, ReactiveFormsModule, MatHint, NgClass, MatIconButton, MatSuffix, MatIcon, MatSelect, NgFor, MatOption, MatRadioGroup, MatRadioButton, MatError, MatCheckbox, DragnDropDirective, MatButton, KeyValuePipe]

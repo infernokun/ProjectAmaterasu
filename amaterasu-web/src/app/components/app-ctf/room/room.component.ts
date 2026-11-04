@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { BehaviorSubject, Observable, Subject, combineLatest, debounceTime, distinctUntilChanged, finalize, map, startWith, takeUntil } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
@@ -18,6 +18,7 @@ import { MatProgressSpinner } from '@angular/material/progress-spinner';
 
 @Component({
     selector: 'amaterasu-ctf-room',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './room.component.html',
     styleUrls: ['./room.component.scss'],
     imports: [ReactiveFormsModule, NgIf, MatIconButton, MatTooltip, MatIcon, MatButton, NgFor, NgClass, MatProgressSpinner, AsyncPipe, DatePipe]

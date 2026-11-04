@@ -19,7 +19,7 @@ import { MatProgressSpinner } from '@angular/material/progress-spinner';
     selector: 'app-root',
     templateUrl: './app.component.html',
     styleUrl: './app.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush,
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [NgIf, MatToolbar, RouterLink, MatIconButton, MatMenuTrigger, MatIcon, MatMenu, MatMenuItem, MatDivider, RouterOutlet, MatProgressSpinner]
 })
 export class AppComponent implements OnInit, OnDestroy {

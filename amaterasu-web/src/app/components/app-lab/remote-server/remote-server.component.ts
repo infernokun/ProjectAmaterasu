@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
 import { RemoteServerService } from '../../../services/lab/remote-server.service';
 import { EditDialogService } from '../../../services/edit-dialog.service';
 import { AuthService } from '../../../services/auth.service';
@@ -15,6 +15,7 @@ import { DurationPipe } from '../../../pipes/duration.pipe';
 
 @Component({
     selector: 'amaterasu-remote-server',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './remote-server.component.html',
     styleUrls: ['./remote-server.component.scss'],
     imports: [NgIf, MatFabButton, MatTooltip, MatIcon, NgFor, ReactiveFormsModule, MatIconButton, AsyncPipe, DurationPipe]

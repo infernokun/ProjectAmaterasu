@@ -1,5 +1,5 @@
 // login.component.ts
-import { Component, EventEmitter, OnInit, Output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, OnInit, Output, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatDialogRef } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
@@ -15,6 +15,7 @@ import { MatProgressSpinner } from '@angular/material/progress-spinner';
 
 @Component({
     selector: 'amaterasu-login',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './login.component.html',
     styleUrls: ['./login.component.scss'],
     imports: [NgIf, ReactiveFormsModule, FormsModule, MatProgressSpinner]

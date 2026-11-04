@@ -1,4 +1,4 @@
-import { Component, computed, OnDestroy, OnInit, signal, WritableSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, OnDestroy, OnInit, signal, WritableSignal } from '@angular/core';
 import { AuthService } from '../../../../services/auth.service';
 import { combineLatest, of, Subject, switchMap, takeUntil } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -17,6 +17,7 @@ import { MatProgressSpinner } from '@angular/material/progress-spinner';
 
 @Component({
     selector: 'amaterasu-ctf-main',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './ctf-main.component.html',
     styleUrl: './ctf-main.component.scss',
     imports: [

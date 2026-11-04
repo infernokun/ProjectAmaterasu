@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, signal, WritableSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, signal, WritableSignal } from '@angular/core';
 import { LabService } from '../../../services/lab/lab.service';
 import {
   Observable,
@@ -34,6 +34,7 @@ import { LabDeployComponent } from './lab-deploy/lab-deploy.component';
 
 @Component({
     selector: 'amaterasu-lab',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './lab.component.html',
     styleUrl: './lab.component.scss',
     animations: [],

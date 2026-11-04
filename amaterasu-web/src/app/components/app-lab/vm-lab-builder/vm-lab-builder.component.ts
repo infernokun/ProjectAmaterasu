@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
 import { Observable, of, Subject } from 'rxjs';
 import { switchMap, takeUntil } from 'rxjs/operators';
 import { ServerType } from '../../../enums/server-type.enum';
@@ -10,6 +10,7 @@ import { NgFor, NgClass, DecimalPipe } from '@angular/common';
 
 @Component({
     selector: 'amaterasu-vm-lab-builder',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './vm-lab-builder.component.html',
     styleUrl: './vm-lab-builder.component.scss',
     imports: [NgFor, NgClass, DecimalPipe]

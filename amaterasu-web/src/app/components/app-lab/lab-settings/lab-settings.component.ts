@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { LabService } from '../../../services/lab/lab.service';
 import { BehaviorSubject, catchError, combineLatest, of, Subject, takeUntil } from 'rxjs';
@@ -32,6 +32,7 @@ export interface ComposeFile {
 
 @Component({
     selector: 'amaterasu-lab-settings',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './lab-settings.component.html',
     styleUrl: './lab-settings.component.scss',
     imports: [NgIf, NgFor, SettingsConfigureComponent, MatProgressSpinner, DecimalPipe, PercentPipe, KeyValuePipe, DurationPipe]

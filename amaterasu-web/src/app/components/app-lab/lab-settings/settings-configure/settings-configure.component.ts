@@ -1,4 +1,4 @@
-import { Component, ElementRef, Input, ViewChild, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Input, ViewChild, signal } from '@angular/core';
 import { Subject, takeUntil } from 'rxjs';
 import { ServerType } from '../../../../enums/server-type.enum';
 import { ComposeFile, Volume } from '../lab-settings.component';
@@ -17,6 +17,7 @@ export interface VolumeChange {
 
 @Component({
     selector: 'amaterasu-settings-configure',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './settings-configure.component.html',
     styleUrl: './settings-configure.component.scss',
     imports: [NgIf, NgFor],

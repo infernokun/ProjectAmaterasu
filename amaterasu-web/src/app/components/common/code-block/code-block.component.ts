@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   Input,
   Output,
@@ -14,6 +15,7 @@ import { MatIcon } from '@angular/material/icon';
 
 @Component({
     selector: 'amaterasu-code-block',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './code-block.component.html',
     styleUrls: ['./code-block.component.scss'],
     imports: [
