@@ -19,6 +19,9 @@ import com.infernokun.amaterasu.repositories.ctf.CTFEntityRepository;
 import com.infernokun.amaterasu.repositories.ctf.RoomRepository;
 import com.infernokun.amaterasu.repositories.lab.LabRepository;
 import com.infernokun.amaterasu.repositories.lab.LabTrackerRepository;
+import com.infernokun.amaterasu.repositories.lab.RemoteServerRepository;
+import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
+import com.infernokun.amaterasu.models.enums.ServerType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,6 +57,7 @@ class PlayEndpointsIntegrationTest {
     @Autowired private LabRepository labRepository;
     @Autowired private LabTrackerRepository labTrackerRepository;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private RemoteServerRepository remoteServerRepository;
 
     private Team red;
     private Team blue;
@@ -141,6 +145,8 @@ class PlayEndpointsIntegrationTest {
         room = roomRepository.save(Room.builder().name(unique("room")).build());
         open = challenge("Header Hunt", "AMA{headers}", 200, LocalDateTime.now().minusHours(1));
         locked = challenge("Later", "AMA{later}", 300, LocalDateTime.now().plusHours(2));
+        open.setAttachments(null);
+        open = ctfEntityRepository.save(open);
         for (User player : List.of(redMember, blueMember)) {
             postAs("/api/room/join/" + room.getId() + "/" + player.getId(), token(player), Map.of())
                     .andExpect(status().isOk());
@@ -175,6 +181,7 @@ class PlayEndpointsIntegrationTest {
         assertThat(feed.get(0).get("kind").asText()).isEqualTo("AWARD");
         assertThat(feed.get(0).get("who").asText()).isEqualTo(facilitator.getUsername());
         assertThat(feed.get(0).get("detail").asText()).isEqualTo("Writeup bonus");
+        assertThat(feed.get(0).get("at").asText()).matches("\\d{4}-\\d{2}-\\d{2}T.*Z");
     }
 
     @Test
@@ -230,5 +237,17 @@ class PlayEndpointsIntegrationTest {
         // The owning team gets through the access check; this lab has no server to restart on
         postAs("/api/lab-tracker/" + tracker.getId() + "/restart/web", token(redMember), Map.of())
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void startingACatalogLabWithoutATrackerSaysWhyItCannotStart() throws Exception {
+        Lab lab = labRepository.save(Lab.builder().name(unique("lab")).labType(LabType.DOCKER_COMPOSE).ready(true).build());
+        RemoteServer server = remoteServerRepository.save(RemoteServer.builder().name(unique("dock")).ipAddress("10.0.0.1")
+                .serverType(ServerType.DOCKER_HOST).build());
+
+        JsonNode body = objectMapper.readTree(postAs("/api/labs/start", token(redMember),
+                        Map.of("labId", lab.getId(), "remoteServerId", server.getId()))
+                .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString());
+        assertThat(body.get("data").get("output").asText()).contains("is not ACTIVE");
     }
 }

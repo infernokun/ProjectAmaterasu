@@ -1,5 +1,7 @@
 package com.infernokun.amaterasu.models.entities.ctf.dto.play;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import java.time.Instant;
 import java.util.List;
 
@@ -24,7 +26,7 @@ public record RoomLive(
 
     public enum FeedKind { SOLVE, HINT, AWARD }
 
-    public record FeedItem(FeedKind kind, Instant at, String who, String team, String text, String detail,
+    public record FeedItem(FeedKind kind, @JsonFormat(shape = JsonFormat.Shape.STRING) Instant at, String who, String team, String text, String detail,
                            int points) {
     }
 

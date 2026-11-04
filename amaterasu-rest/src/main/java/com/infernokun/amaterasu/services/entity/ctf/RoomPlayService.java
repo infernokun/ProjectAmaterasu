@@ -108,7 +108,7 @@ public class RoomPlayService {
                     team != null ? team.getName() : null,
                     value(roomUser.getPoints()),
                     (int) answers.stream().filter(answer -> Boolean.TRUE.equals(answer.getCorrect())).count(),
-                    answers.stream().mapToInt(answer -> answer.getHintUsages().size()).sum(),
+                    answers.stream().mapToInt(answer -> orEmpty(answer.getHintUsages()).size()).sum(),
                     answers.stream().mapToInt(RoomPlayService::wrongAttempts).sum(),
                     answers.stream().map(CTFEntityAnswer::getSolvedAt).filter(Objects::nonNull)
                             .max(Comparator.naturalOrder()).map(RoomPlayService::toInstant).orElse(null),
@@ -154,7 +154,7 @@ public class RoomPlayService {
             if (wrong > 0) {
                 wrongRecentByChallenge.merge(challenge.getId(), wrong, Integer::sum);
             }
-            for (CTFEntityHintUsage usage : answer.getHintUsages()) {
+            for (CTFEntityHintUsage usage : orEmpty(answer.getHintUsages())) {
                 hintsUnlocked++;
                 hintPoints += value(usage.getPointsDeducted());
                 feed.add(new RoomLive.FeedItem(RoomLive.FeedKind.HINT, toInstant(usage.getUsedAt()), user.getUsername(),
@@ -164,7 +164,7 @@ public class RoomPlayService {
         }
 
         for (RoomUser player : players) {
-            for (PointsHistoryEntry entry : player.getPointsHistory()) {
+            for (PointsHistoryEntry entry : orEmpty(player.getPointsHistory())) {
                 if (entry.getAwardedBy() != null) {
                     feed.add(new RoomLive.FeedItem(RoomLive.FeedKind.AWARD, toInstant(entry.getTimestamp()),
                             entry.getAwardedBy(), teamName(player.getUser()), "awarded " + player.getUser().getUsername(),
@@ -191,7 +191,7 @@ public class RoomPlayService {
                     (int) forChallenge.stream().filter(answer -> Boolean.TRUE.equals(answer.getCorrect())).count(),
                     forChallenge.stream().mapToInt(RoomPlayService::wrongAttempts).sum(),
                     (int) forChallenge.stream().filter(answer -> value(answer.getAttempts()) > 0).count(),
-                    forChallenge.stream().mapToInt(answer -> answer.getHintUsages().size()).sum());
+                    forChallenge.stream().mapToInt(answer -> orEmpty(answer.getHintUsages()).size()).sum());
         }).sorted(Comparator.comparingInt(RoomLive.ChallengeHealth::wrongAttempts).reversed()
                 .thenComparing(RoomLive.ChallengeHealth::title, Comparator.nullsLast(Comparator.naturalOrder()))).toList();
 
@@ -208,12 +208,12 @@ public class RoomPlayService {
                                                  LocalDateTime now) {
         ChallengeState state = stateOf(challenge, now);
         List<RoomOverview.HintView> hints = new ArrayList<>();
-        List<Hint> ordered = challenge.getHints().stream()
+        List<Hint> ordered = orEmpty(challenge.getHints()).stream()
                 .sorted(Comparator.comparing(Hint::getOrderIndex, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
         for (int i = 0; i < ordered.size(); i++) {
             Hint hint = ordered.get(i);
-            Optional<CTFEntityHintUsage> usage = answer == null ? Optional.empty() : answer.getHintUsages().stream()
+            Optional<CTFEntityHintUsage> usage = answer == null ? Optional.empty() : orEmpty(answer.getHintUsages()).stream()
                     .filter(used -> used.getHint().getId().equals(hint.getId())).findFirst();
             hints.add(new RoomOverview.HintView(hint.getId(), i + 1, value(hint.getCost()),
                     value(hint.getUnlockAfterAttempts()), usage.isPresent(),
@@ -233,7 +233,7 @@ public class RoomPlayService {
                 toInstant(challenge.getReleaseDate()),
                 toInstant(challenge.getExpirationDate()),
                 state == ChallengeState.LOCKED ? null : challenge.getDescription(),
-                state == ChallengeState.LOCKED ? List.of() : List.copyOf(challenge.getAttachments()),
+                state == ChallengeState.LOCKED ? List.of() : orEmpty(challenge.getAttachments()),
                 state == ChallengeState.LOCKED ? List.of() : hints,
                 answer != null ? value(answer.getAttempts()) : 0,
                 answer != null && Boolean.TRUE.equals(answer.getCorrect()),
@@ -253,7 +253,7 @@ public class RoomPlayService {
 
     private RoomOverview.RoomInfo roomInfo(Room room) {
         String creator = room.getCreator() != null ? room.getCreator().getUsername() : null;
-        List<String> facilitators = room.getFacilitators().stream()
+        List<String> facilitators = orEmpty(room.getFacilitators()).stream()
                 .map(entry -> userRepository.findById(entry).map(User::getUsername).orElse(entry))
                 .toList();
         return new RoomOverview.RoomInfo(room.getId(), room.getName(), room.getSurroundTag(), creator, facilitators);
@@ -293,7 +293,7 @@ public class RoomPlayService {
         if (player.getCreatedAt() != null) {
             points.add(new RoomStandings.Point(toInstant(player.getCreatedAt()), 0));
         }
-        for (PointsHistoryEntry entry : player.getPointsHistory()) {
+        for (PointsHistoryEntry entry : orEmpty(player.getPointsHistory())) {
             points.add(new RoomStandings.Point(toInstant(entry.getTimestamp()), value(entry.getTotalPoints())));
         }
         return points;
@@ -363,7 +363,7 @@ public class RoomPlayService {
     }
 
     private static int recentWrongAttempts(CTFEntityAnswer answer, LocalDateTime since) {
-        int recent = (int) answer.getAttemptTimes().stream().filter(time -> time != null && time.isAfter(since)).count();
+        int recent = (int) orEmpty(answer.getAttemptTimes()).stream().filter(time -> time != null && time.isAfter(since)).count();
         boolean solvedRecently = answer.getSolvedAt() != null && answer.getSolvedAt().isAfter(since);
         return Math.max(0, recent - (solvedRecently ? 1 : 0));
     }
@@ -379,6 +379,10 @@ public class RoomPlayService {
 
     private static String categoryOf(CTFEntity challenge) {
         return challenge.getCategory() == null || challenge.getCategory().isBlank() ? "General" : challenge.getCategory();
+    }
+
+    private static <T> List<T> orEmpty(List<T> list) {
+        return list == null ? List.of() : list.stream().filter(Objects::nonNull).toList();
     }
 
     private static int value(Integer number) {

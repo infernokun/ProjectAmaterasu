@@ -1,5 +1,7 @@
 package com.infernokun.amaterasu.models.entities.ctf.dto.play;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import java.time.Instant;
 import java.util.List;
 
@@ -30,19 +32,19 @@ public record RoomOverview(
             Integer maxAttempts,
             long solves,
             ChallengeState state,
-            Instant releaseDate,
-            Instant expirationDate,
+            @JsonFormat(shape = JsonFormat.Shape.STRING) Instant releaseDate,
+            @JsonFormat(shape = JsonFormat.Shape.STRING) Instant expirationDate,
             /* Left out while the challenge is locked. */
             String description,
             List<String> attachments,
             List<HintView> hints,
             int attempts,
             boolean solved,
-            Instant solvedAt) {
+            @JsonFormat(shape = JsonFormat.Shape.STRING) Instant solvedAt) {
     }
 
     /** The hint text is only sent once the viewer has unlocked it. */
     public record HintView(String id, int number, int cost, int unlockAfterAttempts, boolean unlocked, String text,
-                           Instant usedAt) {
+                           @JsonFormat(shape = JsonFormat.Shape.STRING) Instant usedAt) {
     }
 }

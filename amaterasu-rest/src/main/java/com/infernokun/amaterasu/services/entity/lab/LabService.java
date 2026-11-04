@@ -199,7 +199,9 @@ public class LabService extends BaseService {
             return new LabActionResult(false, null, "User must be on a team to start a lab");
         }
 
-        Optional<LabTracker> existing = labTrackerService.findLabTrackerById(labTrackerId)
+        // A lab started from the catalog has no tracker yet
+        Optional<LabTracker> existing = (labTrackerId == null || labTrackerId.isBlank()
+                ? Optional.<LabTracker>empty() : labTrackerService.findLabTrackerById(labTrackerId))
                 .filter(tracker -> tracker.getLabStatus() != LabStatus.DELETED);
         existing.ifPresent(currentUser::requireTrackerAccess);
         LabTracker labTracker = existing.orElseGet(() -> LabTracker.builder()
