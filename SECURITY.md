@@ -14,6 +14,20 @@ ProjectAmaterasu is still a proof of concept. The items below are known gaps tha
 8. **Encryption key is not validated.** `ENCRYPTION_KEY` defaults to `secret_key` in compose and has no length check.
 9. **Error bodies include exception messages.** `GlobalExceptionHandler` returns `ex.getMessage()` to the client.
 
-## Reporting
+## Reporting a vulnerability
 
-Open a private security advisory on GitHub instead of a public issue.
+Do not open a public issue. Report it privately through a GitHub security advisory on this repository, and include:
+
+- what the issue is and what an attacker could do with it
+- steps to reproduce, or a proof of concept
+- any fix you have in mind
+
+Only the latest `main` is maintained.
+
+## Scope
+
+- The REST API (`amaterasu-rest`), including what it runs on Docker hosts over SSH and on Proxmox nodes through the API
+- The web frontend and its nginx configuration (`amaterasu-web`)
+- The Docker images and `docker-compose.yml`
+
+The open items above are already known and do not need a report.

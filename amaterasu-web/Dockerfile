@@ -19,12 +19,12 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 FROM nginx:alpine AS runtime-stage
 
 LABEL maintainer="infernokun@infernokun.com" \
-  description="NGINX Angular Docker image" \
-  source="https://github.com/infernokun/ProjectAmaterasu" \
-  run="docker run -p 80:80 infernokun/project-amaterasu -d"
+  description="ProjectAmaterasu web frontend" \
+  org.opencontainers.image.source="https://github.com/infernokun/ProjectAmaterasu"
 
-COPY --link --chown=101:101 nginx/nginx.conf /etc/nginx/nginx.conf
+COPY --link --chown=101:101 nginx/nginx.conf nginx/security-headers.conf /etc/nginx/
 RUN set -eux \
+  && apk upgrade --no-cache \
   && chown 101:101 -R /var/cache/nginx \
   && chown 101:101 -R /var/log/nginx \
   && chown 101:101 -R /etc/nginx \
@@ -37,12 +37,12 @@ COPY --link --chown=101:101 --from=compile-stage /app/dist/app/browser /usr/shar
 
 COPY --chmod=755 ./scripts/docker-entrypoint.sh /docker-entrypoint.sh
 
-VOLUME [ "/etc/nginx" ]
-
 EXPOSE 80
-HEALTHCHECK --start-period=5s CMD wget -q --spider http://localhost/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s CMD wget -q --spider http://localhost/health || exit 1
 
 USER nginx
 
-# Start Nginx
+ARG GIT_SHA=unknown
+LABEL org.opencontainers.image.revision=$GIT_SHA
+
 ENTRYPOINT ["/docker-entrypoint.sh"]

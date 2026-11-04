@@ -2,71 +2,50 @@
 
 [![CI](https://github.com/infernokun/ProjectAmaterasu/actions/workflows/ci.yml/badge.svg)](https://github.com/infernokun/ProjectAmaterasu/actions/workflows/ci.yml)
 
-ProjectAmaterasu is a virtual lab orchestration application. It deploys Docker Compose and Proxmox VM labs to remote servers and runs CTF style rooms with scoring.
+ProjectAmaterasu is a virtual lab orchestration application. It deploys Docker Compose and Proxmox VM labs to remote servers, gives every team its own isolated copy, and runs CTF style rooms with scoring.
 
 ## Components
 
-| Directory            | Description                                                                 |
-| -------------------- | --------------------------------------------------------------------------- |
-| `amaterasu-rest`     | Spring Boot 3.5 REST API (Java 21). Postgres for storage, Redis for caching. |
-| `amaterasu-web`      | Angular 22 frontend served by nginx, which also proxies `/api` to the API.  |
-| `amaterasu-proxmox`  | Python helper CLI for Proxmox and a mock Proxmox API under `mock/`.         |
-| `amaterasu-populate` | Scripts that seed sample rooms and challenges through the API.              |
-| `amaterasu-dev`      | Compose files for local Postgres, pgAdmin, Redis and a Docker-in-Docker host. |
-| `amaterasu-sample`   | Example lab compose file.                                                    |
+| Directory | What it is |
+| --------- | ---------- |
+| [`amaterasu-web`](amaterasu-web/README.md) | Angular 22 frontend served by nginx, which also proxies `/api` to the API |
+| [`amaterasu-rest`](amaterasu-rest/README.md) | Spring Boot 3.5 REST API (Java 21). Postgres for storage, Redis for caching |
+| [`amaterasu-proxmox`](amaterasu-proxmox/README.md) | Python helper CLI for Proxmox, and a Proxmox API mock under `mock/` |
+| [`amaterasu-populate`](amaterasu-populate/README.md) | Scripts that seed sample rooms and challenges through the API |
+| `amaterasu-dev` | Compose files for local Postgres, pgAdmin, Redis and a Docker-in-Docker SSH host |
+| `amaterasu-sample` | Example lab compose file |
 
-## Running with Docker Compose
+## Architecture
+
+```
+Browser ──▶ amaterasu-web (nginx, :8764)
+                │  /api
+                ▼
+            amaterasu-rest (:8765, loopback) ──▶ Postgres   users, teams, labs, trackers, CTF data
+                │                             └─▶ Redis      cache
+                ├── SSH ──────▶ Docker hosts   one Compose project per lab deployment
+                └── HTTPS ────▶ Proxmox nodes  template clones on per-lab bridges
+```
+
+## Quick start
 
 ```bash
-wget https://raw.githubusercontent.com/infernokun/ProjectAmaterasu/refs/heads/main/docker-compose.yml
+wget https://raw.githubusercontent.com/infernokun/ProjectAmaterasu/refs/heads/main/docker-compose.yml https://raw.githubusercontent.com/infernokun/ProjectAmaterasu/refs/heads/main/.env.example
 ```
 
 ```bash
-docker compose up -d
+cp .env.example .env
 ```
 
-This starts:
-
-- `amaterasu-web` on port `8764`
-- `amaterasu-rest` on port `8765` (context path `/amaterasu-rest`)
-- `amaterasu-db` (Postgres 17)
-- `amaterasu-redis` (Redis 8)
-
-The API generates an RSA key pair for signing JWTs on first start and stores it in the `amaterasu-rest` volume. To use your own keys, mount them and set `RSA_PRIVATE_KEY_PATH` and `RSA_PUBLIC_KEY_PATH`:
+Set the passwords and `ENCRYPTION_KEY` in `.env`, then:
 
 ```bash
-openssl genpkey -algorithm RSA -out private.pem -pkeyopt rsa_keygen_bits:2048
+docker compose --env-file .env up -d
 ```
 
-```bash
-openssl rsa -pubout -in private.pem -out public.pem
-```
+The web app is on port `8764`. The API listens on `127.0.0.1:8765` (context path `/amaterasu-rest`) and is reached through nginx at `/api`.
 
-### Environment variables
-
-`amaterasu-rest`:
-
-| Variable               | Default                          | Description                          |
-| ---------------------- | -------------------------------- | ------------------------------------ |
-| `DB_IP`                | `amaterasu-db`                   | Postgres host                        |
-| `DB_PORT`              | `5432`                           | Postgres port                        |
-| `DB_NAME`              | `amaterasu`                      | Database name                        |
-| `DB_USER` / `DB_PASS`  | `amaterasu` / `amaterasu`        | Database credentials                 |
-| `REDIS_HOST`           | `amaterasu-redis`                | Redis host                           |
-| `REDIS_PASSWORD`       | `amaterasu`                      | Redis password                       |
-| `DOCKER_COMPOSE_PATH`  | `/var/tmp/amaterasu`             | Working directory for lab files      |
-| `ENCRYPTION_KEY`       | `secret_key`                     | Key used to encrypt stored secrets. Change this. |
-| `RSA_PRIVATE_KEY_PATH` | `/var/tmp/amaterasu/private.pem` | JWT signing key                      |
-| `RSA_PUBLIC_KEY_PATH`  | `/var/tmp/amaterasu/public.pem`  | JWT verification key                 |
-
-`amaterasu-web`:
-
-| Variable   | Description                         |
-| ---------- | ----------------------------------- |
-| `BASE_URL` | Public URL of the web app           |
-| `REST_URL` | API base URL, `/api` behind nginx   |
-
-On first start the API creates an admin account from `amaterasu.defaultAdminUsername` and `amaterasu.defaultAdminPassword` in `application-local.yml`. Change the password after logging in.
+On first start the API creates an admin account from `amaterasu.defaultAdminUsername` and `amaterasu.defaultAdminPassword` in `application-local.yml`, and generates the RSA key pair it signs JWTs with into the `amaterasu-rest` volume. Change the admin password after logging in.
 
 ## Lab lifecycle
 
@@ -80,41 +59,51 @@ On first start the API creates an admin account from `amaterasu.defaultAdminUser
 
 Each deployment is its own Compose project, so published ports and fixed container, volume and network names are dropped to let several teams run the same lab on one host. Each VM lab gets its own `abrN` bridges with no host address, so labs cannot reach each other or the Proxmox host's networks. Students reach VMs through the Proxmox console.
 
-## Development
+## Build and development
 
-API (needs Postgres and Redis, see `amaterasu-dev`):
+The root `package.json` wraps the common commands:
 
-```bash
-cd amaterasu-rest && ./gradlew bootRun
-```
+| Command | What it does |
+| ------- | ------------ |
+| `npm run start:rest` | API on `http://localhost:8080` (needs Postgres and Redis, see `amaterasu-dev`) |
+| `npm run start:web` | Web dev server on `http://localhost:4300` |
+| `npm run start:mock` | Proxmox API mock on `https://127.0.0.1:8006` |
+| `npm run test:rest` | API tests |
+| `npm run test:web` | Web unit tests in headless Chrome |
+| `npm run lint:python` | Ruff over the Python code |
+| `npm run deps:lock` | Recompile the hash-locked Python requirements |
 
-Web (served on port 4300):
+### Python dependencies
 
-```bash
-cd amaterasu-web && pnpm install && pnpm start
-```
-
-A Proxmox API mock with tasks, clone locks and bridges lives in `amaterasu-proxmox/mock`:
-
-```bash
-cd amaterasu-proxmox/mock && pnpm install && pnpm start
-```
-
-### Tests
+Python requirements are managed with [uv](https://docs.astral.sh/uv/). Each `requirements.in` lists the direct dependencies, and `requirements.txt` is the hash-locked file compiled from it. Edit the `.in` file, then run `npm run deps:lock` from the repo root and commit both. `npm run deps:upgrade` moves everything to the latest versions the `.in` pins allow. CI fails if a `requirements.txt` is out of date with its `.in`.
 
 ```bash
-cd amaterasu-rest && ./gradlew test
+uv venv && uv pip install --require-hashes -r requirements-dev.txt -r amaterasu-proxmox/requirements.txt
 ```
 
-```bash
-cd amaterasu-web && pnpm exec ng test --watch=false --browsers=ChromeHeadlessCI
-```
+## Configuration
 
-```bash
-ruff check .
-```
+Every compose setting has a default; see [`.env.example`](.env.example) for the full list.
 
-CI runs all of the above plus Docker image builds on every pull request.
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `REGISTRY` / `NAMESPACE` / `TAG` | `docker.io` / `infernokun` / `latest` | Where the web and API images are pulled from |
+| `WEB_PORT` | `8764` | Published web port |
+| `REST_BIND` / `REST_PORT` | `127.0.0.1` / `8765` | Published API address and port |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `amaterasu` | Database credentials |
+| `REDIS_PASSWORD` | `amaterasu` | Redis password |
+| `ENCRYPTION_KEY` | `secret_key` | Encrypts stored server passwords and API tokens. Change it before adding servers |
+| `DOCKER_COMPOSE_PATH` | `/var/tmp/amaterasu` | Working directory for lab files on each Docker host |
+| `RSA_PRIVATE_KEY_PATH` / `RSA_PUBLIC_KEY_PATH` | `/var/tmp/amaterasu/*.pem` | JWT keys, generated on first start when missing |
+
+## CI
+
+`.github/workflows/ci.yml` runs on every pull request and push to `main`:
+
+- `amaterasu-rest`: `./gradlew build`, which compiles and runs the tests
+- `amaterasu-web`: install, production build and unit tests
+- `python`: lockfile check, Ruff, and a smoke run of the Proxmox helper
+- Docker builds of the rest, web and proxmox images, labelled with the commit
 
 ## Troubleshooting
 
@@ -122,4 +111,4 @@ CI runs all of the above plus Docker image builds on every pull request.
 docker compose logs amaterasu-rest
 ```
 
-The API health endpoint is `http://localhost:8765/amaterasu-rest/health`.
+The API health endpoint is `http://localhost:8765/amaterasu-rest/health`, and the web container answers `/health`.

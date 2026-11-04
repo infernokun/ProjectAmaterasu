@@ -11,25 +11,24 @@ RUN chmod +x gradlew
 RUN gradle bootJar --no-daemon
 
 # Stage 2: Runtime
-FROM eclipse-temurin:21-jre-noble AS runtime-stage
+FROM eclipse-temurin:21-jre-alpine AS runtime-stage
 LABEL maintainer="infernokun@infernokun.com" \
-      description="Java service Docker image" \
-      source="https://github.com/infernokun/ProjectAmaterasu" \
-      run="docker run -p 8080:8080 <docker image> -d"
+      description="ProjectAmaterasu REST API" \
+      org.opencontainers.image.source="https://github.com/infernokun/ProjectAmaterasu"
 
 ARG PROJECT=amaterasu-rest
 ENV PROJECT=${PROJECT}
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    tini \
-    curl \
- && rm -rf /var/lib/apt/lists/*
+# apk upgrade picks up OS fixes the base tag has not been rebuilt with yet
+RUN apk upgrade --no-cache && apk add --no-cache tini curl bash
 
+# /var/tmp/amaterasu is a volume (JWT keys, lab files); it must exist and be owned by the app
+# user here so a fresh named volume is seeded writable
 RUN set -eux; \
-    groupadd -g 1001 java; \
-    useradd -m -r -u 1001 -g java java; \
+    addgroup -S -g 1001 java; \
+    adduser -S -D -u 1001 -G java java; \
     mkdir -p /app /var/tmp/amaterasu; \
-    chown java:java -R /app /home/java /var/tmp/amaterasu
+    chown java:java -R /app /var/tmp/amaterasu
 
 COPY --link --chown=1001:1001 scripts/docker-entrypoint.sh /
 COPY --link --chown=1001:1001 --from=compile-stage /app/build/libs/${PROJECT}.jar /app/${PROJECT}.jar
@@ -42,7 +41,12 @@ WORKDIR /app/
 VOLUME ["/var/tmp/amaterasu"]
 EXPOSE 8080
 
-HEALTHCHECK --start-period=60s CMD curl -fs http://localhost:8080/amaterasu-rest/health || exit 1
+HEALTHCHECK --interval=15s --timeout=5s --start-period=90s --retries=5 \
+    CMD curl -fsS http://localhost:8080/amaterasu-rest/health || exit 1
 
-ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/docker-entrypoint.sh"]
+# Last, so a new commit only rebuilds this layer
+ARG GIT_SHA=unknown
+LABEL org.opencontainers.image.revision=$GIT_SHA
+
+ENTRYPOINT ["/sbin/tini", "-g", "--", "/docker-entrypoint.sh"]
 CMD ["/app/${PROJECT}.jar"]

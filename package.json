@@ -1,8 +1,31 @@
 {
   "name": "amaterasu",
   "version": "0.0.0",
+  "description": "Monorepo for ProjectAmaterasu: web, REST API and Proxmox tooling",
   "scripts": {
-    "start:web": "cd amaterasu-web && npm run start",
+    "start:web": "cd amaterasu-web && pnpm start",
+    "start:rest": "cd amaterasu-rest && ./gradlew bootRun",
+    "start:mock": "cd amaterasu-proxmox/mock && pnpm install && pnpm start",
+
+    "build:web": "cd amaterasu-web && pnpm run build:prod",
+    "build:rest": "cd amaterasu-rest && ./gradlew build --no-daemon -x test",
+
+    "test:web": "cd amaterasu-web && pnpm exec ng test --watch=false --browsers=ChromeHeadlessCI",
+    "test:rest": "cd amaterasu-rest && ./gradlew test",
+    "lint:python": "uvx ruff check .",
+
+    "deps:lock": "for r in amaterasu-proxmox/requirements amaterasu-populate/requirements requirements-dev; do uv pip compile --quiet --universal --generate-hashes --python-version 3.14 $r.in -o $r.txt; done",
+    "deps:upgrade": "for r in amaterasu-proxmox/requirements amaterasu-populate/requirements requirements-dev; do uv pip compile --quiet --universal --generate-hashes --upgrade --python-version 3.14 $r.in -o $r.txt; done",
+
+    "docker:build-web": "cd amaterasu-web && npm run docker:build",
+    "docker:build-rest": "cd amaterasu-rest && npm run docker:build",
+
     "push:git": "git push gitlab main && git push github main"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/infernokun/ProjectAmaterasu.git"
+  },
+  "author": "InfernoKun",
+  "email": "infernokun@infernokun.com"
 }
