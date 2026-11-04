@@ -1,0 +1,24 @@
+.stepper { display: flex; flex-wrap: wrap; gap: 8px; }
+.st { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-3); font-weight: 500; font-size: 13px; }
+.st b { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-3); color: var(--text-2); font-size: 12px; }
+.st.done { color: var(--text-2); }
+.st.done b { background: var(--ok); color: #06140c; }
+.st.now { color: var(--text); border-color: var(--accent); }
+.st.now b { background: var(--accent); color: var(--accent-ink); }
+
+.vmrow { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.vmrow:last-child { border-bottom: 0; }
+.vmrow:hover { background: var(--surface-2); }
+.pick-box { width: 16px; height: 16px; accent-color: var(--accent); }
+.netbox { border: 1px dashed var(--border-2); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.node { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; }
+
+.editor { padding: 14px; height: 380px; }
+.editor amaterasu-monaco-editor { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.pad-top { padding: 14px 14px 0; }
+
+.result { display: flex; flex-wrap: nowrap; align-items: flex-start; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); }
+.dot-wrap { margin-top: 2px; }
+.preview { background: var(--surface-2); }
+p { margin: 0; }
+label.btn { cursor: pointer; }

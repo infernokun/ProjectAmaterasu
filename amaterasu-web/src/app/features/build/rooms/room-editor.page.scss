@@ -1,0 +1,14 @@
+.top { align-items: flex-start; gap: 20px; }
+.room-form { margin-top: 16px; }
+.list-card { flex: 1 1 320px; min-width: 0; }
+.editor-card { flex: 999 1 560px; min-width: 0; }
+.list-btn .title { display: block; font-weight: 500; }
+.wide { grid-column: 1 / -1; }
+.ed-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px 120px 40px; gap: 10px; align-items: center; }
+.fl-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto 80px 40px; gap: 12px; align-items: center; }
+.preview-bg { background: var(--bg); }
+.hint-preview { padding: 12px 14px; background: var(--surface-2); }
+.nowrap { flex-wrap: nowrap; }
+.desc { margin: 0; line-height: 1.6; white-space: pre-wrap; }
+label.btn { cursor: pointer; }
+.seg { flex-wrap: wrap; }
