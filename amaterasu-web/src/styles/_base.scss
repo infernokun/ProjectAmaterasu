@@ -64,6 +64,13 @@ code, kbd, pre, samp {
   border: 1px solid var(--border-2);
 }
 
+// A .modal rendered inside a dialog panel: the panel already draws the frame
+.ama-dialog .modal {
+  max-width: none;
+  border: 0;
+  box-shadow: none;
+}
+
 .ama-backdrop {
   background: var(--scrim);
 }
