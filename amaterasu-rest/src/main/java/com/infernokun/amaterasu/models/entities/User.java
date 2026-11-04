@@ -39,6 +39,7 @@ public class User extends StoredObject implements UserDetails {
     @JsonIgnore
     private Instant sessionsValidAfter;
     private String avatarUrl;
+    private Instant lastSignIn;
 
     public User(String username, String password) {
         this.username = username;

@@ -30,6 +30,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.Collections;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -173,7 +174,7 @@ class LabControllerTest {
 
     @Test
     void updateLab() throws Exception {
-        when(labService.updateLab(any(Lab.class))).thenReturn(lab);
+        when(labService.editLab(eq("1"), any(LabRequest.class))).thenReturn(lab);
 
         mockMvc.perform(put("/api/labs/1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -184,7 +185,7 @@ class LabControllerTest {
 
     @Test
     void updateLabNotFound() throws Exception {
-        when(labService.updateLab(any(Lab.class))).thenThrow(new ResourceNotFoundException("Lab not found!"));
+        when(labService.editLab(eq("1"), any(LabRequest.class))).thenThrow(new ResourceNotFoundException("Lab not found!"));
 
         mockMvc.perform(put("/api/labs/1")
                         .contentType(MediaType.APPLICATION_JSON)

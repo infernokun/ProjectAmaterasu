@@ -12,7 +12,9 @@ import com.infernokun.amaterasu.models.entities.ctf.RoomUser;
 import com.infernokun.amaterasu.models.entities.ctf.dto.RoomUserProfileResponse;
 import com.infernokun.amaterasu.models.entities.ctf.dto.RoomUserResponse;
 import com.infernokun.amaterasu.models.enums.RoomUserStatus;
+import com.infernokun.amaterasu.services.entity.AuditService;
 import com.infernokun.amaterasu.services.entity.UserService;
+import com.infernokun.amaterasu.utils.AmaterasuConstants;
 import com.infernokun.amaterasu.services.entity.ctf.CTFAnswerService;
 import com.infernokun.amaterasu.services.entity.ctf.RoomService;
 import com.infernokun.amaterasu.services.entity.ctf.RoomUserService;
@@ -42,6 +44,7 @@ public class RoomController {
     private final ModelMapper modelMapper;
     private final CTFAnswerService ctfAnswerService;
     private final CurrentUser currentUser;
+    private final AuditService auditService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Room>>> getAllRooms(@RequestParam(required = false)
@@ -172,7 +175,12 @@ public class RoomController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<Room>> createRoom(@RequestBody Room room) {
+        room.setName(roomService.requireUniqueName(room.getName(), null));
+        if (room.getSurroundTag() == null || room.getSurroundTag().isBlank()) {
+            room.setSurroundTag(AmaterasuConstants.DEFAULT_SURROUND_TAG);
+        }
         Room savedRoom = this.roomService.saveRoom(room);
+        auditService.record("ROOM_CREATED", "ROOM", savedRoom.getId(), savedRoom.getName(), null, null);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.<Room>builder()
                         .code(HttpStatus.CREATED.value())
@@ -316,13 +324,14 @@ public class RoomController {
     public ResponseEntity<ApiResponse<Room>> updateRoom(@PathVariable String id, @RequestBody Room room) {
         Room existingRoom = this.roomService.findByRoomId(id);
         if (room.getName() != null) {
-            existingRoom.setName(room.getName());
+            existingRoom.setName(roomService.requireUniqueName(room.getName(), id));
         }
-        if (room.getSurroundTag() != null) {
-            existingRoom.setSurroundTag(room.getSurroundTag());
+        if (room.getSurroundTag() != null && !room.getSurroundTag().isBlank()) {
+            existingRoom.setSurroundTag(room.getSurroundTag().trim());
         }
         existingRoom.setUpdatedAt(LocalDateTime.now());
         Room updatedRoom = this.roomService.saveRoom(existingRoom);
+        auditService.record("ROOM_UPDATED", "ROOM", id, updatedRoom.getName(), null, null);
         return ResponseEntity.ok(
                 ApiResponse.<Room>builder()
                         .code(HttpStatus.OK.value())
@@ -334,7 +343,8 @@ public class RoomController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteRoom(@PathVariable String id) {
-        this.roomService.deleteRoom(id);
+        Room deleted = this.roomService.deleteRoom(id);
+        auditService.record("ROOM_DELETED", "ROOM", id, deleted.getName(), null, null);
         return ResponseEntity.ok(
                 ApiResponse.<Void>builder()
                         .code(HttpStatus.OK.value())

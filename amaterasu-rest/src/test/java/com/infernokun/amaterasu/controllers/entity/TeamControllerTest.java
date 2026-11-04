@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.exceptions.GlobalExceptionHandler;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.Team;
+import com.infernokun.amaterasu.services.entity.AuditService;
 import com.infernokun.amaterasu.services.entity.TeamService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -31,6 +33,9 @@ class TeamControllerTest {
 
     @Mock
     private TeamService teamService;
+
+    @Mock
+    private AuditService auditService;
 
     @InjectMocks
     private TeamController teamController;
@@ -65,6 +70,7 @@ class TeamControllerTest {
 
     @Test
     void createTeam() throws Exception {
+        when(teamService.createTeam(any(Team.class))).thenReturn(team);
         mockMvc.perform(post("/api/team")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(team)))
@@ -74,6 +80,7 @@ class TeamControllerTest {
 
     @Test
     void deleteTeam() throws Exception {
+        when(teamService.deleteTeam("1")).thenReturn(team);
         mockMvc.perform(delete("/api/team/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
@@ -81,6 +88,7 @@ class TeamControllerTest {
 
     @Test
     void updateTeam() throws Exception {
+        when(teamService.editTeam("1", "testTeam", "AwesomeTeam!!!")).thenReturn(team);
         mockMvc.perform(put("/api/team")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(team)))
@@ -108,7 +116,7 @@ class TeamControllerTest {
 
     @Test
     void updateTeamNotFound() throws Exception {
-        when(teamService.updateTeam(teamCaptor.capture())).thenThrow(new ResourceNotFoundException("Team not found!"));
+        when(teamService.editTeam("1", "testTeam", "AwesomeTeam!!!")).thenThrow(new ResourceNotFoundException("Team not found!"));
 
         mockMvc.perform(put("/api/team")
                         .contentType(MediaType.APPLICATION_JSON)

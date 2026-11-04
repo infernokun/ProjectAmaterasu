@@ -20,6 +20,7 @@ public class CTFEntityRequest {
     private String author;
     private List<String> tags;
     private Boolean visible;
+    private String releaseDate;
     private String expirationDate;
     private List<String> attachments;
     private String solutionExplanation;

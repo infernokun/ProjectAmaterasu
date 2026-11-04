@@ -68,6 +68,11 @@ public class RemoteStatsService extends BaseService {
                 .forEach(this::safeProcessStats);
     }
 
+    /** Collects stats for one server now instead of waiting for the next minute. */
+    public void refresh(RemoteServer server) {
+        safeProcessStats(server);
+    }
+
     private void safeProcessStats(RemoteServer server) {
         try {
             switch(server.getServerType()) {

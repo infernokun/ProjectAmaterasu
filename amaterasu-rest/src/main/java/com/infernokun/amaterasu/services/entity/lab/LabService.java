@@ -5,6 +5,7 @@ import com.infernokun.amaterasu.components.LabActionGuard;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.FileUploadException;
 import com.infernokun.amaterasu.exceptions.LabReadinessException;
+import com.infernokun.amaterasu.exceptions.ResourceInUseException;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.entities.lab.dto.LabRequest;
@@ -21,6 +22,7 @@ import com.infernokun.amaterasu.services.alt.LabFileUploadService;
 import com.infernokun.amaterasu.services.alt.LabActionService;
 import com.infernokun.amaterasu.services.alt.LabReadinessService;
 import com.infernokun.amaterasu.services.BaseService;
+import com.infernokun.amaterasu.services.entity.AuditService;
 import com.infernokun.amaterasu.services.entity.TeamService;
 import com.infernokun.amaterasu.services.entity.UserService;
 import jakarta.transaction.Transactional;
@@ -48,13 +50,15 @@ public class LabService extends BaseService {
     private final AmaterasuConfig amaterasuConfig;
     private final LabActionGuard labActionGuard;
     private final CurrentUser currentUser;
+    private final AuditService auditService;
 
     public LabService(
             LabRepository labRepository, UserService userService,
             TeamService teamService, LabTrackerService labTrackerService,
             LabActionService labActionService, LabFileUploadService labFileUploadService,
             LabReadinessService labReadinessService, LabFileChangeLogRepository labFileChangeLogRepository,
-            AmaterasuConfig amaterasuConfig, LabActionGuard labActionGuard, CurrentUser currentUser) {
+            AmaterasuConfig amaterasuConfig, LabActionGuard labActionGuard, CurrentUser currentUser,
+            AuditService auditService) {
         this.labRepository = labRepository;
         this.userService = userService;
         this.teamService = teamService;
@@ -66,6 +70,7 @@ public class LabService extends BaseService {
         this.amaterasuConfig = amaterasuConfig;
         this.labActionGuard = labActionGuard;
         this.currentUser = currentUser;
+        this.auditService = auditService;
     }
 
     static String composeFileSlug(String name) {
@@ -99,6 +104,61 @@ public class LabService extends BaseService {
     }
 
     public Lab createLab(LabRequest labRequest, RemoteServer remoteServer) {
+        requireValidLab(labRequest);
+        Lab created = doCreateLab(labRequest, remoteServer);
+        auditService.record("LAB_CREATED", "LAB", created.getId(), created.getName(), null,
+                created.getLabType() + (remoteServer != null ? " on " + remoteServer.getName() : ""));
+        return created;
+    }
+
+    private static void requireValidLab(LabRequest labRequest) {
+        if (labRequest.getLabType() == null) {
+            throw new IllegalArgumentException("Choose Docker Compose or Proxmox VM");
+        }
+        if (labRequest.getName() == null || labRequest.getName().isBlank()) {
+            throw new IllegalArgumentException("Lab name required");
+        }
+        if (labRequest.getCapacity() < 1) {
+            throw new IllegalArgumentException("A lab needs room for at least one team copy");
+        }
+        if (labRequest.getLabType() == LabType.VIRTUAL_MACHINE
+                && (labRequest.getVms() == null || labRequest.getVms().isEmpty())) {
+            throw new IllegalArgumentException("Pick at least one VM template");
+        }
+        if (labRequest.getLabType() == LabType.DOCKER_COMPOSE
+                && (labRequest.getDockerFile() == null || labRequest.getDockerFile().isBlank())) {
+            throw new IllegalArgumentException("The compose file is empty");
+        }
+    }
+
+    /** Edits a lab's details. Compose files change through uploadLabFile. */
+    public Lab editLab(String id, LabRequest changes) {
+        Lab lab = findLabById(id);
+        if (changes.getName() != null) {
+            if (changes.getName().isBlank()) {
+                throw new IllegalArgumentException("Lab name required");
+            }
+            lab.setName(changes.getName().trim());
+        }
+        if (changes.getDescription() != null) {
+            lab.setDescription(changes.getDescription());
+        }
+        if (changes.getVersion() != null) {
+            lab.setVersion(changes.getVersion());
+        }
+        if (changes.getCapacity() > 0) {
+            lab.setCapacity(changes.getCapacity());
+        }
+        if (lab.getLabType() == LabType.VIRTUAL_MACHINE && changes.getVms() != null && !changes.getVms().isEmpty()) {
+            lab.setVmIds(new ArrayList<>(changes.getVms()));
+        }
+        lab.setUpdatedAt(LocalDateTime.now());
+        Lab saved = labRepository.save(lab);
+        auditService.record("LAB_UPDATED", "LAB", saved.getId(), saved.getName(), null, null);
+        return saved;
+    }
+
+    private Lab doCreateLab(LabRequest labRequest, RemoteServer remoteServer) {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
 
         Lab newLab = null;
@@ -183,7 +243,7 @@ public class LabService extends BaseService {
             return new LabActionResult(false, null, "Another action is already running for this lab");
         }
         try {
-            return doStartLab(labId, userId, labTrackerId, remoteServer);
+            return audited("LAB_STARTED", "Start", doStartLab(labId, userId, labTrackerId, remoteServer), labTrackerId);
         } finally {
             labActionGuard.release(trackerKey);
         }
@@ -273,7 +333,7 @@ public class LabService extends BaseService {
             return new LabActionResult(false, null, "Another action is already running for this lab");
         }
         try {
-            return doPauseLab(labId, userId, labTrackerId, remoteServer);
+            return audited("LAB_PAUSED", "Pause", doPauseLab(labId, userId, labTrackerId, remoteServer), labTrackerId);
         } finally {
             labActionGuard.release(trackerKey);
         }
@@ -297,7 +357,7 @@ public class LabService extends BaseService {
             return new LabActionResult(false, null, "Another action is already running for this lab");
         }
         try {
-            return doStopLab(labId, userId, labTrackerId, remoteServer);
+            return audited("LAB_STOPPED", "Stop", doStopLab(labId, userId, labTrackerId, remoteServer), labTrackerId);
         } finally {
             labActionGuard.release(trackerKey);
         }
@@ -321,7 +381,7 @@ public class LabService extends BaseService {
             return new LabActionResult(false, null, "Another action is already running for this lab");
         }
         try {
-            return doDeleteLab(labId, userId, labTrackerId, remoteServer);
+            return audited("LAB_DELETED", "Delete", doDeleteLab(labId, userId, labTrackerId, remoteServer), labTrackerId);
         } finally {
             labActionGuard.release(trackerKey);
         }
@@ -375,7 +435,34 @@ public class LabService extends BaseService {
             }
         }
 
-        return markDeleted(labTracker, userTeam, userId);
+        LabTracker removed = markDeleted(labTracker, userTeam, userId);
+        auditService.record("LAB_DELETED", "LAB_TRACKER", removed.getId(), labName(removed), userTeam.getId(),
+                "Removed from the team");
+        return removed;
+    }
+
+    /** Records a lab action: the action on success, LAB_ACTION_FAILED with the reason otherwise. */
+    private LabActionResult audited(String action, String verb, LabActionResult result, String requestedTrackerId) {
+        LabTracker tracker = result.getLabTracker();
+        String trackerId = tracker != null && tracker.getId() != null ? tracker.getId() : requestedTrackerId;
+        if (trackerId == null || trackerId.isBlank()) {
+            return result;
+        }
+        String teamId = tracker != null && tracker.getLabOwner() != null ? tracker.getLabOwner().getId() : null;
+        String server = tracker != null && tracker.getRemoteServer() != null ? tracker.getRemoteServer().getName() : null;
+        if (result.isSuccessful()) {
+            auditService.record(action, "LAB_TRACKER", trackerId, labName(tracker), teamId,
+                    server != null ? "On " + server : null);
+        } else {
+            String reason = result.getOutput() == null || result.getOutput().isBlank() ? "no output" : result.getOutput();
+            auditService.record("LAB_ACTION_FAILED", "LAB_TRACKER", trackerId, labName(tracker), teamId,
+                    verb + " failed" + (server != null ? " on " + server : "") + ": " + reason);
+        }
+        return result;
+    }
+
+    private static String labName(LabTracker tracker) {
+        return tracker != null && tracker.getLabStarted() != null ? tracker.getLabStarted().getName() : null;
     }
 
     private LabTracker markDeleted(LabTracker labTracker, Team team, String userId) {
@@ -464,17 +551,37 @@ public class LabService extends BaseService {
         }
     }
 
+    /**
+     * Removes a lab from the catalog. Refused while any team has it deployed; stopped copies are
+     * removed from their teams along with it.
+     */
     public boolean deleteLabItem(String labId) {
         Optional<Lab> lab = labRepository.findById(labId);
         if (lab.isEmpty()) {
             return false;
         }
-        if (labTrackerService.findByLabStarted(lab.get()).stream().anyMatch(LabService::hasDeployment)) {
-            throw new IllegalStateException("Stop or delete every deployment of " + lab.get().getName() + " first");
+        List<LabTracker> trackers = labTrackerService.findByLabStarted(lab.get());
+        long deployed = trackers.stream().filter(LabService::hasDeployment).count();
+        if (deployed > 0) {
+            throw new ResourceInUseException(lab.get().getName() + " is deployed by " + deployed
+                    + (deployed == 1 ? " team" : " teams") + ". They need to stop it before it can be deleted.");
         }
 
+        for (LabTracker tracker : trackers) {
+            Team owner = tracker.getLabOwner();
+            if (owner == null) {
+                continue;
+            }
+            boolean listed = owner.getTeamActiveLabs().remove(tracker.getId());
+            listed = owner.getTeamDeletedLabs().remove(tracker.getId()) || listed;
+            if (listed) {
+                teamService.updateTeam(owner);
+            }
+        }
+        labTrackerService.deleteAll(trackers);
         labFileChangeLogRepository.deleteByLabId(labId);
         labRepository.deleteById(labId);
+        auditService.record("LAB_REMOVED", "LAB", labId, lab.get().getName(), null, null);
         return true;
     }
 
