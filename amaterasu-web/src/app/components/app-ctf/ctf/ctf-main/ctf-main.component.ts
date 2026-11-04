@@ -132,18 +132,6 @@ export class CTFMainComponent implements OnInit, OnDestroy {
     this.router.navigate(['/rooms']);
   }
 
-  addPoints(): void {
-    if (!this.roomId || !this.authService.getUser()?.id) return;
-
-    this.roomService.addPoints(this.roomId, this.authService.getUser()!.id!)
-      .subscribe((response: ApiResponse<JoinRoomResponse>) => {
-        if (response?.data) {
-          this.roomUserStatus.set(response.data);
-          this.roomService.setCurrentRoomUser(response.data || null);
-        }
-      });
-  }
-
   goToScoreBoard(room: WritableSignal<Room | null>, event: MouseEvent) {
     const roomData = room(); 
     

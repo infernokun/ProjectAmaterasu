@@ -147,10 +147,4 @@ export class LabService extends BaseService {
   deleteLabItem(labId: string) {
     return this.delete<ApiResponse<boolean>>(this.environmentService.settings?.restUrl + '/labs/delete-item/' + labId);
   }
-
-  clear(teamId: string): Observable<ApiResponse<any>> {
-    return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/dev', {
-      teamId
-    });
-  }
 }

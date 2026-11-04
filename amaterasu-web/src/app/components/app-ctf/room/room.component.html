@@ -29,6 +29,7 @@
       </button>
       
       <button mat-raised-button 
+              *ngIf="session.canBuild()"
               class="create-btn" 
               (click)="createRoom()"
               [disabled]="isLoading$ | async">
@@ -122,6 +123,7 @@
         </ng-template>
         
         <button mat-raised-button 
+                *ngIf="session.canBuild()"
                 class="create-btn" 
                 (click)="createRoom()"
                 [disabled]="isLoading$ | async">

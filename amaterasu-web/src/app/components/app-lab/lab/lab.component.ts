@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, signal, WritableSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal, WritableSignal } from '@angular/core';
 import { LabService } from '../../../services/lab/lab.service';
 import {
   Observable,
@@ -31,6 +31,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { MatIcon } from '@angular/material/icon';
 import { LabMainComponent } from './lab-main/lab-main.component';
 import { LabDeployComponent } from './lab-deploy/lab-deploy.component';
+import { SessionStore } from '../../../core/stores/session.store';
 
 @Component({
     selector: 'amaterasu-lab',
@@ -52,6 +53,7 @@ import { LabDeployComponent } from './lab-deploy/lab-deploy.component';
 })
 export class LabComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
+  protected readonly session = inject(SessionStore);
 
   labs: Lab[] = [];
   team: Team | undefined;
@@ -196,27 +198,6 @@ export class LabComponent implements OnInit, OnDestroy {
 
   onMouseLeave(): void {
     this.isHovered = false;
-  }
-
-  clear(): void {
-    const teamId = this.loggedInUser?.team?.id;
-    if (!teamId) {
-      console.error('Team ID is missing');
-      return;
-    }
-
-    this.labService.clear(teamId)
-      .pipe(
-        takeUntil(this.destroy$),
-        catchError(error => {
-          console.error('Failed to clear labs:', error);
-          return of(null);
-        })
-      )
-      .subscribe({
-        next: () => window.location.reload(),
-        error: (err) => console.error('Failed to clear labs:', err)
-      });
   }
 
   formatLabName(name: string): string {

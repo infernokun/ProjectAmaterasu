@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, OnDestroy, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
+import { SessionStore } from '../../../core/stores/session.store';
 import { BehaviorSubject, Observable, Subject, combineLatest, debounceTime, distinctUntilChanged, finalize, map, startWith, takeUntil } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
@@ -39,6 +40,7 @@ export class RoomComponent implements OnInit, OnDestroy {
   readonly trackByRoomId = (index: number, room: Room): string => room.id || index.toString();
 
   joinableStatus = signal<Map<string, JoinRoomResponse>>(new Map());
+  protected readonly session = inject(SessionStore);
 
   constructor(
     private roomService: RoomService,
@@ -318,7 +320,7 @@ export class RoomComponent implements OnInit, OnDestroy {
 
   enterRoom(roomId: string): void {
     console.log('uhhh', this.joinableStatus)
-    this.router.navigate(['/room/', roomId], {
+    this.router.navigate(['/rooms', roomId], {
       state: this.joinableStatus(),
     }).catch(error => {
       console.error('Error navigating to room:', error);

@@ -1,8 +1,4 @@
 <div class="width-100-percent display-flex flex-wrap">
-  <button style="color: red;" mat-menu-item (click)="addPoints()" aria-label="User settings">
-    <mat-icon>settings</mat-icon>
-    <span>Add Points</span>
-  </button>
   <p>Points: {{roomUserStatus()?.points}}</p>
   <button (click)="goToScoreBoard(room, $event)">
     <mat-icon>score</mat-icon>

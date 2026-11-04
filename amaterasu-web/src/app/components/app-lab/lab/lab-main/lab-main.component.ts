@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, Input, OnDestroy, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { SessionStore } from '../../../../core/stores/session.store';
 import {
   catchError,
   combineLatest,
@@ -64,6 +65,7 @@ export class LabMainComponent implements OnInit, OnDestroy {
   private labTrackers: LabTracker[] | undefined = undefined;
   private labs: Lab[] = [];
   private destroy$ = new Subject<void>();
+  protected readonly session = inject(SessionStore);
 
   @Input() user: User | undefined;
 

@@ -5,12 +5,12 @@
       <div class="lab-card" @fadeIn (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()"
         [ngClass]="{'lab-ready': lab.ready, 'lab-not-ready': !lab.ready}">
 
-        <button class="delete-button" matTooltip="Delete Lab" (click)="deleteLab(lab); $event.stopPropagation()">
+        <button *ngIf="session.isAdmin()" class="delete-button" matTooltip="Delete Lab" (click)="deleteLab(lab); $event.stopPropagation()">
           <mat-icon>close</mat-icon>
         </button>
 
         <div class="lab-header">
-          <div class="lab-icon" (click)="getSettings(lab)">
+          <div class="lab-icon" (click)="session.canBuild() && getSettings(lab)">
             <img *ngIf="lab.labType === LabType.DOCKER_COMPOSE" src="assets/compose.png" alt="Docker Compose">
             <img *ngIf="lab.labType === LabType.DOCKER_CONTAINER" src="assets/container.png" alt="Docker Container">
             <img *ngIf="lab.labType === LabType.KUBERNETES" src="assets/kubernetes.png" alt="Kubernetes">

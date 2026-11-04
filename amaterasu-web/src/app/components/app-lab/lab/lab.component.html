@@ -1,7 +1,6 @@
 <div class="lab-wrapper">
   <!-- Top buttons that only appear when user is logged in -->
-  <div class="action-buttons" *ngIf="(loggedInUser$ | async)">
-    <button mat-button class="button clear-button" (click)="clear()">Clear</button>
+  <div class="action-buttons" *ngIf="session.canBuild()">
     <button mat-fab class="add-button" (click)="addLab()" matTooltip="New Lab">
       <mat-icon fontIcon="add"></mat-icon>
     </button>
