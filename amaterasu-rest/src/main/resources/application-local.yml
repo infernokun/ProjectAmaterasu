@@ -1,15 +1,13 @@
 management:
   endpoints:
     web:
-      cors:
-        allowed-methods: GET,POST,PUT,OPTIONS,DELETE
-        allowed-origins: '"*"'
       exposure:
-        include: "*"
+        include: health,info
   endpoint:
     health:
-      show-details: always
-      show-components: always
+      show-details: when-authorized
+      show-components: when-authorized
+      roles: ADMIN
       livenessState:
         enabled: true
       readinessState:
@@ -44,16 +42,19 @@ server:
   servlet:
     contextPath: /amaterasu-rest
   shutdown: graceful
+  # The client address comes from X-Forwarded-For only when the request arrives from a private
+  # address (the nginx container), so callers cannot spoof it
   tomcat:
-    internal-proxies:
-      protocol-header: "X-Forwarded-Proto"
-      remote-ip-header: "X-FORWARDED-FOR"
-  use-forward-headers: true
+    remoteip:
+      remote-ip-header: x-forwarded-for
+      protocol-header: x-forwarded-proto
 
 amaterasu:
   applicationName: "Amaterasu"
   defaultAdminUsername: amaterasu_admin
-  defaultAdminPassword: password
+  # Blank generates a random password, logged once when the admin account is created
+  defaultAdminPassword: "${ADMIN_PASSWORD:}"
+  allowedOrigins: "${ALLOWED_ORIGINS:*}"
   uploadDir: "${DOCKER_COMPOSE_PATH:/var/tmp/amaterasu}"
   encryptionKey: "${ENCRYPTION_KEY}"
   sshPort: "${SSH_PORT:22}"

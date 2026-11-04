@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.controllers.entity.lab;
 
+import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.LabActionRequest;
@@ -26,6 +27,7 @@ public class LabController extends BaseController {
     private final LabService labService;
     private final LabFileUploadService labFileUploadService;
     private final RemoteServerService remoteServerService;
+    private final CurrentUser currentUser;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Lab>>> getAllLabs() {
@@ -158,10 +160,13 @@ public class LabController extends BaseController {
 
     @PostMapping("/start")
     public ResponseEntity<ApiResponse<LabActionResult>> startLab(@RequestBody LabActionRequest labRequest) {
+        if (labRequest.getRemoteServerId() == null || labRequest.getRemoteServerId().isBlank()) {
+            throw new IllegalArgumentException("remoteServerId is required");
+        }
         RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
 
         LabActionResult result = labService.startLab(labRequest.getLabId(),
-                labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
+                currentUser.id(), labRequest.getLabTrackerId(), remoteServer);
 
         return ResponseEntity.status(result.isSuccessful() ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.<LabActionResult>builder()
@@ -173,10 +178,10 @@ public class LabController extends BaseController {
 
     @PostMapping("/pause")
     public ResponseEntity<ApiResponse<LabActionResult>> pauseLab(@RequestBody LabActionRequest labRequest) {
-        RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
+        RemoteServer remoteServer = optionalServer(labRequest.getRemoteServerId());
 
         LabActionResult pausedLab = labService.pauseLab(
-                labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
+                labRequest.getLabId(), currentUser.id(), labRequest.getLabTrackerId(), remoteServer);
 
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabActionResult>builder()
@@ -188,10 +193,10 @@ public class LabController extends BaseController {
 
     @PostMapping("/stop")
     public ResponseEntity<ApiResponse<LabActionResult>> stopLab(@RequestBody LabActionRequest labRequest) {
-        RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
+        RemoteServer remoteServer = optionalServer(labRequest.getRemoteServerId());
 
         LabActionResult stoppedLab = labService.stopLab(
-                labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
+                labRequest.getLabId(), currentUser.id(), labRequest.getLabTrackerId(), remoteServer);
 
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabActionResult>builder()
@@ -203,10 +208,10 @@ public class LabController extends BaseController {
 
     @PostMapping("/delete")
     public ResponseEntity<ApiResponse<LabActionResult>> deleteLab(@RequestBody LabActionRequest labRequest) {
-        RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
+        RemoteServer remoteServer = optionalServer(labRequest.getRemoteServerId());
 
         LabActionResult deletedLab = labService.deleteLab(
-                labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
+                labRequest.getLabId(), currentUser.id(), labRequest.getLabTrackerId(), remoteServer);
 
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabActionResult>builder()
@@ -218,10 +223,7 @@ public class LabController extends BaseController {
 
     @PostMapping("delete-lab-from-team")
     public ResponseEntity<ApiResponse<LabTracker>> deleteLabFromTeam(@RequestBody LabActionRequest labRequest) {
-        LOGGER.info("Deleting lab with details {}, {}, and {}",
-                labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId());
-
-        LabTracker deletedLab = labService.deleteLabFromTeam(labRequest.getLabId(), labRequest.getUserId(),
+        LabTracker deletedLab = labService.deleteLabFromTeam(labRequest.getLabId(), currentUser.id(),
                         labRequest.getLabTrackerId());
 
         return ResponseEntity.status(HttpStatus.OK)
@@ -245,5 +247,9 @@ public class LabController extends BaseController {
     @PostMapping("dev")
     public void clear(@RequestBody LabActionRequest labRequest) {
         labService.clear(labRequest.getTeamId());
+    }
+
+    private RemoteServer optionalServer(String remoteServerId) {
+        return remoteServerId == null || remoteServerId.isBlank() ? null : remoteServerService.findServerById(remoteServerId);
     }
 }

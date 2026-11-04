@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.services.entity.lab;
 
+import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.components.LabActionGuard;
 import com.infernokun.amaterasu.config.AmaterasuConfig;
 import com.infernokun.amaterasu.exceptions.FileUploadException;
@@ -46,13 +47,14 @@ public class LabService extends BaseService {
 
     private final AmaterasuConfig amaterasuConfig;
     private final LabActionGuard labActionGuard;
+    private final CurrentUser currentUser;
 
     public LabService(
             LabRepository labRepository, UserService userService,
             TeamService teamService, LabTrackerService labTrackerService,
             LabActionService labActionService, LabFileUploadService labFileUploadService,
             LabReadinessService labReadinessService, LabFileChangeLogRepository labFileChangeLogRepository,
-            AmaterasuConfig amaterasuConfig, LabActionGuard labActionGuard) {
+            AmaterasuConfig amaterasuConfig, LabActionGuard labActionGuard, CurrentUser currentUser) {
         this.labRepository = labRepository;
         this.userService = userService;
         this.teamService = teamService;
@@ -63,6 +65,7 @@ public class LabService extends BaseService {
         this.labFileChangeLogRepository = labFileChangeLogRepository;
         this.amaterasuConfig = amaterasuConfig;
         this.labActionGuard = labActionGuard;
+        this.currentUser = currentUser;
     }
 
     static String composeFileSlug(String name) {
@@ -198,6 +201,7 @@ public class LabService extends BaseService {
 
         Optional<LabTracker> existing = labTrackerService.findLabTrackerById(labTrackerId)
                 .filter(tracker -> tracker.getLabStatus() != LabStatus.DELETED);
+        existing.ifPresent(currentUser::requireTrackerAccess);
         LabTracker labTracker = existing.orElseGet(() -> LabTracker.builder()
                 .labStarted(lab)
                 .labOwner(userTeam)
@@ -386,9 +390,13 @@ public class LabService extends BaseService {
     }
 
     private LabTracker activeTracker(String labTrackerId) {
-        return labTrackerService.findLabTrackerById(labTrackerId)
+        LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId)
                 .filter(tracker -> tracker.getLabStatus() != LabStatus.DELETED)
                 .orElse(null);
+        if (labTracker != null) {
+            currentUser.requireTrackerAccess(labTracker);
+        }
+        return labTracker;
     }
 
     private LabActionResult saveResult(LabActionResult result, LabTracker labTracker, String userId, LabStatus onSuccess) {

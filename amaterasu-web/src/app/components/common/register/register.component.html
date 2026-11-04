@@ -23,6 +23,8 @@
         <div *ngIf="usernameControl?.invalid && (usernameControl?.touched || formSubmitted)" class="error-message">
           <small *ngIf="usernameControl?.errors?.['required']">Username is required</small>
           <small *ngIf="usernameControl?.errors?.['minlength']">Username must be at least 3 characters</small>
+          <small *ngIf="usernameControl?.errors?.['maxlength']">Username must be at most 32 characters</small>
+          <small *ngIf="usernameControl?.errors?.['pattern']">Use letters, numbers and underscores only</small>
         </div>
       </div>
       
@@ -69,6 +71,7 @@
         <div *ngIf="passwordControl?.invalid && (passwordControl?.touched || formSubmitted)" class="error-message">
           <small *ngIf="passwordControl?.errors?.['required']">Password is required</small>
           <small *ngIf="passwordControl?.errors?.['minlength']">Password must be at least 8 characters</small>
+          <small *ngIf="passwordControl?.errors?.['maxlength']">Password must be at most 72 characters</small>
           <small *ngIf="passwordControl?.errors?.['passwordStrength']">
             Password must include uppercase, lowercase, number, and special character
           </small>

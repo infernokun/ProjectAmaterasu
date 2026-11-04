@@ -45,7 +45,32 @@ docker compose --env-file .env up -d
 
 The web app is on port `8764`. The API listens on `127.0.0.1:8765` (context path `/amaterasu-rest`) and is reached through nginx at `/api`.
 
-On first start the API creates an admin account from `amaterasu.defaultAdminUsername` and `amaterasu.defaultAdminPassword` in `application-local.yml`, and generates the RSA key pair it signs JWTs with into the `amaterasu-rest` volume. Change the admin password after logging in.
+On first start the API creates the `amaterasu_admin` account with the password from `ADMIN_PASSWORD`. If that is blank, a random password is generated and printed once in the API log:
+
+```bash
+docker compose logs amaterasu-rest | grep "generated password"
+```
+
+It also generates the RSA key pair it signs JWTs with into the `amaterasu-rest` volume.
+
+## Accounts and access
+
+Every API route except login, registration, token refresh and the health check needs a bearer token. Access tokens last 15 minutes. Refresh tokens are rotated on every use, expire after 7 days idle or 30 days in total, and reusing an old one signs that user out everywhere.
+
+| Role | Can |
+| ---- | --- |
+| `MEMBER` | Join rooms, submit flags, run their own team's labs |
+| `FACILITATOR` | Member access, plus awarding points |
+| `CREATOR` | Member access, plus authoring labs, rooms and challenges |
+| `ADMIN` | Everything, including users, teams and remote servers |
+
+Self registration always creates a `MEMBER`. Repeated failed logins are throttled per username and per client address.
+
+| Endpoint | Who | Does |
+| -------- | --- | ---- |
+| `POST /api/auth/password` | Any user | Changes their own password and signs out their other sessions |
+| `PUT /api/user/{id}/password` | Admin | Sets a user's password and signs them out |
+| `PUT /api/user/{id}/disabled` | Admin | Disables or re-enables an account; a disabled user is rejected on the next request |
 
 ## Lab lifecycle
 
@@ -93,6 +118,8 @@ Every compose setting has a default; see [`.env.example`](.env.example) for the 
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `amaterasu` | Database credentials |
 | `REDIS_PASSWORD` | `amaterasu` | Redis password |
 | `ENCRYPTION_KEY` | `secret_key` | Encrypts stored server passwords and API tokens. Change it before adding servers |
+| `ADMIN_PASSWORD` | generated | Password for `amaterasu_admin`, used only when that account is first created |
+| `ALLOWED_ORIGINS` | `*` | Origins allowed to call the API from a browser, comma-separated |
 | `DOCKER_COMPOSE_PATH` | `/var/tmp/amaterasu` | Working directory for lab files on each Docker host |
 | `RSA_PRIVATE_KEY_PATH` / `RSA_PUBLIC_KEY_PATH` | `/var/tmp/amaterasu/*.pem` | JWT keys, generated on first start when missing |
 

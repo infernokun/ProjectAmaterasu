@@ -1,4 +1,4 @@
-import { Component, Input, OnDestroy, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, OnDestroy, OnInit, signal } from '@angular/core';
 import {
   catchError,
   combineLatest,
@@ -33,6 +33,7 @@ import { MatButton } from '@angular/material/button';
 
 @Component({
     selector: 'amaterasu-lab-main',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './lab-main.component.html',
     styleUrl: './lab-main.component.scss',
     animations: [FADE_ANIMATION],

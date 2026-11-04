@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 import { TeamService } from '../../services/team.service';
 import { Team, TeamFormData } from '../../models/team.model';
 import { EditDialogService } from '../../services/edit-dialog.service';
@@ -13,6 +13,7 @@ import { MatIcon } from '@angular/material/icon';
 
 @Component({
     selector: 'amaterasu-teams',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './teams.component.html',
     styleUrl: './teams.component.scss',
     imports: [NgIf, MatFabButton, MatTooltip, MatIcon, NgFor, AsyncPipe]

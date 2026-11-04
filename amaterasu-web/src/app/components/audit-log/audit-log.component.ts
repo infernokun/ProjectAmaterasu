@@ -1,4 +1,4 @@
-import { Component, ElementRef, Input, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Input, ViewChild } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSort, MatSortHeader } from '@angular/material/sort';
 import { MatTableDataSource, MatTable, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow, MatNoDataRow } from '@angular/material/table';
@@ -19,6 +19,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 
 @Component({
     selector: 'amaterasu-audit-log',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './audit-log.component.html',
     styleUrls: ['./audit-log.component.scss'],
     animations: [TABLE_ANIMATION],

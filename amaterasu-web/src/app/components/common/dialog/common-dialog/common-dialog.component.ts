@@ -1,4 +1,4 @@
-import { Component, Inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Inject, signal } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogTitle, MatDialogContent, MatDialogActions } from '@angular/material/dialog';
 import { CodeModel } from '../../monaco-editor/monaco-editor.component';
 import { QuestionBase } from '../../../../models/simple-form-data.model';
@@ -14,6 +14,7 @@ import { MatButton } from '@angular/material/button';
 
 @Component({
     selector: 'amaterasu-common-dialog',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './common-dialog.component.html',
     styleUrls: ['./common-dialog.component.scss'],
     imports: [MatDialogTitle, NgIf, NgFor, MatFormField, MatLabel, MatSelect, ReactiveFormsModule, MatOption, CdkScrollable, MatDialogContent, CodeBlockComponent, MatDialogActions, MatButton]

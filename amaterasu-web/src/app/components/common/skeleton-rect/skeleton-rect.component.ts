@@ -1,7 +1,8 @@
-import { Component, ElementRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef } from '@angular/core';
 
 @Component({
     selector: 'amaterasu-skeleton-rect',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './skeleton-rect.component.html',
     host: {
         class: 'pulse bg-light border-radius',

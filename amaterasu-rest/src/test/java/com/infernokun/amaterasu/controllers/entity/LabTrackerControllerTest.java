@@ -10,6 +10,7 @@ import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.services.entity.lab.LabTrackerService;
+import com.infernokun.amaterasu.components.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +29,7 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -42,6 +44,9 @@ class LabTrackerControllerTest {
     @Mock
     private LabTrackerService labTrackerService;
 
+    @Mock
+    private CurrentUser currentUser;
+
     @InjectMocks
     private LabTrackerController labTrackerController;
 
@@ -52,6 +57,8 @@ class LabTrackerControllerTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(currentUser.id()).thenReturn("user1");
+        lenient().when(currentUser.isAdmin()).thenReturn(true);
         mockMvc = MockMvcBuilders.standaloneSetup(labTrackerController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();

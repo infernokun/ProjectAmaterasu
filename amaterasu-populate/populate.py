@@ -1,16 +1,30 @@
 #!/usr/bin/python3
 
 
+import os
+import sys
+
 import docker_challenge
 import requests
 import room
 
-url = "http://127.0.0.1:8080/amaterasu-rest/api"
-admin_user = "amaterasu_admin"
+url = os.getenv("AMATERASU_URL", "http://127.0.0.1:8080/amaterasu-rest/api")
+admin_user = os.getenv("AMATERASU_USERNAME", "amaterasu_admin")
+session = requests.Session()
+
+
+def login():
+    password = os.getenv("AMATERASU_PASSWORD")
+    if not password:
+        sys.exit("Set AMATERASU_PASSWORD to the admin password")
+    res = session.post(url + "/auth/login", json={"username": admin_user, "password": password})
+    if res.status_code != 200:
+        sys.exit(f"Login failed ({res.status_code}): {res.text}")
+    session.headers["Authorization"] = "Bearer " + res.json()["data"]["accessToken"]
 
 
 def get_admin_user():
-    res = requests.get(url + "/user/by?username=" + admin_user, verify=False)
+    res = session.get(url + "/user/by?username=" + admin_user, verify=False)
 
     return res.json()["data"]
 
@@ -21,12 +35,12 @@ def get_docker_room():
     admin_user = get_admin_user()
     headers = {"Content-Type": "application/json", "Accept": "application/json"}
 
-    res = requests.post(room_endpoint, headers=headers, json=room.get_room(admin_user), verify=False)
+    res = session.post(room_endpoint, headers=headers, json=room.get_room(admin_user), verify=False)
     if res.status_code == 201:
         print("Challenge created successfully.")
     else:
         print(res.json())
-    ##res = requests.get(url + "/room/by?name=Docker%20Room", verify=False)
+    ##res = session.get(url + "/room/by?name=Docker%20Room", verify=False)
 
     return res.json()["data"]
 
@@ -40,7 +54,7 @@ def room_docker():
 
     data = {"name": "Docker Room", "creator": {"id": user["id"]}}
 
-    res = requests.post(room_endpoint, headers=headers, json=data, verify=False)
+    res = session.post(room_endpoint, headers=headers, json=data, verify=False)
 
     return res.json()
 
@@ -62,7 +76,7 @@ def docker_challenges():
 
     # Post each challenge
     for challenge in challenges:
-        res = requests.post(
+        res = session.post(
             challenge_endpoint, headers=headers, json=challenge, verify=False
         )
         if res.status_code == 201:
@@ -70,6 +84,7 @@ def docker_challenges():
         else:
             print(res.json())
 def main():
+    login()
     # room_docker()
     docker_challenges()
 

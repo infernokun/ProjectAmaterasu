@@ -8,6 +8,7 @@ import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -32,6 +33,11 @@ public class User extends StoredObject implements UserDetails {
     @Builder.Default
     private Role role = Role.MEMBER;
     private String displayName;
+    @Builder.Default
+    private Boolean disabled = false;
+    // Access tokens issued before this instant are rejected, so a password change or disable takes effect at once
+    @JsonIgnore
+    private Instant sessionsValidAfter;
     private String avatarUrl;
 
     public User(String username, String password) {
@@ -45,7 +51,7 @@ public class User extends StoredObject implements UserDetails {
         if (this.role == null) {
             return Collections.emptyList();
         }
-        return List.of(new SimpleGrantedAuthority(this.role.getValue()));
+        return List.of(new SimpleGrantedAuthority("ROLE_" + this.role.name()));
     }
 
     @Override
@@ -65,7 +71,7 @@ public class User extends StoredObject implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return UserDetails.super.isEnabled();
+        return !Boolean.TRUE.equals(disabled);
     }
 
     @Override

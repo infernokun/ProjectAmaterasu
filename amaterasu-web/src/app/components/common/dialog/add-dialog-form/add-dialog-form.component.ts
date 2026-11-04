@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   AfterViewInit,
   ChangeDetectorRef,
   Component,
@@ -28,6 +29,7 @@ import { NgFor } from '@angular/common';
 
 @Component({
     selector: 'amaterasu-add-dialog-form',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './add-dialog-form.component.html',
     styleUrls: ['./add-dialog-form.component.scss'],
     imports: [

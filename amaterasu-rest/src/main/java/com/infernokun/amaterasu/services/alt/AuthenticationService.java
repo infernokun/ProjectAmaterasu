@@ -1,11 +1,10 @@
 package com.infernokun.amaterasu.services.alt;
 
 import com.infernokun.amaterasu.exceptions.AuthFailedException;
-import com.infernokun.amaterasu.exceptions.TokenException;
 import com.infernokun.amaterasu.exceptions.WrongPasswordException;
+import com.infernokun.amaterasu.models.entities.alt.ChangePasswordRequest;
 import com.infernokun.amaterasu.models.entities.alt.LoginResponse;
 import com.infernokun.amaterasu.models.entities.alt.RegistrationRequest;
-import com.infernokun.amaterasu.models.entities.RefreshToken;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.enums.Role;
 import com.infernokun.amaterasu.repositories.UserRepository;
@@ -15,40 +14,49 @@ import com.infernokun.amaterasu.services.entity.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.Objects;
-import java.util.Optional;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.regex.Pattern;
+
 
 @Service
 @RequiredArgsConstructor
 public class AuthenticationService extends BaseService {
+    private static final Pattern USERNAME = Pattern.compile("[A-Za-z0-9_.-]{3,32}");
+    private static final int MIN_PASSWORD_LENGTH = 8;
+    // bcrypt only uses the first 72 bytes
+    private static final int MAX_PASSWORD_LENGTH = 72;
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenService refreshTokenService;
     private final UserService userService;
+    private final LoginAttemptService loginAttemptService;
 
-    public boolean registerUser(RegistrationRequest user) {
-        if (user == null || user.getUsername() == null || user.getPassword() == null) {
-            throw new AuthFailedException("Username and password required!");
+    public boolean registerUser(RegistrationRequest request) {
+        if (request == null || request.getUsername() == null || request.getPassword() == null) {
+            throw new IllegalArgumentException("Username and password required");
         }
-
-        if (userService.existsByUsernameIgnoreCase(user.getUsername())) {
+        String username = request.getUsername().trim();
+        if (!USERNAME.matcher(username).matches()) {
+            throw new IllegalArgumentException("Username must be 3 to 32 letters, numbers, dots, dashes or underscores");
+        }
+        validatePassword(request.getPassword());
+        if (userService.existsByUsernameIgnoreCase(username)) {
             throw new AuthFailedException("Username already exists!");
         }
 
-        String encodedPassword = this.passwordEncoder.encode(user.getPassword());
-        user.setPassword(encodedPassword);
-
-        User newUser = new User(user.getUsername(), user.getPassword());
+        // Self-registration always creates a plain member; roles are granted by an admin
+        User newUser = new User(username, passwordEncoder.encode(request.getPassword()));
         newUser.setRole(Role.MEMBER);
-
         userRepository.save(newUser);
 
         LOGGER.info("User registered: {}", newUser.getUsername());
@@ -56,76 +64,83 @@ public class AuthenticationService extends BaseService {
     }
 
     public LoginResponse login(String username, String password, HttpServletRequest request) {
+        String address = request.getRemoteAddr();
+        loginAttemptService.checkAllowed(username, address);
         try {
-            User user = userService.findByUsernameIgnoreCase(username)
-                    .orElseThrow(() -> new BadCredentialsException("Invalid username or password"));
-
-
             Authentication auth = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(username, password)
-            );
+                    new UsernamePasswordAuthenticationToken(username, password));
+            User user = (User) auth.getPrincipal();
+            loginAttemptService.recordSuccess(username);
 
-            User authenticatedUser = (User) auth.getPrincipal();
-
-            Objects.requireNonNull(request, "HttpServletRequest cannot be null");
-            String deviceInfo = Optional.ofNullable(request.getHeader("User-Agent")).orElse("");
-
-            RefreshToken refreshToken = refreshTokenService.createRefreshToken(
-                    authenticatedUser, deviceInfo, request);
-
-            String accessToken = refreshTokenService.generateAccessToken(authenticatedUser);
-
-            return new LoginResponse(accessToken, authenticatedUser, refreshToken.getToken());
-
-        } catch (BadCredentialsException e) {
-            LOGGER.error("LOGIN FAILED: Bad credentials for username: {}", username);
-            throw new WrongPasswordException("Invalid username or password");
+            RefreshTokenService.Tokens tokens = refreshTokenService.issue(user, request);
+            return new LoginResponse(tokens.accessToken(), user, tokens.refreshToken());
         } catch (AuthenticationException e) {
-            LOGGER.error("LOGIN FAILED: Authentication exception for username: {}", username, e);
-            throw new AuthFailedException("Authentication failed");
-        } catch (Exception e) {
-            LOGGER.error("LOGIN FAILED: Unexpected error for username: {}", username, e);
-            throw e;
+            // Same answer for an unknown user and a wrong password
+            loginAttemptService.recordFailure(username, address);
+            LOGGER.warn("Login failed for username {} from {}", username, address);
+            throw new WrongPasswordException("Invalid username or password");
         }
     }
 
-    /**
-     * Refresh access token using refresh token
-     */
-    public LoginResponse refreshToken(String refreshTokenString, HttpServletRequest request) {
-        LOGGER.info("Refreshing token");
-
-        // Validate refresh token and get new access token
-        String newAccessToken = refreshTokenService.refreshAccessToken(refreshTokenString, request);
-
-        // Get refresh token details
-        RefreshToken refreshToken = refreshTokenService.findByToken(refreshTokenString);
-
-        // Check if refresh token needs rotation
-        RefreshToken finalRefreshToken = refreshTokenService.rotateRefreshTokenIfNeeded(refreshToken, request);
-
-        LOGGER.info("Token refreshed for user: {}", refreshToken.getUser().getId());
-
-        return new LoginResponse(newAccessToken, refreshToken.getUser(), finalRefreshToken.getToken());
-    }
-
-    /**
-     * Logout user by revoking refresh token
-     */
-    public void logout(String refreshTokenString) {
-        refreshTokenService.revokeSession(refreshTokenString, "User logout");
-        LOGGER.info("User logged out");
-    }
-
-    /**
-     * Check if refresh token is valid (for client-side validation)
-     */
-    public boolean isRefreshTokenValid(String refreshTokenString) {
-        try {
-            RefreshToken refreshToken = refreshTokenService.findByToken(refreshTokenString);
-            return !refreshToken.isRevoked() && !refreshToken.isExpired();
-        } catch (TokenException e) {
-            return false;
+    /** Changes the caller's password and signs out every other session, keeping this one signed in. */
+    public LoginResponse changePassword(String userId, ChangePasswordRequest change, HttpServletRequest request) {
+        User user = userService.findUserById(userId);
+        if (change == null || change.getCurrentPassword() == null
+                || !passwordEncoder.matches(change.getCurrentPassword(), user.getPassword())) {
+            throw new WrongPasswordException("Current password is incorrect");
         }
+        validatePassword(change.getNewPassword());
+        user.setPassword(passwordEncoder.encode(change.getNewPassword()));
+        invalidateSessions(user);
+
+        RefreshTokenService.Tokens tokens = refreshTokenService.issue(user, request);
+        return new LoginResponse(tokens.accessToken(), user, tokens.refreshToken());
+    }
+
+    public User resetPassword(String userId, String newPassword) {
+        User user = userService.findUserById(userId);
+        validatePassword(newPassword);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        return invalidateSessions(user);
+    }
+
+    public User setDisabled(String userId, boolean disabled, String actingUserId) {
+        if (userId.equals(actingUserId)) {
+            throw new IllegalArgumentException("You cannot disable your own account");
+        }
+        User user = userService.findUserById(userId);
+        user.setDisabled(disabled);
+        return disabled ? invalidateSessions(user) : userRepository.save(user);
+    }
+
+    // Revokes refresh tokens and every access token issued before now
+    private User invalidateSessions(User user) {
+        user.setSessionsValidAfter(Instant.now().truncatedTo(ChronoUnit.SECONDS));
+        User saved = userRepository.save(user);
+        refreshTokenService.revokeAllUserSessions(user.getId(), "Password changed or account disabled");
+        return saved;
+    }
+
+    private static void validatePassword(String password) {
+        int length = password == null ? 0 : password.getBytes(StandardCharsets.UTF_8).length;
+        if (length < MIN_PASSWORD_LENGTH || length > MAX_PASSWORD_LENGTH) {
+            throw new IllegalArgumentException("Password must be " + MIN_PASSWORD_LENGTH + " to "
+                    + MAX_PASSWORD_LENGTH + " characters");
+        }
+    }
+
+    public LoginResponse refreshToken(String refreshToken, HttpServletRequest request) {
+        RefreshTokenService.Tokens tokens = refreshTokenService.refresh(refreshToken, request);
+        return new LoginResponse(tokens.accessToken(), tokens.user(), tokens.refreshToken());
+    }
+
+    public void logout(String refreshToken) {
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            refreshTokenService.revokeSession(refreshToken, "User logout");
+        }
+    }
+
+    public boolean isRefreshTokenValid(String refreshToken) {
+        return refreshToken != null && !refreshToken.isBlank() && refreshTokenService.isValid(refreshToken);
     }
 }

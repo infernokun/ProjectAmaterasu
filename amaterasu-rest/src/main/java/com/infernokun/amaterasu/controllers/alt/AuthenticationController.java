@@ -1,27 +1,34 @@
 package com.infernokun.amaterasu.controllers.alt;
 
+import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.controllers.BaseController;
+import com.infernokun.amaterasu.models.entities.alt.ChangePasswordRequest;
+import com.infernokun.amaterasu.services.alt.LoginAttemptService;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.alt.LoginResponse;
 import com.infernokun.amaterasu.models.entities.alt.RefreshTokenRequest;
 import com.infernokun.amaterasu.models.entities.alt.RegistrationRequest;
 import com.infernokun.amaterasu.services.alt.AuthenticationService;
-import com.infernokun.amaterasu.services.entity.RefreshTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/auth")
 public class AuthenticationController extends BaseController {
     private final AuthenticationService authenticationService;
-    private final RefreshTokenService refreshTokenService;
+    private final LoginAttemptService loginAttemptService;
+    private final CurrentUser currentUser;
 
     @PostMapping(value = "/register", consumes = "application/json")
-    public ResponseEntity<ApiResponse<Boolean>> registerUser(@RequestBody RegistrationRequest registrationRequest) {
+    public ResponseEntity<ApiResponse<Boolean>> registerUser(@RequestBody RegistrationRequest registrationRequest,
+                                                             HttpServletRequest request) {
+        loginAttemptService.throttle("register", request.getRemoteAddr(), 50, Duration.ofMinutes(10));
         return ResponseEntity.ok(ApiResponse.<Boolean>builder()
                 .code(HttpStatus.OK.value())
                 .message("User registered successfully.")
@@ -46,13 +53,11 @@ public class AuthenticationController extends BaseController {
                 .build());
     }
 
-    /**
-     * Refresh access token using refresh token
-     */
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<LoginResponse>> refreshToken(
             @RequestBody RefreshTokenRequest request,
             HttpServletRequest httpRequest) {
+        loginAttemptService.throttle("refresh", httpRequest.getRemoteAddr(), 60, Duration.ofMinutes(1));
 
         LoginResponse response = authenticationService.refreshToken(
                 request.getRefreshToken(), httpRequest);
@@ -64,9 +69,16 @@ public class AuthenticationController extends BaseController {
                 .build());
     }
 
-    /**
-     * Check if refresh token is valid
-     */
+    @PostMapping("/password")
+    public ResponseEntity<ApiResponse<LoginResponse>> changePassword(@RequestBody ChangePasswordRequest change,
+                                                                     HttpServletRequest request) {
+        return ResponseEntity.ok(ApiResponse.<LoginResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("Password changed; other sessions were signed out")
+                .data(authenticationService.changePassword(currentUser.id(), change, request))
+                .build());
+    }
+
     @PostMapping("/refresh/validate")
     public ResponseEntity<ApiResponse<Boolean>> validateRefreshToken(
             @RequestBody RefreshTokenRequest request) {
@@ -80,9 +92,6 @@ public class AuthenticationController extends BaseController {
                 .build());
     }
 
-    /**
-     * Logout user (revoke refresh token)
-     */
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<String>> logout(@RequestBody RefreshTokenRequest request) {
         authenticationService.logout(request.getRefreshToken());

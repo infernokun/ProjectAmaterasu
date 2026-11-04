@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, OnDestroy, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { AuthService } from '../../../services/auth.service';
 import { BehaviorSubject, catchError, Observable, of, take, throwError, Subject } from 'rxjs';
@@ -22,6 +22,7 @@ import { MatButton } from '@angular/material/button';
 
 @Component({
     selector: 'amaterasu-view-dialog',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './view-ctf.component.html',
     styleUrl: './view-ctf.component.scss',
     imports: [NgIf, NgFor, ReactiveFormsModule, FormsModule, MatButton, NgClass, AsyncPipe]

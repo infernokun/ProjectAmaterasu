@@ -163,9 +163,10 @@ export class AuthService implements OnDestroy {
       refreshToken: refreshToken
     };
 
+    // Store first: subscribers start making requests as soon as the user is emitted
+    this.storeTokens(accessToken, refreshToken);
     this.payloadSubject.next(payload);
     this.userSubject.next(user);
-    this.storeTokens(accessToken, refreshToken);
     this.setLoading(false);
   }
 
@@ -385,7 +386,7 @@ export class AuthService implements OnDestroy {
         if (!payload?.accessToken) return false;
         const decodedToken = this.decodeToken(payload.accessToken);
         const roles = decodedToken?.roles || '';
-        return roles.split(' ').includes(`ROLE_${role}`);
+        return roles.split(' ').includes(role);
       })
     );
   }

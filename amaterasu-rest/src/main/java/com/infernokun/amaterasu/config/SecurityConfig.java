@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.config;
 
+import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.utils.RSAKeyProperties;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
@@ -10,10 +11,13 @@ import com.nimbusds.jose.proc.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -21,50 +25,115 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
+import java.io.IOException;
+
+import static com.infernokun.amaterasu.models.enums.Role.ADMIN;
+import static com.infernokun.amaterasu.models.enums.Role.CREATOR;
+import static com.infernokun.amaterasu.models.enums.Role.FACILITATOR;
+
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+    public static final String TOKEN_ISSUER = "amaterasu";
+
     private final RSAKeyProperties keys;
+    private final UserRepository userRepository;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        //http.requiresChannel(channel -> channel.anyRequest().requiresSecure());
-        http
-                .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(auth -> {
-                    auth
-                            .requestMatchers("/**").permitAll()
-                            .requestMatchers("/api/application-info").permitAll()
-                            .requestMatchers("/api/auth/**").permitAll()
-                            .requestMatchers("/api/**", "/socket/**").permitAll();
-                    //auth.requestMatchers("/user/**", "/answer/**", "/room/**").permitAll(); //.hasAnyRole("ADMIN", "USER","MEMBER", "Member");
-                    auth.anyRequest().authenticated();
-                });
+        String admin = ADMIN.name();
+        String[] authors = {ADMIN.name(), CREATOR.name()};
 
-        http.oauth2ResourceServer(oauth2 -> {
-            oauth2.jwt(Customizer.withDefaults());
-            oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(this.jwtAuthenticationConverter()));
-        });
+        // Bearer tokens only, no cookies or sessions, so CSRF protection does not apply
+        http.csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> { })
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // Public
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register", "/api/auth/refresh",
+                                "/api/auth/refresh/validate", "/api/auth/logout").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/application-info").permitAll()
+                        // First-run setup; the controller requires ADMIN once the app is initialized
+                        .requestMatchers(HttpMethod.POST, "/api/application-info").permitAll()
+                        .requestMatchers("/", "/health", "/error", "/actuator/health/**",
+                                "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        // Only sends heartbeats
+                        .requestMatchers("/socket-handler/**").permitAll()
 
-        http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-        //.httpBasic(Customizer.withDefaults())
-        //.formLogin(Customizer.withDefaults())
+                        // Administration
+                        .requestMatchers("/actuator/**").hasRole(admin)
+                        .requestMatchers(HttpMethod.GET, "/api/user").hasRole(admin)
+                        .requestMatchers(HttpMethod.POST, "/api/user", "/api/user/many").hasRole(admin)
+                        .requestMatchers(HttpMethod.PUT, "/api/user/**").hasRole(admin)
+                        .requestMatchers(HttpMethod.DELETE, "/api/user/**").hasRole(admin)
+                        .requestMatchers(HttpMethod.POST, "/api/team", "/api/team/many").hasRole(admin)
+                        .requestMatchers(HttpMethod.PUT, "/api/team/**").hasRole(admin)
+                        .requestMatchers(HttpMethod.DELETE, "/api/team/**").hasRole(admin)
+                        .requestMatchers(HttpMethod.POST, "/api/remote-server", "/api/remote-server/validate").hasRole(admin)
+                        .requestMatchers(HttpMethod.DELETE, "/api/remote-server/**").hasRole(admin)
+                        .requestMatchers(HttpMethod.POST, "/api/remote-server-stats").hasRole(admin)
+                        .requestMatchers(HttpMethod.PUT, "/api/remote-server-stats/**").hasRole(admin)
+                        .requestMatchers(HttpMethod.DELETE, "/api/remote-server-stats/**").hasRole(admin)
+                        .requestMatchers(HttpMethod.POST, "/api/lab-tracker", "/api/lab-tracker/many").hasRole(admin)
+                        .requestMatchers(HttpMethod.PUT, "/api/lab-tracker/**").hasRole(admin)
+                        .requestMatchers(HttpMethod.DELETE, "/api/lab-tracker/**").hasRole(admin)
+                        .requestMatchers("/api/labs/dev", "/api/labs/delete-item/**").hasRole(admin)
+
+                        // Authoring labs, rooms and challenges
+                        .requestMatchers(HttpMethod.POST, "/api/labs", "/api/labs/many", "/api/labs/upload/**",
+                                "/api/labs/validate").hasAnyRole(authors)
+                        .requestMatchers(HttpMethod.PUT, "/api/labs/**").hasAnyRole(authors)
+                        .requestMatchers(HttpMethod.GET, "/api/labs/check/**", "/api/labs/settings/**").hasAnyRole(authors)
+                        .requestMatchers("/api/proxmox/**").hasAnyRole(authors)
+                        .requestMatchers(HttpMethod.POST, "/api/room", "/api/room/many").hasAnyRole(authors)
+                        .requestMatchers(HttpMethod.PUT, "/api/room/**").hasAnyRole(authors)
+                        .requestMatchers(HttpMethod.DELETE, "/api/room/**").hasAnyRole(authors)
+                        .requestMatchers(HttpMethod.POST, "/api/room/add-points/**").hasAnyRole(admin, FACILITATOR.name())
+                        .requestMatchers(HttpMethod.POST, "/api/ctf-entity", "/api/ctf-entity/batch").hasAnyRole(authors)
+                        .requestMatchers(HttpMethod.PUT, "/api/ctf-entity/**").hasAnyRole(authors)
+                        .requestMatchers(HttpMethod.DELETE, "/api/ctf-entity/**").hasAnyRole(authors)
+                        // Raw challenges include their flags; players only get the /by and list DTOs
+                        .requestMatchers(HttpMethod.GET, "/api/ctf-entity", "/api/ctf-entity/by").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/ctf-entity/**").hasAnyRole(authors)
+
+                        .anyRequest().authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                        .authenticationEntryPoint((request, response, e) ->
+                                writeError(response, HttpStatus.UNAUTHORIZED, "Authentication required"))
+                        .accessDeniedHandler((request, response, e) ->
+                                writeError(response, HttpStatus.FORBIDDEN, "Access denied")))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, e) ->
+                                writeError(response, HttpStatus.UNAUTHORIZED, "Authentication required"))
+                        .accessDeniedHandler((request, response, e) ->
+                                writeError(response, HttpStatus.FORBIDDEN, "Access denied")));
+
         return http.build();
+    }
+
+    private static void writeError(jakarta.servlet.http.HttpServletResponse response, HttpStatus status,
+                                   String message) throws IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write("{\"code\":" + status.value() + ",\"message\":\"" + message + "\",\"data\":null}");
     }
 
     @Bean
     public AuthenticationManager authenticationManager(UserDetailsService userDetailsService) {
-        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
-        daoAuthenticationProvider.setUserDetailsService(userDetailsService);
+        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider(userDetailsService);
         daoAuthenticationProvider.setPasswordEncoder(this.passwordEncoder());
         return new ProviderManager(daoAuthenticationProvider);
     }
@@ -76,7 +145,11 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        return NimbusJwtDecoder.withPublicKey(keys.getPublicKey()).build();
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(keys.getPublicKey()).build();
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefaultWithIssuer(TOKEN_ISSUER),
+                new ActiveUserTokenValidator(userRepository)));
+        return decoder;
     }
 
     @Bean
@@ -88,11 +161,11 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        jwtGrantedAuthoritiesConverter.setAuthoritiesClaimName("roles");
-        jwtGrantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
-        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);
-        return jwtAuthenticationConverter;
+        JwtGrantedAuthoritiesConverter authoritiesConverter = new JwtGrantedAuthoritiesConverter();
+        authoritiesConverter.setAuthoritiesClaimName("roles");
+        authoritiesConverter.setAuthorityPrefix("ROLE_");
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
+        return converter;
     }
 }

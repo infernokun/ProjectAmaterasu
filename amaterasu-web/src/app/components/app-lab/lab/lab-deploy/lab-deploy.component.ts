@@ -1,4 +1,4 @@
-import { Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { User } from '../../../../models/user.model';
 import { LabStatus } from '../../../../enums/lab-status.enum';
 import { BehaviorSubject, catchError, finalize, Observable, of, Subject, takeUntil } from 'rxjs';
@@ -32,6 +32,7 @@ import { MatButton } from '@angular/material/button';
 
 @Component({
     selector: 'amaterasu-lab-deploy',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './lab-deploy.component.html',
     styleUrl: './lab-deploy.component.scss',
     animations: [FADE_ANIMATION],

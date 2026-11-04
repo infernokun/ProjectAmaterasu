@@ -89,7 +89,7 @@ export const roleGuard = (requiredRole: string): CanActivateFn => {
               return true;
             } else {
               console.log('Role guard: User lacks required role', requiredRole);
-              router.navigate(['/unauthorized']); // or wherever you want to redirect
+              router.navigate(['/home']);
               return false;
             }
           })

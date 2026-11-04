@@ -46,7 +46,7 @@ services:
     #build: ./amaterasu-rest
     restart: always
     ports:
-      # Loopback only: the API has no authentication yet, and nginx reaches it over the network
+      # Loopback only: nginx reaches the API over the compose network
       - "${REST_BIND:-127.0.0.1}:${REST_PORT:-8765}:8080"
     environment:
       TZ: "UTC"
@@ -59,6 +59,9 @@ services:
       REDIS_HOST: "${REDIS_HOST:-amaterasu-redis}"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-amaterasu}"
       ENCRYPTION_KEY: "${ENCRYPTION_KEY:-secret_key}"
+      # Used once, when the admin account is created; blank generates one and logs it
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-*}"
       RSA_PRIVATE_KEY_PATH: "${RSA_PRIVATE_KEY_PATH:-/var/tmp/amaterasu/private.pem}"
       RSA_PUBLIC_KEY_PATH: "${RSA_PUBLIC_KEY_PATH:-/var/tmp/amaterasu/public.pem}"
     volumes:

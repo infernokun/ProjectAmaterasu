@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, signal, WritableSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, signal, WritableSignal } from '@angular/core';
 import { RoomService } from '../../../services/ctf/room.service';
 import { Subject, of, Observable } from 'rxjs';
 import { ApiResponse } from '../../../models/api-response.model';
@@ -13,6 +13,7 @@ import { BaseChartDirective } from 'ng2-charts';
 
 @Component({
     selector: 'app-player-scoreboard',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './player-scoreboard.component.html',
     styleUrl: './player-scoreboard.component.scss',
     imports: [NgIf, MatProgressSpinner, MatIcon, BaseChartDirective]

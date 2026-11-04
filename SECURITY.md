@@ -1,18 +1,26 @@
 # Security notes
 
-ProjectAmaterasu is still a proof of concept. The items below are known gaps that should be closed before the app is exposed to an untrusted network.
+ProjectAmaterasu is still a proof of concept. Review the items below before exposing it to an untrusted network.
 
-## Open
+## How auth works
 
-1. **API is public.** `SecurityConfig` starts with `requestMatchers("/**").permitAll()`, so JWTs are issued but never required. Only `/api/auth/**`, `/api/application-info` and the socket handshake should be public.
-2. **No role checks.** There is no `@EnableMethodSecurity` or `@PreAuthorize`, and `UserController.createUser` binds `role` from the request body.
-3. **Role claim casing.** `Role` mixes casing (`Creator`, `Facilitator`) and the converter prefixes `ROLE_`, so `hasRole('ADMIN')` style checks will not match until the names are normalized. Fix this before item 2.
-4. **Default admin password.** `application-local.yml` ships `amaterasu_admin` / `password`. Require it from an environment variable instead.
-5. **Refresh tokens.** 90 day sliding expiry, rotation only every 30 days, no reuse detection, and the client IP is read from `X-Forwarded-For`.
-6. **Room endpoints trust path ids.** `add-points/{roomId}/{userId}`, `joinRoom`, `leaveRoom` and `useHint` take the user id from the path instead of the authenticated principal.
-7. **CORS allows every origin** in `WebConfig` and the actuator config.
-8. **Encryption key is not validated.** `ENCRYPTION_KEY` defaults to `secret_key` in compose and has no length check.
-9. **Error bodies include exception messages.** `GlobalExceptionHandler` returns `ex.getMessage()` to the client.
+- Login returns a 15 minute RS256 access token and an opaque refresh token. Refresh tokens are stored as SHA-256 hashes, rotated on every use, and expire after 7 days idle or 30 days in total. Presenting a rotated token again revokes every session for that user.
+- Every request checks that the token's user still exists, is not disabled, and has not had their sessions reset since the token was issued. Changing or resetting a password resets sessions.
+- Routes are restricted by role in `SecurityConfig`. Lab, tracker, room and hint actions use the authenticated user, not ids from the request, and lab actions check that the tracker belongs to the caller's team.
+- Failed logins are throttled per username and per client address. Registration and token refresh are throttled per address. The client address comes from `X-Forwarded-For` only when the request arrives from a trusted proxy.
+- Self registration always creates a `MEMBER`. The admin password comes from `ADMIN_PASSWORD` or is generated and logged once.
+- Raw challenge records, which include flags, are only readable by authors. Actuator exposes only `health` and `info`.
+- Unexpected errors return a generic message with a reference id; the details are only in the server log.
+
+## Known gaps
+
+1. **Tokens are kept in `localStorage`.** An XSS bug in the web app would expose them. The nginx config sends `nosniff` and frame headers but no Content Security Policy yet.
+2. **No email.** There is no email confirmation and no self-service password reset; an admin resets passwords.
+3. **No SSO or MFA.**
+4. **Throttling is in memory.** Counters reset on restart and are not shared if the API is scaled out.
+5. **The websocket handshake is public.** It only carries heartbeats today; anything sensitive sent over it would need auth first.
+6. **`ALLOWED_ORIGINS` defaults to `*`.** The web app is same-origin through nginx, so set it to your own origins if nothing else calls the API from a browser.
+7. **`ENCRYPTION_KEY` is only checked at startup** and a weak value logs a warning rather than refusing to start.
 
 ## Reporting a vulnerability
 
@@ -30,4 +38,4 @@ Only the latest `main` is maintained.
 - The web frontend and its nginx configuration (`amaterasu-web`)
 - The Docker images and `docker-compose.yml`
 
-The open items above are already known and do not need a report.
+The known gaps above do not need a report.

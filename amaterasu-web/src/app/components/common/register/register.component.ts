@@ -1,5 +1,5 @@
 // register.component.ts
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -18,6 +18,7 @@ interface PasswordStrength {
 
 @Component({
     selector: 'amaterasu-register',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './register.component.html',
     styleUrls: ['./register.component.scss'],
     imports: [ReactiveFormsModule, NgIf, MatProgressSpinner]
@@ -25,6 +26,8 @@ interface PasswordStrength {
 export class RegisterComponent implements OnInit, OnDestroy {
   readonly MIN_USERNAME_LENGTH = 3;
   readonly MIN_PASSWORD_LENGTH = 8;
+  readonly MAX_USERNAME_LENGTH = 32;
+  readonly MAX_PASSWORD_LENGTH = 72;
   
   registerForm!: FormGroup;
   busy = false;
@@ -56,12 +59,14 @@ export class RegisterComponent implements OnInit, OnDestroy {
       username: ['', [
         Validators.required, 
         Validators.minLength(this.MIN_USERNAME_LENGTH),
+        Validators.maxLength(this.MAX_USERNAME_LENGTH),
         Validators.pattern(/^[a-zA-Z0-9_]+$/) // alphanumeric and underscore only
       ]],
       email: ['', [Validators.email]],
       password: ['', [
         Validators.required, 
         Validators.minLength(this.MIN_PASSWORD_LENGTH),
+        Validators.maxLength(this.MAX_PASSWORD_LENGTH),
         this.passwordStrengthValidator.bind(this)
       ]],
       confirmPassword: ['', [Validators.required]]

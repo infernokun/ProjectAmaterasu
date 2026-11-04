@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal, WritableSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, OnDestroy, signal, WritableSignal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -25,6 +25,7 @@ interface ScoreboardUser {
 
 @Component({
     selector: 'amaterasu-scoreboard',
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './scoreboard.component.html',
     styleUrl: './scoreboard.component.scss',
     imports: [MatIconButton, MatIcon, MatTooltip, ReactiveFormsModule, NgIf, MatProgressSpinner, BaseChartDirective, NgFor, MatPaginator, MatButton, AsyncPipe, DecimalPipe, DatePipe]

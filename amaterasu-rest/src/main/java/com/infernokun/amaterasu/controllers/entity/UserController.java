@@ -1,5 +1,7 @@
 package com.infernokun.amaterasu.controllers.entity;
 
+import com.infernokun.amaterasu.components.CurrentUser;
+import com.infernokun.amaterasu.services.alt.AuthenticationService;
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.User;
@@ -17,6 +19,8 @@ import java.util.Map;
 @RequestMapping("/api/user")
 public class UserController extends BaseController {
     private final UserService userService;
+    private final AuthenticationService authenticationService;
+    private final CurrentUser currentUser;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
@@ -106,6 +110,25 @@ public class UserController extends BaseController {
                 .data(updatedUser)
                 .build());
 
+    }
+
+    @PutMapping("/{id}/password")
+    public ResponseEntity<ApiResponse<User>> resetPassword(@PathVariable String id, @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(ApiResponse.<User>builder()
+                .code(HttpStatus.OK.value())
+                .message("Password reset; the user's sessions were signed out.")
+                .data(authenticationService.resetPassword(id, body.get("password")))
+                .build());
+    }
+
+    @PutMapping("/{id}/disabled")
+    public ResponseEntity<ApiResponse<User>> setDisabled(@PathVariable String id, @RequestBody Map<String, Boolean> body) {
+        boolean disabled = Boolean.TRUE.equals(body.get("disabled"));
+        return ResponseEntity.ok(ApiResponse.<User>builder()
+                .code(HttpStatus.OK.value())
+                .message(disabled ? "User disabled." : "User enabled.")
+                .data(authenticationService.setDisabled(id, disabled, currentUser.id()))
+                .build());
     }
 
     @PutMapping("/team")

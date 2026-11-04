@@ -1,5 +1,7 @@
 package com.infernokun.amaterasu.controllers.entity.ctf;
 
+import com.infernokun.amaterasu.components.CurrentUser;
+
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.ctf.*;
 import com.infernokun.amaterasu.models.entities.ctf.dto.*;
@@ -26,6 +28,7 @@ public class CTFEntityController {
     private final ModelMapper modelMapper;
     private final RoomService roomService;
     private final HintService hintService;
+    private final CurrentUser currentUser;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<CTFEntityResponse>>> getAllCTFEntities() {
@@ -151,6 +154,7 @@ public class CTFEntityController {
             @RequestParam String userId,
             @RequestParam String ctfEntityId) {
 
+        currentUser.requireSelfOrAdmin(userId);
         CTFEntityHintResponse response = hintService.useHint(hintId, roomId, userId, ctfEntityId);
         return buildSuccessResponse("Hint used successfully", response, HttpStatus.OK);
     }
