@@ -141,7 +141,8 @@ public class AuthenticationService extends BaseService {
         User user = userService.findUserById(userId);
         if (change == null || change.getCurrentPassword() == null
                 || !passwordEncoder.matches(change.getCurrentPassword(), user.getPassword())) {
-            throw new WrongPasswordException("Current password is incorrect");
+            // 400, not 401: the caller is signed in, and a 401 would make the web app refresh and sign out
+            throw new IllegalArgumentException("Your current password is not correct.");
         }
         validatePassword(change.getNewPassword());
         user.setPassword(passwordEncoder.encode(change.getNewPassword()));
