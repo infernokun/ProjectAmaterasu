@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.services.cron;
 
+import com.infernokun.amaterasu.components.LabActionGuard;
 import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.enums.LabStatus;
@@ -19,10 +20,13 @@ import java.util.stream.Collectors;
 public class ProxmoxLabStatsService extends BaseService {
     private final ProxmoxService proxmoxService;
     private final LabTrackerService labTrackerService;
+    private final LabActionGuard labActionGuard;
 
-    public ProxmoxLabStatsService(ProxmoxService proxmoxService, LabTrackerService labTrackerService) {
+    public ProxmoxLabStatsService(ProxmoxService proxmoxService, LabTrackerService labTrackerService,
+                                  LabActionGuard labActionGuard) {
         this.proxmoxService = proxmoxService;
         this.labTrackerService = labTrackerService;
+        this.labActionGuard = labActionGuard;
     }
 
     @Scheduled(cron = "0 * * * * *")
@@ -33,16 +37,22 @@ public class ProxmoxLabStatsService extends BaseService {
 
         labTrackers.forEach(labTracker -> {
             // Only poll VM labs on Proxmox servers
-            if (labTracker.getLabStarted().getLabType() != LabType.VIRTUAL_MACHINE || labTracker.getRemoteServer().getServerType() != ServerType.PROXMOX) return;
-            List<ProxmoxVM> vms = proxmoxService.getVMsByIds(
-                    labTracker.getRemoteServer(),
-                    labTracker.getVms().stream().map(ProxmoxVM::getVmid).collect(Collectors.toList())
-            );
-
-            LOGGER.info("Lab Tracker {} w/ lab {} for {} updated!", labTracker.getId(), labTracker.getLabStarted().getName(), labTracker.getLabOwner().getName());
-            labTracker.setVms(vms);
-
-            labTrackerService.updateLabTracker(labTracker);
+            if (labTracker.getLabStarted().getLabType() != LabType.VIRTUAL_MACHINE || labTracker.getRemoteServer() == null
+                    || labTracker.getRemoteServer().getServerType() != ServerType.PROXMOX) return;
+            if (labActionGuard.isBusy(labTracker.getId())) return;
+            try {
+                List<ProxmoxVM> vms = proxmoxService.getVMsByIds(
+                        labTracker.getRemoteServer(),
+                        labTracker.getVms().stream().map(ProxmoxVM::getVmid).collect(Collectors.toList()));
+                boolean missing = vms.size() != labTracker.getVms().size();
+                if (missing) {
+                    LOGGER.warn("Lab tracker {} is missing {} VM(s)", labTracker.getId(), labTracker.getVms().size() - vms.size());
+                }
+                labTrackerService.updateVmsIfStatus(labTracker, missing ? labTracker.getVms() : vms,
+                        missing ? LabStatus.DEGRADED : LabStatus.ACTIVE, LabStatus.ACTIVE);
+            } catch (Exception e) {
+                LOGGER.error("Could not refresh VMs for lab tracker {}: {}", labTracker.getId(), e.getMessage());
+            }
         });
     }
 }

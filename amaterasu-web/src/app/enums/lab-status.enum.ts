@@ -7,6 +7,7 @@ export enum LabStatus {
   OFFLINE = "OFFLINE",
   DELETED = "DELETED",
   STOPPED = "STOPPED",
+  PAUSED = "PAUSED",
   RETIRED = "RETIRED",
   FAILED = "FAILED",
   DEGRADED = "DEGRADED",

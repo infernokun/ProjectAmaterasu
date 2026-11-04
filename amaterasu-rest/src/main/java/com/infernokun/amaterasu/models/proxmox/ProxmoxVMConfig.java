@@ -20,7 +20,7 @@ public class ProxmoxVMConfig {
 
     @JsonAnySetter
     public void setDynamicProperties(String key, Object value) {
-        if (key.startsWith("net")) {
+        if (value != null && key.matches("net\\d+")) {
             networks.put(key, value.toString());
         }
     }

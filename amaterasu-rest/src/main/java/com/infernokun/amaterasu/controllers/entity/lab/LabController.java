@@ -171,6 +171,21 @@ public class LabController extends BaseController {
                         .build());
     }
 
+    @PostMapping("/pause")
+    public ResponseEntity<ApiResponse<LabActionResult>> pauseLab(@RequestBody LabActionRequest labRequest) {
+        RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
+
+        LabActionResult pausedLab = labService.pauseLab(
+                labRequest.getLabId(), labRequest.getUserId(), labRequest.getLabTrackerId(), remoteServer);
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.<LabActionResult>builder()
+                        .code(HttpStatus.OK.value())
+                        .message(pausedLab.isSuccessful() ? "Lab paused successfully." : "Lab failed to pause.")
+                        .data(pausedLab)
+                        .build());
+    }
+
     @PostMapping("/stop")
     public ResponseEntity<ApiResponse<LabActionResult>> stopLab(@RequestBody LabActionRequest labRequest) {
         RemoteServer remoteServer = remoteServerService.findServerById(labRequest.getRemoteServerId());
@@ -181,7 +196,7 @@ public class LabController extends BaseController {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabActionResult>builder()
                         .code(HttpStatus.OK.value())
-                        .message("Lab stopped successfully.")
+                        .message(stoppedLab.isSuccessful() ? "Lab stopped successfully." : "Lab failed to stop.")
                         .data(stoppedLab)
                         .build());
     }
@@ -196,7 +211,7 @@ public class LabController extends BaseController {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabActionResult>builder()
                         .code(HttpStatus.OK.value())
-                        .message("Lab deleted successfully.")
+                        .message(deletedLab.isSuccessful() ? "Lab deleted successfully." : "Lab failed to delete.")
                         .data(deletedLab)
                         .build());
     }
@@ -212,7 +227,7 @@ public class LabController extends BaseController {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.<LabTracker>builder()
                         .code(HttpStatus.OK.value())
-                        .message("Lab deleted successfully.")
+                        .message("Lab removed from team.")
                         .data(deletedLab)
                         .build());
     }

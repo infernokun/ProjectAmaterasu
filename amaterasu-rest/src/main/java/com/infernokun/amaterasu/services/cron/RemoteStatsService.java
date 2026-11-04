@@ -118,15 +118,6 @@ public class RemoteStatsService extends BaseService {
                 uploadScriptToServer(dockerServer, scriptRemotePath, remoteDir);
             }
 
-            // Execute the remote command and get the output
-            RemoteCommandResponse produceStatsCmd = remoteCommandService.handleRemoteCommand(
-                    scriptRemotePath, dockerServer);
-
-            if (!produceStatsCmd.isSuccess()) {
-                updateServerStats(dockerServer, null);
-                return;
-            }
-
             Optional<RemoteServerStats> stats = executeStatsScriptAndParse(dockerServer, scriptRemotePath);
             updateServerStats(dockerServer, stats.orElse(null));
         } catch (Exception e) {
@@ -144,7 +135,7 @@ public class RemoteStatsService extends BaseService {
         }
 
         try {
-            String jsonOutput = response.getBoth();
+            String jsonOutput = response.getOutput();
             return Optional.of(objectMapper.readValue(jsonOutput, RemoteServerStats.class));
         } catch (JsonProcessingException e) {
             LOGGER.error("Failed to parse stats JSON from server {}: {}", server.getId(), e.getMessage(), e);

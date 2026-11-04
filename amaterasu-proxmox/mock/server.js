@@ -3,213 +3,238 @@ const fs = require("fs");
 const path = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
-const app = express();
 
-const hostname = "127.0.0.1";
-const port = 8006;
+// Stateful Proxmox VE API mock: long running calls return a task UPID that finishes
+// after TASK_MS, clones stay locked until then, and running VMs cannot be destroyed.
+
+const hostname = process.env.MOCK_HOST || "127.0.0.1";
+const port = Number(process.env.MOCK_PORT || 8006);
+const TASK_MS = Number(process.env.MOCK_TASK_MS || 3000);
 
 const sslOptions = {
   key: fs.readFileSync(path.join(__dirname, "ssl", "key.pem")),
   cert: fs.readFileSync(path.join(__dirname, "ssl", "cert.pem")),
 };
 
+const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 const version = require("./data/version.json");
 const nodes = require("./data/nodes.json");
 const nodeDetails = require("./data/nodeDetails.json");
-const vms = require("./data/vms.json");
-const vmDetails = require("./data/vmDetails.json");
 const storage = require("./data/storage.json");
 const tickets = require("./data/tickets.json");
-const networkInterfaces = require("./data/networkInterfaces.json");
-const vmConfigs = require("./data/vmConfigs.json");
-let clonedVMs = require("./data/clonedVMs.json");
 
-// Version endpoint
-app.get("/api2/json/version", (req, res) => {
-  console.log("Version request headers:", req.headers);
-  res.json(version);
-});
+const vms = new Map();
+const configs = new Map();
+const tasks = new Map();
+let networks = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "networkInterfaces.json"))).data;
+let pendingNetworks = null;
 
-// Authentication endpoint
-app.post("/api2/json/access/ticket", (req, res) => {
-  console.log("Auth request:", req.body);
-  res.json(tickets);
-});
+function randomMac() {
+  const hex = () => Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
+  return `52:54:00:${hex()}:${hex()}:${hex()}`;
+}
 
-// Nodes listing
-app.get("/api2/json/nodes", (req, res) => {
-  console.log("Nodes request headers:", req.headers);
-  res.json(nodes);
-});
-
-// Node details
-app.get("/api2/json/nodes/:node", (req, res) => {
-  const node = req.params.node;
-  console.log(`Node ${node} details request`);
-
-  // You can customize the response based on the node parameter
-  const customResponse = JSON.parse(JSON.stringify(nodeDetails));
-  customResponse.data.node = node;
-
-  res.json(customResponse);
-});
-
-// VMs listing for a node
-app.get("/api2/json/nodes/:node/qemu", (req, res) => {
-  const requestedNode = req.params.node;
-  console.log(`${req.originalUrl}: VMs for node ${requestedNode} request`);
-
-  const fileData = fs.readFileSync('./data/clonedVMs.json', 'utf-8');
-
-  const customResponse = JSON.parse(fileData);
-
-  if (customResponse.data && Array.isArray(customResponse.data)) {
-    customResponse.data = customResponse.data.filter((vm) => {
-      if (vm.node === requestedNode) {
-        return true;
-      }
-      return false;
-    });
+for (const vm of require("./data/vms.json").data) {
+  vms.set(vm.vmid, { ...vm, status: vm.template ? "stopped" : vm.status });
+  const config = { name: vm.name, agent: "0" };
+  config.net0 = `virtio=${randomMac()},bridge=vmbr0,firewall=1`;
+  if (vm.vmid === 9000 || vm.vmid === 9002) {
+    config.net1 = `virtio=${randomMac()},bridge=vmbr1,firewall=1`;
   }
+  if (vm.vmid === 9001) {
+    config.net0 = `virtio=${randomMac()},bridge=vmbr1,firewall=1`;
+  }
+  configs.set(vm.vmid, config);
+}
 
-  res.status(200).json(customResponse);
+function error(res, status, message) {
+  res.status(status).json({ data: null, message, errors: { message } });
+}
+
+function startTask(node, type, vmid, action) {
+  const upid = `UPID:${node}:${Date.now().toString(16)}:${Math.floor(Math.random() * 1e6)}:${type}:${vmid}:root@pam:`;
+  tasks.set(upid, { status: "running", exitstatus: null, type, id: String(vmid) });
+  setTimeout(() => {
+    let exitstatus = "OK";
+    try {
+      action();
+    } catch (e) {
+      exitstatus = e.message;
+    }
+    tasks.set(upid, { status: "stopped", exitstatus, type, id: String(vmid) });
+  }, TASK_MS);
+  return upid;
+}
+
+function getVm(req, res) {
+  const vmid = Number(req.params.vmid);
+  const vm = vms.get(vmid);
+  if (!vm || vm.node !== req.params.node) {
+    error(res, 500, `Configuration file 'nodes/${req.params.node}/qemu-server/${vmid}.conf' does not exist`);
+    return null;
+  }
+  return vm;
+}
+
+function requireUnlocked(vm, res) {
+  if (vm.lock) {
+    error(res, 500, `VM is locked (${vm.lock})`);
+    return false;
+  }
+  return true;
+}
+
+app.get("/api2/json/version", (req, res) => res.json(version));
+app.post("/api2/json/access/ticket", (req, res) => res.json(tickets));
+app.get("/api2/json/nodes", (req, res) => res.json(nodes));
+app.get("/api2/json/storage", (req, res) => res.json(storage));
+
+app.get("/api2/json/nodes/:node", (req, res) => {
+  const response = JSON.parse(JSON.stringify(nodeDetails));
+  response.data.node = req.params.node;
+  res.json(response);
 });
 
-// VM details
+app.get("/api2/json/cluster/nextid", (req, res) => {
+  let id = 100;
+  while (vms.has(id)) id++;
+  res.json({ data: String(id) });
+});
+
+app.get("/api2/json/nodes/:node/tasks/:upid/status", (req, res) => {
+  const task = tasks.get(req.params.upid);
+  if (!task) return error(res, 500, "no such task");
+  res.json({ data: { upid: req.params.upid, node: req.params.node, ...task } });
+});
+
+app.get("/api2/json/nodes/:node/qemu", (req, res) => {
+  res.json({ data: [...vms.values()].filter((vm) => vm.node === req.params.node) });
+});
+
 app.get("/api2/json/nodes/:node/qemu/:vmid/status/current", (req, res) => {
-  const { node, vmid } = req.params;
-  console.log(`VM ${vmid} on node ${node} details request`);
-
-  // Customize response based on parameters
-  const customResponse = JSON.parse(JSON.stringify(vmDetails));
-  customResponse.data.node = node;
-  customResponse.data.vmid = parseInt(vmid);
-
-  res.json(customResponse);
+  const vm = getVm(req, res);
+  if (vm) res.json({ data: vm });
 });
-
 
 app.get("/api2/json/nodes/:node/qemu/:vmid/config", (req, res) => {
-  const { node, vmid } = req.params;
-  console.log(`CONFIG get ${node} for ${vmid} requested`);
-
-  const vmConfigsJSON = JSON.parse(JSON.stringify(vmConfigs));
-
-  console.log(vmConfigsJSON[0]);
-
-  res.status(200).json(JSON.parse(JSON.stringify(vmConfigsJSON[0])));
+  const vm = getVm(req, res);
+  if (vm) res.json({ data: { ...configs.get(vm.vmid), ...(vm.lock ? { lock: vm.lock } : {}) } });
 });
 
-// Network interfaces for a node
-app.get("/api2/json/nodes/:node/network", (req, res) => {
-  const { node } = req.params;
-  console.log(`Network interfaces for node ${node} requested`);
-
-
-  res.json(JSON.parse(JSON.stringify(networkInterfaces)));
-});
-
-app.post("/api2/json/nodes/:node/network", (req, res) => {
-  const { node } = req.params;
-  console.log(`Network interfaces POST node ${node} requested`);
-
-  res.status(200).send();
-});
-
-
-app.put("/api2/json/nodes/:node/network", (req, res) => {
-  const { node } = req.params;
-  console.log(`Network interfaces PUT node ${node} requested`);
-
-  res.status(200).send();
-});
+function updateConfig(req, res) {
+  const vm = getVm(req, res);
+  if (!vm || !requireUnlocked(vm, res)) return;
+  const config = configs.get(vm.vmid);
+  const { delete: toDelete, node, ...changes } = req.body || {};
+  for (const [key, value] of Object.entries(changes)) {
+    if (/^net\d+$/.test(key)) {
+      const bridge = /bridge=([^,]+)/.exec(String(value));
+      const known = networks.some((n) => n.iface === (bridge && bridge[1]));
+      if (bridge && !known) return error(res, 400, `bridge '${bridge[1]}' does not exist`);
+    }
+    config[key] = String(value);
+  }
+  if (toDelete) String(toDelete).split(",").forEach((key) => delete config[key.trim()]);
+  res.json({ data: null });
+}
+app.post("/api2/json/nodes/:node/qemu/:vmid/config", updateConfig);
+app.put("/api2/json/nodes/:node/qemu/:vmid/config", updateConfig);
 
 app.post("/api2/json/nodes/:node/qemu/:vmid/clone", (req, res) => {
-  const { node, vmid } = req.params;
-  const { name, newid, description } = req.body;
+  const source = getVm(req, res);
+  if (!source || !requireUnlocked(source, res)) return;
+  const newid = Number(req.body.newid);
+  if (!newid || vms.has(newid)) return error(res, 500, `unable to create VM ${newid}: config file already exists`);
 
-  const theVMs = JSON.parse(JSON.stringify(vms)).data;
-
-  var theVM = theVMs.find(vm => vm.vmid == vmid);
-  if (theVM) {
-    theVM.vmid = newid;
-    theVM.description = description;
+  const clone = {
+    ...source,
+    vmid: newid,
+    name: req.body.name || `${source.name}-clone`,
+    description: req.body.description,
+    template: 0,
+    status: "stopped",
+    uptime: 0,
+    lock: "clone",
+  };
+  vms.set(newid, clone);
+  const config = { ...configs.get(source.vmid), name: clone.name };
+  for (const key of Object.keys(config)) {
+    if (/^net\d+$/.test(key)) config[key] = config[key].replace(/=([0-9A-Fa-f:]{17})/, `=${randomMac()}`);
   }
+  configs.set(newid, config);
 
-  console.log(`the new vm ${theVM.name} and id = ${theVM.vmid}`)
-
-  clonedVMs.data.push(theVM);
-
-  fs.writeFileSync('./data/clonedVMs.json', JSON.stringify(clonedVMs, null, 2));
-  res.status(200).send();
+  res.json({ data: startTask(req.params.node, "qmclone", source.vmid, () => delete clone.lock) });
 });
 
-app.post("/api2/json/nodes/:node/qemu/:vmid/status/start", (req, res) => {
-  const { node, vmid } = req.params;
-  console.log(`POST start ${node} for ${vmid} requested`);
+function statusAction(type, check, finalStatus) {
+  return (req, res) => {
+    const vm = getVm(req, res);
+    if (!vm || !requireUnlocked(vm, res)) return;
+    const problem = check(vm);
+    if (problem) return error(res, 500, problem);
+    res.json({
+      data: startTask(req.params.node, type, vm.vmid, () => {
+        vm.status = finalStatus;
+        vm.uptime = finalStatus === "running" ? 1 : 0;
+      }),
+    });
+  };
+}
 
-  res.status(200).send();
-});
-
-app.post("/api2/json/nodes/:node/qemu/:vmid/status/stop", (req, res) => {
-  const { node, vmid } = req.params;
-  console.log(`POST stop ${node} for ${vmid} requested`);
-  
-  const fileData = fs.readFileSync('./data/clonedVMs.json', 'utf-8');
-  const theVMs = JSON.parse(fileData);
-  
-  // Find and update VM in the main array
-  if (Array.isArray(theVMs.data)) {
-    // If theVMs.data is the array of VMs
-    const theVM = theVMs.data.find(vm => vm.vmid == vmid);
-    if (theVM) {
-      theVM.status = "stopped";
-      console.log(`VM ${vmid} status updated to stopped`);
-      fs.writeFileSync('./data/clonedVMs.json', JSON.stringify(theVMs, null, 2));
-    } else {
-      console.log(`VM ${vmid} not found in data array`);
-    }
-  } else {
-    console.log("woops")
-  }  
-  setTimeout(() => {
-    res.status(200).send();
-  }, 4000)
-});
+app.post("/api2/json/nodes/:node/qemu/:vmid/status/start",
+  statusAction("qmstart", (vm) => (vm.template ? "you can't start a vm if it's a template" : null), "running"));
+app.post("/api2/json/nodes/:node/qemu/:vmid/status/stop", statusAction("qmstop", () => null, "stopped"));
+app.post("/api2/json/nodes/:node/qemu/:vmid/status/shutdown",
+  statusAction("qmshutdown", (vm) => (vm.status !== "running" ? `VM ${vm.vmid} not running` : null), "stopped"));
 
 app.delete("/api2/json/nodes/:node/qemu/:vmid", (req, res) => {
-  const { node, vmid } = req.params;
-  console.log(`DELETE delete ${node} for ${vmid} requested`);
-
-  res.status(200).send();
+  const vm = getVm(req, res);
+  if (!vm || !requireUnlocked(vm, res)) return;
+  if (vm.status === "running") return error(res, 500, `VM ${vm.vmid} is running - destroy failed`);
+  vm.lock = "destroyed";
+  res.json({
+    data: startTask(req.params.node, "qmdestroy", vm.vmid, () => {
+      vms.delete(vm.vmid);
+      configs.delete(vm.vmid);
+    }),
+  });
 });
 
-// Storage endpoints
-app.get("/api2/json/storage", (req, res) => {
-  console.log("Storage request");
-  res.json(storage);
+app.get("/api2/json/nodes/:node/network", (req, res) => res.json({ data: networks }));
+
+app.post("/api2/json/nodes/:node/network", (req, res) => {
+  const { iface, type } = req.body;
+  const target = pendingNetworks || (pendingNetworks = JSON.parse(JSON.stringify(networks)));
+  if (target.some((n) => n.iface === iface)) return error(res, 400, `interface '${iface}' already exists`);
+  target.push({ iface, type, active: 0, autostart: Number(req.body.autostart || 0), families: [] });
+  res.json({ data: null });
 });
 
-// Root route
-app.get("/", (req, res) => {
-  res.send("Proxmox VE API Mock Server");
+app.delete("/api2/json/nodes/:node/network/:iface", (req, res) => {
+  const target = pendingNetworks || (pendingNetworks = JSON.parse(JSON.stringify(networks)));
+  if (!target.some((n) => n.iface === req.params.iface)) return error(res, 400, `interface '${req.params.iface}' does not exist`);
+  pendingNetworks = target.filter((n) => n.iface !== req.params.iface);
+  res.json({ data: null });
 });
 
-// Catch-all route - Fixed pattern
+app.put("/api2/json/nodes/:node/network", (req, res) => {
+  if (pendingNetworks) {
+    networks = pendingNetworks.map((n) => ({ ...n, active: 1 }));
+    pendingNetworks = null;
+  }
+  res.json({ data: startTask(req.params.node, "srvreload", "networking", () => {}) });
+});
+
+app.get("/", (req, res) => res.send("Proxmox VE API Mock Server"));
+
 app.all("/{*any}", (req, res) => {
   console.log(`Unhandled request: ${req.method} ${req.path}`);
   res.status(501).send("API endpoint not implemented in mock");
 });
 
-// Create HTTPS server
-const server = https.createServer(sslOptions, app);
-
-// Start the server
-server.listen(port, hostname, () => {
-  console.log(
-    `Proxmox API Mock HTTPS Server running at https://${hostname}:${port}/`
-  );
+https.createServer(sslOptions, app).listen(port, hostname, () => {
+  console.log(`Proxmox API Mock HTTPS Server running at https://${hostname}:${port}/`);
 });

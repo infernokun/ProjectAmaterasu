@@ -80,14 +80,15 @@
           Querying
         </button>
 
-        <!-- Redeploy button -->
+        <!-- Start a fresh copy, or resume a paused lab -->
         <button mat-flat-button class="action-btn start" (click)="redeployLab(labTracker)"
           [disabled]="!labTracker.labStarted?.ready" *ngIf="!isLabLoading(labTracker.id) && 
               (labTracker.labStatus === 'STOPPED' || 
                labTracker.labStatus === 'NONE' || 
-               labTracker.labStatus === 'FAILED')">
+               labTracker.labStatus === 'FAILED' ||
+               labTracker.labStatus === 'PAUSED')">
           <mat-icon>play_arrow</mat-icon>
-          Start
+          {{ labTracker.labStatus === 'PAUSED' ? 'Resume' : 'Start' }}
         </button>
 
         <!-- Settings button -->
@@ -98,7 +99,7 @@
         </button>
 
         <!-- Logs button -->
-        <ng-container *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus !== 'STOPPED'">
+        <ng-container *ngIf="!isLabLoading(labTracker.id) && labTracker.labStatus !== 'STOPPED' && labTracker.labStatus !== 'PAUSED'">
           <button mat-flat-button class="action-btn logs" (click)="getLogs(labTracker)" *ngIf="!isLabLoading(labTracker.id) && 
               labTracker.labStarted?.labType === LabType.DOCKER_COMPOSE">
             <mat-icon>description</mat-icon>
@@ -109,7 +110,17 @@
         <!-- Active lab buttons -->
         <ng-container
           *ngIf="!isLabLoading(labTracker.id) && (labTracker.labStatus === 'ACTIVE' || labTracker.labStatus === 'DEGRADED')">
-          <button mat-flat-button class="action-btn stop" (click)="stopLab(labTracker)">
+          <button mat-flat-button class="action-btn pause" (click)="pauseLab(labTracker)"
+            matTooltip="Bring the lab down and keep its progress">
+            <mat-icon>pause</mat-icon>
+            Pause
+          </button>
+        </ng-container>
+
+        <ng-container
+          *ngIf="!isLabLoading(labTracker.id) && (labTracker.labStatus === 'ACTIVE' || labTracker.labStatus === 'DEGRADED' || labTracker.labStatus === 'PAUSED')">
+          <button mat-flat-button class="action-btn stop" (click)="stopLab(labTracker)"
+            matTooltip="Remove the lab; the next start is a fresh copy">
             <mat-icon>stop</mat-icon>
             Stop
           </button>
@@ -123,7 +134,7 @@
         </button>
 
         <!-- Stopped state buttons -->
-        <ng-container *ngIf="!isLabLoading(labTracker.id) && (labTracker.labStatus === 'STOPPED' || labTracker.labStatus === 'FAILED')">
+        <ng-container *ngIf="!isLabLoading(labTracker.id) && (labTracker.labStatus === 'STOPPED' || labTracker.labStatus === 'FAILED' || labTracker.labStatus === 'PAUSED')">
           <button mat-flat-button class="action-btn delete" (click)="deleteLab(labTracker)">
             <mat-icon>delete</mat-icon>
             Delete

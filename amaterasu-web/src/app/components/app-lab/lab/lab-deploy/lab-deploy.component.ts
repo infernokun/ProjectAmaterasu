@@ -225,9 +225,21 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       });
   }
 
+  pauseLab(labTracker: LabTracker): void {
+    this.runTrackerAction(labTracker, 'Lab Pause', (request) => this.labService.pauseLab(request));
+  }
+
   stopLab(labTracker: LabTracker): void {
+    this.runTrackerAction(labTracker, 'Lab Stop', (request) => this.labService.stopLab(request));
+  }
+
+  private runTrackerAction(
+    labTracker: LabTracker,
+    title: string,
+    action: (request: LabRequest) => Observable<ApiResponse<LabActionResult>>
+  ): void {
     if (!labTracker.id || !labTracker.labStarted?.id) {
-      console.error('Cannot stop lab without required IDs');
+      console.error(`${title}: missing lab tracker or lab id`);
       return;
     }
 
@@ -241,12 +253,12 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       remoteServerId: labTracker.remoteServer?.id,
     };
 
-    this.labService.stopLab(labRequest)
+    action(labRequest)
       .pipe(
         takeUntil(this.destroy$),
         catchError((err: HttpErrorResponse) => {
-          console.error(`Failed to stop lab ${labTracker.labStarted?.id}:`, err);
-          return of({ code: 404, data: {}, message: 'Failed to stop lab' });
+          console.error(`${title} failed for ${labTracker.labStarted?.id}:`, err);
+          return of({ code: 500, data: undefined as unknown as LabActionResult, message: `${title} failed` });
         }),
         finalize(() => {
           if (labTracker.id) {
@@ -258,11 +270,11 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       .subscribe((response: ApiResponse<LabActionResult>) => {
         if (!response.data) return;
 
-        const stoppedLabTracker = new LabTracker(response.data.labTracker);
-        this.updateLabTrackerInArray(labTracker, stoppedLabTracker);
+        const updatedLabTracker = new LabTracker(response.data.labTracker);
+        this.updateLabTrackerInArray(labTracker, updatedLabTracker);
 
         if (response.data.output) {
-          this.showOutputDialog('Lab Stop', response.data.output, 'bash');
+          this.showOutputDialog(title, response.data.output, 'bash');
         }
       });
   }
@@ -301,10 +313,15 @@ export class LabDeployComponent implements OnInit, OnDestroy {
       .subscribe((response: ApiResponse<LabActionResult>) => {
         if (!response.data || response.code >= 400) return;
 
-        console.error('Lab deletion response:', response);
-
         if (response.data.output) {
           this.showOutputDialog('Lab Delete', response.data.output, 'bash');
+        }
+
+        if (!response.data.isSuccessful) {
+          if (response.data.labTracker) {
+            this.updateLabTrackerInArray(labTracker, new LabTracker(response.data.labTracker));
+          }
+          return;
         }
 
         // Remove the lab tracker from the array
