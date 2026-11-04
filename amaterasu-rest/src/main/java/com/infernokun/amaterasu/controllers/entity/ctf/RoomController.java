@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.controllers.entity.ctf;
 
+import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntityAnswer;
 import com.infernokun.amaterasu.models.entities.ctf.dto.JoinRoomResponse;
@@ -40,6 +41,7 @@ public class RoomController {
     private final RoomUserService roomUserService;
     private final ModelMapper modelMapper;
     private final CTFAnswerService ctfAnswerService;
+    private final CurrentUser currentUser;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Room>>> getAllRooms(@RequestParam(required = false)
@@ -182,6 +184,7 @@ public class RoomController {
     @PostMapping("/join/{roomId}/{userId}")
     public ResponseEntity<ApiResponse<JoinRoomResponse>> joinRoom(@PathVariable String userId,
                                                                   @PathVariable String roomId) {
+        currentUser.requireSelfOrAdmin(userId);
         User user = userService.findUserById(userId);
         Room room = roomService.findByRoomId(roomId);
 
@@ -220,6 +223,7 @@ public class RoomController {
     @PostMapping("/leave/{roomId}/{userId}")
     public ResponseEntity<ApiResponse<JoinRoomResponse>> leaveRoom(@PathVariable String userId,
                                                                   @PathVariable String roomId) {
+        currentUser.requireSelfOrAdmin(userId);
         User user = userService.findUserById(userId);
         Room room = roomService.findByRoomId(roomId);
 
@@ -252,6 +256,7 @@ public class RoomController {
     public ResponseEntity<ApiResponse<Map<String, JoinRoomResponse>>> checkJoinable(
             @RequestBody RoomJoinableRequest roomJoinableRequest) {
 
+        currentUser.requireSelfOrAdmin(roomJoinableRequest.getUserId());
         List<RoomUser> eachRoomForUser = roomUserService.findByUserIdAndRoomIds(roomJoinableRequest.getUserId(),
                 roomJoinableRequest.getRoomIds());
 

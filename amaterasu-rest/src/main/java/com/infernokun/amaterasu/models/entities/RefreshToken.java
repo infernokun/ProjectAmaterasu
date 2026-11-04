@@ -3,8 +3,8 @@ package com.infernokun.amaterasu.models.entities;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 @Data
 @Entity
@@ -18,6 +18,7 @@ public class RefreshToken {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // SHA-256 of the raw token
     @Column(length = 1000, nullable = false, unique = true)
     private String token;
 
@@ -37,7 +38,6 @@ public class RefreshToken {
     @Column(name = "device_info")
     private String deviceInfo;
 
-    // ADD: Security tracking fields
     @Column(name = "ip_address")
     private String ipAddress;
 
@@ -47,7 +47,6 @@ public class RefreshToken {
     @Column(name = "device_fingerprint")
     private String deviceFingerprint;
 
-    // ADD: Token lifecycle management
     @Column(name = "revoked")
     @Builder.Default
     private Boolean revoked = false;
@@ -58,18 +57,18 @@ public class RefreshToken {
     @Column(name = "revoked_reason")
     private String revokedReason;
 
+    // Raw token handed to the client once; only its hash is stored
+    @Transient
+    private String rawToken;
+
+    public static final Duration IDLE_TIMEOUT = Duration.ofDays(7);
+    public static final Duration MAX_LIFETIME = Duration.ofDays(30);
+
+    /** Expired after a week unused, or a month after the session's first login, whichever is first. */
     public boolean isExpired() {
-        if (revoked) return true;
-
-        // Check sliding expiration (90 days of inactivity)
-        Instant inactivityThreshold = (lastUsed != null ? lastUsed : creationDate)
-                .plus(90, ChronoUnit.DAYS);
-
-        return Instant.now().isAfter(inactivityThreshold);
-    }
-
-    public void updateLastUsed() {
-        this.lastUsed = Instant.now();
+        Instant now = Instant.now();
+        Instant lastActivity = lastUsed != null ? lastUsed : creationDate;
+        return now.isAfter(expirationDate) || now.isAfter(lastActivity.plus(IDLE_TIMEOUT));
     }
 
     public void revoke(String reason) {
@@ -79,10 +78,6 @@ public class RefreshToken {
     }
 
     public boolean isRevoked() {
-        return this.revoked;
-    }
-
-    public boolean needsRotation() {
-        return creationDate.plus(30, ChronoUnit.DAYS).isBefore(Instant.now());
+        return Boolean.TRUE.equals(this.revoked);
     }
 }

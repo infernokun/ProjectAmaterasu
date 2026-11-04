@@ -30,8 +30,11 @@ public class ApplicationInfoController extends BaseController {
     }
 
     @PostMapping
-    @PreAuthorize("permitAll()")
     public ResponseEntity<ApiResponse<ApplicationInfo>> createApplicationInfo(@RequestBody ApplicationInfo applicationInfo) {
+        // Public so the first-run setup works before any user can log in; it can only ever run once
+        if (applicationInfoService.getApplicationInfo() != null) {
+            throw new IllegalStateException("Application info is already set up");
+        }
         return ResponseEntity.ok(
                 ApiResponse.<ApplicationInfo>builder()
                         .code(HttpStatus.OK.value())

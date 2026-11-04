@@ -1,7 +1,9 @@
 package com.infernokun.amaterasu.controllers.entity.lab;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
+import com.infernokun.amaterasu.models.entities.Team;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.controllers.BaseController;
@@ -29,9 +31,19 @@ public class LabTrackerController extends BaseController {
     private final LabTrackerService labTrackerService;
     private final RemoteServerService remoteServerService;
     private final LabService labService;
+    private final CurrentUser currentUser;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<LabTracker>>> getAllLabTrackers(@RequestParam(required = false) HashMap<String, String> params) {
+        if (!currentUser.isAdmin()) {
+            // Members only ever see their own team's labs
+            Team team = currentUser.user().getTeam();
+            return ResponseEntity.ok(ApiResponse.<List<LabTracker>>builder()
+                    .code(HttpStatus.OK.value())
+                    .message("Lab trackers for your team retrieved successfully.")
+                    .data(team == null ? List.of() : labTrackerService.findLabTrackerByTeamId(team.getId()))
+                    .build());
+        }
         if (!params.isEmpty()) {
             if (params.containsKey("teamId")) {
                 return ResponseEntity.ok(ApiResponse.<List<LabTracker>>builder()
@@ -58,6 +70,7 @@ public class LabTrackerController extends BaseController {
     @GetMapping("{labTrackerId}")
     public ResponseEntity<ApiResponse<LabTracker>> getLabTrackerById(@PathVariable String labTrackerId) {
         Optional<LabTracker> labTracker = labTrackerService.findLabTrackerById(labTrackerId);
+        labTracker.ifPresent(currentUser::requireTrackerAccess);
         return labTracker.isPresent()
                 ? createSuccessResponse(labTracker.get(), "Lab tracker " + labTrackerId + " retrieved successfully.")
                 : createNotFoundResponse(LabTracker.class, labTrackerId);
@@ -111,6 +124,7 @@ public class LabTrackerController extends BaseController {
         RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
         LabTracker labTracker = labTrackerOptional.orElseThrow(() -> new ResourceNotFoundException("Lab tracker not found"));
+        currentUser.requireTrackerAccess(labTracker);
         Map<String, Object> response = labService.getLabConfiguration(labTracker, remoteServer);
 
         return ResponseEntity.ok(
@@ -138,11 +152,11 @@ public class LabTrackerController extends BaseController {
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
-        LOGGER.error(files.toString());
 
         RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
         LabTracker labTracker = labTrackerOptional.orElseThrow(() -> new ResourceNotFoundException("Lab tracker not found"));
+        currentUser.requireTrackerAccess(labTracker);
         List<RemoteCommandResponse> result = labTrackerService.addVolumeFiles(labTracker, remoteServer, volumeChanges, files);
 
         return ResponseEntity.ok(
@@ -163,6 +177,7 @@ public class LabTrackerController extends BaseController {
         RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
         LabTracker labTracker = labTrackerOptional.orElseThrow(() -> new ResourceNotFoundException("Lab tracker not found"));
+        currentUser.requireTrackerAccess(labTracker);
         String response = labTrackerService.getLabLogs(labTracker, remoteServer, service);
 
         return ResponseEntity.ok(
@@ -178,6 +193,7 @@ public class LabTrackerController extends BaseController {
     public ResponseEntity<ApiResponse<LabTracker>> refreshLabTracker(@PathVariable String labTrackerId) {
         Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
         LabTracker labTracker = labTrackerOptional.orElseThrow(() -> new ResourceNotFoundException("Lab tracker not found"));
+        currentUser.requireTrackerAccess(labTracker);
 
         LabTracker refreshedLabTracker = labTrackerService.refreshLabTracker(labTracker);
         return ResponseEntity.ok(

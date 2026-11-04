@@ -45,7 +45,7 @@ public class User extends StoredObject implements UserDetails {
         if (this.role == null) {
             return Collections.emptyList();
         }
-        return List.of(new SimpleGrantedAuthority(this.role.getValue()));
+        return List.of(new SimpleGrantedAuthority("ROLE_" + this.role.name()));
     }
 
     @Override

@@ -8,6 +8,8 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -110,11 +112,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(TokenException.class)
     public ResponseEntity<ApiResponse<Boolean>> handleTokenException(TokenException ex) {
         ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
-                .code(HttpStatus.BAD_REQUEST.value())
+                .code(HttpStatus.UNAUTHORIZED.value())
                 .message("TokenException: " + ex.getMessage())
                 .data(false)
                 .build();
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }
 
     @ExceptionHandler(CryptoException.class)
@@ -178,12 +180,33 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, status);
     }
 
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<String>> handleAccessDenied(AccessDeniedException ex) {
+        return buildResponse(HttpStatus.FORBIDDEN, "Access denied");
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiResponse<String>> handleAuthentication(AuthenticationException ex) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Authentication required");
+    }
+
+    @ExceptionHandler(TooManyAttemptsException.class)
+    public ResponseEntity<ApiResponse<String>> handleTooManyAttempts(TooManyAttemptsException ex) {
+        return buildResponse(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<?>> handleRuntimeException(RuntimeException ex) {
-        LOGGER.error("Unhandled RuntimeException", ex);
+        return internalError(ex);
+    }
+
+    // Internal details stay in the log; the client gets a reference it can quote
+    private static ResponseEntity<ApiResponse<?>> internalError(Exception ex) {
+        String reference = java.util.UUID.randomUUID().toString().substring(0, 8);
+        LOGGER.error("Unhandled exception [{}]", reference, ex);
         ApiResponse<?> response = ApiResponse.<String>builder()
                 .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .message("RuntimeException: " + ex.getMessage())
+                .message("Internal server error (reference " + reference + ")")
                 .data(null)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -199,12 +222,6 @@ public class GlobalExceptionHandler {
                     .data(null)
                     .build(), status);
         }
-        LOGGER.error("Unhandled exception", ex);
-        ApiResponse<?> response = ApiResponse.<String>builder()
-                .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .message("Exception: " + ex.getMessage())
-                .data(null)
-                .build();
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        return internalError(ex);
     }
 }
