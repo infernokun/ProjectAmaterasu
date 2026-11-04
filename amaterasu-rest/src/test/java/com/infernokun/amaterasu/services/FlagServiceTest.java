@@ -1,5 +1,9 @@
 package com.infernokun.amaterasu.services;
 
+import org.springframework.context.ApplicationEventPublisher;
+import com.infernokun.amaterasu.models.enums.RoomUserStatus;
+import com.infernokun.amaterasu.websocket.RoomActivityEvent;
+import java.time.LocalDateTime;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntityAnswer;
@@ -43,6 +47,7 @@ class FlagServiceTest {
     @Mock private FlagRepository flagRepository;
     @Mock private RoomUserService roomUserService;
     @Mock private RoomService roomService;
+    @Mock private ApplicationEventPublisher events;
 
     private FlagService flagService;
     private User user;
@@ -53,7 +58,7 @@ class FlagServiceTest {
     @BeforeEach
     void setUp() {
         flagService = new FlagService(ctfEntityService, userService, ctfAnswerService, flagRepository,
-                new ModelMapper(), roomUserService, roomService);
+                new ModelMapper(), roomUserService, roomService, events);
 
         user = new User();
         user.setId("user1");
@@ -66,6 +71,7 @@ class FlagServiceTest {
         roomUser.setUser(user);
         roomUser.setRoom(room);
         roomUser.setPoints(0);
+        roomUser.setRoomUserStatus(RoomUserStatus.JOINED);
 
         challenge = new CTFEntity();
         challenge.setId("q1");
@@ -144,5 +150,32 @@ class FlagServiceTest {
         assertThatThrownBy(() -> flagService.addAnsweredCTFEntity("user1", request("flag"), true))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(ctfAnswerService, never()).saveAnsweredCTFEntity(any());
+    }
+
+    @Test
+    void rejectsChallengesBeforeReleaseAndAfterExpiry() {
+        challenge.setReleaseDate(LocalDateTime.now().plusHours(1));
+        assertThatThrownBy(() -> flagService.addAnsweredCTFEntity("user1", request("flag"), true))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("not open yet");
+
+        challenge.setReleaseDate(LocalDateTime.now().minusHours(2));
+        challenge.setExpirationDate(LocalDateTime.now().minusHours(1));
+        assertThatThrownBy(() -> flagService.addAnsweredCTFEntity("user1", request("flag"), true))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("closed");
+        verify(ctfAnswerService, never()).saveAnsweredCTFEntity(any());
+    }
+
+    @Test
+    void rejectsPlayersWhoLeftTheRoom() {
+        roomUser.setRoomUserStatus(RoomUserStatus.LEFT);
+        assertThatThrownBy(() -> flagService.addAnsweredCTFEntity("user1", request("flag"), true))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("Join the room");
+    }
+
+    @Test
+    void announcesEveryAttemptToTheRoom() {
+        when(ctfAnswerService.findByRoomUserIdAndCtfEntityIdOptional("ru1", "q1")).thenReturn(Optional.empty());
+        flagService.addAnsweredCTFEntity("user1", request("wrong"), false);
+        verify(events).publishEvent(new RoomActivityEvent("room1"));
     }
 }

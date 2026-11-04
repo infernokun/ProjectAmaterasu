@@ -60,7 +60,7 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
         log.info("WEBSOCKET Connection Closed for ID: {}", session.getId());
     }
 
-    /** Sends a tracker change to admins and to members of the team that owns the lab. */
+    /** Sends a tracker change to admins, facilitators and members of the team that owns the lab. */
     @TransactionalEventListener(fallbackExecution = true)
     public void onLabTrackerChanged(LabTrackerChangedEvent event) {
         LabTracker labTracker = event.labTracker();
@@ -95,10 +95,29 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
         if (user.isEmpty() || !user.get().isEnabled()) {
             return false;
         }
-        if (user.get().getRole() == Role.ADMIN) {
+        if (user.get().getRole() == Role.ADMIN || user.get().getRole() == Role.FACILITATOR) {
             return true;
         }
         return teamId != null && user.get().getTeam() != null && teamId.equals(user.get().getTeam().getId());
+    }
+
+    /** Tells every signed-in client that points or attempts changed in a room, so open views can reload. */
+    @TransactionalEventListener(fallbackExecution = true)
+    public void onRoomActivity(RoomActivityEvent event) {
+        String message;
+        try {
+            ObjectNode node = objectMapper.createObjectNode();
+            node.put("type", "roomActivity");
+            node.put("roomId", event.roomId());
+            message = objectMapper.writeValueAsString(node);
+        } catch (JsonProcessingException e) {
+            return;
+        }
+        for (WebSocketSession session : this.currentSessions) {
+            if (session.isOpen()) {
+                send(session, message);
+            }
+        }
     }
 
     private void send(WebSocketSession session, String message) {

@@ -105,16 +105,35 @@ class AmaterasuSocketHandlerTest {
     }
 
     @Test
-    void skipsDisabledAccountsAndFacilitatorsOfOtherTeams() throws Exception {
+    void skipsDisabledAccounts() throws Exception {
         user("disabled-red", Role.MEMBER, red, true);
-        user("facilitator", Role.FACILITATOR, blue, false);
         WebSocketSession disabled = connect("disabled-red");
-        WebSocketSession facilitator = connect("facilitator");
 
         handler.onLabTrackerChanged(LabTrackerChangedEvent.removed(tracker(red)));
 
         verify(disabled, never()).sendMessage(any());
-        verify(facilitator, never()).sendMessage(any());
+    }
+
+    @Test
+    void sendsEveryTeamsChangesToFacilitators() throws Exception {
+        user("facilitator", Role.FACILITATOR, blue, false);
+        WebSocketSession facilitator = connect("facilitator");
+
+        handler.onLabTrackerChanged(LabTrackerChangedEvent.updated(tracker(red)));
+
+        assertThat(sentTo(facilitator).get("labTracker").get("id").asText()).isEqualTo("lt1");
+    }
+
+    @Test
+    void announcesRoomActivityToEveryone() throws Exception {
+        user("member-blue", Role.MEMBER, blue, false);
+        WebSocketSession session = connect("member-blue");
+
+        handler.onRoomActivity(new RoomActivityEvent("room1"));
+
+        JsonNode payload = sentTo(session);
+        assertThat(payload.get("type").asText()).isEqualTo("roomActivity");
+        assertThat(payload.get("roomId").asText()).isEqualTo("room1");
     }
 
     @Test

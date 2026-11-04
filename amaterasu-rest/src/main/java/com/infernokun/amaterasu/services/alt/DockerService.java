@@ -358,6 +358,9 @@ public class DockerService extends BaseService {
                             info.getNetworks().add(entry.getKey());
                         });
 
+                info.setService(containerNode.path("Config").path("Labels").path("com.docker.compose.service").asText(null));
+                info.setImage(containerNode.path("Config").path("Image").asText(null));
+
                 JsonNode exposedPorts = containerNode.path("Config").path("ExposedPorts");
                 if (exposedPorts.isObject()) {
                     exposedPorts.fieldNames().forEachRemaining(info.getPorts()::add);

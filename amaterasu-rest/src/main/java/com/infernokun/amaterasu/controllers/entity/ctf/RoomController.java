@@ -2,6 +2,10 @@ package com.infernokun.amaterasu.controllers.entity.ctf;
 
 import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.models.ApiResponse;
+import com.infernokun.amaterasu.models.PointsHistoryEntry;
+import com.infernokun.amaterasu.models.entities.ctf.dto.AwardPointsRequest;
+import com.infernokun.amaterasu.websocket.RoomActivityEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntityAnswer;
 import com.infernokun.amaterasu.models.entities.ctf.dto.JoinRoomResponse;
 import com.infernokun.amaterasu.models.entities.ctf.dto.RoomJoinableRequest;
@@ -42,6 +46,10 @@ public class RoomController {
     private final ModelMapper modelMapper;
     private final CTFAnswerService ctfAnswerService;
     private final CurrentUser currentUser;
+    private final ApplicationEventPublisher events;
+
+    static final int MAX_AWARD = 10_000;
+    static final int MAX_REASON = 200;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Room>>> getAllRooms(@RequestParam(required = false)
@@ -283,9 +291,20 @@ public class RoomController {
                         .build());
     }
 
+    /** Facilitators and admins add or take away points, with a reason the player sees. */
     @PostMapping("/add-points/{roomId}/{userId}")
     public ResponseEntity<ApiResponse<JoinRoomResponse>> addPoints(@PathVariable String userId,
-                                                                   @PathVariable String roomId) {
+                                                                   @PathVariable String roomId,
+                                                                   @RequestBody AwardPointsRequest request) {
+        int points = request == null || request.points() == null ? 0 : request.points();
+        String reason = request == null || request.reason() == null ? "" : request.reason().trim();
+        if (points == 0 || Math.abs(points) > MAX_AWARD) {
+            throw new IllegalArgumentException("Points must be a whole number from -" + MAX_AWARD + " to " + MAX_AWARD
+                    + ", and not 0");
+        }
+        if (reason.isEmpty() || reason.length() > MAX_REASON) {
+            throw new IllegalArgumentException("Give a reason of up to " + MAX_REASON + " characters");
+        }
 
         User user = userService.findUserById(userId);
         Room room = roomService.findByRoomId(roomId);
@@ -298,9 +317,14 @@ public class RoomController {
 
         RoomUser roomUser = roomUserOpt.get();
 
+        int total = roomUser.getPoints() + points;
+        roomUser.getPointsHistory().add(new PointsHistoryEntry(LocalDateTime.now(), total, points, reason,
+                currentUser.user().getUsername()));
+        roomUser.setPoints(total);
         roomUser.setUpdatedAt(LocalDateTime.now());
-        roomUser.updatePoints(roomUser.getPoints() + 100, "dev add button");
         roomUser = roomUserService.save(roomUser);
+        events.publishEvent(new RoomActivityEvent(roomId));
+        // auditService.record("POINTS_AWARDED", "USER", user.getId(), user.getUsername(), user.getTeam() != null ? user.getTeam().getId() : null, points + " pts in " + room.getName() + ": " + reason);
 
         return buildSuccessResponse(String.format("User %s has %d points in room %s",
                 roomUser.getUser().getUsername(), roomUser.getPoints(), roomUser.getRoom().getName()),

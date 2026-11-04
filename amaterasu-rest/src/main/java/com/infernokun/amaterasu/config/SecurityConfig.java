@@ -91,6 +91,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/lab-tracker/**").hasRole(admin)
                         .requestMatchers("/api/labs/dev", "/api/labs/delete-item/**").hasRole(admin)
 
+                        // Running an event: every team's labs and the live room view
+                        .requestMatchers(HttpMethod.GET, "/api/lab-tracker/overview", "/api/room/*/live")
+                                .hasAnyRole(admin, FACILITATOR.name())
+
                         // Authoring labs, rooms and challenges
                         .requestMatchers(HttpMethod.POST, "/api/labs", "/api/labs/many", "/api/labs/upload/**",
                                 "/api/labs/validate").hasAnyRole(authors)

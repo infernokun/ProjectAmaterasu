@@ -2,6 +2,10 @@ package com.infernokun.amaterasu.services.entity.ctf;
 
 import com.infernokun.amaterasu.models.entities.ctf.dto.*;
 import com.infernokun.amaterasu.models.entities.User;
+import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomOverview.ChallengeState;
+import com.infernokun.amaterasu.models.enums.RoomUserStatus;
+import com.infernokun.amaterasu.websocket.RoomActivityEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.infernokun.amaterasu.models.entities.ctf.*;
 import com.infernokun.amaterasu.repositories.ctf.FlagRepository;
 import com.infernokun.amaterasu.services.entity.UserService;
@@ -26,6 +30,7 @@ public class FlagService {
     private final ModelMapper modelMapper;
     private final RoomUserService roomUserService;
     private final RoomService roomService;
+    private final ApplicationEventPublisher events;
 
     public Flag saveFlag(Flag flag) {
         return this.flagRepository.save(flag);
@@ -59,6 +64,16 @@ public class FlagService {
 
         if (ctfEntity.getRoom() == null || !room.getId().equals(ctfEntity.getRoom().getId())) {
             throw new IllegalArgumentException("Challenge does not belong to this room");
+        }
+        if (roomUser.getRoomUserStatus() != RoomUserStatus.JOINED) {
+            throw new IllegalStateException("Join the room to submit flags");
+        }
+        ChallengeState state = RoomPlayService.stateOf(ctfEntity, LocalDateTime.now());
+        if (state == ChallengeState.LOCKED) {
+            throw new IllegalStateException("This challenge is not open yet");
+        }
+        if (state == ChallengeState.EXPIRED) {
+            throw new IllegalStateException("This challenge has closed");
         }
 
         // Get or create answer record
@@ -95,6 +110,7 @@ public class FlagService {
             roomUser.updatePoints(newPoints, "answered correctly");
             ctfEntityAnswer.setScore(ctfEntity.getPoints());
             roomUser = roomUserService.save(roomUser);
+            // auditService.record("FLAG_SOLVED", "CHALLENGE", ctfEntity.getId(), ctfEntity.getQuestion(), user.getTeam() != null ? user.getTeam().getId() : null, ctfEntity.getPoints() + " pts in " + room.getName());
         }
 
         // Never downgrade a solved challenge
@@ -102,6 +118,7 @@ public class FlagService {
             ctfEntityAnswer.setCorrect(true);
         }
         ctfEntityAnswer = ctfAnswerService.saveAnsweredCTFEntity(ctfEntityAnswer);
+        events.publishEvent(new RoomActivityEvent(room.getId()));
 
         // Build response
         CTFEntityAnswerResponse response = modelMapper.map(ctfEntityAnswer, CTFEntityAnswerResponse.class);
