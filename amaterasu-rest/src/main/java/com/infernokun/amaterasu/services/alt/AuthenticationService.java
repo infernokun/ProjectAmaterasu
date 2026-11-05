@@ -204,7 +204,7 @@ public class AuthenticationService extends BaseService {
         User user = userService.findUserById(userId);
         int revoked = refreshTokenService.revokeOtherSessions(userId, current, "Signed out from another device");
         auditService.record("SESSION_REVOKED", "SESSION", null, user.getUsername(), teamIdOf(user),
-                revoked + " other sessions signed out");
+                revoked + (revoked == 1 ? " other session" : " other sessions") + " signed out");
         return refreshAccessOnly(user);
     }
 
