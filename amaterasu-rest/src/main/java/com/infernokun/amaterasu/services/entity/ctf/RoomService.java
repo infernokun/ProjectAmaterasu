@@ -3,6 +3,8 @@ package com.infernokun.amaterasu.services.entity.ctf;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.repositories.ctf.RoomRepository;
+import com.infernokun.amaterasu.repositories.ctf.RoomUserRepository;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +14,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RoomService {
     private final RoomRepository roomRepository;
+    private final RoomUserRepository roomUserRepository;
+    private final CTFEntityService ctfEntityService;
 
     public List<Room> findAllRooms() {
         return roomRepository.findAll();
@@ -37,7 +41,27 @@ public class RoomService {
         return roomRepository.saveAll(rooms);
     }
 
-    public void deleteRoom(String id) {
-        roomRepository.deleteById(id);
+    /** Deletes a room with its challenges, the answers given and who joined it. */
+    @Transactional
+    public Room deleteRoom(String id) {
+        Room room = findByRoomId(id);
+        ctfEntityService.deleteByRoomId(id);
+        roomUserRepository.deleteAll(roomUserRepository.findByRoomId(id));
+        roomRepository.delete(room);
+        return room;
+    }
+
+    /** A trimmed, unused room name. */
+    public String requireUniqueName(String name, String exceptId) {
+        String trimmed = name == null ? "" : name.trim();
+        if (trimmed.isEmpty()) {
+            throw new IllegalArgumentException("Room name required");
+        }
+        boolean taken = roomRepository.findAll().stream()
+                .anyMatch(other -> trimmed.equalsIgnoreCase(other.getName()) && !other.getId().equals(exceptId));
+        if (taken) {
+            throw new IllegalArgumentException("A room named " + trimmed + " already exists");
+        }
+        return trimmed;
     }
 }

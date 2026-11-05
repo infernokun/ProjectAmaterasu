@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.infernokun.amaterasu.services.entity.AuditService;
 import org.modelmapper.ModelMapper;
 
 import java.util.ArrayList;
@@ -48,6 +49,7 @@ class FlagServiceTest {
     @Mock private RoomUserService roomUserService;
     @Mock private RoomService roomService;
     @Mock private ApplicationEventPublisher events;
+    @Mock private AuditService auditService;
 
     private FlagService flagService;
     private User user;
@@ -58,7 +60,7 @@ class FlagServiceTest {
     @BeforeEach
     void setUp() {
         flagService = new FlagService(ctfEntityService, userService, ctfAnswerService, flagRepository,
-                new ModelMapper(), roomUserService, roomService, events);
+                new ModelMapper(), roomUserService, roomService, events, auditService);
 
         user = new User();
         user.setId("user1");

@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -68,6 +69,30 @@ public class AuthenticationController extends BaseController {
                                                                      HttpServletResponse response) {
         RefreshTokenService.Tokens tokens = authenticationService.changePassword(currentUser.id(), change, request);
         return respond(tokens, "Password changed; other sessions were signed out", request, response);
+    }
+
+    // The refresh cookie is scoped to /api/auth, so these see which session is this browser's
+    @GetMapping("/sessions")
+    public ResponseEntity<ApiResponse<List<RefreshTokenService.SessionInfo>>> sessions(HttpServletRequest request) {
+        return createSuccessResponse(authenticationService.sessions(currentUser.id(), refreshCookie.read(request)),
+                "Active sessions retrieved");
+    }
+
+    @DeleteMapping("/sessions/{sessionId}")
+    public ResponseEntity<ApiResponse<LoginResponse>> revokeSession(@PathVariable String sessionId,
+                                                                    HttpServletRequest request,
+                                                                    HttpServletResponse response) {
+        RefreshTokenService.Tokens tokens = authenticationService.revokeSession(currentUser.id(), sessionId,
+                refreshCookie.read(request));
+        return respond(tokens, "Session signed out", request, response);
+    }
+
+    @PostMapping("/sessions/sign-out-others")
+    public ResponseEntity<ApiResponse<LoginResponse>> revokeOtherSessions(HttpServletRequest request,
+                                                                          HttpServletResponse response) {
+        RefreshTokenService.Tokens tokens = authenticationService.revokeOtherSessions(currentUser.id(),
+                refreshCookie.read(request));
+        return respond(tokens, "Other sessions signed out", request, response);
     }
 
     @PostMapping("/refresh/validate")

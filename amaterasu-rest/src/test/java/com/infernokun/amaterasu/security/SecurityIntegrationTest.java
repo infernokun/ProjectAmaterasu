@@ -340,7 +340,7 @@ class SecurityIntegrationTest {
         Thread.sleep(1100); // access tokens carry whole-second timestamps
 
         postJson("/api/auth/password", Map.of("currentPassword", "wrong-one", "newPassword", "newpassword1"), oldAccess)
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isBadRequest());
         MvcResult changed = postJson("/api/auth/password",
                 Map.of("currentPassword", "password123", "newPassword", "newpassword1"), oldAccess)
                 .andExpect(status().isOk()).andReturn();

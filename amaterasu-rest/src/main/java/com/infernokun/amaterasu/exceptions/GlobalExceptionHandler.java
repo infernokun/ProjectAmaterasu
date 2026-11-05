@@ -190,6 +190,21 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.UNAUTHORIZED, "Authentication required");
     }
 
+    // A Proxmox node or other remote API that did not answer
+    @ExceptionHandler(org.springframework.web.client.ResourceAccessException.class)
+    public ResponseEntity<ApiResponse<String>> handleRemoteUnreachable(
+            org.springframework.web.client.ResourceAccessException ex) {
+        Throwable cause = ex.getMostSpecificCause();
+        String reason = cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName();
+        LOGGER.warn("Remote server did not answer: {}", reason);
+        return buildResponse(HttpStatus.BAD_GATEWAY, "The server did not answer: " + reason);
+    }
+
+    @ExceptionHandler(ResourceInUseException.class)
+    public ResponseEntity<ApiResponse<String>> handleResourceInUse(ResourceInUseException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
     @ExceptionHandler(TooManyAttemptsException.class)
     public ResponseEntity<ApiResponse<String>> handleTooManyAttempts(TooManyAttemptsException ex) {
         return buildResponse(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());

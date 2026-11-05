@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.controllers.entity.lab;
 
 import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.controllers.BaseController;
+import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.LabActionRequest;
 import com.infernokun.amaterasu.models.LabActionResult;
@@ -118,9 +119,10 @@ public class LabController extends BaseController {
         );
     }
 
+    /** Edits a lab's name, description, version, team copies and, for VM labs, its templates. */
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Lab>> updateLab(@RequestBody Lab lab) {
-        Lab updatedLab = labService.updateLab(lab);
+    public ResponseEntity<ApiResponse<Lab>> updateLab(@PathVariable String id, @RequestBody LabRequest changes) {
+        Lab updatedLab = labService.editLab(id, changes);
         return ResponseEntity.ok(
                 ApiResponse.<Lab>builder()
                         .code(HttpStatus.OK.value())
@@ -232,6 +234,15 @@ public class LabController extends BaseController {
                         .message("Lab removed from team.")
                         .data(deletedLab)
                         .build());
+    }
+
+    /** Removes a lab from the catalog; refused with 409 while any team has it deployed. */
+    @DeleteMapping("/{labId}")
+    public ResponseEntity<ApiResponse<Boolean>> deleteLabFromCatalog(@PathVariable String labId) {
+        if (!labService.deleteLabItem(labId)) {
+            throw new ResourceNotFoundException("Lab " + labId + " not found");
+        }
+        return createSuccessResponse(true, "Lab deleted.");
     }
 
     @DeleteMapping("delete-item/{labId}")

@@ -14,4 +14,5 @@ public interface CTFAnswerRepository extends JpaRepository<CTFEntityAnswer, Stri
     List<CTFEntityAnswer> findByRoomUserId(String roomUserId);
 
     List<CTFEntityAnswer> findByRoomUserRoomId(String roomId);
+    List<CTFEntityAnswer> findByCtfEntityId(String ctfEntityId);
 }

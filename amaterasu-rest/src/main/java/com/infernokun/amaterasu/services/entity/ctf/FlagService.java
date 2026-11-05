@@ -8,6 +8,7 @@ import com.infernokun.amaterasu.websocket.RoomActivityEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import com.infernokun.amaterasu.models.entities.ctf.*;
 import com.infernokun.amaterasu.repositories.ctf.FlagRepository;
+import com.infernokun.amaterasu.services.entity.AuditService;
 import com.infernokun.amaterasu.services.entity.UserService;
 
 import jakarta.transaction.Transactional;
@@ -31,6 +32,7 @@ public class FlagService {
     private final RoomUserService roomUserService;
     private final RoomService roomService;
     private final ApplicationEventPublisher events;
+    private final AuditService auditService;
 
     public Flag saveFlag(Flag flag) {
         return this.flagRepository.save(flag);
@@ -110,7 +112,7 @@ public class FlagService {
             roomUser.updatePoints(newPoints, "answered correctly");
             ctfEntityAnswer.setScore(ctfEntity.getPoints());
             roomUser = roomUserService.save(roomUser);
-            // auditService.record("FLAG_SOLVED", "CHALLENGE", ctfEntity.getId(), ctfEntity.getQuestion(), user.getTeam() != null ? user.getTeam().getId() : null, ctfEntity.getPoints() + " pts in " + room.getName());
+            auditService.record("FLAG_SOLVED", "CHALLENGE", ctfEntity.getId(), ctfEntity.getQuestion(), user.getTeam() != null ? user.getTeam().getId() : null, ctfEntity.getPoints() + " pts in " + room.getName());
         }
 
         // Never downgrade a solved challenge
