@@ -27,7 +27,7 @@ public class GlobalExceptionHandler {
             ChallengeNotAnsweredException ex) {
         ApiResponse<String> response = ApiResponse.<String>builder()
                 .code(HttpStatus.OK.value())
-                .message("ChallengeNotAnsweredException: " + ex.getMessage())
+                .message(ex.getMessage())
                 .data(null)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
@@ -38,7 +38,7 @@ public class GlobalExceptionHandler {
             LabActionException ex) {
         ApiResponse<String> response = ApiResponse.<String>builder()
                 .code(HttpStatus.BAD_REQUEST.value())
-                .message("LabActionException: " + ex.getMessage())
+                .message(ex.getMessage())
                 .data(null)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
@@ -48,7 +48,7 @@ public class GlobalExceptionHandler {
             FileUploadException ex) {
         ApiResponse<String> response = ApiResponse.<String>builder()
                 .code(HttpStatus.BAD_REQUEST.value())
-                .message("FileUploadException: " + ex.getMessage())
+                .message(ex.getMessage())
                 .data(null)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
@@ -59,7 +59,7 @@ public class GlobalExceptionHandler {
             LabReadinessException ex) {
         ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
                 .code(HttpStatus.BAD_REQUEST.value())
-                .message("LabReadinessException: " + ex.getMessage())
+                .message(ex.getMessage())
                 .data(false)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
@@ -69,7 +69,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Boolean>> handleRemoteCommandException(RemoteCommandException ex) {
         ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
                 .code(HttpStatus.BAD_REQUEST.value())
-                .message("RemoteCommandException: " + ex.getMessage())
+                .message(ex.getMessage())
                 .data(false)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
@@ -80,7 +80,7 @@ public class GlobalExceptionHandler {
             ResourceNotFoundException ex) {
         ApiResponse<String> response = ApiResponse.<String>builder()
                 .code(HttpStatus.NOT_FOUND.value())
-                .message("ResourceNotFoundException: " + ex.getMessage())
+                .message(ex.getMessage())
                 .data(null)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
@@ -90,7 +90,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<String>> handleWrongPasswordException(WrongPasswordException ex) {
         ApiResponse<String> response = ApiResponse.<String>builder()
                 .code(HttpStatus.UNAUTHORIZED.value())
-                .message("WrongPasswordException: " + ex.getMessage())
+                .message(ex.getMessage())
                 .data(null)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
@@ -100,7 +100,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Boolean>> handleAuthFailedException(AuthFailedException ex) {
         ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
                 .code(HttpStatus.UNAUTHORIZED.value())
-                .message("AuthFailedException: " + ex.getMessage())
+                .message(ex.getMessage())
                 .data(false)
                 .build();
 
@@ -113,7 +113,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Boolean>> handleTokenException(TokenException ex) {
         ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
                 .code(HttpStatus.UNAUTHORIZED.value())
-                .message("TokenException: " + ex.getMessage())
+                .message(ex.getMessage())
                 .data(false)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
@@ -123,7 +123,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Boolean>> handleTokenException(CryptoException ex) {
         ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
                 .code(HttpStatus.BAD_REQUEST.value())
-                .message("CryptoException: " + ex.getMessage())
+                .message(ex.getMessage())
                 .data(null)
                 .build();
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
@@ -133,7 +133,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<LabActionResult>> handleTokenException(ServerTypeException ex) {
         ApiResponse<LabActionResult> response = ApiResponse.<LabActionResult>builder()
                 .code(HttpStatus.BAD_REQUEST.value())
-                .message("ServerTypeException: " + ex.getMessage())
+                .message(ex.getMessage())
                 .data(new LabActionResult(false, null, ex.getMessage()))
                 .build();
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);

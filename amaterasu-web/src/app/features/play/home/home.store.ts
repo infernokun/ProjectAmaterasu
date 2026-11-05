@@ -5,6 +5,7 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { catchError, forkJoin, map, of, pipe, switchMap, tap } from 'rxjs';
 import { roomActivity } from '../../../core/room-activity';
 import { AuditService } from '../../../core/services/audit.service';
+import { PLAY_ACTIONS } from '../data/activity';
 import { RoomsStore } from '../../../core/stores/rooms.store';
 import { SessionStore } from '../../../core/stores/session.store';
 import { AuditEvent } from '../../../models/audit-event.model';
@@ -60,7 +61,7 @@ export const HomeStore = signalStore(
       switchMap(() => {
         const teamId = session.teamId();
         return teamId
-          ? audit.list({ teamId, size: 8 }).pipe(map(page => page.content ?? []), catchError(() => of([] as AuditEvent[])))
+          ? audit.list({ teamId, action: PLAY_ACTIONS, size: 8 }).pipe(map(page => page.content ?? []), catchError(() => of([] as AuditEvent[])))
           : of([] as AuditEvent[]);
       }),
       tap(activity => patchState(store, { activity, activityLoaded: true })),

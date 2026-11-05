@@ -250,4 +250,18 @@ class PlayEndpointsIntegrationTest {
                 .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString());
         assertThat(body.get("data").get("output").asText()).contains("is not ACTIVE");
     }
+
+    @Test
+    void aLabWithNoServerCannotPauseButStopsCleanly() throws Exception {
+        Lab lab = labRepository.save(Lab.builder().name(unique("lab")).labType(LabType.DOCKER_COMPOSE).build());
+        LabTracker tracker = labTrackerRepository.save(LabTracker.builder()
+                .labStarted(lab).labOwner(red).labStatus(LabStatus.ACTIVE).build());
+        Map<String, String> request = Map.of("labId", lab.getId(), "labTrackerId", tracker.getId());
+
+        String paused = postAs("/api/labs/pause", token(redMember), request).andReturn().getResponse().getContentAsString();
+        assertThat(paused).contains("not deployed on a server").doesNotContain("Exception");
+
+        postAs("/api/labs/stop", token(redMember), request).andExpect(status().isOk());
+        assertThat(labTrackerRepository.findById(tracker.getId()).orElseThrow().getLabStatus()).isEqualTo(LabStatus.STOPPED);
+    }
 }

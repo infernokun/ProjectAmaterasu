@@ -347,7 +347,11 @@ public class LabService extends BaseService {
         if (labTracker == null) {
             return new LabActionResult(false, null, "Lab tracker not found");
         }
-        LabActionResult result = labActionService.pauseLab(labTracker, LabTrackerService.serverFor(labTracker, remoteServer));
+        RemoteServer server = LabTrackerService.serverFor(labTracker, remoteServer);
+        if (server == null) {
+            return new LabActionResult(false, labTracker, "This lab is not deployed on a server, so there is nothing to pause");
+        }
+        LabActionResult result = labActionService.pauseLab(labTracker, server);
         return saveResult(result, labTracker, userId, LabStatus.PAUSED);
     }
 
@@ -371,7 +375,11 @@ public class LabService extends BaseService {
         if (labTracker == null) {
             return new LabActionResult(false, null, "Lab tracker not found");
         }
-        LabActionResult result = labActionService.teardownLab(labTracker, LabTrackerService.serverFor(labTracker, remoteServer));
+        RemoteServer server = LabTrackerService.serverFor(labTracker, remoteServer);
+        // Nothing can be deployed without a server, so there is nothing to tear down
+        LabActionResult result = server == null
+                ? new LabActionResult(true, labTracker, "Nothing was deployed")
+                : labActionService.teardownLab(labTracker, server);
         return saveResult(result, labTracker, userId, LabStatus.STOPPED);
     }
 
@@ -400,7 +408,10 @@ public class LabService extends BaseService {
             return new LabActionResult(false, labTracker, "Lab has no team");
         }
 
-        LabActionResult result = labActionService.teardownLab(labTracker, LabTrackerService.serverFor(labTracker, remoteServer));
+        RemoteServer server = LabTrackerService.serverFor(labTracker, remoteServer);
+        LabActionResult result = server == null
+                ? new LabActionResult(true, labTracker, "Nothing was deployed")
+                : labActionService.teardownLab(labTracker, server);
         if (result.getLabTracker() == null) {
             result.setLabTracker(labTracker);
         }
