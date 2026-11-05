@@ -1,4 +1,3 @@
-@use "sass:meta";
 @use '@fontsource/ibm-plex-sans/400.css' as plex-sans-400;
 @use '@fontsource/ibm-plex-sans/500.css' as plex-sans-500;
 @use '@fontsource/ibm-plex-sans/600.css' as plex-sans-600;
@@ -8,4 +7,3 @@
 @use 'styles/material';
 @use 'styles/base';
 @use 'styles/components';
-@include meta.load-css('../node_modules/material-icons/iconfont/material-icons.scss');

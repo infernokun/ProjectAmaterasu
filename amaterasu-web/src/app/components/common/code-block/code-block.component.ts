@@ -1,80 +1,42 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  Input,
-  Output,
-  EventEmitter,
-  OnInit,
-  ChangeDetectorRef,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { CodeModel, MonacoEditorComponent } from '../monaco-editor/monaco-editor.component';
-import { NgIf } from '@angular/common';
-import { MatButton } from '@angular/material/button';
-import { MatIcon } from '@angular/material/icon';
+import { IconComponent } from '../../../shared/ui/icon.component';
+import { ThemeStore } from '../../../core/theme/theme.store';
 
 @Component({
-    selector: 'amaterasu-code-block',
-    changeDetection: ChangeDetectionStrategy.Eager,
-    templateUrl: './code-block.component.html',
-    styleUrls: ['./code-block.component.scss'],
-    imports: [
-        NgIf,
-        MatButton,
-        MatIcon,
-        MonacoEditorComponent,
-    ],
+  selector: 'amaterasu-code-block',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './code-block.component.html',
+  styleUrls: ['./code-block.component.scss'],
+  imports: [IconComponent, MonacoEditorComponent],
 })
-export class CodeBlockComponent implements OnInit {
-  @Input() id: string = '';
-  @Input() placeholder: string = '';
-  @Input() readonly: boolean = false;
-  @Input() versions: number[] = [];
-  @Input() fileType: string = '';
-  @Input() codeModel: CodeModel | undefined = {
-    language: 'json',
-    uri: 'main.json',
-    value: '',
-  };
+export class CodeBlockComponent {
+  private readonly themeStore = inject(ThemeStore);
 
-  @Output() onVersionChange = new EventEmitter<number>();
-  @Output() onChange = new EventEmitter<string>();
+  readonly placeholder = input('');
+  readonly readonly = input(false);
+  readonly fileType = input('json');
+  readonly value = input('');
 
-  isCopied = signal(false);
-  theme = 'vs-dark';
+  readonly codeModel = computed<CodeModel>(() => ({
+    language: this.fileType(),
+    uri: `main.${this.fileType()}`,
+    value: this.value(),
+  }));
+  readonly theme = computed(() => (this.themeStore.theme() === 'dark' ? 'vs-dark' : 'vs'));
+  readonly copied = signal(false);
+  readonly options = { contextmenu: true, minimap: { enabled: true } };
 
-  options = {
-    contextmenu: true,
-    minimap: {
-      enabled: true,
-    },
-  };
+  private current = '';
 
-  constructor(private cdr: ChangeDetectorRef) {}
-
-  ngOnChanges() {
-    if (this.codeModel && this.fileType) {
-      this.codeModel.language = this.fileType;
-    }
-    
-    this.cdr.detectChanges();
+  onCodeChanged(value: string) {
+    this.current = value;
   }
-
-  ngOnInit() {
-    if (this.codeModel) {
-      this.codeModel.language = this.fileType;
-    }
-  }
-
-  onCodeChanged(value: any) {}
 
   copyToClipboard() {
-    navigator.clipboard.writeText(this.codeModel!.value).then(() => {
-      this.isCopied.set(true);
-      // Hide the check mark after 2 seconds
-      setTimeout(() => {
-        this.isCopied.set(false);
-      }, 2000);
+    navigator.clipboard.writeText(this.current || this.value()).then(() => {
+      this.copied.set(true);
+      setTimeout(() => this.copied.set(false), 2000);
     });
   }
 }
