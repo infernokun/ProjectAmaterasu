@@ -1,0 +1,53 @@
+.title {
+  margin-top: 8px;
+}
+
+.room-pick {
+  width: auto;
+  min-width: 180px;
+}
+
+.legend {
+  gap: 12px;
+}
+
+.legend .row {
+  gap: 4px;
+}
+
+.matrix-wrap {
+  padding: 14px 18px;
+}
+
+.matrix {
+  display: grid;
+  gap: 6px 8px;
+  align-items: center;
+  min-width: max-content;
+}
+
+.mrow {
+  display: contents;
+}
+
+.mh {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.team {
+  font-weight: 500;
+}
+
+.rate {
+  flex-wrap: nowrap;
+}
+
+.rate .bar {
+  min-width: 80px;
+}
+
+.pts {
+  font-weight: 600;
+}

@@ -1,5 +1,7 @@
 package com.infernokun.amaterasu.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.websocket.AmaterasuSocketHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -13,10 +15,12 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketConfigurer {
     private final AllowedOrigins allowedOrigins;
+    private final ObjectMapper objectMapper;
+    private final UserRepository userRepository;
 
     @Bean
     public AmaterasuSocketHandler socketHandler() {
-        return new AmaterasuSocketHandler();
+        return new AmaterasuSocketHandler(objectMapper, userRepository);
     }
 
     @Override

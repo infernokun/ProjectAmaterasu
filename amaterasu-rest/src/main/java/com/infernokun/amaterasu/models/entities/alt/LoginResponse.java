@@ -18,6 +18,7 @@ public class LoginResponse {
                 .role(user.getRole())
                 .team(user.getTeam())
                 .username(user.getUsername())
+                .createdAt(user.getCreatedAt())
                 .build();
     }
 }

@@ -80,7 +80,7 @@ public class UserService extends BaseService implements UserDetailsService {
     public User updateUserTeam(String userId, String teamId) {
         User user = findUserById(userId);
 
-        Team team = teamRepository.findById(teamId)
+        Team team = teamId == null ? null : teamRepository.findById(teamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Team ID not found"));
 
         user.setTeam(team);

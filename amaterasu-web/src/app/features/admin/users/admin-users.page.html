@@ -1,0 +1,187 @@
+<div class="page-head">
+  <div>
+    <h1 class="h1">Users and teams</h1>
+    <p class="sub">{{ subtitle() }}</p>
+  </div>
+  <div class="row">
+    @if (tab() === 'users') {
+      <button type="button" class="btn primary" (click)="addUser()"><app-icon name="plus" />Add user</button>
+    } @else {
+      <button type="button" class="btn primary" (click)="newTeam()"><app-icon name="plus" />New team</button>
+    }
+  </div>
+</div>
+
+<div class="tabs" role="tablist">
+  <button type="button" class="tab" role="tab" [class.on]="tab() === 'users'" [attr.aria-selected]="tab() === 'users'"
+          (click)="showTab('users')">Users<span class="nav-count">{{ store.users().length }}</span></button>
+  <button type="button" class="tab" role="tab" [class.on]="tab() === 'teams'" [attr.aria-selected]="tab() === 'teams'"
+          (click)="showTab('teams')">Teams<span class="nav-count">{{ store.teams().length }}</span></button>
+</div>
+
+@if (store.error()) {
+  <div class="banner bad" role="alert">
+    <app-icon name="alert" />
+    <div class="grow">{{ store.error() }}</div>
+    <button type="button" class="btn sm" (click)="store.load()">Try again</button>
+  </div>
+}
+
+@if (tab() === 'users') {
+  <div class="row between filters">
+    <label class="search">
+      <app-icon name="search" size="sm" />
+      <input type="search" placeholder="Filter by username or team" aria-label="Filter users"
+             [value]="store.query()" (input)="store.setQuery(value($event))">
+    </label>
+    <div class="row">
+      <div class="row" role="group" aria-label="Role">
+        @for (filter of roleFilters; track filter.value) {
+          <button type="button" class="pick" [class.on]="store.roleFilter() === filter.value"
+                  [attr.aria-pressed]="store.roleFilter() === filter.value"
+                  (click)="store.setRoleFilter(filter.value)">{{ filter.label }}</button>
+        }
+      </div>
+      <div class="seg" role="group" aria-label="Status">
+        <button type="button" [class.on]="!store.disabledOnly()" (click)="store.setDisabledOnly(false)">All</button>
+        <button type="button" [class.on]="store.disabledOnly()" (click)="store.setDisabledOnly(true)">Disabled</button>
+      </div>
+    </div>
+  </div>
+
+  <section class="card flush" aria-label="Users">
+    @if (store.selected().length) {
+      <div class="bulk">
+        <strong>{{ store.selected().length }} selected</strong>
+        <select class="input sel-sm" aria-label="Move to team" (change)="bulkMove($event)">
+          <option value="">Move to team...</option>
+          @for (team of store.teams(); track team.id) {
+            <option [value]="team.id">{{ team.name }}</option>
+          }
+          <option value="none">No team</option>
+        </select>
+        <select class="input sel-sm" aria-label="Change role" (change)="bulkRole($event)">
+          <option value="">Change role...</option>
+          @for (role of roles; track role) {
+            <option [value]="role">{{ labels[role] }}</option>
+          }
+        </select>
+        <button type="button" class="btn sm danger" (click)="bulkDisable()">Disable</button>
+        <button type="button" class="btn sm ghost" (click)="store.clearSelection()">Clear</button>
+      </div>
+    }
+    @if (store.loading()) {
+      <app-skeleton variant="rows" [count]="6" label="Loading users" />
+    } @else {
+      <div class="table-wrap">
+        <table class="t">
+          <thead>
+            <tr>
+              <th style="width:36px"><span class="muted">Pick</span></th>
+              <th>User</th><th>Team</th><th>Role</th><th>Status</th><th>Last sign in</th><th class="r">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (user of store.filtered(); track user.id) {
+              <tr [class.dimrow]="user.disabled">
+                <td>
+                  <input type="checkbox" class="pick-box" [checked]="store.selectedSet().has(user.id)"
+                         (change)="store.toggleSelected(user.id)" [attr.aria-label]="'Select ' + user.username">
+                </td>
+                <td>
+                  <div class="row">
+                    <div class="avatar">{{ initials(user.username) }}</div>
+                    <span style="font-weight:500">{{ user.username }}</span>
+                    @if (isMe(user)) { <span class="tag accent">You</span> }
+                  </div>
+                </td>
+                <td>
+                  <select class="input sel-sm" [attr.aria-label]="'Team for ' + user.username" [value]="user.team?.id ?? ''"
+                          (change)="changeTeam(user, $event)">
+                    @for (team of store.teams(); track team.id) {
+                      <option [value]="team.id" [selected]="team.id === user.team?.id">{{ team.name }}</option>
+                    }
+                    <option value="" [selected]="!user.team">No team</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="input sel-sm" [attr.aria-label]="'Role for ' + user.username" [disabled]="isMe(user)"
+                          [title]="isMe(user) ? 'You cannot change your own role' : ''" (change)="changeRole(user, $event)">
+                    @for (role of roles; track role) {
+                      <option [value]="role" [selected]="role === user.role">{{ labels[role] }}</option>
+                    }
+                  </select>
+                </td>
+                <td>
+                  <span class="chip" [class.s-bad]="user.disabled" [class.s-active]="!user.disabled">
+                    <span class="dot"></span>{{ user.disabled ? 'Disabled' : 'Active' }}
+                  </span>
+                </td>
+                <td class="dim small">{{ lastSeen(user.lastSignIn) }}</td>
+                <td class="r">
+                  <div class="row end actions">
+                    <button type="button" class="btn sm" (click)="resetPassword(user)"><app-icon name="key" size="sm" />Reset password</button>
+                    @if (isMe(user)) {
+                      <button type="button" class="btn sm" disabled title="You cannot disable your own account">Disable</button>
+                    } @else if (user.disabled) {
+                      <button type="button" class="btn sm" (click)="enable(user)">Enable</button>
+                    } @else {
+                      <button type="button" class="btn sm danger" (click)="disable(user)">Disable</button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (!store.filtered().length) {
+        <div class="empty">No users match these filters.</div>
+      }
+    }
+  </section>
+} @else {
+  @if (store.loading()) {
+    <div class="grid"><app-skeleton variant="card" [count]="3" label="Loading teams" /></div>
+  } @else if (!store.teamCards().length) {
+    <section class="card">
+      <app-empty-state icon="users" title="No teams yet" message="Teams share labs and show up together on the scoreboard.">
+        <button type="button" class="btn primary" (click)="newTeam()"><app-icon name="plus" />New team</button>
+      </app-empty-state>
+    </section>
+  } @else {
+    <div class="grid">
+      @for (card of store.teamCards(); track card.team.id) {
+        <article class="card stack team-card">
+          <div class="row between">
+            <h3 class="h3" style="font-size:15px">{{ card.team.name }}</h3>
+            <span class="tag">{{ card.members.length }} {{ card.members.length === 1 ? 'member' : 'members' }}</span>
+          </div>
+          @if (card.team.description) {
+            <p class="small dim desc">{{ card.team.description }}</p>
+          }
+          <div class="row members">
+            @for (member of card.members.slice(0, 6); track member.id) {
+              <span class="avatar" [title]="member.username">{{ initials(member.username) }}</span>
+            }
+            @if (card.members.length > 6) {
+              <span class="avatar">+{{ card.members.length - 6 }}</span>
+            }
+            @if (!card.members.length) {
+              <span class="small muted">No members yet</span>
+            }
+          </div>
+          <div class="row between small"><span class="muted">Labs running</span><span class="num">{{ card.running }}</span></div>
+          <div class="row between small"><span class="muted">Labs deployed, including paused</span><span class="num">{{ card.deployed }}</span></div>
+          <div class="row" style="margin-top:4px">
+            <button type="button" class="btn sm" (click)="editTeam(card.team)">Edit</button>
+            <button type="button" class="btn sm" (click)="members(card.team)">Members</button>
+            <span class="grow"></span>
+            <button type="button" class="btn sm ghost" [disabled]="card.deployed > 0" [title]="deleteNote(card)"
+                    (click)="deleteTeam(card)">Delete</button>
+          </div>
+        </article>
+      }
+    </div>
+  }
+}

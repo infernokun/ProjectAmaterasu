@@ -70,8 +70,9 @@ export class AuthInterceptor implements HttpInterceptor {
     });
   }
 
+  // Signing in and refreshing use the cookie; the rest of /api/auth (password, sessions) needs the token
   private isAuthEndpoint(url: string): boolean {
-    return url.includes('/api/auth/') || url.includes('/api/application-info');
+    return /\/api\/auth\/(login|register|refresh|logout)/.test(url) || url.includes('/api/application-info');
   }
 
   private handleTokenRefreshAndRetry(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {

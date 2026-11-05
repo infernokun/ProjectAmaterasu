@@ -82,6 +82,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/team/**").hasRole(admin)
                         .requestMatchers(HttpMethod.DELETE, "/api/team/**").hasRole(admin)
                         .requestMatchers(HttpMethod.POST, "/api/remote-server", "/api/remote-server/validate").hasRole(admin)
+                        .requestMatchers(HttpMethod.POST, "/api/remote-server/*/check").hasRole(admin)
                         .requestMatchers(HttpMethod.DELETE, "/api/remote-server/**").hasRole(admin)
                         .requestMatchers(HttpMethod.POST, "/api/remote-server-stats").hasRole(admin)
                         .requestMatchers(HttpMethod.PUT, "/api/remote-server-stats/**").hasRole(admin)
@@ -91,10 +92,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/lab-tracker/**").hasRole(admin)
                         .requestMatchers("/api/labs/dev", "/api/labs/delete-item/**").hasRole(admin)
 
+                        // Running an event: every team's labs and the live room view
+                        .requestMatchers(HttpMethod.GET, "/api/lab-tracker/overview", "/api/room/*/live")
+                                .hasAnyRole(admin, FACILITATOR.name())
+
                         // Authoring labs, rooms and challenges
                         .requestMatchers(HttpMethod.POST, "/api/labs", "/api/labs/many", "/api/labs/upload/**",
                                 "/api/labs/validate").hasAnyRole(authors)
                         .requestMatchers(HttpMethod.PUT, "/api/labs/**").hasAnyRole(authors)
+                        .requestMatchers(HttpMethod.DELETE, "/api/labs/*").hasAnyRole(authors)
                         .requestMatchers(HttpMethod.GET, "/api/labs/check/**", "/api/labs/settings/**").hasAnyRole(authors)
                         .requestMatchers("/api/proxmox/**").hasAnyRole(authors)
                         .requestMatchers(HttpMethod.POST, "/api/room", "/api/room/many").hasAnyRole(authors)
@@ -107,6 +113,11 @@ public class SecurityConfig {
                         // Raw challenges include their flags; players only get the /by and list DTOs
                         .requestMatchers(HttpMethod.GET, "/api/ctf-entity", "/api/ctf-entity/by").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/ctf-entity/**").hasAnyRole(authors)
+
+                        // Audit log and the caller's own sessions: any signed in user. The controllers
+                        // scope them: non-admins only see their team's events and only their own sessions.
+                        .requestMatchers(HttpMethod.GET, "/api/audit").authenticated()
+                        .requestMatchers("/api/auth/sessions", "/api/auth/sessions/**").authenticated()
 
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2

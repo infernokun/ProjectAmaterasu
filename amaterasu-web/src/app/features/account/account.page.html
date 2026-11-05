@@ -1,0 +1,143 @@
+<div class="page-head">
+  <div>
+    <h1 class="h1">Account</h1>
+    <p class="sub">Your profile, password, sessions and display settings</p>
+  </div>
+</div>
+
+<div class="cols">
+  <nav class="secnav" aria-label="Account sections">
+    @for (item of sections; track item.key) {
+      <button type="button" [class.on]="section() === item.key" [attr.aria-current]="section() === item.key ? 'page' : null"
+              (click)="show(item.key)"><app-icon [name]="item.icon" />{{ item.label }}</button>
+    }
+  </nav>
+
+  <div class="panel stack loose">
+    @switch (section()) {
+      @case ('profile') {
+        <section class="card stack loose" aria-labelledby="pr-h">
+          <div class="row" style="gap:16px">
+            <div class="avatar lg">{{ session.initials() }}</div>
+            <div>
+              <h2 class="h2" id="pr-h" style="font-size:18px">{{ session.username() }}</h2>
+              @if (created()) { <div class="small muted">Account created {{ created() }}</div> }
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <span class="label">Username</span>
+              <input class="input mono" [value]="session.username()" readonly aria-label="Username">
+              <span class="help">Usernames cannot be changed</span>
+            </div>
+            <div class="field">
+              <span class="label">Team</span>
+              <input class="input" [value]="session.team()?.name ?? 'No team'" readonly aria-label="Team">
+              <span class="help">Ask an admin to move you to another team</span>
+            </div>
+          </div>
+          <div class="stack tight">
+            <span class="label">Role: {{ session.roleLabel() || 'Member' }}</span>
+            @for (item of capabilities(); track item.text) {
+              <div class="row small" [class.dim]="item.can" [class.muted]="!item.can">
+                <app-icon [name]="item.can ? 'check' : 'close'" size="sm" [class.ok-icon]="item.can" />{{ item.text }}
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      @case ('password') {
+        <form class="card stack loose" aria-labelledby="pw-h" (submit)="$event.preventDefault(); changePassword()">
+          <div>
+            <h2 class="h2" id="pw-h">Change password</h2>
+            <p class="small dim" style="margin-top:6px">Changing it signs you out on every other device. This browser stays signed in.</p>
+          </div>
+          @if (store.passwordChanged()) {
+            <div class="banner ok" role="status"><app-icon name="check" /><div><strong>Password changed.</strong> Your other sessions were signed out.</div></div>
+          }
+          @if (store.passwordError()) {
+            <div class="banner bad" role="alert"><app-icon name="close" /><div>{{ store.passwordError() }}</div></div>
+          }
+          <label class="field narrow">
+            <span class="label">Current password</span>
+            <input class="input" type="password" autocomplete="current-password" [value]="current()" (input)="typed(current, $event)">
+          </label>
+          <label class="field narrow">
+            <span class="label">New password</span>
+            <input class="input" type="password" autocomplete="new-password" [value]="next()" (input)="typed(next, $event)">
+            <div class="bar thick" [class]="strengthLevel()" aria-hidden="true" style="margin-top:4px"><span [style.width.%]="strengthPct()"></span></div>
+            <span class="help">Strength: {{ check().label === 'Not set' ? 'not set' : check().label }}</span>
+          </label>
+          <div class="stack tight">
+            <span class="rule" [class.ok]="check().long"><span class="pill-dot"></span>At least 12 characters</span>
+            <span class="rule" [class.ok]="check().mixed"><span class="pill-dot"></span>Mixes letters with numbers or symbols</span>
+            <span class="rule" [class.ok]="check().different"><span class="pill-dot"></span>Different from your current password</span>
+          </div>
+          <label class="field narrow">
+            <span class="label">Confirm new password</span>
+            <input class="input" type="password" autocomplete="new-password" [class.err]="mismatch()" [value]="confirmNext()"
+                   (input)="typed(confirmNext, $event)">
+            @if (mismatch()) { <span class="help mismatch">Does not match the new password</span> }
+          </label>
+          <div class="row">
+            <button type="submit" class="btn primary" [disabled]="!canSubmit()">
+              @if (store.changing()) { <app-icon name="spinner" size="sm" [spin]="true" /> }
+              Change password
+            </button>
+            <span class="small muted">Forgot it? An admin can reset it for you.</span>
+          </div>
+        </form>
+      }
+
+      @case ('sessions') {
+        <section class="card flush" aria-labelledby="se-h">
+          <div class="card-head">
+            <div>
+              <h2 class="h2" id="se-h">Signed in devices</h2>
+              <div class="small muted">Sessions renew every 15 minutes and end after 7 days without use</div>
+            </div>
+            <button type="button" class="btn sm danger" [disabled]="!store.others().length || store.ending() !== null"
+                    (click)="signOutOthers()">Sign out everywhere else</button>
+          </div>
+          @if (store.error()) {
+            <div class="card-body"><div class="banner bad" role="alert"><app-icon name="alert" />
+              <div class="grow">{{ store.error() }}</div>
+              <button type="button" class="btn sm" (click)="store.loadSessions()">Try again</button></div></div>
+          } @else if (store.loading() && !store.sessions().length) {
+            <div class="card-body"><app-skeleton [count]="3" label="Loading sessions" /></div>
+          } @else {
+            <div class="list">
+              @for (item of store.sessions(); track item.id) {
+                <div class="list-item">
+                  <app-icon name="monitor" />
+                  <div class="grow">
+                    <div style="font-weight:500">{{ device(item) }}</div>
+                    <div class="small muted">{{ meta(item) }}</div>
+                  </div>
+                  @if (item.current) {
+                    <span class="tag accent">This browser</span>
+                  } @else {
+                    <button type="button" class="btn sm ghost" [disabled]="store.ending() !== null" (click)="signOut(item)">
+                      @if (store.ending() === item.id) { <app-icon name="spinner" size="sm" [spin]="true" /> }
+                      Sign out
+                    </button>
+                  }
+                </div>
+              } @empty {
+                <div class="empty small">No active sessions found.</div>
+              }
+            </div>
+          }
+        </section>
+      }
+
+      @case ('appearance') {
+        <section class="card stack loose" aria-labelledby="ap-h">
+          <h2 class="h2" id="ap-h">Appearance</h2>
+          <app-theme-picker />
+        </section>
+      }
+    }
+  </div>
+</div>

@@ -4,5 +4,6 @@
   "baseUrl": "http://localhost:4200",
   "restUrl": "http://localhost:8080/amaterasu-rest/api",
   "baseEndPoint": "amaterasu",
-  "websocketUrl": "ws://localhost:8080/amaterasu-rest"
+  "websocketUrl": "ws://localhost:8080/amaterasu-rest",
+  "devTools": true
 }

@@ -14,6 +14,7 @@ import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.entity.lab.RemoteServerStatsService;
 import jakarta.annotation.PostConstruct;
+import jakarta.transaction.Transactional;
 import org.hibernate.StaleObjectStateException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -24,7 +25,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class RemoteStatsService extends BaseService {
@@ -38,6 +41,7 @@ public class RemoteStatsService extends BaseService {
     private final AmaterasuConfig amaterasuConfig;
     private final ProxmoxService proxmoxService;
     private String scriptContentBase64;
+    private final Map<String, Object> locks = new ConcurrentHashMap<>();
 
     public RemoteStatsService(
             RemoteServerService remoteServerService, RemoteServerStatsService remoteServerStatsService,
@@ -62,13 +66,28 @@ public class RemoteStatsService extends BaseService {
         }
     }
 
+    // No surrounding transaction: each save commits at once, so the per-server lock below covers it
     @Scheduled(cron = "0 * * * * *")
+    @Transactional(Transactional.TxType.NOT_SUPPORTED)
     public void getRemoteServerStats() {
         remoteServerService.findAllServers()
                 .forEach(this::safeProcessStats);
     }
 
+    /** Collects stats for one server now instead of waiting for the next minute. */
+    @Transactional(Transactional.TxType.NOT_SUPPORTED)
+    public void refresh(RemoteServer server) {
+        safeProcessStats(server);
+    }
+
     private void safeProcessStats(RemoteServer server) {
+        // Check now and the minute cron can run for the same server at once
+        synchronized (locks.computeIfAbsent(server.getId(), id -> new Object())) {
+            processStats(server);
+        }
+    }
+
+    private void processStats(RemoteServer server) {
         try {
             switch(server.getServerType()) {
                 case DOCKER_HOST -> processDockerServerStats(server);
@@ -153,7 +172,12 @@ public class RemoteStatsService extends BaseService {
                             () -> createNewStats(remoteServer, statsFromJson)
                     );
         } else {
-            createNewStats(remoteServer, statsFromJson);
+            // The server entity may predate its stats row; look it up so a second row is never made
+            remoteServerStatsRepository.findByRemoteServerId(remoteServer.getId())
+                    .ifPresentOrElse(
+                            stats -> updateStats(stats, statsFromJson, remoteServer),
+                            () -> createNewStats(remoteServer, statsFromJson)
+                    );
         }
     }
 

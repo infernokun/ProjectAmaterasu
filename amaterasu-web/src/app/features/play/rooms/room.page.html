@@ -1,0 +1,98 @@
+@if (overview(); as o) {
+  <header class="page-head">
+    <div>
+      <div class="row">
+        @if (o.room.surroundTag) {
+          <span class="tag accent mono">Flags look like {{ o.room.surroundTag }}</span>
+        }
+        <span class="tag">{{ o.challenges.length }} {{ o.challenges.length === 1 ? 'challenge' : 'challenges' }}</span>
+        <span class="tag">{{ o.playerCount }} {{ o.playerCount === 1 ? 'player' : 'players' }}</span>
+      </div>
+      <h1 class="h1 room-title">{{ o.room.name }}</h1>
+      @if (byline()) {
+        <p class="sub">{{ byline() }}</p>
+      }
+    </div>
+    <div class="row">
+      @if (o.me.joined) {
+        <div class="card stat"><div class="kpi-label">Your points</div><div class="num stat-val">{{ fmt.points(o.me.points) }}</div></div>
+        <div class="card stat"><div class="kpi-label">Rank</div><div class="stat-val">{{ o.me.rank ? fmt.ordinal(o.me.rank) : '-' }}</div></div>
+        <div class="card stat"><div class="kpi-label">Solved</div><div class="num stat-val">{{ o.me.solved }} / {{ o.challenges.length }}</div></div>
+      } @else {
+        <button type="button" class="btn primary" (click)="join()" [disabled]="store.joining()">
+          @if (store.joining()) {<app-icon name="spinner" [spin]="true" />}Join room</button>
+      }
+      <a class="btn" [routerLink]="['/rooms', o.room.id, 'scoreboard']"><app-icon name="trophy" />Scoreboard</a>
+    </div>
+  </header>
+
+  @if (!o.me.joined) {
+    <div class="banner info"><app-icon name="flag" /><div>You can read the challenges here. Join the room to submit flags, unlock hints and score points.</div></div>
+  }
+
+  @if (o.challenges.length) {
+    <div class="row between filters">
+      @if (store.categories().length <= 8) {
+        <div class="row" role="group" aria-label="Category">
+          @for (category of store.categories(); track category) {
+            <button type="button" class="pick" [class.on]="store.category() === category" [attr.aria-pressed]="store.category() === category" (click)="store.setCategory(category)">{{ category }}</button>
+          }
+        </div>
+      } @else {
+        <label class="field category-pick"><span class="visually-hidden">Category</span>
+          <select class="input" [value]="store.category()" (change)="store.setCategory($any($event.target).value)">
+            @for (category of store.categories(); track category) {
+              <option [value]="category" [selected]="store.category() === category">{{ category === 'All' ? 'All categories' : category }}</option>
+            }
+          </select></label>
+      }
+      <div class="seg" role="group" aria-label="Status">
+        @for (status of statuses; track status.value) {
+          <button type="button" [class.on]="store.status() === status.value" [attr.aria-pressed]="store.status() === status.value" (click)="store.setStatus(status.value)">{{ status.label }}</button>
+        }
+      </div>
+    </div>
+
+    <div class="cols room-cols">
+      <section class="card flush challenge-list" aria-label="Challenges">
+        @for (group of store.groups(); track group.name) {
+          <div class="row between group-head"><span class="nav-label">{{ group.name }}</span><span class="small muted">{{ group.done }} of {{ group.total }} solved</span></div>
+          @for (item of group.items; track item.id) {
+            <button type="button" class="list-btn" [class.on]="store.selected()?.id === item.id" [attr.aria-current]="store.selected()?.id === item.id" (click)="pick(item.id)">
+              <span class="feed-ico item-ico" [class.s-active]="item.solved">
+                @if (item.solved) {
+                  <app-icon name="check" size="sm" />
+                } @else if (item.state === 'LOCKED') {
+                  <app-icon name="lock" size="sm" />
+                } @else {
+                  <span class="pill-dot open-dot"></span>
+                }
+              </span>
+              <span class="grow">
+                <span class="item-title">{{ item.title }}</span>
+                <span class="small muted">{{ item.difficulty ? (item.difficulty | titlecase) + ' · ' : '' }}{{ item.solves }} {{ item.solves === 1 ? 'solve' : 'solves' }}{{ item.state === 'LOCKED' ? ' · not open yet' : item.state === 'EXPIRED' ? ' · closed' : '' }}</span>
+              </span>
+              <span class="num item-points">{{ item.points }}</span>
+            </button>
+          }
+        } @empty {
+          <div class="empty">No challenges match this filter.</div>
+        }
+      </section>
+
+      @if (store.selected(); as challenge) {
+        <app-challenge-detail class="detail" [challenge]="challenge" [joined]="o.me.joined" />
+      }
+    </div>
+  } @else {
+    <section class="card"><app-empty-state icon="flag" title="No challenges yet" message="Challenges show here as soon as the room's authors publish them." /></section>
+  }
+} @else if (store.error()) {
+  <section class="card">
+    <app-empty-state icon="alert" title="This room could not be opened" [message]="store.error()!">
+      <a class="btn sm" routerLink="/rooms">Back to rooms</a>
+    </app-empty-state>
+  </section>
+} @else {
+  <app-skeleton variant="card" [count]="2" label="Loading room" />
+}

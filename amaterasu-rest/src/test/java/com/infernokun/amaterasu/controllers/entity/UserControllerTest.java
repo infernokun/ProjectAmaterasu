@@ -16,6 +16,12 @@ import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.services.entity.UserService;
 import java.util.Collections;
 import java.util.List;
+import com.infernokun.amaterasu.components.CurrentUser;
+import com.infernokun.amaterasu.models.entities.alt.CreateUserRequest;
+import com.infernokun.amaterasu.models.enums.Role;
+import com.infernokun.amaterasu.services.alt.AuthenticationService;
+import com.infernokun.amaterasu.services.entity.AuditService;
+import com.infernokun.amaterasu.services.entity.TeamService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +38,10 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class UserControllerTest {
 
     @Mock private UserService userService;
+    @Mock private AuthenticationService authenticationService;
+    @Mock private TeamService teamService;
+    @Mock private AuditService auditService;
+    @Mock private CurrentUser currentUser;
 
     @InjectMocks private UserController userController;
 
@@ -77,13 +87,14 @@ class UserControllerTest {
 
     @Test
     void createUser() throws Exception {
-        when(userService.createUser(any(User.class))).thenReturn(user);
+        when(authenticationService.createUser("testUser", "password123", Role.CREATOR, null)).thenReturn(user);
 
         mockMvc
                 .perform(
                         post("/api/user")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(user)))
+                                .content(objectMapper.writeValueAsString(
+                                        new CreateUserRequest("testUser", "password123", Role.CREATOR, null))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.code").value(201))
                 .andExpect(jsonPath("$.data.username").value("testUser"));
@@ -139,6 +150,27 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.username").value("testUser"));
+    }
+
+    @Test
+    void changeRole() throws Exception {
+        when(currentUser.id()).thenReturn("admin");
+        when(authenticationService.changeRole("1", Role.FACILITATOR, "admin")).thenReturn(user);
+
+        mockMvc
+                .perform(put("/api/user/1/role").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"FACILITATOR\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.username").value("testUser"));
+    }
+
+    @Test
+    void updateUserTeamWithoutATeamTakesThemOff() throws Exception {
+        when(userService.updateUserTeam("1", null)).thenReturn(user);
+
+        mockMvc
+                .perform(put("/api/user/team").param("userId", "1"))
+                .andExpect(status().isOk());
     }
 
     @Test

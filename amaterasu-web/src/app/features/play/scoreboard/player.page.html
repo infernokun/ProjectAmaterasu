@@ -1,0 +1,47 @@
+@if (player(); as p) {
+  <header class="page-head">
+    <div class="row who">
+      <div class="avatar lg" aria-hidden="true">{{ fmt.initials(p.username) }}</div>
+      <div>
+        <div class="small muted">{{ store.standings()?.roomName }}</div>
+        <h1 class="h1">{{ p.username }} @if (isYou()) {<span class="tag accent">You</span>}</h1>
+        <p class="sub">{{ p.teamName ?? 'No team' }} · {{ fmt.ordinal(p.rank) }} of {{ store.players().length }}</p>
+      </div>
+    </div>
+    <a class="btn" [routerLink]="['/rooms', roomId(), 'scoreboard']"><app-icon name="trophy" />Back to scoreboard</a>
+  </header>
+
+  <div class="kpis">
+    <div class="card"><div class="kpi-label">Points</div><div class="kpi-val">{{ fmt.points(p.points) }}</div>
+      <div class="kpi-note">{{ p.lastHourChange ? fmt.signed(p.lastHourChange) + ' in the last hour' : 'No change in the last hour' }}</div></div>
+    <div class="card"><div class="kpi-label">Rank</div><div class="kpi-val">{{ fmt.ordinal(p.rank) }}</div><div class="kpi-note">of {{ store.players().length }} players</div></div>
+    <div class="card"><div class="kpi-label">Solves</div><div class="kpi-val">{{ p.solves }}</div><div class="kpi-note">{{ p.lastSolveAt ? 'last at ' + fmt.clock(p.lastSolveAt) : 'None yet' }}</div></div>
+    <div class="card"><div class="kpi-label">Wrong attempts</div><div class="kpi-val">{{ p.wrongAttempts }}</div><div class="kpi-note">{{ p.hintsUsed }} {{ p.hintsUsed === 1 ? 'hint' : 'hints' }} used</div></div>
+  </div>
+
+  <div class="cols">
+    <section class="card stack col-main" aria-labelledby="pchart-h">
+      <div><h2 class="h2" id="pchart-h">Points over time</h2>
+        <div class="small muted">{{ series().length > 1 ? 'Compared with the leader' : 'Every change in this room' }}</div></div>
+      <app-points-chart [series]="series()" [label]="'Points over time for ' + p.username" />
+    </section>
+    <section class="card stack col-side categories" aria-labelledby="cat-h">
+      <h2 class="h2" id="cat-h">Solves by category</h2>
+      @for (category of categories(); track category.name) {
+        <div class="meter-row"><span class="dim">{{ category.name }}</span><div class="bar ok"><span [style.width.%]="category.pct"></span></div><span class="num">{{ category.count }}</span></div>
+      } @empty {
+        <app-empty-state title="No solves yet" />
+      }
+    </section>
+  </div>
+} @else if (store.standings()) {
+  <section class="card">
+    <app-empty-state icon="user" title="Not in this room" [message]="username() + ' has not joined this room.'">
+      <a class="btn sm" [routerLink]="['/rooms', roomId(), 'scoreboard']">Back to scoreboard</a>
+    </app-empty-state>
+  </section>
+} @else if (store.error()) {
+  <section class="card"><app-empty-state icon="alert" title="The scoreboard could not be loaded" [message]="store.error()!" /></section>
+} @else {
+  <app-skeleton variant="card" [count]="2" label="Loading player" />
+}

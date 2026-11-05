@@ -74,6 +74,13 @@ export class LabService extends BaseService {
     this.fetchLabs();
   }
 
+  getLabs(): Observable<Lab[]> {
+    return this.get<ApiResponse<Lab[]>>(`${this.environmentService.settings?.restUrl}/labs`).pipe(
+      map(response => (response.data ?? []).map(lab => new Lab(lab))
+        .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')))
+    );
+  }
+
   getLabById(labId: string): Observable<Lab> {
     return this.get<ApiResponse<Lab>>(this.environmentService.settings?.restUrl + '/labs/' + labId)
       .pipe(
@@ -139,11 +146,5 @@ export class LabService extends BaseService {
 
   deleteLabItem(labId: string) {
     return this.delete<ApiResponse<boolean>>(this.environmentService.settings?.restUrl + '/labs/delete-item/' + labId);
-  }
-
-  clear(teamId: string): Observable<ApiResponse<any>> {
-    return this.post<ApiResponse<any>>(this.environmentService.settings?.restUrl + '/labs/dev', {
-      teamId
-    });
   }
 }

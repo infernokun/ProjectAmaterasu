@@ -24,7 +24,7 @@
       display: flex;
       align-items: center;
 
-      mat-icon {
+      app-icon {
         margin-right: 4px;
         color: #1aa1fc;
       }
@@ -35,7 +35,7 @@
       display: flex;
       align-items: center;
       margin: 0;
-      mat-icon {
+      app-icon {
         margin-right: 4px;
       }
     }

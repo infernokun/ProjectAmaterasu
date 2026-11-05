@@ -5,6 +5,7 @@ import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.ctf.*;
 import com.infernokun.amaterasu.models.entities.ctf.dto.*;
+import com.infernokun.amaterasu.services.entity.AuditService;
 import com.infernokun.amaterasu.services.entity.ctf.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -29,6 +32,7 @@ public class CTFEntityController {
     private final RoomService roomService;
     private final HintService hintService;
     private final CurrentUser currentUser;
+    private final AuditService auditService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<CTFEntityResponse>>> getAllCTFEntities() {
@@ -125,6 +129,8 @@ public class CTFEntityController {
             @RequestBody CTFEntityRequest dto) {
         CTFEntity ctfEntity = convertDtoToEntity(dto);
         CTFEntity savedEntity = ctfEntityService.createCTFEntity(ctfEntity);
+        auditService.record("CHALLENGE_CREATED", "CHALLENGE", savedEntity.getId(), savedEntity.getQuestion(), null,
+                savedEntity.getRoom() != null ? "In " + savedEntity.getRoom().getName() : null);
 
         return buildSuccessResponse(
                 "CTF entity created successfully: " + ctfEntity.getQuestion(),
@@ -138,7 +144,17 @@ public class CTFEntityController {
             @RequestBody List<CTFEntity> ctfEntities) {
         log.debug("Creating {} CTF entities", ctfEntities.size());
 
+        for (CTFEntity entity : ctfEntities) {
+            if (entity != null && entity.getRoom() != null && entity.getRoom().getId() != null) {
+                entity.setRoom(roomService.findByRoomId(entity.getRoom().getId()));
+            } else if (entity != null) {
+                throw new IllegalArgumentException("Every challenge needs a room");
+            }
+        }
         List<CTFEntity> savedEntities = ctfEntityService.createCTFEntities(ctfEntities);
+        Room room = savedEntities.isEmpty() ? null : savedEntities.get(0).getRoom();
+        auditService.record("CHALLENGE_IMPORTED", "ROOM", room != null ? room.getId() : null,
+                room != null ? room.getName() : null, null, savedEntities.size() + " challenges imported");
 
         return buildSuccessResponse(
                 "CTF entities created successfully",
@@ -166,6 +182,8 @@ public class CTFEntityController {
         log.debug("Updating CTF entity with id: {}", id);
 
         CTFEntity updatedEntity = ctfEntityService.updateCTFEntity(id, ctfEntity);
+        auditService.record("CHALLENGE_UPDATED", "CHALLENGE", id, updatedEntity.getQuestion(), null,
+                updatedEntity.getRoom() != null ? "In " + updatedEntity.getRoom().getName() : null);
 
         return buildSuccessResponse(
                 "CTF entity updated successfully",
@@ -179,7 +197,10 @@ public class CTFEntityController {
             @PathVariable String id) {
         log.debug("Deleting CTF entity with id: {}", id);
 
+        CTFEntity deleted = ctfEntityService.findCTFEntityById(id);
         ctfEntityService.deleteCTFEntity(id);
+        auditService.record("CHALLENGE_DELETED", "CHALLENGE", id, deleted.getQuestion(), null,
+                deleted.getRoom() != null ? "From " + deleted.getRoom().getName() : null);
 
         return buildSuccessResponse(
                 "CTF entity deleted successfully",
@@ -204,7 +225,22 @@ public class CTFEntityController {
             Room room = roomService.findByRoomId(dto.getRoomId());
             entity.setRoom(room);
         }
+        LocalDateTime release = parseDate(dto.getReleaseDate());
+        entity.setReleaseDate(release != null ? release : LocalDateTime.now());
+        entity.setExpirationDate(parseDate(dto.getExpirationDate()));
 
         return entity;
+    }
+
+    /** Accepts "2026-11-04 09:00:00" as well as the ISO forms "2026-11-04T09:00" and "2026-11-04T09:00:00". */
+    static LocalDateTime parseDate(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(value.trim().replace(' ', 'T'));
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("Dates look like 2026-11-04 09:00:00, not " + value);
+        }
     }
 }

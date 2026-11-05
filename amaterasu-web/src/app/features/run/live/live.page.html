@@ -1,0 +1,145 @@
+@if (!roomId()) {
+  <header class="page-head"><div><h1 class="h1">Live event</h1></div></header>
+  <section class="card"><app-empty-state icon="activity" title="No rooms yet" message="The live view follows a room. Create one in Build first." /></section>
+} @else if (store.live(); as live) {
+  <header class="page-head">
+    <div>
+      <div class="row">
+        <span class="chip s-active"><span class="dot pulse"></span>Live</span>
+        <span class="small muted">{{ live.playerCount }} {{ live.playerCount === 1 ? 'player' : 'players' }} on {{ live.teamCount }} {{ live.teamCount === 1 ? 'team' : 'teams' }}</span>
+      </div>
+      <h1 class="h1 title">{{ live.roomName }}</h1>
+    </div>
+    <div class="row">
+      @if (rooms.rooms().length > 1) {
+        <label class="visually-hidden" for="room-pick">Room</label>
+        <select id="room-pick" class="input room-pick" [value]="roomId()" (change)="pickRoom($any($event.target).value)">
+          @for (room of rooms.rooms(); track room.id) {
+            <option [value]="room.id" [selected]="room.id === roomId()">{{ room.name }}</option>
+          }
+        </select>
+      }
+      <a class="btn" [routerLink]="['/rooms', live.roomId, 'scoreboard']"><app-icon name="trophy" />Scoreboard</a>
+      <button type="button" class="btn primary" (click)="openAward()" [disabled]="!live.players.length"><app-icon name="award" />Award points</button>
+    </div>
+  </header>
+
+  <div class="kpis">
+    <div class="card"><div class="kpi-label">Solves, last 15 min</div><div class="kpi-val">{{ live.solvesRecent }}</div><div class="kpi-note">{{ live.solvesTotal }} in total</div></div>
+    <div class="card"><div class="kpi-label">Team labs running</div><div class="kpi-val">{{ store.labsRunning() }} / {{ store.trackers().length }}</div>
+      <div class="kpi-note">{{ store.degraded() }} degraded · {{ store.failed() }} failed</div></div>
+    <div class="card"><div class="kpi-label">Wrong flags, last 15 min</div><div class="kpi-val">{{ live.wrongRecent }}</div>
+      <div class="kpi-note">{{ live.topWrong ? live.topWrong.count + ' on ' + live.topWrong.title : 'None' }}</div></div>
+    <div class="card"><div class="kpi-label">Hints unlocked</div><div class="kpi-val">{{ live.hintsUnlocked }}</div>
+      <div class="kpi-note">{{ live.hintPoints ? fmt.signed(-live.hintPoints) + ' pts across the room' : 'No points spent' }}</div></div>
+  </div>
+
+  <div class="cols">
+    <div class="col-main">
+      <section class="card flush" aria-labelledby="att-h">
+        <div class="card-head"><h2 class="h2" id="att-h">Needs attention</h2><span class="small muted">{{ store.alerts().length }} open</span></div>
+        <div class="feed">
+          @for (alert of store.alerts(); track alert.id) {
+            <div class="feed-item">
+              <span class="sev" [class]="'sev ' + alert.severity"></span>
+              <div class="grow stack tight"><strong>{{ alert.title }}</strong><span class="small dim">{{ alert.body }}</span>
+                @if (alert.at) {<span class="small muted">{{ fmt.ago(alert.at) }}</span>}</div>
+              <div class="row">
+                @if (alert.trackerId && session.isAdmin()) {
+                  <a class="btn sm" [routerLink]="['/labs', alert.trackerId]">Open lab</a>
+                }
+                <button type="button" class="btn sm ghost" (click)="store.dismiss(alert.id)">Dismiss</button>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty">Nothing needs you right now.</div>
+          }
+        </div>
+      </section>
+
+      <section class="card flush" aria-labelledby="mx-h">
+        <div class="card-head"><h2 class="h2" id="mx-h">Team labs</h2>
+          <div class="row small dim legend">
+            <span class="s-active row"><span class="pill-dot"></span>Active</span>
+            <span class="s-paused row"><span class="pill-dot"></span>Paused</span>
+            <span class="s-warn row"><span class="pill-dot"></span>Degraded</span>
+            <span class="s-bad row"><span class="pill-dot"></span>Failed or offline</span>
+          </div></div>
+        @if (store.matrix().columns.length) {
+          <div class="table-wrap matrix-wrap">
+            <div class="matrix" role="table" aria-label="Lab status by team" [style.grid-template-columns]="'minmax(120px, 1.2fr) repeat(' + store.matrix().columns.length + ', minmax(110px, 1fr))'">
+              <div class="mrow" role="row">
+                <span class="mh" role="columnheader">Team</span>
+                @for (column of store.matrix().columns; track column.id) {
+                  <span class="mh" role="columnheader">{{ column.name }}</span>
+                }
+              </div>
+              @for (row of store.matrix().rows; track row.team) {
+                <div class="mrow" role="row">
+                  <span role="rowheader" class="team">{{ row.team }}</span>
+                  @for (cell of row.cells; track $index) {
+                    <span class="cell" [class]="'cell ' + (cell.tone || 'none')" role="cell">{{ cell.label }}</span>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        } @else {
+          <app-empty-state icon="flask" title="No team labs yet" message="Labs show here as teams start them." />
+        }
+      </section>
+
+      <section class="card flush" aria-labelledby="ch-h">
+        <div class="card-head"><h2 class="h2" id="ch-h">Challenge health</h2><span class="small muted">Sorted by wrong attempts</span></div>
+        @if (live.challenges.length) {
+          <div class="table-wrap">
+            <table class="t">
+              <thead><tr><th>Challenge</th><th class="r">Solves</th><th class="r">Wrong attempts</th><th>Solve rate</th><th class="r">Hints used</th></tr></thead>
+              <tbody>
+                @for (challenge of live.challenges; track challenge.id) {
+                  <tr>
+                    <td>{{ challenge.title }}</td>
+                    <td class="r num">{{ challenge.solves }}</td>
+                    <td class="r num">{{ challenge.wrongAttempts }}</td>
+                    <td><div class="row rate"><div class="bar grow" [class.warn]="solveRate(challenge.solves) < 20" [class.ok]="solveRate(challenge.solves) >= 40"><span [style.width.%]="solveRate(challenge.solves)"></span></div><span class="small num">{{ solveRate(challenge.solves) }}%</span></div></td>
+                    <td class="r num">{{ challenge.hintsUsed }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <app-empty-state icon="flag" title="No challenges in this room" />
+        }
+      </section>
+    </div>
+
+    <aside class="col-side">
+      <section class="card flush" aria-labelledby="feed-h">
+        <div class="card-head"><h2 class="h2" id="feed-h">Live feed</h2>
+          <div class="seg" role="group" aria-label="Filter feed">
+            @for (option of filters; track option.value) {
+              <button type="button" [class.on]="store.feedFilter() === option.value" [attr.aria-pressed]="store.feedFilter() === option.value" (click)="store.setFeedFilter(option.value)">{{ option.label }}</button>
+            }
+          </div></div>
+        <div class="feed">
+          @for (item of store.feed(); track $index) {
+            <div class="feed-item">
+              <div class="feed-ico" [class]="'feed-ico ' + feedTone(item.kind)"><span class="pill-dot"></span></div>
+              <div class="grow"><div><strong>{{ item.who }}</strong> {{ item.text }}</div>
+                <div class="small muted">{{ item.detail ?? item.team ?? '' }}{{ (item.detail ?? item.team) ? ' · ' : '' }}{{ fmt.clock(item.at) }}</div></div>
+              <span class="num small pts">{{ fmt.signed(item.points) }}</span>
+            </div>
+          } @empty {
+            <div class="empty">No activity yet.</div>
+          }
+        </div>
+      </section>
+    </aside>
+  </div>
+} @else if (store.error()) {
+  <section class="card"><app-empty-state icon="alert" title="The live view could not be loaded" [message]="store.error()!">
+    <button type="button" class="btn sm" (click)="store.load(roomId()!)">Try again</button></app-empty-state></section>
+} @else {
+  <app-skeleton variant="card" [count]="3" label="Loading the live view" />
+}

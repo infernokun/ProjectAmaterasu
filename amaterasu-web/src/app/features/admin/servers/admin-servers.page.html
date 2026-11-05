@@ -1,0 +1,109 @@
+<div class="page-head">
+  <div>
+    <h1 class="h1">Servers</h1>
+    <p class="sub">{{ summary() }} · <span class="muted">{{ lastUpdate() }}</span></p>
+  </div>
+  <button type="button" class="btn primary" (click)="addServer()"><app-icon name="plus" />Add server</button>
+</div>
+
+@if (store.error()) {
+  <div class="banner bad" role="alert">
+    <app-icon name="alert" />
+    <div class="grow">{{ store.error() }}</div>
+    <button type="button" class="btn sm" (click)="store.load()">Try again</button>
+  </div>
+}
+
+@if (store.loading()) {
+  <div class="grid"><app-skeleton variant="card" [count]="3" label="Loading servers" /></div>
+} @else if (!store.cards().length) {
+  <section class="card">
+    <app-empty-state icon="server" title="No servers yet"
+                     message="Add a Docker host reachable over SSH or a Proxmox node with an API token. Labs start on these.">
+      <button type="button" class="btn primary" (click)="addServer()"><app-icon name="plus" />Add server</button>
+    </app-empty-state>
+  </section>
+} @else {
+  <div class="grid">
+    @for (card of store.cards(); track card.server.id) {
+      <button type="button" class="card srv" [class.sel]="store.selected()?.server?.id === card.server.id"
+              [attr.aria-pressed]="store.selected()?.server?.id === card.server.id" (click)="store.select(card.server.id)">
+        <div class="row between full">
+          <span class="row"><app-icon name="server" /><strong class="mono" style="font-size:15px">{{ card.server.name }}</strong></span>
+          <app-status-badge [tone]="card.health.tone" [label]="card.health.label" />
+        </div>
+        <div class="small muted">{{ typeLabel(card.server.serverType) }} · <span class="mono">{{ address(card.server) }}</span></div>
+        @for (meter of [card.health.cpu, card.health.memory, card.health.disk]; track meter.label) {
+          <div class="meter-row">
+            <span class="muted">{{ meter.label }}</span>
+            <div class="bar" [class]="meter.level"><span [style.width.%]="meter.pct"></span></div>
+            <span class="num dim">{{ meter.text }}</span>
+          </div>
+        }
+        <div class="row between small full">
+          <span class="dim">{{ card.deployments.length }} team {{ card.deployments.length === 1 ? 'lab' : 'labs' }}</span>
+          <span class="muted">{{ card.server.stats?.updatedAt ? 'Checked ' + since(card.server.stats.updatedAt).toLowerCase() : 'Waiting for first check' }}</span>
+        </div>
+      </button>
+    }
+  </div>
+
+  @if (store.selected(); as card) {
+    <section class="card flush" aria-labelledby="det-h">
+      <div class="card-head">
+        <div>
+          <h2 class="h2 mono" id="det-h">{{ card.server.name }}</h2>
+          <div class="small muted">{{ osLine(card) }}</div>
+        </div>
+        <div class="row">
+          <button type="button" class="btn sm" [disabled]="store.checking() === card.server.id" (click)="check(card)">
+            <app-icon [name]="store.checking() === card.server.id ? 'spinner' : 'refresh'" size="sm" [spin]="store.checking() === card.server.id" />
+            {{ card.health.online ? 'Check now' : 'Retry now' }}
+          </button>
+          <button type="button" class="btn sm danger" [disabled]="card.deployments.length > 0" [title]="deleteNote(card)"
+                  (click)="remove(card)">Delete</button>
+        </div>
+      </div>
+      @if (card.health.label === 'Offline') {
+        <div class="detail-banner">
+          <div class="banner bad"><app-icon name="alert" />
+            <div class="grow"><strong>No response at the last check{{ card.server.stats?.updatedAt ? ', ' + at(card.server.stats.updatedAt) : '' }}.</strong>
+              Labs cannot start here until it answers again. Teams with labs on it see them as offline.</div>
+          </div>
+        </div>
+      } @else if (card.health.busy) {
+        <div class="detail-banner">
+          <div class="banner warn"><app-icon name="alert" />
+            <div>CPU is at {{ card.health.cpu.pct }}%. Labs started here now may be slow to come up.</div>
+          </div>
+        </div>
+      } @else if (card.health.label === 'Not checked') {
+        <div class="detail-banner">
+          <div class="banner"><app-icon name="clock" />
+            <div>No stats yet. They are collected every minute, or press Check now.</div>
+          </div>
+        </div>
+      }
+      @if (card.deployments.length) {
+        <div class="table-wrap">
+          <table class="t">
+            <thead><tr><th>Team</th><th>Lab</th><th>State</th><th>{{ unitColumn(card) }}</th><th>Since</th></tr></thead>
+            <tbody>
+              @for (deployment of card.deployments; track deployment.id) {
+                <tr>
+                  <td style="font-weight:500">{{ deployment.teamName }}</td>
+                  <td>{{ deployment.labName }}</td>
+                  <td><app-status-badge [state]="deployment.status" /></td>
+                  <td class="mono small dim">{{ deployment.units || 'No details yet' }}</td>
+                  <td class="dim">{{ since(deployment.updatedAt) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="empty">No team labs are deployed on {{ card.server.name }}.</div>
+      }
+    </section>
+  }
+}

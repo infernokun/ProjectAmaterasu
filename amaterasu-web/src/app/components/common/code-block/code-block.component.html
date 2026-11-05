@@ -1,16 +1,17 @@
 <div class="editor-container">
   <div class="header">
-    <span *ngIf="placeholder" class="tip">{{ placeholder }}</span>
-    <button mat-button (click)="copyToClipboard()" aria-label="Copy to clipboard">
-      <mat-icon>content_copy</mat-icon>
+    @if (placeholder()) {
+      <span class="tip">{{ placeholder() }}</span>
+    }
+    <button type="button" class="btn ghost sm" (click)="copyToClipboard()">
+      <app-icon name="copy" size="sm" />
       Copy to clipboard
     </button>
-    <!-- Show the copied status if isCopied is true -->
-    <p *ngIf="isCopied()" class="copied-status">
-      <mat-icon>check_circle</mat-icon> Copied
-    </p>
+    @if (copied()) {
+      <p class="copied-status"><app-icon name="check" size="sm" /> Copied</p>
+    }
   </div>
 
-  <amaterasu-monaco-editor [theme]="theme" [codeModel]="codeModel!" [readOnly]="readonly" [options]="options" (valueChanged)="onCodeChanged($event)">
-  </amaterasu-monaco-editor>
+  <amaterasu-monaco-editor [theme]="theme()" [codeModel]="codeModel()" [readOnly]="readonly()" [options]="options"
+    (valueChanged)="onCodeChanged($event)" />
 </div>

@@ -1,0 +1,133 @@
+<app-page-header [eyebrow]="teamName() ? 'Your team' : 'Welcome'" [title]="teamName() || session.username()" [subtitle]="subtitle()">
+  @if (rooms.currentRoom(); as room) {
+    <a class="btn" [routerLink]="['/rooms', room.id]"><app-icon name="flag" />Go to room</a>
+  }
+  @if (session.teamId()) {
+    <a class="btn primary" href="#catalog" (click)="scrollToCatalog($event)"><app-icon name="plus" />Start a lab</a>
+  }
+</app-page-header>
+
+@if (!session.teamId()) {
+  <div class="banner warn"><app-icon name="users" /><div>You are not on a team yet. An admin adds you to one, then your team's labs show here and you can start them.</div></div>
+}
+
+<div class="kpis">
+  <div class="card">
+    <div class="kpi-label">Labs running</div>
+    <div class="kpi-val">{{ trackers.runningCount() }}</div>
+    <div class="kpi-note">of {{ labCount() }} deployed{{ teamName() ? ' for ' + teamName() : '' }}</div>
+  </div>
+  <div class="card">
+    <div class="kpi-label">Your points</div>
+    <div class="kpi-val">{{ fmt.points(current()?.me?.points) }}</div>
+    <div class="kpi-note">
+      @if (home.me(); as me) {
+        {{ me.lastHourChange ? fmt.signed(me.lastHourChange) + ' in the last hour' : 'No change in the last hour' }}
+      } @else {
+        {{ rooms.currentRoom() ? 'in ' + rooms.currentRoom()!.name : 'Join a room to score' }}
+      }
+    </div>
+  </div>
+  <div class="card">
+    <div class="kpi-label">Your rank</div>
+    <div class="kpi-val">{{ current()?.me?.rank ? fmt.ordinal(current()!.me.rank) : '-' }}</div>
+    <div class="kpi-note">{{ current() ? 'of ' + current()!.playerCount + ' players in the room' : 'No room yet' }}</div>
+  </div>
+  <div class="card">
+    <div class="kpi-label">Challenges solved</div>
+    <div class="kpi-val">{{ current()?.me?.solved ?? 0 }} / {{ current()?.challenges?.length ?? 0 }}</div>
+    <div class="bar" style="margin-top: 10px" aria-hidden="true"><span [style.width.%]="solvedPct()"></span></div>
+  </div>
+</div>
+
+<div class="cols">
+  <section class="col-main" aria-labelledby="labs-h">
+    <div class="row between">
+      <h2 class="h2" id="labs-h">Team labs</h2>
+      <app-live-note [updatedAt]="trackers.updatedAt()" />
+    </div>
+
+    @if (trackers.loading() && !trackers.teamLabs().length) {
+      <app-skeleton variant="card" [count]="2" label="Loading team labs" />
+    } @else if (trackers.error()) {
+      <div class="banner bad" role="alert"><app-icon name="alert" /><div class="grow row between"><span>{{ trackers.error() }}</span><button type="button" class="btn sm" (click)="trackers.load()">Try again</button></div></div>
+    } @else {
+      @for (tracker of trackers.teamLabs(); track tracker.id) {
+        <app-team-lab-card [tracker]="tracker" />
+      } @empty {
+        <section class="card">
+          <app-empty-state icon="flask" title="No labs deployed yet"
+            [message]="session.teamId() ? 'Start one from Available labs below. Everyone on your team shares it.' : 'Labs start once you are on a team.'" />
+        </section>
+      }
+    }
+
+    <div class="row between catalog-head" id="catalog">
+      <h2 class="h2">Available labs</h2>
+      <span class="small muted">Started on the server with the most headroom. Pick another from the server button.</span>
+    </div>
+    @if (labs.loading() && !labs.labs().length) {
+      <app-skeleton variant="card" [count]="3" label="Loading labs" />
+    } @else {
+      <div class="grid">
+        @for (lab of catalog(); track lab.id) {
+          <app-lab-catalog-card [lab]="lab" />
+        }
+      </div>
+      @if (!catalog().length) {
+        <section class="card"><app-empty-state icon="layers" title="Nothing else to start" message="Your team already has every lab, or none are published yet." /></section>
+      }
+    }
+  </section>
+
+  <aside class="col-side">
+    <section class="card flush" aria-labelledby="rooms-h">
+      <div class="card-head"><h2 class="h2" id="rooms-h">Your rooms</h2><a class="small link" routerLink="/rooms">Browse all</a></div>
+      <div class="list">
+        @for (room of roomCards(); track room.id) {
+          <a class="list-item room-item" [routerLink]="['/rooms', room.id]">
+            <div class="row between"><strong>{{ room.name }}</strong>
+              @if (room.rank) {
+                <span class="tag" [class.accent]="room.rank <= 3">Rank {{ room.rank }}</span>
+              }
+            </div>
+            <div class="bar" aria-hidden="true"><span [style.width.%]="room.pct"></span></div>
+            <div class="row between small muted"><span>{{ room.solved }} of {{ room.total }} solved</span><span class="num">{{ fmt.points(room.points) }} pts</span></div>
+          </a>
+        } @empty {
+          <app-empty-state icon="flag" title="No rooms joined" message="Join a room to see its challenges here.">
+            <a class="btn sm" routerLink="/rooms">Browse rooms</a>
+          </app-empty-state>
+        }
+      </div>
+    </section>
+
+    <section class="card flush" aria-labelledby="act-h">
+      <div class="card-head"><h2 class="h2" id="act-h">Team activity</h2></div>
+      <div class="feed">
+        @for (line of activity(); track line.id) {
+          <div class="feed-item">
+            <div class="feed-ico" [class]="line.tone ? 's-' + line.tone : ''"><app-icon [name]="line.icon" size="sm" /></div>
+            <div class="grow"><div><strong>{{ line.who }}</strong> {{ line.text }}</div>
+              <div class="small muted">{{ line.detail ? line.detail + ' · ' : '' }}{{ fmt.ago(line.at) }}</div></div>
+          </div>
+        } @empty {
+          <app-empty-state title="Nothing yet" message="Lab changes and solves by your team show here." />
+        }
+      </div>
+    </section>
+
+    @if (home.teammates().length) {
+      <section class="card stack" aria-labelledby="team-h">
+        <h2 class="h2" id="team-h">Members</h2>
+        @for (mate of home.teammates(); track mate.userId) {
+          <div class="row between">
+            <div class="row"><div class="avatar" aria-hidden="true">{{ fmt.initials(mate.username) }}</div>
+              <span>{{ mate.username }} @if (mate.userId === session.userId()) {<span class="muted">(you)</span>}</span></div>
+            <span class="small muted num">{{ fmt.points(mate.points) }}</span>
+          </div>
+        }
+      </section>
+    }
+  </aside>
+</div>
