@@ -1,14 +1,16 @@
 package com.infernokun.amaterasu.services.alt;
 
 import com.infernokun.amaterasu.exceptions.AuthFailedException;
+import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.exceptions.WrongPasswordException;
+import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.alt.ChangePasswordRequest;
-import com.infernokun.amaterasu.models.entities.alt.LoginResponse;
 import com.infernokun.amaterasu.models.entities.alt.RegistrationRequest;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.enums.Role;
 import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.services.BaseService;
+import com.infernokun.amaterasu.services.entity.AuditService;
 import com.infernokun.amaterasu.services.entity.RefreshTokenService;
 import com.infernokun.amaterasu.services.entity.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,6 +25,7 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.regex.Pattern;
 
 
@@ -40,6 +43,7 @@ public class AuthenticationService extends BaseService {
     private final RefreshTokenService refreshTokenService;
     private final UserService userService;
     private final LoginAttemptService loginAttemptService;
+    private final AuditService auditService;
 
     public boolean registerUser(RegistrationRequest request) {
         if (request == null || request.getUsername() == null || request.getPassword() == null) {
@@ -63,7 +67,7 @@ public class AuthenticationService extends BaseService {
         return true;
     }
 
-    public LoginResponse login(String username, String password, HttpServletRequest request) {
+    public RefreshTokenService.Tokens login(String username, String password, HttpServletRequest request) {
         String address = request.getRemoteAddr();
         loginAttemptService.checkAllowed(username, address);
         try {
@@ -71,37 +75,91 @@ public class AuthenticationService extends BaseService {
                     new UsernamePasswordAuthenticationToken(username, password));
             User user = (User) auth.getPrincipal();
             loginAttemptService.recordSuccess(username);
+            user.setLastSignIn(Instant.now());
+            user = userRepository.save(user);
+            auditService.recordAs(user.getId(), user.getUsername(), "SIGN_IN", "USER", user.getId(),
+                    user.getUsername(), teamIdOf(user), "From " + address);
 
-            RefreshTokenService.Tokens tokens = refreshTokenService.issue(user, request);
-            return new LoginResponse(tokens.accessToken(), user, tokens.refreshToken());
+            return refreshTokenService.issue(user, request);
         } catch (AuthenticationException e) {
             // Same answer for an unknown user and a wrong password
             loginAttemptService.recordFailure(username, address);
             LOGGER.warn("Login failed for username {} from {}", username, address);
+            User known = username == null ? null : userService.findByUsernameIgnoreCase(username).orElse(null);
+            auditService.recordAs(known != null ? known.getId() : null, username, "SIGN_IN_FAILED", "USER",
+                    known != null ? known.getId() : null, username, known != null ? teamIdOf(known) : null,
+                    "From " + address);
             throw new WrongPasswordException("Invalid username or password");
         }
     }
 
+    /** An account made by an admin, with a role and optionally a team. */
+    public User createUser(String username, String password, Role role, Team team) {
+        String name = username == null ? "" : username.trim();
+        if (!USERNAME.matcher(name).matches()) {
+            throw new IllegalArgumentException("Username must be 3 to 32 letters, numbers, dots, dashes or underscores");
+        }
+        validatePassword(password);
+        if (userService.existsByUsernameIgnoreCase(name)) {
+            throw new IllegalArgumentException("Username " + name + " is taken");
+        }
+        User user = new User(name, passwordEncoder.encode(password));
+        user.setRole(role == null ? Role.MEMBER : role);
+        user.setTeam(team);
+        User saved = userRepository.save(user);
+        auditService.record("USER_CREATED", "USER", saved.getId(), saved.getUsername(), teamIdOf(saved),
+                "Role " + saved.getRole().name());
+        return saved;
+    }
+
+    /**
+     * Changes a user's role. Their access tokens stop working at once, so the next request refreshes
+     * and picks up the new role; their sessions stay signed in.
+     */
+    public User changeRole(String userId, Role role, String actingUserId) {
+        if (role == null) {
+            throw new IllegalArgumentException("Role required");
+        }
+        if (userId.equals(actingUserId)) {
+            throw new IllegalArgumentException("You cannot change your own role");
+        }
+        User user = userService.findUserById(userId);
+        Role previous = user.getRole();
+        if (previous == role) {
+            return user;
+        }
+        user.setRole(role);
+        user.setSessionsValidAfter(Instant.now().truncatedTo(ChronoUnit.SECONDS));
+        User saved = userRepository.save(user);
+        auditService.record("USER_ROLE_CHANGED", "USER", saved.getId(), saved.getUsername(), teamIdOf(saved),
+                (previous == null ? "None" : previous.name()) + " to " + role.name());
+        return saved;
+    }
+
     /** Changes the caller's password and signs out every other session, keeping this one signed in. */
-    public LoginResponse changePassword(String userId, ChangePasswordRequest change, HttpServletRequest request) {
+    public RefreshTokenService.Tokens changePassword(String userId, ChangePasswordRequest change, HttpServletRequest request) {
         User user = userService.findUserById(userId);
         if (change == null || change.getCurrentPassword() == null
                 || !passwordEncoder.matches(change.getCurrentPassword(), user.getPassword())) {
-            throw new WrongPasswordException("Current password is incorrect");
+            // 400, not 401: the caller is signed in, and a 401 would make the web app refresh and sign out
+            throw new IllegalArgumentException("Your current password is not correct.");
         }
         validatePassword(change.getNewPassword());
         user.setPassword(passwordEncoder.encode(change.getNewPassword()));
         invalidateSessions(user);
-
-        RefreshTokenService.Tokens tokens = refreshTokenService.issue(user, request);
-        return new LoginResponse(tokens.accessToken(), user, tokens.refreshToken());
+        auditService.record("PASSWORD_CHANGED", "USER", user.getId(), user.getUsername(), teamIdOf(user),
+                "Other sessions signed out");
+        return refreshTokenService.issue(user, request);
     }
 
     public User resetPassword(String userId, String newPassword) {
         User user = userService.findUserById(userId);
         validatePassword(newPassword);
         user.setPassword(passwordEncoder.encode(newPassword));
-        return invalidateSessions(user);
+        User saved = invalidateSessions(user);
+        auditService.record("PASSWORD_RESET", "USER", saved.getId(), saved.getUsername(), teamIdOf(saved),
+                "Signed out everywhere");
+        return saved;
     }
 
     public User setDisabled(String userId, boolean disabled, String actingUserId) {
@@ -110,7 +168,54 @@ public class AuthenticationService extends BaseService {
         }
         User user = userService.findUserById(userId);
         user.setDisabled(disabled);
-        return disabled ? invalidateSessions(user) : userRepository.save(user);
+        User saved = disabled ? invalidateSessions(user) : userRepository.save(user);
+        auditService.record(disabled ? "USER_DISABLED" : "USER_ENABLED", "USER", saved.getId(),
+                saved.getUsername(), teamIdOf(saved), null);
+        return saved;
+    }
+
+    /** The caller's signed in sessions, marking the one this request's refresh cookie belongs to. */
+    public List<RefreshTokenService.SessionInfo> sessions(String userId, String refreshCookie) {
+        return refreshTokenService.sessions(userId, refreshCookie);
+    }
+
+    /**
+     * Signs out one of the caller's other sessions. Access tokens issued before now stop working, so the
+     * caller gets a fresh one for this browser.
+     */
+    public RefreshTokenService.Tokens revokeSession(String userId, String sessionId, String refreshCookie) {
+        if (sessionId.equals(refreshTokenService.sessionIdOf(refreshCookie))) {
+            throw new IllegalArgumentException("Use Sign out to end the session in this browser");
+        }
+        User user = userService.findUserById(userId);
+        if (!refreshTokenService.revokeUserSession(userId, sessionId, "Signed out from another device")) {
+            throw new ResourceNotFoundException("Session not found");
+        }
+        auditService.record("SESSION_REVOKED", "SESSION", sessionId, user.getUsername(), teamIdOf(user), null);
+        return refreshAccessOnly(user);
+    }
+
+    /** Signs out every session of the caller except the one in this browser. */
+    public RefreshTokenService.Tokens revokeOtherSessions(String userId, String refreshCookie) {
+        String current = refreshTokenService.sessionIdOf(refreshCookie);
+        if (current == null) {
+            throw new IllegalArgumentException("This browser has no session to keep");
+        }
+        User user = userService.findUserById(userId);
+        int revoked = refreshTokenService.revokeOtherSessions(userId, current, "Signed out from another device");
+        auditService.record("SESSION_REVOKED", "SESSION", null, user.getUsername(), teamIdOf(user),
+                revoked + (revoked == 1 ? " other session" : " other sessions") + " signed out");
+        return refreshAccessOnly(user);
+    }
+
+    private RefreshTokenService.Tokens refreshAccessOnly(User user) {
+        user.setSessionsValidAfter(Instant.now().truncatedTo(ChronoUnit.SECONDS));
+        User saved = userRepository.save(user);
+        return new RefreshTokenService.Tokens(refreshTokenService.generateAccessToken(saved), null, saved);
+    }
+
+    private static String teamIdOf(User user) {
+        return user.getTeam() != null ? user.getTeam().getId() : null;
     }
 
     // Revokes refresh tokens and every access token issued before now
@@ -129,9 +234,8 @@ public class AuthenticationService extends BaseService {
         }
     }
 
-    public LoginResponse refreshToken(String refreshToken, HttpServletRequest request) {
-        RefreshTokenService.Tokens tokens = refreshTokenService.refresh(refreshToken, request);
-        return new LoginResponse(tokens.accessToken(), tokens.user(), tokens.refreshToken());
+    public RefreshTokenService.Tokens refreshToken(String refreshToken, HttpServletRequest request) {
+        return refreshTokenService.refresh(refreshToken, request);
     }
 
     public void logout(String refreshToken) {

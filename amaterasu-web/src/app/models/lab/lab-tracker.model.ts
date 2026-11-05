@@ -14,6 +14,7 @@ export class LabTracker extends StoredObject {
   services?: DockerServiceInfo[];
   vms?: ProxmoxVM[];
   remoteServer?: RemoteServer;
+  bridges?: string[];
 
   constructor(serverResult?: any) {
     if (serverResult) {
@@ -25,6 +26,7 @@ export class LabTracker extends StoredObject {
       this.services = serverResult.services ?? [];
       this.vms = serverResult.vms ?? [];
       this.remoteServer = serverResult.remoteServer;
+      this.bridges = serverResult.bridges ?? [];
     }
   }
 }

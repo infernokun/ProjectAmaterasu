@@ -58,10 +58,10 @@ services:
       DB_PORT: "${DB_PORT:-5432}"
       REDIS_HOST: "${REDIS_HOST:-amaterasu-redis}"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-amaterasu}"
-      ENCRYPTION_KEY: "${ENCRYPTION_KEY:-secret_key}"
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in .env, for example: openssl rand -base64 32}"
       # Used once, when the admin account is created; blank generates one and logs it
       ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
-      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-*}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-}"
       RSA_PRIVATE_KEY_PATH: "${RSA_PRIVATE_KEY_PATH:-/var/tmp/amaterasu/private.pem}"
       RSA_PUBLIC_KEY_PATH: "${RSA_PUBLIC_KEY_PATH:-/var/tmp/amaterasu/public.pem}"
     volumes:

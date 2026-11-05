@@ -1,0 +1,75 @@
+<article class="card flush" [attr.aria-label]="tracker().labStarted?.name">
+  <div class="card-body stack">
+    <div class="row head">
+      <div class="feed-ico"><app-icon [name]="vm() ? 'monitor' : 'compose'" size="lg" /></div>
+      <div class="grow stack tight">
+        <div class="row between">
+          <h3 class="h3 name">{{ tracker().labStarted?.name }}</h3>
+          <app-status-badge [state]="state()" />
+        </div>
+        <div class="small muted row">
+          <span>{{ typeLabel() }} on {{ server() }}</span><span aria-hidden="true">·</span>
+          <app-mono-id [value]="tracker().id!" [text]="shortId()" [copyable]="true" label="lab id" />
+          @if (since()) {
+            <span aria-hidden="true">·</span><span>{{ since() }}</span>
+          }
+        </div>
+      </div>
+    </div>
+    @if (detail()) {
+      <div class="dim">{{ detail() }}</div>
+    }
+    <div class="life" aria-label="Lifecycle">
+      <span [class]="stepClass('run')"><span class="node"></span>Running</span>
+      <span class="life-line"></span>
+      <span [class]="stepClass('pause')"><span class="node"></span>Paused, progress kept</span>
+      <span class="life-line"></span>
+      <span [class]="stepClass('stop')"><span class="node"></span>Stopped, copy destroyed</span>
+    </div>
+  </div>
+
+  @if (confirming()) {
+    <div class="stop-confirm">
+      <div class="banner bad" role="alert">
+        <app-icon name="alert" />
+        <div class="grow stack tight">
+          <strong>Stop {{ tracker().labStarted?.name }}?</strong>
+          <span class="dim">{{ warning() }} Pause instead if your team wants to come back to it.</span>
+          <div class="row" style="margin-top: 6px">
+            <button type="button" class="btn sm danger solid" (click)="stop()">Stop and destroy</button>
+            <button type="button" class="btn sm" (click)="pause()">Pause instead</button>
+            <button type="button" class="btn sm ghost" (click)="confirming.set(false)">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="card-foot">
+    @if (can().canOpen) {
+      <a class="btn sm" [routerLink]="['/labs', tracker().id]"><app-icon name="terminal" size="sm" />Open</a>
+    }
+    @if (can().canRestart) {
+      <button type="button" class="btn sm" (click)="restart()"><app-icon name="refresh" size="sm" />Restart {{ failedService() }}</button>
+    }
+    @if (can().canResume) {
+      <button type="button" class="btn sm primary" (click)="resume()"><app-icon name="play" size="sm" />Resume</button>
+    }
+    @if (can().canStartFresh) {
+      <button type="button" class="btn sm primary" (click)="resume()"><app-icon name="play" size="sm" />Start fresh copy</button>
+    }
+    @if (can().canPause) {
+      <button type="button" class="btn sm" (click)="pause()" title="Bring the lab down and keep its progress"><app-icon name="pause" size="sm" />Pause</button>
+    }
+    @if (can().working) {
+      <button type="button" class="btn sm" disabled><app-icon name="spinner" size="sm" [spin]="true" />{{ meta().label }} on {{ server() }}</button>
+    }
+    <span class="grow"></span>
+    @if (can().canStop) {
+      <button type="button" class="btn sm danger" (click)="confirming.set(true)" [attr.aria-expanded]="confirming()"><app-icon name="stop" size="sm" />Stop</button>
+    }
+    @if (can().canRemove) {
+      <button type="button" class="btn sm ghost" (click)="remove()"><app-icon name="trash" size="sm" />Remove from team</button>
+    }
+  </div>
+</article>

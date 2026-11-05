@@ -17,6 +17,8 @@ public interface RoomUserRepository extends JpaRepository<RoomUser, String> {
 
     List<RoomUser> findByRoomIdOrderByPointsDesc(String roomId);
 
+    List<RoomUser> findByRoomId(String roomId);
+
     Optional<RoomUser> findByUserId(String userId);
 
     @Query("SELECT ru FROM RoomUser ru WHERE ru.user.id = :userId AND ru.room.id IN :roomIds")

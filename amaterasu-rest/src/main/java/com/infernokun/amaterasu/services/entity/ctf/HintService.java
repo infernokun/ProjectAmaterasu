@@ -2,6 +2,9 @@ package com.infernokun.amaterasu.services.entity.ctf;
 
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.User;
+import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomOverview.ChallengeState;
+import com.infernokun.amaterasu.websocket.RoomActivityEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.infernokun.amaterasu.models.entities.ctf.*;
 import com.infernokun.amaterasu.models.entities.ctf.dto.CTFEntityHintResponse;
 import com.infernokun.amaterasu.models.entities.ctf.dto.JoinRoomResponse;
@@ -25,6 +28,7 @@ public class HintService {
     private final RoomUserService roomUserService;
     private final CTFAnswerService ctfAnswerService;
     private final ModelMapper modelMapper;
+    private final ApplicationEventPublisher events;
 
     public Hint getHintById(String hintId) {
         return hintRepository.findById(hintId).orElseThrow(()
@@ -48,6 +52,12 @@ public class HintService {
 
         // Validate hint belongs to the CTF entity
         validateHintBelongsToEntity(hint, ctfEntityId);
+        if (ctfEntity.getRoom() == null || !ctfEntity.getRoom().getId().equals(room.getId())) {
+            throw new IllegalArgumentException("Challenge does not belong to this room");
+        }
+        if (RoomPlayService.stateOf(ctfEntity, LocalDateTime.now()) != ChallengeState.OPEN) {
+            throw new IllegalStateException("Hints are only available while the challenge is open");
+        }
 
         // Validate user has enough points
         validateUserHasEnoughPoints(roomUser, hint);
@@ -57,6 +67,11 @@ public class HintService {
 
         // Check if hint already used
         validateHintNotAlreadyUsed(ctfEntityAnswer, hintId);
+
+        int needed = hint.getUnlockAfterAttempts() == null ? 0 : hint.getUnlockAfterAttempts();
+        if (ctfEntityAnswer.getAttempts() < needed) {
+            throw new IllegalStateException("This hint opens after " + needed + " attempts");
+        }
 
         // Process hint usage
         return processHintUsage(roomUser, hint, ctfEntityAnswer);
@@ -97,7 +112,7 @@ public class HintService {
 
         ctfEntityAnswer = ctfAnswerService.saveAnsweredCTFEntity(ctfEntityAnswer);
 
-        // Build and return response
+        events.publishEvent(new RoomActivityEvent(roomUser.getRoom().getId()));
         return buildHintResponse(ctfEntityAnswer, roomUser, hint);
     }
 

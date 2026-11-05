@@ -142,7 +142,7 @@ public class AmaterasuLogger implements Filter {
         String query = request.getQueryString();
 
         if (query != null) {
-            return uri + "?" + query;
+            return uri + "?" + query.replaceAll("(?i)(access_token=)[^&]*", "$1***");
         }
         return uri;
     }

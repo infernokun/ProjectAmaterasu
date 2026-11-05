@@ -21,13 +21,11 @@
                         "outputPath": "dist/app",
                         "index": "src/index.html",
                         "browser": "src/main.ts",
-                        "polyfills": [
-                            "zone.js"
-                        ],
                         "tsConfig": "tsconfig.app.json",
                         "inlineStyleLanguage": "scss",
                         "assets": [
                             "src/favicon.ico",
+                            "src/theme-init.js",
                             "src/assets",
                             {
                                 "glob": "**/*",
@@ -62,6 +60,11 @@
                                     "maximumError": "2mb"
                                 }
                             ],
+                            "optimization": {
+                                "scripts": true,
+                                "styles": { "minify": true, "inlineCritical": false },
+                                "fonts": true
+                            },
                             "outputHashing": "all"
                         },
                         "development": {
@@ -102,6 +105,7 @@
                         "inlineStyleLanguage": "scss",
                         "assets": [
                             "src/favicon.ico",
+                            "src/theme-init.js",
                             "src/assets"
                         ],
                         "styles": [

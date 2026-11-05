@@ -1,0 +1,87 @@
+import { computed, inject } from '@angular/core';
+import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
+import { EMPTY, catchError, exhaustMap, firstValueFrom, forkJoin, pipe, tap } from 'rxjs';
+import { errorMessage } from '../../../core/http-error';
+import { isDeployed } from '../../../core/lab-deployment';
+import { RequestState, initialRequestState } from '../../../core/stores/request-status';
+import { toDate } from '../../../core/time';
+import { ServerHealth, serverHealth } from './server-health';
+import { Deployment, NewServer, Server, ServersService } from './servers.service';
+
+interface ServersState extends RequestState {
+  servers: Server[];
+  deployments: Deployment[];
+  selectedId: string | null;
+  loadedAt: number | null;
+  checking: string | null;
+}
+
+export interface ServerCard {
+  server: Server;
+  health: ServerHealth;
+  deployments: Deployment[];
+}
+
+/** Every server with its health, capacity and the team labs deployed on it. */
+export const ServersStore = signalStore(
+  withState<ServersState>({ servers: [], deployments: [], selectedId: null, loadedAt: null, checking: null, ...initialRequestState }),
+  withComputed(({ servers, deployments, selectedId, status }) => {
+    const cards = computed<ServerCard[]>(() => servers()
+      .map(server => ({
+        server,
+        health: serverHealth(server),
+        deployments: deployments().filter(d => d.serverId === server.id && isDeployed(d.status)),
+      }))
+      .sort((a, b) => a.server.name.localeCompare(b.server.name)));
+    return {
+      loading: computed(() => status() === 'idle' || (status() === 'loading' && servers().length === 0)),
+      cards,
+      selected: computed<ServerCard | null>(() => cards().find(card => card.server.id === selectedId()) ?? cards()[0] ?? null),
+      /** The newest stats update across servers. */
+      statsUpdatedAt: computed(() => servers()
+        .map(server => toDate(server.stats?.updatedAt)?.getTime() ?? 0)
+        .reduce((a, b) => Math.max(a, b), 0) || null),
+    };
+  }),
+  withMethods((store, api = inject(ServersService)) => ({
+    load: rxMethod<void>(pipe(
+      tap(() => patchState(store, { status: 'loading', error: null })),
+      exhaustMap(() => forkJoin({ servers: api.servers(), deployments: api.deployments() }).pipe(
+        tap(({ servers, deployments }) => patchState(store, { servers, deployments, status: 'loaded', loadedAt: Date.now() })),
+        catchError(error => {
+          patchState(store, { status: 'error', error: errorMessage(error) ?? 'Servers could not be loaded.' });
+          return EMPTY;
+        }),
+      )),
+    )),
+    select(serverId: string): void {
+      patchState(store, { selectedId: serverId });
+    },
+    validate(server: NewServer): Promise<boolean> {
+      return firstValueFrom(api.validate(server));
+    },
+    async add(server: NewServer): Promise<Server> {
+      const added = await firstValueFrom(api.add(server));
+      patchState(store, { servers: [...store.servers(), added], selectedId: added.id });
+      return added;
+    },
+    async check(serverId: string): Promise<Server> {
+      patchState(store, { checking: serverId });
+      try {
+        const checked = await firstValueFrom(api.check(serverId));
+        patchState(store, { servers: store.servers().map(server => (server.id === serverId ? checked : server)) });
+        return checked;
+      } finally {
+        patchState(store, { checking: null });
+      }
+    },
+    async remove(serverId: string): Promise<void> {
+      await firstValueFrom(api.delete(serverId));
+      patchState(store, {
+        servers: store.servers().filter(server => server.id !== serverId),
+        selectedId: store.selectedId() === serverId ? null : store.selectedId(),
+      });
+    },
+  })),
+);

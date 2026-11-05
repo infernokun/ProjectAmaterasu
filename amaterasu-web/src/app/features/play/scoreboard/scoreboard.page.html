@@ -1,0 +1,95 @@
+@if (!room()) {
+  <header class="page-head"><div><h1 class="h1">Scoreboard</h1></div></header>
+  <section class="card">
+    <app-empty-state icon="trophy" title="No room yet" message="Join a room to see its scoreboard here.">
+      <a class="btn sm" routerLink="/rooms">Browse rooms</a>
+    </app-empty-state>
+  </section>
+} @else if (store.standings(); as s) {
+  <header class="page-head">
+    <div>
+      <h1 class="h1">Scoreboard</h1>
+      <p class="sub">{{ s.roomName }} · {{ s.players.length }} {{ s.players.length === 1 ? 'player' : 'players' }} on {{ s.teams.length }} {{ s.teams.length === 1 ? 'team' : 'teams' }} ·
+        <span class="hr-note live"><span class="pill-dot pulse" style="color: var(--ok)"></span>Live</span></p>
+    </div>
+    <div class="seg" role="group" aria-label="Rank by">
+      <button type="button" [class.on]="!teams()" [attr.aria-pressed]="!teams()" (click)="setView('players')">Players</button>
+      <button type="button" [class.on]="teams()" [attr.aria-pressed]="teams()" (click)="setView('teams')">Teams</button>
+    </div>
+  </header>
+
+  @if (!s.players.length) {
+    <section class="card"><app-empty-state icon="trophy" title="Nobody has joined yet" message="Players show here once they join the room." /></section>
+  } @else {
+    <div class="kpis">
+      @for (p of podium(); track p.id) {
+        <div class="card" [class.sel]="p.you">
+          <div class="row between"><span class="kpi-label">{{ p.place }}</span><span class="tag">{{ p.sub }}</span></div>
+          <div class="row podium-name"><div class="avatar" aria-hidden="true">{{ fmt.initials(p.name) }}</div><strong>{{ p.name }}</strong></div>
+          <div class="kpi-val">{{ fmt.points(p.points) }}</div>
+          <div class="kpi-note">{{ p.note }}</div>
+        </div>
+      }
+      <div class="card">
+        <div class="kpi-label">{{ you().label }}</div>
+        <div class="kpi-val">{{ you().value }}</div>
+        <div class="kpi-note">{{ you().note }}</div>
+      </div>
+    </div>
+
+    <section class="card stack" aria-labelledby="chart-h">
+      <div class="row between">
+        <div><h2 class="h2" id="chart-h">{{ teams() ? 'Team points over time' : 'Points over time' }}</h2>
+          <div class="small muted">Top 3 and {{ teams() ? 'your team' : 'you' }} since the first points in this room</div></div>
+        <div class="row small dim" aria-label="Legend">
+          @for (line of series(); track line.name) {
+            <span class="row legend"><span class="sw" [class]="'sw ' + line.tone"></span>{{ line.name }}</span>
+          }
+        </div>
+      </div>
+      <app-points-chart [series]="series()" [label]="chartLabel()" />
+    </section>
+
+    <section class="card flush" aria-labelledby="tbl-h">
+      <div class="card-head">
+        <div><h2 class="h2" id="tbl-h">{{ teams() ? 'All teams' : 'All players' }}</h2>
+          <span class="small muted">{{ teams() ? 'Team points are the sum of member points in this room' : 'Ties go to whoever reached the score first' }}</span></div>
+        <label class="search table-search"><app-icon name="search" size="sm" />
+          <input type="search" [placeholder]="teams() ? 'Find a team' : 'Find a player or team'" aria-label="Filter the table" [value]="store.query()" (input)="store.setQuery($any($event.target).value)"></label>
+      </div>
+      <div class="table-wrap">
+        <table class="t">
+          <thead><tr><th>Rank</th><th>{{ teams() ? 'Team' : 'Player' }}</th><th>{{ teams() ? 'Size' : 'Team' }}</th><th class="r">Points</th><th class="r">Solves</th><th class="r">Hints used</th><th>Last solve</th><th>Last hour</th></tr></thead>
+          <tbody>
+            @for (row of rows(); track row.id) {
+              <tr [class.hl]="row.you">
+                <td class="num rank">{{ row.rank }}</td>
+                <td><div class="row"><div class="avatar" aria-hidden="true">{{ fmt.initials(row.name) }}</div>
+                  @if (row.link) {
+                    <a class="name-link" [routerLink]="row.link">{{ row.name }}</a>
+                  } @else {
+                    <span class="name">{{ row.name }}</span>
+                  }
+                  @if (row.you) {<span class="tag accent">You</span>}</div></td>
+                <td class="dim">{{ row.sub }}</td>
+                <td class="r num rank">{{ fmt.points(row.points) }}</td>
+                <td class="r num">{{ row.solves }}</td>
+                <td class="r num dim">{{ row.hints }}</td>
+                <td class="dim">{{ row.last }}</td>
+                <td><span [class]="row.trend.tone" style="font-weight: 600">{{ row.trend.label }}</span></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (!rows().length) {
+        <div class="empty">Nobody matches that search.</div>
+      }
+    </section>
+  }
+} @else if (store.error()) {
+  <section class="card"><app-empty-state icon="alert" title="The scoreboard could not be loaded" [message]="store.error()!">
+    <button type="button" class="btn sm" (click)="store.reload()">Try again</button></app-empty-state></section>
+} @else {
+  <app-skeleton variant="card" [count]="2" label="Loading scoreboard" />
+}

@@ -18,6 +18,8 @@ import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.alt.DockerService;
 import com.infernokun.amaterasu.services.alt.RemoteCommandService;
 import com.infernokun.amaterasu.services.entity.TeamService;
+import com.infernokun.amaterasu.websocket.LabTrackerChangedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,13 +39,22 @@ public class LabTrackerService extends BaseService {
     private final LabTrackerRepository labTrackerRepository;
     private final RemoteCommandService remoteCommandService;
     private final DockerService dockerService;
+    private final ApplicationEventPublisher events;
 
     public LabTrackerService(TeamService teamService, LabTrackerRepository labTrackerRepository,
-                             RemoteCommandService remoteCommandService, DockerService dockerService) {
+                             RemoteCommandService remoteCommandService, DockerService dockerService,
+                             ApplicationEventPublisher events) {
         this.teamService = teamService;
         this.labTrackerRepository = labTrackerRepository;
         this.remoteCommandService = remoteCommandService;
         this.dockerService = dockerService;
+        this.events = events;
+    }
+
+    private LabTracker saveAndPublish(LabTracker labTracker) {
+        LabTracker saved = labTrackerRepository.save(labTracker);
+        events.publishEvent(LabTrackerChangedEvent.updated(saved));
+        return saved;
     }
 
     public List<LabTracker> findAllLabTrackers() {
@@ -72,28 +83,55 @@ public class LabTrackerService extends BaseService {
     }
 
     public LabTracker createLabTracker(LabTracker labTracker) {
-        return labTrackerRepository.save(labTracker);
+        return saveAndPublish(labTracker);
     }
 
     public List<LabTracker> createManyLabTrackers(List<LabTracker> labTrackers) {
-        return labTrackerRepository.saveAll(labTrackers);
+        List<LabTracker> saved = labTrackerRepository.saveAll(labTrackers);
+        saved.forEach(labTracker -> events.publishEvent(LabTrackerChangedEvent.updated(labTracker)));
+        return saved;
     }
 
     public LabTracker deleteLabTracker(String id) {
         LabTracker deletedLabTracker = findLabTrackerById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Lab tracker with ID " + id + " not found!"));
         labTrackerRepository.deleteById(id);
+        events.publishEvent(LabTrackerChangedEvent.removed(deletedLabTracker));
         return deletedLabTracker;
     }
 
     @Transactional
     public boolean updateVmsIfStatus(LabTracker labTracker, List<ProxmoxVM> vms, LabStatus status, LabStatus expected) {
-        return labTrackerRepository.updateVmsIfStatus(labTracker.getId(), vms, status, expected) > 0;
+        boolean updated = labTrackerRepository.updateVmsIfStatus(labTracker.getId(), vms, status, expected) > 0;
+        if (updated) {
+            // A copy: changing the managed entity would be flushed over the conditional update
+            events.publishEvent(LabTrackerChangedEvent.updated(copyWith(labTracker, vms, status)));
+        }
+        return updated;
+    }
+
+    private static LabTracker copyWith(LabTracker labTracker, List<ProxmoxVM> vms, LabStatus status) {
+        LabTracker copy = LabTracker.builder()
+                .labStarted(labTracker.getLabStarted())
+                .labStatus(status)
+                .labOwner(labTracker.getLabOwner())
+                .services(labTracker.getServices())
+                .vms(vms)
+                .bridges(labTracker.getBridges())
+                .remoteServer(labTracker.getRemoteServer())
+                .build();
+        copy.setId(labTracker.getId());
+        copy.setCreatedBy(labTracker.getCreatedBy());
+        copy.setUpdatedBy(labTracker.getUpdatedBy());
+        copy.setCreatedAt(labTracker.getCreatedAt());
+        copy.setUpdatedAt(labTracker.getUpdatedAt());
+        copy.setVersioning(labTracker.getVersioning());
+        return copy;
     }
 
     public LabTracker updateLabTracker(LabTracker labTracker) {
         labTracker.setUpdatedAt(LocalDateTime.now());
-        return labTrackerRepository.save(labTracker);
+        return saveAndPublish(labTracker);
     }
 
     public String getLabLogs(LabTracker labTracker, RemoteServer remoteServer, String service) {
@@ -170,7 +208,7 @@ public class LabTrackerService extends BaseService {
 
         long notRunning = services.get().stream().filter(service -> !"running".equals(service.getState())).count();
         if (labTracker.getLabStatus() == LabStatus.PAUSED && notRunning == services.get().size()) {
-            return labTrackerRepository.save(labTracker);
+            return saveAndPublish(labTracker);
         }
 
         if (services.get().isEmpty() || notRunning == services.get().size()) {
@@ -181,7 +219,7 @@ public class LabTrackerService extends BaseService {
             labTracker.setLabStatus(LabStatus.ACTIVE);
         }
 
-        return labTrackerRepository.save(labTracker);
+        return saveAndPublish(labTracker);
     }
 
     /** The server a tracker was deployed on wins over whatever server the client sent. */
@@ -191,5 +229,6 @@ public class LabTrackerService extends BaseService {
 
     public void deleteAll(List<LabTracker> labTrackers) {
         this.labTrackerRepository.deleteAll(labTrackers);
+        labTrackers.forEach(labTracker -> events.publishEvent(LabTrackerChangedEvent.removed(labTracker)));
     }
 }

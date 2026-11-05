@@ -24,7 +24,7 @@ class LoginAttemptServiceTest {
     @Test
     void locksAUsernameUntilTheWindowEnds() {
         MutableClock clock = new MutableClock();
-        LoginAttemptService service = new LoginAttemptService(clock);
+        LoginAttemptService service = new LoginAttemptService(new MemoryAttemptCounter(clock));
 
         for (int i = 0; i < LoginAttemptService.MAX_PER_USERNAME; i++) {
             service.checkAllowed("Alice", "10.0.0.1");
@@ -39,7 +39,7 @@ class LoginAttemptServiceTest {
 
     @Test
     void successClearsTheUsernameCount() {
-        LoginAttemptService service = new LoginAttemptService(new MutableClock());
+        LoginAttemptService service = new LoginAttemptService(new MemoryAttemptCounter(new MutableClock()));
         for (int i = 0; i < LoginAttemptService.MAX_PER_USERNAME - 1; i++) {
             service.recordFailure("carol", "10.0.0.1");
         }
@@ -50,7 +50,7 @@ class LoginAttemptServiceTest {
 
     @Test
     void throttleCountsEveryCall() {
-        LoginAttemptService service = new LoginAttemptService(new MutableClock());
+        LoginAttemptService service = new LoginAttemptService(new MemoryAttemptCounter(new MutableClock()));
         for (int i = 0; i < 3; i++) {
             service.throttle("register", "10.0.0.9", 3, Duration.ofMinutes(10));
         }

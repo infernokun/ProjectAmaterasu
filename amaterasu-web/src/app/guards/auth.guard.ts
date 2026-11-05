@@ -1,108 +1,79 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
-import { AuthService } from '../services/auth.service';
+import { CanActivateFn, Router, UrlTree } from '@angular/router';
 import { Observable, of } from 'rxjs';
-import { map, catchError, tap, switchMap } from 'rxjs/operators';
+import { catchError, map } from 'rxjs/operators';
+import { AuthService } from '../services/auth.service';
+import { AppInfoStore } from '../core/stores/app-info.store';
+import { Role } from '../enums/role.enum';
+import { rolesFromToken } from '../core/auth/roles';
 
-export const authGuard: CanActivateFn = (
-  route: ActivatedRouteSnapshot,
-  state: RouterStateSnapshot
-): Observable<boolean> => {
-  const authService = inject(AuthService);
+export const SIGN_IN_PATH = '/welcome';
+const REDIRECT_KEY = 'redirectUrl';
+
+function rememberUrl(url: string): void {
+  try {
+    sessionStorage.setItem(REDIRECT_KEY, url);
+  } catch {
+    // Without storage the user lands on Home after signing in
+  }
+}
+
+/** Where to go after signing in: the page that sent the user to sign in, or Home. */
+export function takeRedirectUrl(): string {
+  try {
+    const url = sessionStorage.getItem(REDIRECT_KEY);
+    sessionStorage.removeItem(REDIRECT_KEY);
+    return url && url.startsWith('/') && !url.startsWith(SIGN_IN_PATH) ? url : '/home';
+  } catch {
+    return '/home';
+  }
+}
+
+function signInFor(router: Router, url: string): UrlTree {
+  rememberUrl(url);
+  return router.parseUrl(SIGN_IN_PATH);
+}
+
+function checkSession(auth: AuthService): Observable<boolean> {
+  return auth.isAuthenticated().pipe(catchError(() => of(false)));
+}
+
+/** Signed-in users only; everyone else goes to the landing page. */
+export const authGuard: CanActivateFn = (_route, state) => {
+  const auth = inject(AuthService);
   const router = inject(Router);
-
-  console.log('Auth guard checking access to:', state.url);
-
-  return authService.isAuthenticated().pipe(
-    map((isAuthenticated: boolean) => {
-      if (isAuthenticated) {
-        console.log('Auth guard: User is authenticated, allowing access');
-        return true;
-      } else {
-        console.log('Auth guard: User not authenticated, redirecting to login');
-        // Store the attempted URL for redirect after login
-        sessionStorage.setItem('redirectUrl', state.url);
-        router.navigate(['/']);
-        return false;
-      }
-    }),
-    catchError((error) => {
-      console.error('Auth guard: Error during authentication check', error);
-      // On error, redirect to login
-      sessionStorage.setItem('redirectUrl', state.url);
-      router.navigate(['/']);
-      return of(false);
-    }),
-    tap((result) => {
-      console.log('Auth guard result for', state.url, ':', result);
-    })
-  );
+  return checkSession(auth).pipe(map(signedIn => signedIn || signInFor(router, state.url)));
 };
 
-export const homeAuthGuard: CanActivateFn = (
-  route: ActivatedRouteSnapshot,
-  state: RouterStateSnapshot
-): Observable<boolean> => {
-  const authService = inject(AuthService);
-
-  console.log('homeAuthGuard: checking authentication for:', state.url);
-
-  return authService.isAuthenticated().pipe(
-    map((isAuthenticated: boolean) => {
-      console.log('homeAuthGuard: User authenticated =', isAuthenticated);
-      // Always return true - allow access regardless of authentication status
-      return true;
-    }),
-    catchError((error) => {
-      console.error('homeAuthGuard: Error during authentication check', error);
-      // Even on error, allow access
-      return of(true);
-    }),
-    tap((result) => {
-      console.log('homeAuthGuard result for', state.url, ':', result);
-    })
-  );
+/** The landing page; signed-in users go straight to Home. */
+export const signedOutGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return checkSession(auth).pipe(map(signedIn => (signedIn ? router.parseUrl('/home') : true)));
 };
 
-// Role-based guard for specific roles
-export const roleGuard = (requiredRole: string): CanActivateFn => {
-  return (route: ActivatedRouteSnapshot, state: RouterStateSnapshot): Observable<boolean> => {
-    const authService = inject(AuthService);
+/**
+ * Users with any of `roles` (from the access token, which the API checks too). Others go to Home,
+ * so nobody reaches a page whose actions would be refused.
+ */
+export function roleGuard(...roles: Role[]): CanActivateFn {
+  return (_route, state) => {
+    const auth = inject(AuthService);
     const router = inject(Router);
-
-    console.log('Role guard checking for role:', requiredRole);
-
-    return authService.isAuthenticated().pipe(
-      switchMap((isAuthenticated: boolean) => {
-        if (!isAuthenticated) {
-          console.log('Role guard: User not authenticated');
-          sessionStorage.setItem('redirectUrl', state.url);
-          router.navigate(['/']);
-          return of(false);
+    return checkSession(auth).pipe(
+      map(signedIn => {
+        if (!signedIn) {
+          return signInFor(router, state.url);
         }
-
-        // Check if user has the required role - use switchMap since hasRole returns Observable
-        return authService.hasRole(requiredRole).pipe(
-          map((hasRole: boolean) => {
-            if (hasRole) {
-              console.log('Role guard: User has required role', requiredRole);
-              return true;
-            } else {
-              console.log('Role guard: User lacks required role', requiredRole);
-              router.navigate(['/home']);
-              return false;
-            }
-          })
-        );
+        const held = rolesFromToken(auth.decodeToken(auth.getAccessToken() ?? ''));
+        return held.some(role => roles.includes(role)) || router.parseUrl('/home');
       }),
-      catchError((error) => {
-        console.error('Role guard: Error during role check', error);
-        router.navigate(['/']);
-        return of(false);
-      })
     );
   };
-};
+}
 
-// Admin guard (shorthand for admin role)
-export const adminGuard: CanActivateFn = roleGuard('ADMIN');
+export const adminGuard: CanActivateFn = roleGuard(Role.ADMIN);
+
+/** Developer pages, only when the environment turns them on. */
+export const devToolsGuard: CanActivateFn = () =>
+  inject(AppInfoStore).devTools() || inject(Router).parseUrl('/home');

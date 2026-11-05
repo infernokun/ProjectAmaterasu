@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.repositories.lab;
 
 import com.infernokun.amaterasu.models.entities.lab.Lab;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
+import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
@@ -24,6 +25,8 @@ public interface LabTrackerRepository extends JpaRepository<LabTracker, String> 
     List<LabTracker> findByLabStatus(LabStatus labStatus);
 
     List<LabTracker> findByLabStarted(Lab labStarted);
+
+    List<LabTracker> findByRemoteServer(RemoteServer remoteServer);
 
     // Bulk update so the cron never bumps the version a running lab action is about to save
     @Modifying

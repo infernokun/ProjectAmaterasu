@@ -9,9 +9,9 @@ import lombok.ToString;
 @ToString
 @AllArgsConstructor
 public enum Role {
-    CREATOR("Creator"),
+    CREATOR("CREATOR"),
     DEVELOPER("DEVELOPER"),
-    FACILITATOR("Facilitator"),
+    FACILITATOR("FACILITATOR"),
     ADMIN("ADMIN"),
     TEAM_ADMIN("TEAM_ADMIN"),
     MEMBER("MEMBER");

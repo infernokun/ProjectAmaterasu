@@ -1,0 +1,78 @@
+<a class="skip" href="#main">Skip to content</a>
+<mat-sidenav-container class="shell-container">
+  <mat-sidenav class="side-wrap" [mode]="narrow() ? 'over' : 'side'" [opened]="!narrow() || drawerOpen()"
+               (closedStart)="drawerOpen.set(false)" [fixedInViewport]="false" [attr.aria-label]="'Main navigation'">
+    <aside class="side">
+      <a class="brand" routerLink="/home" (click)="navigated()">
+        <div class="brand-mark"><app-icon name="brand" /></div>
+        <div>
+          <div class="brand-name">Amaterasu</div>
+          <div class="brand-sub">Labs and CTF</div>
+        </div>
+      </a>
+
+      @if (rooms.currentRoom(); as room) {
+        <a class="event" [routerLink]="['/rooms', room.id]" (click)="navigated()">
+          <span class="muted small">Current room</span>
+          <span class="event-name">{{ room.name }}</span>
+        </a>
+      }
+
+      @for (group of groups(); track group.label) {
+        <nav class="nav-group" [attr.aria-label]="group.label">
+          <div class="nav-label">{{ group.label }}</div>
+          @for (item of group.items; track item.link) {
+            <a class="nav-item" [routerLink]="item.link" routerLinkActive="on" ariaCurrentWhenActive="page" (click)="navigated()">
+              <app-icon [name]="item.icon" />{{ item.label }}
+              @if (countFor(item.count); as count) {
+                <span class="nav-count">{{ count }}</span>
+              }
+            </a>
+          }
+        </nav>
+      }
+
+      <div class="side-foot">
+        <a class="nav-item" routerLink="/account" routerLinkActive="on" ariaCurrentWhenActive="page" (click)="navigated()">
+          <app-icon name="user" />Account
+        </a>
+        <button type="button" class="nav-item" (click)="signOut()"><app-icon name="signOut" />Sign out</button>
+      </div>
+    </aside>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="main">
+    <header class="topbar">
+      @if (narrow()) {
+        <button type="button" class="iconbtn" aria-label="Open navigation" [attr.aria-expanded]="drawerOpen()" (click)="drawerOpen.set(true)">
+          <app-icon name="menu" />
+        </button>
+      }
+      <nav class="crumbs" aria-label="Breadcrumb">
+        @for (crumb of crumbs(); track $index; let last = $last) {
+          @if (last) {
+            <span class="cur" aria-current="page">{{ crumb.label }}</span>
+          } @else {
+            @if (crumb.link) {
+              <a [routerLink]="crumb.link">{{ crumb.label }}</a>
+            } @else {
+              <span>{{ crumb.label }}</span>
+            }
+            <span aria-hidden="true">/</span>
+          }
+        }
+      </nav>
+      <a class="me" routerLink="/account" [attr.aria-label]="'Account for ' + session.username()">
+        <div class="avatar" aria-hidden="true">{{ session.initials() }}</div>
+        <div class="me-text">
+          <div class="me-name">{{ session.username() }}</div>
+          <div class="me-meta">{{ teamLabel() }} · {{ session.roleLabel() }}</div>
+        </div>
+      </a>
+    </header>
+
+    <main id="main" class="page" [class.legacy]="legacyPage()" tabindex="-1">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

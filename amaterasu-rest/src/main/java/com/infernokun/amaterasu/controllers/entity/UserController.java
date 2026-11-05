@@ -4,7 +4,12 @@ import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.services.alt.AuthenticationService;
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
+import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
+import com.infernokun.amaterasu.models.entities.alt.CreateUserRequest;
+import com.infernokun.amaterasu.models.enums.Role;
+import com.infernokun.amaterasu.services.entity.AuditService;
+import com.infernokun.amaterasu.services.entity.TeamService;
 import com.infernokun.amaterasu.services.entity.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +26,8 @@ public class UserController extends BaseController {
     private final UserService userService;
     private final AuthenticationService authenticationService;
     private final CurrentUser currentUser;
+    private final TeamService teamService;
+    private final AuditService auditService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
@@ -70,8 +77,11 @@ public class UserController extends BaseController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<User>> createUser(@RequestBody User user) {
-        User createdUser = userService.createUser(user);
+    public ResponseEntity<ApiResponse<User>> createUser(@RequestBody CreateUserRequest request) {
+        Team team = request.getTeamId() == null || request.getTeamId().isBlank()
+                ? null : teamService.findTeamById(request.getTeamId());
+        User createdUser = authenticationService.createUser(request.getUsername(), request.getPassword(),
+                request.getRole(), team);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.<User>builder()
                 .code(HttpStatus.CREATED.value())
                 .message("User created successfully.")
@@ -131,12 +141,27 @@ public class UserController extends BaseController {
                 .build());
     }
 
+    @PutMapping("/{id}/role")
+    public ResponseEntity<ApiResponse<User>> changeRole(@PathVariable String id, @RequestBody Map<String, Role> body) {
+        return ResponseEntity.ok(ApiResponse.<User>builder()
+                .code(HttpStatus.OK.value())
+                .message("Role changed.")
+                .data(authenticationService.changeRole(id, body.get("role"), currentUser.id()))
+                .build());
+    }
+
+    /** Moves a user to a team; leave teamId out to take them off their team. */
     @PutMapping("/team")
-    public ResponseEntity<ApiResponse<User>> updateUserTeam(@RequestParam String userId, @RequestParam String teamId) {
+    public ResponseEntity<ApiResponse<User>> updateUserTeam(@RequestParam String userId,
+                                                            @RequestParam(required = false) String teamId) {
+        User user = userService.updateUserTeam(userId, teamId == null || teamId.isBlank() ? null : teamId);
+        auditService.record("USER_TEAM_CHANGED", "USER", user.getId(), user.getUsername(),
+                user.getTeam() != null ? user.getTeam().getId() : null,
+                user.getTeam() != null ? "Moved to " + user.getTeam().getName() : "Removed from team");
         return ResponseEntity.ok(ApiResponse.<User>builder()
                 .code(HttpStatus.OK.value())
                 .message("User updated successfully.")
-                .data(userService.updateUserTeam(userId, teamId))
+                .data(user)
                 .build());
     }
 }

@@ -48,13 +48,14 @@ server:
     remoteip:
       remote-ip-header: x-forwarded-for
       protocol-header: x-forwarded-proto
+      port-header: x-forwarded-port
 
 amaterasu:
   applicationName: "Amaterasu"
   defaultAdminUsername: amaterasu_admin
   # Blank generates a random password, logged once when the admin account is created
   defaultAdminPassword: "${ADMIN_PASSWORD:}"
-  allowedOrigins: "${ALLOWED_ORIGINS:*}"
+  allowedOrigins: "${ALLOWED_ORIGINS:}"
   uploadDir: "${DOCKER_COMPOSE_PATH:/var/tmp/amaterasu}"
   encryptionKey: "${ENCRYPTION_KEY}"
   sshPort: "${SSH_PORT:22}"
