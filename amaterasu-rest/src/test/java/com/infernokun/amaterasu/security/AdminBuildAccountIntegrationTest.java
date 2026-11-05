@@ -214,6 +214,7 @@ class AdminBuildAccountIntegrationTest {
         assertThat(event.get("action").asText()).isEqualTo("LAB_DELETED");
         assertThat(event.get("actorUsername").asText()).isEqualTo(member.getUsername());
         assertThat(event.get("teamId").asText()).isEqualTo(team.getId());
+        assertThat(java.time.Instant.parse(event.get("at").asText())).isBeforeOrEqualTo(java.time.Instant.now());
     }
 
     // Users and teams

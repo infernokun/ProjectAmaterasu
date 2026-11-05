@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.models.entities;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -31,7 +32,9 @@ public class AuditEvent {
     @UuidGenerator
     private String id;
 
+    // ISO 8601 in JSON, not epoch seconds
     @Column(nullable = false)
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Instant at;
 
     private String actorId;

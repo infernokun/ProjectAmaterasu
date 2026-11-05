@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.services.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.infernokun.amaterasu.config.SecurityConfig;
 import com.infernokun.amaterasu.exceptions.TokenException;
 import com.infernokun.amaterasu.models.entities.RefreshToken;
@@ -144,8 +145,11 @@ public class RefreshTokenService extends BaseService {
     }
 
     /** One signed in browser or device. Rotation keeps the session id, so this groups a session's tokens. */
-    public record SessionInfo(String id, String userAgent, String ipAddress, Instant signedInAt, Instant lastActive,
-                              Instant expiresAt, boolean current) {
+    public record SessionInfo(String id, String userAgent, String ipAddress,
+                              @JsonFormat(shape = JsonFormat.Shape.STRING) Instant signedInAt,
+                              @JsonFormat(shape = JsonFormat.Shape.STRING) Instant lastActive,
+                              @JsonFormat(shape = JsonFormat.Shape.STRING) Instant expiresAt,
+                              boolean current) {
     }
 
     public List<SessionInfo> sessions(String userId, String rawCookie) {

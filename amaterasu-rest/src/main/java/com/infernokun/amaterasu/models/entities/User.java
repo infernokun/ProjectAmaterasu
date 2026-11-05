@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.models.entities;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.infernokun.amaterasu.models.auth.SimpleGrantedAuthority;
 import com.infernokun.amaterasu.models.enums.Role;
@@ -39,6 +40,7 @@ public class User extends StoredObject implements UserDetails {
     @JsonIgnore
     private Instant sessionsValidAfter;
     private String avatarUrl;
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Instant lastSignIn;
 
     public User(String username, String password) {
