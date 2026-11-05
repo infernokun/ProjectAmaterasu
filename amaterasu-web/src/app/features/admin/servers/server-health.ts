@@ -27,9 +27,13 @@ const level = (pct: number): Meter['level'] => (pct >= 85 ? 'bad' : pct >= 70 ? 
 const pct = (used: number, total: number) => (total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0);
 const noData = (label: string): Meter => ({ label, pct: 0, level: 'off', text: 'no data' });
 
-/** Sizes in GB from the stats script, shown as GB or TB. */
-export function size(gb: number): string {
-  return gb >= 1000 ? `${(gb / 1000).toFixed(1)} TB` : `${Math.round(gb)} GB`;
+/** Sizes from the stats script are GB: "38 of 64 GB", or "1.1 of 4 TB" for big disks. */
+export function usage(usedGb: number, totalGb: number): string {
+  if (totalGb >= 1000) {
+    const tb = (gb: number) => String(Math.round(gb / 100) / 10);
+    return `${tb(usedGb)} of ${tb(totalGb)} TB`;
+  }
+  return `${Math.round(usedGb)} of ${Math.round(totalGb)} GB`;
 }
 
 export function serverHealth(server: Server): ServerHealth {
@@ -54,10 +58,10 @@ export function serverHealth(server: Server): ServerHealth {
     busy,
     cpu: measured ? { label: 'CPU', pct: cpuPct, level: level(cpuPct), text: `${cpuPct}% of ${stats.cpu}` } : noData('CPU'),
     memory: measured
-      ? { label: 'Memory', pct: memPct, level: level(memPct), text: `${size(stats.usedRam)} of ${size(stats.totalRam)}` }
+      ? { label: 'Memory', pct: memPct, level: level(memPct), text: usage(stats.usedRam, stats.totalRam) }
       : noData('Memory'),
     disk: measured && stats.totalDiskSpace > 0
-      ? { label: 'Disk', pct: diskPct, level: level(diskPct), text: `${size(stats.usedDiskSpace)} of ${size(stats.totalDiskSpace)}` }
+      ? { label: 'Disk', pct: diskPct, level: level(diskPct), text: usage(stats.usedDiskSpace, stats.totalDiskSpace) }
       : noData('Disk'),
   };
 }

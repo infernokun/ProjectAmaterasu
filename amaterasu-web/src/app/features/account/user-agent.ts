@@ -25,5 +25,6 @@ export function deviceName(userAgent: string | null | undefined): string {
   if (browser && os) {
     return `${browser} on ${os}`;
   }
-  return browser ?? os ?? 'Unknown device';
+  // No browser or system named: a script or command line tool
+  return browser ?? os ?? (/Mozilla/.test(ua) ? 'Unknown browser' : 'Script or command line');
 }

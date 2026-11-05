@@ -9,6 +9,7 @@ describe('deviceName', () => {
       .toBe('Safari on iPhone');
     expect(deviceName('Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/130.0 Safari/537.36 Edg/130.0')).toBe('Edge on Windows');
     expect(deviceName('python-requests/2.32')).toBe('Python script');
+    expect(deviceName('node')).toBe('Script or command line');
     expect(deviceName(null)).toBe('Unknown device');
   });
 });

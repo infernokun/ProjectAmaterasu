@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { LabStatus } from '../../../enums/lab-status.enum';
 import { ServerType } from '../../../enums/server-type.enum';
-import { serverHealth, size, uptime } from './server-health';
+import { serverHealth, uptime, usage } from './server-health';
 import { Server, ServerStats, ServersService } from './servers.service';
 import { ServersStore } from './servers.store';
 
@@ -20,8 +20,8 @@ describe('serverHealth', () => {
     const online = serverHealth(server('dock-01'));
     expect(online.label).toBe('Online');
     expect(online.cpu.text).toBe('42% of 16');
-    expect(online.memory).toEqual({ label: 'Memory', pct: 59, level: 'ok', text: '38 GB of 64 GB' });
-    expect(online.disk.text).toBe('410 GB of 1.0 TB');
+    expect(online.memory).toEqual({ label: 'Memory', pct: 59, level: 'ok', text: '38 of 64 GB' });
+    expect(online.disk.text).toBe('0.4 of 1 TB');
 
     const busy = serverHealth(server('dock-02', { stats: stats({ cpuUsagePercent: 88 }) }));
     expect(busy.label).toBe('Busy');
@@ -36,8 +36,8 @@ describe('serverHealth', () => {
   });
 
   it('formats sizes and uptime', () => {
-    expect(size(2900)).toBe('2.9 TB');
-    expect(size(34.4)).toBe('34 GB');
+    expect(usage(1100, 4000)).toBe('1.1 of 4 TB');
+    expect(usage(29.4, 32)).toBe('29 of 32 GB');
     expect(uptime(41 * 86400)).toBe('41 days');
     expect(uptime(7200)).toBe('2 h');
     expect(uptime(0)).toBe('unknown');
