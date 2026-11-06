@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, signal, untracked } from '@angular/core';
+import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDragPlaceholder, CdkDropList } from '@angular/cdk/drag-drop';
+import { MatMenuModule } from '@angular/material/menu';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { DifficultyLevel } from '../../../enums/difficulty-level.enum';
@@ -9,7 +11,7 @@ import { ToastService } from '../../../shared/services/toast.service';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { SkeletonComponent } from '../../../shared/ui/skeleton.component';
-import { AuthorChallenge } from './authoring.service';
+import { AuthorChallenge, Person } from './authoring.service';
 import { NEW_ID, RoomEditorStore, scheduleLabel } from './room-editor.store';
 
 export const DIFFICULTIES: { value: DifficultyLevel; label: string }[] = [
@@ -32,7 +34,8 @@ export function wrapperParts(tag: string): { prefix: string; suffix: string; nam
 @Component({
   selector: 'app-room-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, EmptyStateComponent, SkeletonComponent],
+  imports: [RouterLink, CdkDropList, CdkDrag, CdkDragHandle, CdkDragPlaceholder, MatMenuModule, IconComponent,
+    EmptyStateComponent, SkeletonComponent],
   providers: [RoomEditorStore],
   templateUrl: './room-editor.page.html',
   styleUrl: './room-editor.page.scss',
@@ -59,6 +62,7 @@ export class RoomEditorPage {
   protected readonly roomDirty = computed(() => !!this.store.room()
     && (this.roomName().trim() !== this.store.room()!.name || this.roomTag().trim() !== this.store.room()!.surroundTag));
   protected readonly savingRoom = signal(false);
+  protected readonly savingFacilitators = signal(false);
 
   protected readonly wrapper = computed(() => wrapperParts(this.store.room()?.surroundTag ?? 'CTF{x}'));
   protected readonly summary = computed(() => {
@@ -172,6 +176,58 @@ export class RoomEditorPage {
       this.toast.success(`${draft.question} deleted`);
     } catch (error) {
       this.toast.error(`${draft.question} could not be deleted.`, error);
+    }
+  }
+
+  protected hasLab(labId: string): boolean {
+    return this.store.labs().some(lab => lab.id === labId);
+  }
+
+  protected async dropped(event: CdkDragDrop<unknown>): Promise<void> {
+    await this.reorder(event.previousIndex, event.currentIndex);
+  }
+
+  /** Arrow keys on a grip move the challenge one place, for people who do not drag. */
+  protected async nudge(event: KeyboardEvent, index: number): Promise<void> {
+    const step = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
+    if (!step) {
+      return;
+    }
+    event.preventDefault();
+    const grip = event.target as HTMLElement;
+    if (await this.reorder(index, index + step)) {
+      // The list re-renders in the new order; keep focus on the challenge that moved
+      setTimeout(() => (grip.closest('.drop-list')?.querySelectorAll<HTMLElement>('.grip')[index + step])?.focus());
+    }
+  }
+
+  private async reorder(from: number, to: number): Promise<boolean> {
+    try {
+      return await this.store.move(from, to);
+    } catch (error) {
+      this.toast.error('The new order could not be saved. It is back to how it was.', error);
+      return false;
+    }
+  }
+
+  protected async addFacilitator(person: Person): Promise<void> {
+    await this.saveFacilitators([...this.store.facilitators().map(p => p.id), person.id], `${person.username} facilitates this room now`);
+  }
+
+  protected async removeFacilitator(person: Person): Promise<void> {
+    await this.saveFacilitators(this.store.facilitators().filter(p => p.id !== person.id).map(p => p.id),
+      `${person.username} no longer facilitates this room`);
+  }
+
+  private async saveFacilitators(ids: string[], done: string): Promise<void> {
+    this.savingFacilitators.set(true);
+    try {
+      await this.store.setFacilitators(ids);
+      this.toast.success(done);
+    } catch (error) {
+      this.toast.error('The facilitators could not be saved.', error);
+    } finally {
+      this.savingFacilitators.set(false);
     }
   }
 

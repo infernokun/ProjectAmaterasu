@@ -142,7 +142,8 @@ class PlayEndpointsIntegrationTest {
         redMember = user(Role.MEMBER, red);
         blueMember = user(Role.MEMBER, blue);
         facilitator = user(Role.FACILITATOR, null);
-        room = roomRepository.save(Room.builder().name(unique("room")).build());
+        room = roomRepository.save(Room.builder().name(unique("room"))
+                .facilitators(new java.util.ArrayList<>(List.of(facilitator.getId()))).build());
         open = challenge("Header Hunt", "AMA{headers}", 200, LocalDateTime.now().minusHours(1));
         locked = challenge("Later", "AMA{later}", 300, LocalDateTime.now().plusHours(2));
         open.setAttachments(null);
@@ -241,7 +242,8 @@ class PlayEndpointsIntegrationTest {
 
     @Test
     void startingACatalogLabWithoutATrackerSaysWhyItCannotStart() throws Exception {
-        Lab lab = labRepository.save(Lab.builder().name(unique("lab")).labType(LabType.DOCKER_COMPOSE).ready(true).build());
+        Lab lab = labRepository.save(Lab.builder().name(unique("lab")).labType(LabType.DOCKER_COMPOSE).ready(true)
+                .published(true).build());
         RemoteServer server = remoteServerRepository.save(RemoteServer.builder().name(unique("dock")).ipAddress("10.0.0.1")
                 .serverType(ServerType.DOCKER_HOST).build());
 

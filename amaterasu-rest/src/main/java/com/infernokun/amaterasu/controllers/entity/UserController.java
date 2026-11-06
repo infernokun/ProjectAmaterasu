@@ -7,9 +7,11 @@ import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.alt.CreateUserRequest;
+import com.infernokun.amaterasu.models.entities.alt.UserImport;
 import com.infernokun.amaterasu.models.enums.Role;
 import com.infernokun.amaterasu.services.entity.AuditService;
 import com.infernokun.amaterasu.services.entity.TeamService;
+import com.infernokun.amaterasu.services.entity.UserImportService;
 import com.infernokun.amaterasu.services.entity.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,6 +30,7 @@ public class UserController extends BaseController {
     private final CurrentUser currentUser;
     private final TeamService teamService;
     private final AuditService auditService;
+    private final UserImportService userImportService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
@@ -147,6 +150,34 @@ public class UserController extends BaseController {
                 .code(HttpStatus.OK.value())
                 .message("Role changed.")
                 .data(authenticationService.changeRole(id, body.get("role"), currentUser.id()))
+                .build());
+    }
+
+    /** Creates accounts from rows of a CSV file; bad rows are skipped and reported with the reason. */
+    @PostMapping("/import")
+    public ResponseEntity<ApiResponse<UserImport.Result>> importUsers(@RequestBody UserImport.Request request) {
+        UserImport.Result result = userImportService.importUsers(request == null ? null : request.users());
+        return ResponseEntity.ok(ApiResponse.<UserImport.Result>builder()
+                .code(HttpStatus.OK.value())
+                .message(result.created().size() + " created, " + result.skipped().size() + " skipped.")
+                .data(result)
+                .build());
+    }
+
+    /** Moves several users to one team, or off their team when teamId is left out, in one transaction. */
+    @PutMapping("/team/bulk")
+    public ResponseEntity<ApiResponse<List<User>>> moveUsers(@RequestBody UserImport.BulkMove request) {
+        String teamId = request == null || request.teamId() == null || request.teamId().isBlank() ? null : request.teamId();
+        List<User> users = userService.updateUsersTeam(request == null ? null : request.userIds(), teamId);
+        Team team = teamId == null ? null : teamService.findTeamById(teamId);
+        for (User user : users) {
+            auditService.record("USER_TEAM_CHANGED", "USER", user.getId(), user.getUsername(), teamId,
+                    team != null ? "Moved to " + team.getName() : "Removed from team");
+        }
+        return ResponseEntity.ok(ApiResponse.<List<User>>builder()
+                .code(HttpStatus.OK.value())
+                .message(users.size() + (users.size() == 1 ? " user moved." : " users moved."))
+                .data(users)
                 .build());
     }
 

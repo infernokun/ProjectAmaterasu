@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { LabStatus } from '../../../enums/lab-status.enum';
 import { ServerType } from '../../../enums/server-type.enum';
 import { serverHealth, uptime, usage } from './server-health';
@@ -12,7 +12,7 @@ const stats = (patch: Partial<ServerStats> = {}): ServerStats => ({
 });
 
 const server = (id: string, patch: Partial<Server> = {}): Server => ({
-  id, name: id, ipAddress: '10.20.0.11', port: 22, serverType: ServerType.DOCKER_HOST, stats: stats(), ...patch,
+  id, name: id, ipAddress: '10.20.0.11', port: 22, serverType: ServerType.DOCKER_HOST, noNewLabs: false, stats: stats(), ...patch,
 });
 
 describe('serverHealth', () => {
@@ -48,7 +48,8 @@ describe('ServersStore', () => {
   let api: jasmine.SpyObj<ServersService>;
 
   beforeEach(() => {
-    api = jasmine.createSpyObj<ServersService>('ServersService', ['servers', 'deployments', 'validate', 'add', 'check', 'delete']);
+    api = jasmine.createSpyObj<ServersService>('ServersService', ['servers', 'deployments', 'validate', 'add', 'check', 'delete',
+      'settings', 'validateEdit', 'update', 'moveLab', 'setNewLabs']);
     api.servers.and.returnValue(of([server('dock-02'), server('dock-01')]));
     api.deployments.and.returnValue(of([
       { id: 'a', labName: 'Web', labType: null, teamId: 't1', teamName: 'Red Fox', status: LabStatus.ACTIVE, serverId: 'dock-01', units: '4 containers', updatedAt: null },
@@ -81,5 +82,45 @@ describe('ServersStore', () => {
     await store.remove('dock-02');
     expect(store.servers().map(s => s.id)).toEqual(['dock-01']);
     expect(store.selected()?.server.id).toBe('dock-01');
+  });
+
+  it('lists every team lab that starts on a server, deployed ones first', () => {
+    const store = TestBed.inject(ServersStore);
+    store.load();
+    expect(store.cards()[0].labs.map(d => d.id)).toEqual(['a', 'b']);
+    expect(store.cards()[0].deployments.map(d => d.id)).toEqual(['a']);
+  });
+
+  it('stops and allows new labs on a server', async () => {
+    const store = TestBed.inject(ServersStore);
+    store.load();
+    api.setNewLabs.and.returnValue(of(server('dock-01', { noNewLabs: true })));
+    await store.setNewLabs('dock-01', false);
+    expect(api.setNewLabs).toHaveBeenCalledWith('dock-01', false);
+    expect(store.cards()[0].server.noNewLabs).toBeTrue();
+    expect(store.cards()[0].deployments.map(d => d.id)).toEqual(['a']);
+  });
+
+  it('saves server edits into the list', async () => {
+    const store = TestBed.inject(ServersStore);
+    store.load();
+    api.update.and.returnValue(of(server('dock-01', { name: 'dock-01b', port: 2222 })));
+    await store.update('dock-01', { name: 'dock-01b', ipAddress: '10.20.0.11', port: 2222, username: 'labs' });
+    expect(api.update).toHaveBeenCalledWith('dock-01', jasmine.objectContaining({ port: 2222 }));
+    expect(store.servers().find(s => s.id === 'dock-01')?.name).toBe('dock-01b');
+  });
+
+  it('moves a lab and reloads the deployments when the move fails', async () => {
+    const store = TestBed.inject(ServersStore);
+    store.load();
+    api.moveLab.and.returnValue(of({ id: 'b', labName: 'Web', labType: null, teamId: 't2', teamName: 'Night Owls', status: LabStatus.STOPPED, serverId: 'dock-02', units: '', updatedAt: null }));
+    await store.moveLab('b', 'dock-02', false);
+    expect(api.moveLab).toHaveBeenCalledWith('b', 'dock-02', false);
+    expect(store.cards()[1].labs.map(d => d.id)).toContain('b');
+
+    api.moveLab.and.returnValue(throwError(() => new Error('the old copy could not be removed')));
+    api.deployments.calls.reset();
+    await expectAsync(store.moveLab('a', 'dock-02', true)).toBeRejected();
+    expect(api.deployments).toHaveBeenCalledTimes(1);
   });
 });

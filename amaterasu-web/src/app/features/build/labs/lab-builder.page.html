@@ -9,19 +9,28 @@
   <div class="page-head">
     <div>
       <div class="row">
-        <span class="tag" [class.accent]="statusTag() === 'Ready'">{{ statusTag() }}</span>
+        <span class="tag" [class.accent]="statusTag() === 'Published'">{{ statusTag() }}</span>
         <span class="small muted">{{ savedNote() }}</span>
       </div>
       <h1 class="h1" style="margin-top:8px">{{ title() }}</h1>
     </div>
     <div class="row">
       <button type="button" class="btn ghost" (click)="discard()">Discard</button>
-      <button type="button" class="btn primary" [disabled]="!store.canSave() || (!store.dirty() && !!store.labId())"
-              [title]="store.canSave() ? '' : 'Fill in the basics and the ' + (store.isCompose() ? 'compose file' : 'templates') + ' first'"
-              (click)="save()">
-        @if (store.saving()) { <app-icon name="spinner" size="sm" [spin]="true" /> }
-        {{ store.labId() ? 'Save lab' : 'Create lab' }}
-      </button>
+      @if (store.published()) {
+        <button type="button" class="btn" [disabled]="store.saving()" (click)="unpublish()">Unpublish</button>
+        <button type="button" class="btn primary" [disabled]="!store.canSave() || !store.dirty()" [title]="saveHint()" (click)="save()">
+          @if (store.saving()) { <app-icon name="spinner" size="sm" [spin]="true" /> }
+          Save changes
+        </button>
+      } @else {
+        <button type="button" class="btn" [disabled]="!store.canSave() || (!store.dirty() && !!store.labId())" [title]="saveHint()"
+                (click)="save()">
+          @if (store.saving()) { <app-icon name="spinner" size="sm" [spin]="true" /> }
+          Save draft
+        </button>
+        <button type="button" class="btn primary" [disabled]="!!store.publishBlocker() || store.saving()"
+                [title]="store.publishBlocker() ?? 'Teams see it in the catalog and can start it'" (click)="publish()">Publish lab</button>
+      }
     </div>
   </div>
 

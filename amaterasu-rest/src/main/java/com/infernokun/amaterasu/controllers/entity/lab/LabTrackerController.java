@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
+import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.RemoteCommandResponse;
 import com.infernokun.amaterasu.models.entities.alt.VolumeChangeRequest;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
@@ -64,6 +65,29 @@ public class LabTrackerController extends BaseController {
                 .code(HttpStatus.OK.value())
                 .message("Lab trackers retrieved successfully.")
                 .data(labTrackerService.findAllLabTrackers())
+                .build());
+    }
+
+    public record MoveRequest(String remoteServerId, boolean startFresh) {
+    }
+
+    /**
+     * Admins move a team's lab to another server. A deployed lab is only moved with startFresh: its
+     * copy is destroyed and a fresh one started on the new server.
+     */
+    @PostMapping("{labTrackerId}/move")
+    public ResponseEntity<ApiResponse<LabActionResult>> moveLabTracker(@PathVariable String labTrackerId,
+                                                                       @RequestBody MoveRequest request) {
+        if (request == null || request.remoteServerId() == null || request.remoteServerId().isBlank()) {
+            throw new IllegalArgumentException("Pick a server to move the lab to");
+        }
+        RemoteServer target = remoteServerService.findServerById(request.remoteServerId());
+        LabActionResult result = labService.moveLab(labTrackerId, target, request.startFresh());
+        HttpStatus status = result.isSuccessful() ? HttpStatus.OK : HttpStatus.BAD_GATEWAY;
+        return ResponseEntity.status(status).body(ApiResponse.<LabActionResult>builder()
+                .code(status.value())
+                .message(result.getOutput())
+                .data(result)
                 .build());
     }
 

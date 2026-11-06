@@ -6,6 +6,7 @@ import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomLive;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomOverview;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomStandings;
 import com.infernokun.amaterasu.services.entity.ctf.RoomPlayService;
+import com.infernokun.amaterasu.services.entity.ctf.RoomService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,13 +17,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import static com.infernokun.amaterasu.utils.AmaterasuConstants.buildSuccessResponse;
 
-/** Room views for players, the scoreboard and facilitators. SecurityConfig limits /live to staff. */
+/** Room views for players, the scoreboard and facilitators. SecurityConfig limits /live to staff; a facilitator only sees rooms they facilitate. */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/room")
 public class RoomPlayController {
     private final RoomPlayService roomPlayService;
     private final CurrentUser currentUser;
+    private final RoomService roomService;
 
     @GetMapping("/{roomId}/overview")
     public ResponseEntity<ApiResponse<RoomOverview>> overview(@PathVariable String roomId) {
@@ -36,6 +38,7 @@ public class RoomPlayController {
 
     @GetMapping("/{roomId}/live")
     public ResponseEntity<ApiResponse<RoomLive>> live(@PathVariable String roomId) {
+        currentUser.requireCanRun(roomService.findByRoomId(roomId));
         return buildSuccessResponse("Live room summary", roomPlayService.live(roomId), HttpStatus.OK);
     }
 }

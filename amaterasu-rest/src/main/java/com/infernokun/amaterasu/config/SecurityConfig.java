@@ -72,6 +72,23 @@ public class SecurityConfig {
                         .requestMatchers("/", "/health", "/error", "/actuator/health/**",
                                 "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
+                        // Imports, bulk moves, server edits, moving labs, room staff, lab drafts and the
+                        // classification banner. Kept ahead of the broader rules below.
+                        .requestMatchers(HttpMethod.POST, "/api/user/import").hasRole(admin)
+                        .requestMatchers(HttpMethod.PUT, "/api/user/team/bulk").hasRole(admin)
+                        .requestMatchers(HttpMethod.GET, "/api/remote-server/*/settings").hasRole(admin)
+                        .requestMatchers(HttpMethod.POST, "/api/remote-server/*/validate").hasRole(admin)
+                        .requestMatchers(HttpMethod.PUT, "/api/remote-server/*", "/api/remote-server/*/new-labs").hasRole(admin)
+                        .requestMatchers(HttpMethod.POST, "/api/lab-tracker/*/move").hasRole(admin)
+                        .requestMatchers(HttpMethod.PUT, "/api/application-info/classification").hasRole(admin)
+                        .requestMatchers(HttpMethod.GET, "/api/room/facilitated").hasAnyRole(admin, FACILITATOR.name())
+                        .requestMatchers(HttpMethod.GET, "/api/room/facilitator-candidates", "/api/room/*/facilitators")
+                                .hasAnyRole(authors)
+                        .requestMatchers(HttpMethod.PUT, "/api/room/*/facilitators", "/api/room/*/order").hasAnyRole(authors)
+                        .requestMatchers(HttpMethod.PUT, "/api/labs/*/publish", "/api/labs/*/unpublish").hasAnyRole(authors)
+                        // The controller filters it to what the caller may see
+                        .requestMatchers(HttpMethod.GET, "/api/ctf-entity/by-lab/*").authenticated()
+
                         // Administration
                         .requestMatchers("/actuator/**").hasRole(admin)
                         .requestMatchers(HttpMethod.GET, "/api/user").hasRole(admin)

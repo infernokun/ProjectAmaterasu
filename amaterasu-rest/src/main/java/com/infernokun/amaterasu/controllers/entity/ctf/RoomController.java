@@ -299,11 +299,13 @@ public class RoomController {
                         .build());
     }
 
-    /** Facilitators and admins add or take away points, with a reason the player sees. */
+    /** Admins and the room's facilitators add or take away points, with a reason the player sees. */
     @PostMapping("/add-points/{roomId}/{userId}")
     public ResponseEntity<ApiResponse<JoinRoomResponse>> addPoints(@PathVariable String userId,
                                                                    @PathVariable String roomId,
                                                                    @RequestBody AwardPointsRequest request) {
+        Room room = roomService.findByRoomId(roomId);
+        currentUser.requireCanRun(room);
         int points = request == null || request.points() == null ? 0 : request.points();
         String reason = request == null || request.reason() == null ? "" : request.reason().trim();
         if (points == 0 || Math.abs(points) > MAX_AWARD) {
@@ -315,7 +317,6 @@ public class RoomController {
         }
 
         User user = userService.findUserById(userId);
-        Room room = roomService.findByRoomId(roomId);
 
         Optional<RoomUser> roomUserOpt = roomUserService.findByUserAndRoom(user, room);
 

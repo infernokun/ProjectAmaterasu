@@ -3,7 +3,7 @@ import { AuthorChallenge } from './authoring.service';
 import { exportChallenges, parseImport } from './challenge-io';
 
 const challenge: AuthorChallenge = {
-  id: 'c1', roomId: 'r1', question: 'Union Based Dump', category: 'Web', difficultyLevel: DifficultyLevel.MEDIUM,
+  id: 'c1', roomId: 'r1', labId: null, question: 'Union Based Dump', category: 'Web', difficultyLevel: DifficultyLevel.MEDIUM,
   points: 300, maxAttempts: 5, description: 'Pull a hidden table.', visible: true,
   releaseDate: '2026-11-04 09:00:00', expirationDate: null, solutionExplanation: 'UNION SELECT', author: 'aokafor',
   flags: [{ flag: 'un10n_s3lect_all', caseSensitive: true, surroundWithTag: true, weight: 1 }],

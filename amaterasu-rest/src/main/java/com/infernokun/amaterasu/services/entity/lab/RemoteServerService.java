@@ -6,6 +6,7 @@ import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.repositories.lab.LabTrackerRepository;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
+import com.infernokun.amaterasu.models.entities.lab.dto.RemoteServerRequest;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.repositories.lab.RemoteServerRepository;
 import com.infernokun.amaterasu.services.BaseService;
@@ -16,8 +17,10 @@ import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 @Service
 public class RemoteServerService extends BaseService {
@@ -28,6 +31,8 @@ public class RemoteServerService extends BaseService {
     private final LabTrackerRepository labTrackerRepository;
 
     private static final Set<LabStatus> NOT_DEPLOYED = Set.of(LabStatus.STOPPED, LabStatus.DELETED, LabStatus.NONE);
+    // A host name, IPv4 or bracketed IPv6 address
+    private static final Pattern ADDRESS = Pattern.compile("[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:.]+]");
 
     public RemoteServerService(ProxmoxService proxmoxService, DockerService dockerService,
                                RemoteServerRepository remoteServerRepository, AESUtil aesUtil,
@@ -112,6 +117,138 @@ public class RemoteServerService extends BaseService {
         labTrackerRepository.saveAll(trackers);
         remoteServerRepository.delete(server);
         return server;
+    }
+
+    /** What an admin edits on a saved server. Credentials are never sent back, only whether one is stored. */
+    public record Settings(String id, String name, ServerType serverType, String ipAddress, Integer port,
+                           String username, String nodeName, boolean hasPassword, boolean hasApiToken) {
+    }
+
+    public Settings settings(String id) {
+        RemoteServer server = findServerById(id);
+        return new Settings(server.getId(), server.getName(), server.getServerType(), server.getIpAddress(),
+                server.getPort(), server.getUsername(), server.getNodeName(),
+                server.getPassword() != null && !server.getPassword().isBlank(),
+                server.getApiToken() != null && !server.getApiToken().isBlank());
+    }
+
+    /**
+     * The saved server with the edits applied, not stored, for a connection test. Credentials left
+     * blank are the stored ones.
+     */
+    public RemoteServer withChanges(String id, RemoteServerRequest changes) {
+        RemoteServer saved = findServerById(id);
+        return RemoteServer.builder()
+                .name(changes.getName())
+                .serverType(saved.getServerType())
+                .ipAddress(trimmed(changes.getIpAddress()))
+                .port(changes.getPort())
+                .username(trimmed(changes.getUsername()))
+                .nodeName(trimmed(changes.getNodeName()))
+                .password(isBlank(changes.getPassword()) ? decrypt(saved.getPassword()) : changes.getPassword())
+                .apiToken(isBlank(changes.getApiToken()) ? decrypt(saved.getApiToken()) : changes.getApiToken().trim())
+                .build();
+    }
+
+    /**
+     * Saves a server's name, address, port, username or node, and a new password or API token when one
+     * is given. The type cannot change: labs on it were built for that type. Returns what changed.
+     */
+    public List<String> updateServer(String id, RemoteServerRequest changes) {
+        RemoteServer server = findServerById(id);
+        if (changes == null) {
+            throw new IllegalArgumentException("Nothing to save");
+        }
+        if (changes.getServerType() != null && changes.getServerType() != server.getServerType()) {
+            throw new IllegalArgumentException("A server's type cannot change. Add a new server instead.");
+        }
+        String name = trimmed(changes.getName());
+        String address = trimmed(changes.getIpAddress());
+        if (name.isEmpty()) {
+            throw new IllegalArgumentException("Server name required");
+        }
+        if (address.isEmpty() || !ADDRESS.matcher(address).matches()) {
+            throw new IllegalArgumentException("Enter a host name or IP address, without a scheme or path");
+        }
+        if (changes.getPort() < 1 || changes.getPort() > 65535) {
+            throw new IllegalArgumentException("Port must be from 1 to 65535");
+        }
+        boolean docker = server.getServerType() == ServerType.DOCKER_HOST;
+        String username = trimmed(changes.getUsername());
+        if (docker && username.isEmpty()) {
+            throw new IllegalArgumentException("SSH username required");
+        }
+        String nodeName = trimmed(changes.getNodeName());
+        if (!docker && nodeName.isEmpty()) {
+            throw new IllegalArgumentException("Proxmox node name required");
+        }
+        if (!docker && !isBlank(changes.getApiToken()) && !changes.getApiToken().contains("=")) {
+            throw new IllegalArgumentException("The API token looks like TOKEN_ID=SECRET");
+        }
+        boolean taken = remoteServerRepository.findAll().stream()
+                .anyMatch(other -> !other.getId().equals(id) && name.equalsIgnoreCase(other.getName()));
+        if (taken) {
+            throw new IllegalArgumentException("A server named " + name + " already exists");
+        }
+
+        List<String> changed = new ArrayList<>();
+        if (!name.equals(server.getName())) {
+            changed.add("name " + server.getName() + " to " + name);
+            server.setName(name);
+        }
+        if (!address.equals(server.getIpAddress())) {
+            changed.add("address " + server.getIpAddress() + " to " + address);
+            server.setIpAddress(address);
+        }
+        if (server.getPort() == null || changes.getPort() != server.getPort()) {
+            changed.add("port " + server.getPort() + " to " + changes.getPort());
+            server.setPort(changes.getPort());
+        }
+        if (docker && !username.equals(server.getUsername())) {
+            changed.add("username");
+            server.setUsername(username);
+        }
+        if (!docker && !nodeName.equals(server.getNodeName())) {
+            changed.add("node " + server.getNodeName() + " to " + nodeName);
+            server.setNodeName(nodeName);
+        }
+        if (docker && !isBlank(changes.getPassword())) {
+            changed.add("password");
+            server.setPassword(aesUtil.encrypt(Normalizer.normalize(changes.getPassword(), Normalizer.Form.NFKC)));
+        }
+        if (!docker && !isBlank(changes.getApiToken())) {
+            changed.add("API token");
+            server.setApiToken(aesUtil.encrypt(Normalizer.normalize(changes.getApiToken().trim(), Normalizer.Form.NFKC)));
+        }
+        if (!changed.isEmpty()) {
+            server.setUpdatedAt(LocalDateTime.now());
+            remoteServerRepository.save(server);
+        }
+        return changed;
+    }
+
+    private String decrypt(String stored) {
+        return stored == null || stored.isBlank() ? null : aesUtil.decrypt(stored);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private static String trimmed(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    public static boolean takesNoNewLabs(RemoteServer server) {
+        return server != null && Boolean.TRUE.equals(server.getNoNewLabs());
+    }
+
+    /** Stops or allows new deployments on a server; labs already on it are left alone. */
+    public RemoteServer setNoNewLabs(String id, boolean noNewLabs) {
+        RemoteServer server = findServerById(id);
+        server.setNoNewLabs(noNewLabs);
+        server.setUpdatedAt(LocalDateTime.now());
+        return remoteServerRepository.save(server);
     }
 
     public void requireValidNewServer(RemoteServer server) {

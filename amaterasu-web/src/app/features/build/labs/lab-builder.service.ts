@@ -14,6 +14,8 @@ export interface CatalogLab {
   capacity: number;
   labType: LabType;
   ready: boolean;
+  /** Drafts are hidden from teams and cannot start. */
+  published: boolean;
   vmIds: number[];
   createdBy: string | null;
   updatedAt: string | null;
@@ -116,6 +118,15 @@ export class LabBuilderService {
     return this.http.put<ApiResponse<any>>(this.url(`/labs/${labId}`), request).pipe(map(r => toLab(r.data)));
   }
 
+  publish(labId: string): Observable<CatalogLab> {
+    return this.http.put<ApiResponse<any>>(this.url(`/labs/${labId}/publish`), {}).pipe(map(r => toLab(r.data)));
+  }
+
+  /** Refused with 409 while any team has the lab deployed. */
+  unpublish(labId: string): Observable<CatalogLab> {
+    return this.http.put<ApiResponse<any>>(this.url(`/labs/${labId}/unpublish`), {}).pipe(map(r => toLab(r.data)));
+  }
+
   delete(labId: string): Observable<unknown> {
     return this.http.delete(this.url(`/labs/${labId}`));
   }
@@ -130,6 +141,7 @@ function toLab(raw: any): CatalogLab {
     capacity: raw.capacity ?? 1,
     labType: raw.labType,
     ready: !!raw.ready,
+    published: raw.published === true,
     vmIds: raw.vmIds ?? [],
     createdBy: raw.createdBy ?? null,
     updatedAt: raw.updatedAt ?? null,

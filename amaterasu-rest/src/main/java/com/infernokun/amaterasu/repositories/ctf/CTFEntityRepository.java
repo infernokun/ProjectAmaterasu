@@ -19,4 +19,6 @@ public interface CTFEntityRepository extends JpaRepository<CTFEntity, String> {
     Optional<CTFEntity> findByIdWithFlags(@Param("id") String id);
 
     List<CTFEntity> findByRoomId(String roomId);
+
+    List<CTFEntity> findByLabId(String labId);
 }

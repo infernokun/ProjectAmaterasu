@@ -1,7 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, untracked } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router, RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { catchError, firstValueFrom, map, of } from 'rxjs';
+import { Room } from '../../../models/ctf/room.model';
+import { RoomService } from '../../../services/ctf/room.service';
 import { CrumbsService } from '../../../core/crumbs.service';
 import { RoomsStore } from '../../../core/stores/rooms.store';
 import { SessionStore } from '../../../core/stores/session.store';
@@ -42,7 +45,17 @@ export class LivePage {
     { value: 'all', label: 'All' }, { value: 'SOLVE', label: 'Solves' }, { value: 'HINT', label: 'Hints' }, { value: 'AWARD', label: 'Awards' },
   ];
 
-  protected readonly roomId = computed(() => this.room() ?? this.rooms.currentRoom()?.id ?? this.rooms.rooms()[0]?.id ?? null);
+  /** Rooms this person may run; null while loading. */
+  protected readonly runnable = toSignal(inject(RoomService).getFacilitatedRooms().pipe(
+    map(response => (response.data ?? []).map(room => new Room(room))),
+    catchError(() => of([] as Room[])),
+  ), { initialValue: null });
+  protected readonly runRooms = computed(() => this.runnable() ?? []);
+
+  protected readonly roomId = computed(() => {
+    const allowed = new Set(this.runRooms().map(room => room.id));
+    return [this.room(), this.rooms.currentRoom()?.id, this.runRooms()[0]?.id].find(id => !!id && allowed.has(id)) ?? null;
+  });
 
   constructor() {
     this.rooms.load();

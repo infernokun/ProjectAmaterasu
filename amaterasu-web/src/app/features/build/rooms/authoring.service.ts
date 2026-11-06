@@ -27,9 +27,24 @@ export interface AuthorHint {
   unlockAfterAttempts: number;
 }
 
+/** An account picked as a room's facilitator. */
+export interface Person {
+  id: string;
+  username: string;
+}
+
+/** A lab a challenge can point players to. */
+export interface LabOption {
+  id: string;
+  name: string;
+  published: boolean;
+}
+
 export interface AuthorChallenge {
   id?: string;
   roomId: string | null;
+  /** The lab players use for it, or null. */
+  labId: string | null;
   question: string;
   category: string;
   difficultyLevel: DifficultyLevel;
@@ -83,6 +98,30 @@ export class AuthoringService {
     return this.http.get<ApiResponse<unknown[]>>(this.url(`/room/scoreboard/${roomId}/users`)).pipe(map(r => (r.data ?? []).length));
   }
 
+  facilitators(roomId: string): Observable<Person[]> {
+    return this.http.get<ApiResponse<Person[]>>(this.url(`/room/${roomId}/facilitators`)).pipe(map(r => r.data ?? []));
+  }
+
+  /** Accounts with the Facilitator role, who can be assigned to a room. */
+  facilitatorCandidates(): Observable<Person[]> {
+    return this.http.get<ApiResponse<Person[]>>(this.url('/room/facilitator-candidates')).pipe(map(r => r.data ?? []));
+  }
+
+  setFacilitators(roomId: string, userIds: string[]): Observable<Person[]> {
+    return this.http.put<ApiResponse<Person[]>>(this.url(`/room/${roomId}/facilitators`), { userIds }).pipe(map(r => r.data ?? []));
+  }
+
+  /** Saves the order players see the room's challenges in; every challenge in the room, once. */
+  reorder(roomId: string, challengeIds: string[]): Observable<unknown> {
+    return this.http.put(this.url(`/room/${roomId}/order`), { challengeIds });
+  }
+
+  labs(): Observable<LabOption[]> {
+    return this.http.get<ApiResponse<any[]>>(this.url('/labs')).pipe(map(r => (r.data ?? [])
+      .map(lab => ({ id: lab.id, name: lab.name ?? 'Untitled lab', published: lab.published === true }))
+      .sort((a, b) => a.name.localeCompare(b.name))));
+  }
+
   /** Every challenge in every room, for the counts on the room list. */
   allChallenges(): Observable<AuthorChallenge[]> {
     return this.http.get<ApiResponse<any[]>>(this.url('/ctf-entity/full')).pipe(map(r => (r.data ?? []).map(toChallenge)));
@@ -128,6 +167,7 @@ function writable(challenge: AuthorChallenge) {
     releaseDate: challenge.releaseDate,
     expirationDate: challenge.expirationDate,
     solutionExplanation: challenge.solutionExplanation,
+    labId: challenge.labId,
     flags: challenge.flags,
     hints: challenge.hints,
   };
@@ -141,6 +181,7 @@ export function toChallenge(raw: any): AuthorChallenge {
   return {
     id: raw.id,
     roomId: raw.room?.id ?? null,
+    labId: raw.labId ?? null,
     question: raw.question ?? '',
     category: raw.category ?? '',
     difficultyLevel: raw.difficultyLevel ?? DifficultyLevel.EASY,

@@ -51,8 +51,8 @@ import { labTypeLabel } from './lab-view';
             </button>
             <mat-menu #menu="matMenu">
               @for (choice of choices(); track choice.id) {
-                <button mat-menu-item type="button" [disabled]="!online(choice)" (click)="picked.set(choice)">
-                  {{ choice.name }}{{ online(choice) ? '' : ' (offline)' }}
+                <button mat-menu-item type="button" [disabled]="!online(choice) || choice.noNewLabs" (click)="picked.set(choice)">
+                  {{ choice.name }}{{ choice.noNewLabs ? ' (no new labs)' : online(choice) ? '' : ' (offline)' }}
                 </button>
               }
             </mat-menu>

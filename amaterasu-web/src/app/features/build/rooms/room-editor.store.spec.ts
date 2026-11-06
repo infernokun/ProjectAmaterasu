@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { DifficultyLevel } from '../../../enums/difficulty-level.enum';
 import { RoomsStore } from '../../../core/stores/rooms.store';
 import { AuthorChallenge, AuthoringService } from './authoring.service';
@@ -7,7 +7,7 @@ import { NEW_ID, RoomEditorStore, draftProblem, toDraft } from './room-editor.st
 import { wrapperParts } from './room-editor.page';
 
 const challenge = (id: string, patch: Partial<AuthorChallenge> = {}): AuthorChallenge => ({
-  id, roomId: 'r1', question: id, category: 'Web', difficultyLevel: DifficultyLevel.EASY, points: 100, maxAttempts: 5,
+  id, roomId: 'r1', labId: null, question: id, category: 'Web', difficultyLevel: DifficultyLevel.EASY, points: 100, maxAttempts: 5,
   description: '', visible: true, releaseDate: '2026-11-04 09:00:00', expirationDate: null, solutionExplanation: '', author: null,
   flags: [{ flag: 'f', caseSensitive: true, surroundWithTag: true, weight: 1 }], hints: [], solveCount: 0, attemptCount: 0, ...patch,
 });
@@ -18,7 +18,11 @@ describe('RoomEditorStore', () => {
   beforeEach(() => {
     api = jasmine.createSpyObj<AuthoringService>('AuthoringService', [
       'room', 'challenges', 'players', 'create', 'update', 'delete', 'updateRoom', 'deleteRoom', 'importChallenges',
+      'facilitators', 'facilitatorCandidates', 'setFacilitators', 'reorder', 'labs',
     ]);
+    api.facilitators.and.returnValue(of([{ id: 'u1', username: 'dkim' }]));
+    api.facilitatorCandidates.and.returnValue(of([{ id: 'u1', username: 'dkim' }, { id: 'u2', username: 'rhale' }]));
+    api.labs.and.returnValue(of([{ id: 'lab1', name: 'Web Exploitation 101', published: true }]));
     api.room.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null }));
     api.challenges.and.returnValue(of([
       challenge('Union Based Dump', { points: 300, hints: [{ id: 'h1', hint: 'Count the columns', cost: 25, unlockAfterAttempts: 0 }] }),
@@ -37,10 +41,10 @@ describe('RoomEditorStore', () => {
     return store;
   }
 
-  it('loads the room with challenges grouped by category and points', async () => {
+  it('loads the room with challenges in the order the API returns', async () => {
     const store = await loaded();
-    expect(store.challenges().map(c => c.id)).toEqual(['Kerberoast', 'SQLi Login Bypass', 'Union Based Dump']);
-    expect(store.selectedId()).toBe('Kerberoast');
+    expect(store.challenges().map(c => c.id)).toEqual(['Union Based Dump', 'Kerberoast', 'SQLi Login Bypass']);
+    expect(store.selectedId()).toBe('Union Based Dump');
     expect(store.totalPoints()).toBe(800);
     expect(store.categories()).toEqual(['Active Directory', 'Web']);
     await Promise.resolve();
@@ -93,14 +97,83 @@ describe('RoomEditorStore', () => {
     const store = await loaded();
     api.delete.and.returnValue(of({}));
     await store.deleteSelected();
-    expect(api.delete).toHaveBeenCalledWith('Kerberoast');
-    expect(store.selectedId()).toBe('SQLi Login Bypass');
+    expect(api.delete).toHaveBeenCalledWith('Union Based Dump');
+    expect(store.selectedId()).toBe('Kerberoast');
 
     const exported = store.exportJson();
     api.importChallenges.and.returnValue(of(2));
     expect(await store.importFile(exported)).toBe(2);
     expect(api.importChallenges.calls.mostRecent().args[0].length).toBe(2);
     await expectAsync(store.importFile('not json')).toBeRejectedWithError('The file is not valid JSON.');
+  });
+});
+
+describe('RoomEditorStore order, facilitators and labs', () => {
+  let api: jasmine.SpyObj<AuthoringService>;
+
+  beforeEach(() => {
+    api = jasmine.createSpyObj<AuthoringService>('AuthoringService', [
+      'room', 'challenges', 'players', 'facilitators', 'facilitatorCandidates', 'setFacilitators', 'reorder', 'labs', 'update',
+    ]);
+    api.room.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null }));
+    api.challenges.and.returnValue(of([challenge('a'), challenge('b'), challenge('c', { labId: 'lab1' })]));
+    api.players.and.returnValue(of(0));
+    api.facilitators.and.returnValue(of([{ id: 'u1', username: 'dkim' }]));
+    api.facilitatorCandidates.and.returnValue(of([{ id: 'u1', username: 'dkim' }, { id: 'u2', username: 'rhale' }]));
+    api.labs.and.returnValue(of([{ id: 'lab1', name: 'Web Exploitation 101', published: true }]));
+    TestBed.configureTestingModule({
+      providers: [RoomEditorStore, { provide: AuthoringService, useValue: api }, { provide: RoomsStore, useValue: { load: jasmine.createSpy('load') } }],
+    });
+  });
+
+  async function loaded() {
+    const store = TestBed.inject(RoomEditorStore);
+    await store.init('r1');
+    await new Promise(resolve => setTimeout(resolve));
+    return store;
+  }
+
+  it('moves a challenge and saves every id in the new order', async () => {
+    const store = await loaded();
+    api.reorder.and.returnValue(of({}));
+    expect(await store.move(2, 0)).toBeTrue();
+    expect(store.challenges().map(c => c.id)).toEqual(['c', 'a', 'b']);
+    expect(api.reorder).toHaveBeenCalledWith('r1', ['c', 'a', 'b']);
+    expect(store.savingOrder()).toBeFalse();
+    expect(await store.move(0, 0)).toBeFalse();
+    expect(await store.move(0, 5)).toBeFalse();
+    expect(api.reorder).toHaveBeenCalledTimes(1);
+  });
+
+  it('puts the old order back when saving it fails', async () => {
+    const store = await loaded();
+    api.reorder.and.returnValue(throwError(() => new Error('offline')));
+    await expectAsync(store.move(0, 1)).toBeRejected();
+    expect(store.challenges().map(c => c.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('offers only facilitators who are not on the room yet and saves the list', async () => {
+    const store = await loaded();
+    expect(store.facilitators().map(p => p.username)).toEqual(['dkim']);
+    expect(store.addable().map(p => p.username)).toEqual(['rhale']);
+    api.setFacilitators.and.returnValue(of([{ id: 'u1', username: 'dkim' }, { id: 'u2', username: 'rhale' }]));
+    await store.setFacilitators(['u1', 'u2']);
+    expect(api.setFacilitators).toHaveBeenCalledWith('r1', ['u1', 'u2']);
+    expect(store.addable()).toEqual([]);
+  });
+
+  it('names the lab a challenge uses and saves a new pick', async () => {
+    const store = await loaded();
+    expect(store.labName()('lab1')).toBe('Web Exploitation 101');
+    expect(store.labName()('gone')).toBe('A deleted lab');
+    expect(store.labName()(null)).toBeNull();
+
+    store.select('a');
+    store.patch({ labId: 'lab1' });
+    api.update.and.callFake(c => of({ ...c } as AuthorChallenge));
+    await store.save();
+    expect(api.update.calls.mostRecent().args[0].labId).toBe('lab1');
+    expect(store.challenges().map(c => c.id)).toEqual(['a', 'b', 'c']);
   });
 });
 

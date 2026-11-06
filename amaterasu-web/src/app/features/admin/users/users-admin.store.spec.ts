@@ -15,6 +15,7 @@ describe('UsersAdminStore', () => {
   beforeEach(() => {
     api = jasmine.createSpyObj<AdminUsersService>('AdminUsersService', [
       'users', 'teams', 'teamLabs', 'createUser', 'changeRole', 'setTeam', 'setDisabled', 'resetPassword', 'createTeam', 'editTeam', 'deleteTeam',
+      'setTeamMany', 'importUsers',
     ]);
     api.users.and.returnValue(of([
       user('sbell', Role.ADMIN, 't1'), user('jmorales', Role.MEMBER, 't1'), user('ghost_rk', Role.MEMBER, 't2', true), user('guest04', Role.MEMBER, null),
@@ -90,6 +91,43 @@ describe('UsersAdminStore', () => {
     expect(result.done).toBe(1);
     expect(result.failed).toBeTruthy();
     expect(store.selected()).toEqual([]);
+  });
+
+  it('moves the whole selection in one request', async () => {
+    const store = loaded();
+    store.toggleSelected('jmorales');
+    store.toggleSelected('guest04');
+    api.setTeamMany.and.returnValue(of([user('jmorales', Role.MEMBER, 't2'), user('guest04', Role.MEMBER, 't2')]));
+
+    const moved = await store.moveSelected('t2');
+
+    expect(api.setTeamMany).toHaveBeenCalledOnceWith(['jmorales', 'guest04'], 't2');
+    expect(moved.length).toBe(2);
+    expect(store.users().find(u => u.id === 'guest04')?.team?.name).toBe('Night Owls');
+    expect(store.selected()).toEqual([]);
+  });
+
+  it('keeps the selection when a bulk move fails, since nobody moved', async () => {
+    const store = loaded();
+    store.toggleSelected('jmorales');
+    api.setTeamMany.and.returnValue(throwError(() => new Error('nope')));
+    await expectAsync(store.moveSelected(null)).toBeRejected();
+    expect(store.selected()).toEqual(['jmorales']);
+    expect(store.users().find(u => u.id === 'jmorales')?.team?.id).toBe('t1');
+  });
+
+  it('imports rows with team names and reloads the users it created', async () => {
+    const store = loaded();
+    api.importUsers.and.returnValue(of({ created: [{ row: 2, id: 'n1', username: 'lchen', role: Role.MEMBER, team: 'Red Fox' }], skipped: [] }));
+    api.users.and.returnValue(of([user('lchen', Role.MEMBER, 't1'), user('sbell', Role.ADMIN, 't1')]));
+
+    const result = await store.importUsers([{
+      line: 2, username: 'lchen', role: Role.MEMBER, team: { id: 't1', name: 'Red Fox' }, password: 'p', generatedPassword: true, problems: [],
+    }]);
+
+    expect(api.importUsers).toHaveBeenCalledWith([{ row: 2, username: 'lchen', password: 'p', role: Role.MEMBER, team: 'Red Fox' }]);
+    expect(result.created.length).toBe(1);
+    expect(store.users().map(u => u.id)).toEqual(['lchen', 'sbell']);
   });
 
   it('reports a failed load', () => {
