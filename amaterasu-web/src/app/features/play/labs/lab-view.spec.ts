@@ -2,7 +2,7 @@ import { LabStatus } from '../../../enums/lab-status.enum';
 import { LabType } from '../../../enums/lab-type.enum';
 import { LabTracker } from '../../../models/lab/lab-tracker.model';
 import { RemoteServer } from '../../../models/lab/remote-server.model';
-import { bestServer, labActions, labDetail, lifeStep, serviceName } from './lab-view';
+import { bastionOf, bestServer, labActions, labDetail, lifeStep, loginUser, serviceName, vmLook } from './lab-view';
 
 describe('lab view rules', () => {
   const compose = (status: LabStatus, services: object[] = []) => new LabTracker({
@@ -45,5 +45,20 @@ describe('lab view rules', () => {
     expect(bestServer([server('b', LabStatus.OFFLINE, 64)])).toBeUndefined();
     const closed = new RemoteServer({ id: 'd', name: 'd', noNewLabs: true, remoteServerStats: { status: LabStatus.ACTIVE, availableRam: 128 } });
     expect(bestServer([closed, server('a', LabStatus.ACTIVE, 2)])?.name).toBe('a');
+  });
+
+  it('calls a running VM Starting up until its guest agent answers', () => {
+    expect(vmLook({ status: 'running', guestAgent: true, ready: false })).toEqual({ tone: 'work', label: 'Starting up' });
+    expect(vmLook({ status: 'running', guestAgent: true, ready: true })).toEqual({ tone: 'active', label: 'Ready' });
+    expect(vmLook({ status: 'running' })).toEqual({ tone: 'active', label: 'running' });
+    expect(vmLook({ status: 'stopped', guestAgent: true, ready: false })).toEqual({ tone: 'off', label: 'stopped' });
+  });
+
+  it('finds the bastion and the login user', () => {
+    const lab = new LabTracker({ id: 'lt1', vms: [{ vmid: 1, ciuser: 'debian' }, { vmid: 2, role: 'bastion', ciuser: 'player' }] });
+    expect(bastionOf(lab)?.vmid).toBe(2);
+    expect(loginUser(lab)).toBe('player');
+    expect(loginUser(new LabTracker({ id: 'lt2', vms: [{ vmid: 1 }, { vmid: 3, ciuser: 'debian' }] }))).toBe('debian');
+    expect(bastionOf(new LabTracker({ id: 'lt3', vms: [{ vmid: 1 }] }))).toBeNull();
   });
 });
