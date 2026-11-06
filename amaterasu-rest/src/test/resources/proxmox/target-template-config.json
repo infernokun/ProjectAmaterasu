@@ -1,0 +1,21 @@
+{
+ "data": {
+  "agent": "1",
+  "boot": "order=scsi0",
+  "cores": 1,
+  "digest": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+  "ide2": "local-lvm:vm-9001-cloudinit,media=cdrom",
+  "ipconfig0": "ip=172.16.0.20/24",
+  "memory": "256",
+  "meta": "creation-qemu=10.0.2,ctime=1793927700",
+  "name": "tpl-target",
+  "net0": "virtio=BC:24:11:6E:0A:93,bridge=vmbr0",
+  "ostype": "l26",
+  "scsi0": "local-lvm:base-9001-disk-0,size=1G",
+  "scsihw": "virtio-scsi-pci",
+  "smbios1": "uuid=2c4e6a8b-0d1f-4a3c-8e5b-7d9f1a3c5e7b",
+  "tags": "amaterasu",
+  "template": 1,
+  "vmgenid": "4f6a8c0e-2b4d-4f6a-8c0e-2b4d6f8a0c2e"
+ }
+}

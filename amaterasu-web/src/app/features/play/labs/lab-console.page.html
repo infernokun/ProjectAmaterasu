@@ -86,12 +86,21 @@
               }
             </div>
           } @else {
+            @if (showAccess()) {
+              <app-lab-access [tracker]="t" />
+            }
             @if (vms().length) {
               <div class="grid">
                 @for (machine of vms(); track machine.vmid) {
                   <article class="card stack">
-                    <div class="row between"><strong class="mono">{{ machine.name }}</strong><app-status-badge [tone]="vmTone(machine)" [label]="machine.status ?? 'unknown'" /></div>
-                    <div class="small muted">VMID <app-mono-id [value]="'' + machine.vmid" [copyable]="true" label="VMID" /></div>
+                    <div class="row between"><strong class="mono">{{ machine.name }}</strong><app-status-badge [tone]="vmTone(machine)" [label]="vmLabel(machine)" /></div>
+                    <div class="small muted row">
+                      @if (machine.role === 'bastion') {<span class="tag accent">Bastion</span>}
+                      <span>VMID <app-mono-id [value]="'' + machine.vmid" [copyable]="true" label="VMID" /></span>
+                    </div>
+                    @if (machine.role === 'bastion' && machine.accessAddress) {
+                      <div class="small muted">LAN <app-mono-id [value]="machine.accessAddress" [copyable]="true" label="bastion address" /></div>
+                    }
                     <div class="meter-row"><span class="muted">CPU</span><div class="bar info"><span [style.width.%]="cpuPct(machine)"></span></div><span class="num dim">{{ cpuPct(machine) }}% of {{ machine.cpus }} vCPU</span></div>
                     <div class="meter-row"><span class="muted">Memory</span><div class="bar info"><span [style.width.%]="memPct(machine)"></span></div><span class="num dim">{{ gib(machine.mem) }}</span></div>
                     @if (machine.status === 'running') {
@@ -106,7 +115,10 @@
               <div class="card"><app-empty-state icon="monitor" title="No VMs right now" message="VMs show here once the lab is running. Refresh to check again." /></div>
             }
             @if (t.bridges?.length) {
-              <div class="banner"><app-icon name="shield" /><div>These VMs share private bridge <span class="mono">{{ t.bridges!.join(', ') }}</span>. It has no host address, so the lab cannot reach other teams or the Proxmox node.</div></div>
+              <div class="banner"><app-icon name="shield" /><div>These VMs share private bridge <span class="mono">{{ t.bridges!.join(', ') }}</span>. It has no host address, so the lab cannot reach other teams or the Proxmox node.
+                @if (bastion(); as b) {
+                  The bastion <span class="mono">{{ b.name }}</span> is the one way in: its first NIC sits on <span class="mono">{{ b.uplinkBridge ?? 'the LAN' }}</span>, where you SSH to it.
+                }</div></div>
             }
           }
         }

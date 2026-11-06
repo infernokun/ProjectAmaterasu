@@ -20,10 +20,13 @@ import { StatusBadgeComponent } from '../../../shared/ui/status-badge.component'
 import { ActivityLine, activityLine } from '../data/activity';
 import { LabChallenge } from '../data/play.models';
 import { PlayApiService } from '../data/play-api.service';
+import { LabAccessComponent } from './lab-access.component';
 import { LabActionsService } from './lab-actions.service';
 import { LabFilesComponent } from './lab-files.component';
 import { LabLogsComponent } from './lab-logs.component';
-import { changedAgo, isVm, labActions, labTypeLabel, pauseHelp, serviceName, stopWarning } from './lab-view';
+import {
+  bastionOf, changedAgo, isRunningState, isVm, labActions, labTypeLabel, loginUser, pauseHelp, serviceName, stopWarning, vmLook,
+} from './lab-view';
 
 type Tab = 'units' | 'logs' | 'files' | 'activity';
 
@@ -32,7 +35,7 @@ type Tab = 'units' | 'logs' | 'files' | 'activity';
   selector: 'app-lab-console-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, IconComponent, MonoIdComponent, StatusBadgeComponent, EmptyStateComponent, SkeletonComponent,
-    LabLogsComponent, LabFilesComponent],
+    LabLogsComponent, LabFilesComponent, LabAccessComponent],
   templateUrl: './lab-console.page.html',
   styleUrl: './lab-console.page.scss',
   host: { class: 'content' },
@@ -72,6 +75,10 @@ export class LabConsolePage {
   protected readonly since = computed(() => (this.tracker() ? changedAgo(this.tracker()!) : ''));
   protected readonly services = computed(() => this.tracker()?.services ?? []);
   protected readonly vms = computed(() => this.tracker()?.vms ?? []);
+  protected readonly bastion = computed(() => bastionOf(this.tracker()));
+  /** The SSH block or VM login while the copy runs. */
+  protected readonly showAccess = computed(() => this.vm() && isRunningState(this.state())
+    && (!!this.bastion() || !!loginUser(this.tracker())));
   protected readonly unitCount = computed(() => (this.vm() ? this.vms().length : this.services().length));
   protected readonly serviceNames = computed(() => {
     const tracker = this.tracker();
@@ -150,7 +157,11 @@ export class LabConsolePage {
   }
 
   protected vmTone(vm: ProxmoxVM): StatusTone {
-    return vm.status === 'running' ? 'active' : vm.status === 'paused' ? 'paused' : 'off';
+    return vmLook(vm).tone;
+  }
+
+  protected vmLabel(vm: ProxmoxVM): string {
+    return vmLook(vm).label;
   }
 
   protected cpuPct(vm: ProxmoxVM): number {

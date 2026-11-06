@@ -7,7 +7,7 @@ import { LabTracker } from '../../../models/lab/lab-tracker.model';
 import { RemoteServer } from '../../../models/lab/remote-server.model';
 import { Team } from '../../../models/team.model';
 import { EnvironmentService } from '../../../services/environment.service';
-import { AnswerResult, LabChallenge, LabFiles, RoomLive, RoomOverview, RoomStandings } from './play.models';
+import { AnswerResult, LabAccess, LabChallenge, LabFiles, RoomLive, RoomOverview, RoomStandings } from './play.models';
 
 /** HTTP for the Play and Run screens. */
 @Injectable({ providedIn: 'root' })
@@ -62,6 +62,11 @@ export class PlayApiService {
   tracker(trackerId: string): Observable<LabTracker> {
     return this.data(this.http.get<ApiResponse<unknown>>(this.url(`/lab-tracker/${trackerId}`)))
       .pipe(map(tracker => new LabTracker(tracker)));
+  }
+
+  /** The copy's VM login, password included: fetched only when someone asks to see or copy it. */
+  access(trackerId: string): Observable<LabAccess> {
+    return this.data(this.http.get<ApiResponse<LabAccess>>(this.url(`/lab-tracker/${trackerId}/access`)));
   }
 
   refreshTracker(trackerId: string): Observable<LabTracker> {

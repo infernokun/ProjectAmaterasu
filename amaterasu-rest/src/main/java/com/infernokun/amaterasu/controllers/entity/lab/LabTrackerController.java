@@ -14,9 +14,11 @@ import com.infernokun.amaterasu.models.entities.alt.VolumeChangeRequest;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.LabStatus;
+import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
 import com.infernokun.amaterasu.services.entity.lab.LabService;
 import com.infernokun.amaterasu.services.entity.lab.LabTrackerService;
 import com.infernokun.amaterasu.services.entity.lab.RemoteServerService;
+import com.infernokun.amaterasu.utils.AESUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +35,7 @@ public class LabTrackerController extends BaseController {
     private final RemoteServerService remoteServerService;
     private final LabService labService;
     private final CurrentUser currentUser;
+    private final AESUtil aesUtil;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<LabTracker>>> getAllLabTrackers(@RequestParam(required = false) HashMap<String, String> params) {
@@ -100,6 +103,30 @@ public class LabTrackerController extends BaseController {
                 : createNotFoundResponse(LabTracker.class, labTrackerId);
     }
 
+    /** How to log in to a copy's VMs: the bastion's SSH address and the copy's password. */
+    public record LabAccess(String username, String password, String address, String labSubnet, String bastion) {
+    }
+
+    /** Only the owning team and admins may read the password; it is decrypted here and never logged. */
+    @GetMapping("{labTrackerId}/access")
+    public ResponseEntity<ApiResponse<LabAccess>> getLabAccess(@PathVariable String labTrackerId) {
+        LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lab tracker not found"));
+        currentUser.requireTrackerAccess(labTracker);
+        List<ProxmoxVM> vms = labTracker.getVms() != null ? labTracker.getVms() : List.of();
+        ProxmoxVM bastion = vms.stream().filter(ProxmoxVM::isBastion).findFirst().orElse(null);
+        if (bastion == null && labTracker.getAccessPassword() == null) {
+            throw new ResourceNotFoundException("This lab has no VM login");
+        }
+        String username = bastion != null && bastion.getCiuser() != null ? bastion.getCiuser()
+                : vms.stream().map(ProxmoxVM::getCiuser).filter(Objects::nonNull).findFirst().orElse(null);
+        String password = labTracker.getAccessPassword() != null ? aesUtil.decrypt(labTracker.getAccessPassword()) : null;
+        return createSuccessResponse(new LabAccess(username, password,
+                bastion != null ? bastion.getAccessAddress() : null,
+                bastion != null ? bastion.getLabSubnet() : null,
+                bastion != null ? bastion.getName() : null), "Lab access");
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<LabTracker>> createLabTracker(@RequestBody LabTracker labTracker) {
         LabTracker createdLabTracker = labTrackerService.createLabTracker(labTracker);
@@ -133,6 +160,11 @@ public class LabTrackerController extends BaseController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<LabTracker>> updateLabTracker(@RequestBody LabTracker labTracker) {
+        // The password never reaches the client, so an edit keeps the stored one
+        if (labTracker.getId() != null) {
+            labTrackerService.findLabTrackerById(labTracker.getId())
+                    .ifPresent(existing -> labTracker.setAccessPassword(existing.getAccessPassword()));
+        }
         LabTracker updatedLabTracker = labTrackerService.updateLabTracker(labTracker);
 
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.<LabTracker>builder()
