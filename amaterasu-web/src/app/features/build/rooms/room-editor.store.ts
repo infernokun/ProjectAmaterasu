@@ -6,7 +6,7 @@ import { errorMessage } from '../../../core/http-error';
 import { RoomsStore } from '../../../core/stores/rooms.store';
 import { RequestState, initialRequestState } from '../../../core/stores/request-status';
 import { fromLocalInput, toDate, toLocalInput } from '../../../core/time';
-import { AuthorChallenge, AuthorFlag, AuthorHint, AuthorRoom, AuthoringService } from './authoring.service';
+import { AuthorChallenge, AuthorFlag, AuthorHint, AuthorRoom, AuthoringService, LabOption, Person } from './authoring.service';
 import { exportChallenges, parseImport } from './challenge-io';
 
 /** A challenge being edited: dates as datetime-local values in the browser's time zone. */
@@ -17,7 +17,12 @@ export interface Draft extends Omit<AuthorChallenge, 'releaseDate' | 'expiration
 
 interface RoomEditorState extends RequestState {
   room: AuthorRoom | null;
+  /** In the order players see them. */
   challenges: AuthorChallenge[];
+  facilitators: Person[];
+  candidates: Person[];
+  labs: LabOption[];
+  savingOrder: boolean;
   players: number;
   selectedId: string | null;
   draft: Draft | null;
@@ -74,24 +79,32 @@ export function draftProblem(draft: Draft): string | null {
 /** One room's settings and challenges, with the challenge being edited. */
 export const RoomEditorStore = signalStore(
   withState<RoomEditorState>({
-    room: null, challenges: [], players: 0, selectedId: null, draft: null, dirty: false, saving: false, ...initialRequestState,
+    room: null, challenges: [], facilitators: [], candidates: [], labs: [], savingOrder: false,
+    players: 0, selectedId: null, draft: null, dirty: false, saving: false, ...initialRequestState,
   }),
-  withComputed(({ challenges, draft }) => ({
+  withComputed(({ challenges, draft, facilitators, candidates, labs }) => ({
+    /** Facilitators who are not on the room yet. */
+    addable: computed(() => {
+      const taken = new Set(facilitators().map(person => person.id));
+      return candidates().filter(person => !taken.has(person.id));
+    }),
+    labName: computed(() => {
+      const names = new Map(labs().map(lab => [lab.id, lab.name]));
+      return (labId: string | null) => (labId ? names.get(labId) ?? 'A deleted lab' : null);
+    }),
     totalPoints: computed(() => challenges().reduce((sum, c) => sum + (c.points ?? 0), 0)),
     categories: computed(() => [...new Set(challenges().map(c => c.category).filter(Boolean))].sort()),
     problem: computed(() => (draft() ? draftProblem(draft()!) : null)),
     isNew: computed(() => draft()?.id === undefined),
   })),
   withMethods((store, api = inject(AuthoringService), rooms = inject(RoomsStore)) => {
-    const sorted = (list: AuthorChallenge[]) => [...list].sort((a, b) =>
-      a.category.localeCompare(b.category) || a.points - b.points || a.question.localeCompare(b.question));
 
     const select = (challenge: AuthorChallenge | null) => patchState(store, {
       selectedId: challenge?.id ?? null, draft: challenge ? toDraft(challenge) : null, dirty: false,
     });
 
     const reload = async (roomId: string, keepId?: string | null) => {
-      const challenges = sorted(await firstValueFrom(api.challenges(roomId)));
+      const challenges = await firstValueFrom(api.challenges(roomId));
       patchState(store, { challenges });
       const keep = challenges.find(c => c.id === keepId) ?? challenges[0] ?? null;
       select(keep);
@@ -106,6 +119,9 @@ export const RoomEditorStore = signalStore(
           await reload(roomId);
           patchState(store, { status: 'loaded' });
           firstValueFrom(api.players(roomId)).then(players => patchState(store, { players }), () => undefined);
+          firstValueFrom(api.facilitators(roomId)).then(facilitators => patchState(store, { facilitators }), () => undefined);
+          firstValueFrom(api.facilitatorCandidates()).then(candidates => patchState(store, { candidates }), () => undefined);
+          firstValueFrom(api.labs()).then(labs => patchState(store, { labs }), () => undefined);
         } catch (error) {
           patchState(store, { status: 'error', error: errorMessage(error) ?? 'The room could not be loaded.' });
         }
@@ -118,7 +134,7 @@ export const RoomEditorStore = signalStore(
           selectedId: NEW_ID,
           dirty: true,
           draft: {
-            roomId: store.room()?.id ?? null, question: '', category: store.categories()[0] ?? '', difficultyLevel: DifficultyLevel.EASY,
+            roomId: store.room()?.id ?? null, labId: null, question: '', category: store.categories()[0] ?? '', difficultyLevel: DifficultyLevel.EASY,
             points: 100, maxAttempts: 10, description: '', visible: true, solutionExplanation: '', author,
             flags: [{ flag: '', caseSensitive: true, surroundWithTag: true, weight: 1 }], hints: [],
             solveCount: 0, attemptCount: 0, opens: toLocalInput(new Date()), closes: '',
@@ -180,8 +196,10 @@ export const RoomEditorStore = signalStore(
         try {
           const challenge = fromDraft(draft);
           const saved = challenge.id ? await firstValueFrom(api.update(challenge)) : await firstValueFrom(api.create(challenge));
-          const others = store.challenges().filter(c => c.id !== saved.id);
-          patchState(store, { challenges: sorted([...others, saved]) });
+          const existing = store.challenges().some(c => c.id === saved.id);
+          patchState(store, {
+            challenges: existing ? store.challenges().map(c => (c.id === saved.id ? saved : c)) : [...store.challenges(), saved],
+          });
           select(saved);
           return saved;
         } finally {
@@ -204,6 +222,32 @@ export const RoomEditorStore = signalStore(
         patchState(store, { room });
         rooms.load();
         return room;
+      },
+      /** Replaces the room's facilitators with these accounts. */
+      async setFacilitators(userIds: string[]): Promise<Person[]> {
+        const facilitators = await firstValueFrom(api.setFacilitators(store.room()!.id, userIds));
+        patchState(store, { facilitators });
+        return facilitators;
+      },
+      /** Moves a challenge in the list and saves the new order; puts the old order back if saving fails. */
+      async move(from: number, to: number): Promise<boolean> {
+        const before = store.challenges();
+        if (from === to || from < 0 || to < 0 || from >= before.length || to >= before.length) {
+          return false;
+        }
+        const next = [...before];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        patchState(store, { challenges: next, savingOrder: true });
+        try {
+          await firstValueFrom(api.reorder(store.room()!.id, next.map(c => c.id!)));
+          return true;
+        } catch (error) {
+          patchState(store, { challenges: before });
+          throw error;
+        } finally {
+          patchState(store, { savingOrder: false });
+        }
       },
       async deleteRoom(): Promise<void> {
         await firstValueFrom(api.deleteRoom(store.room()!.id));
