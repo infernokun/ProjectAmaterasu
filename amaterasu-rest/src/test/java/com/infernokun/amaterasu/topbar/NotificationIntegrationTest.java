@@ -22,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -135,9 +136,10 @@ class NotificationIntegrationTest extends ApiTestSupport {
 
     @Test
     void awardedPointsNotifyThePlayerWithALinkToTheirScore() throws Exception {
-        Room room = roomRepository.save(Room.builder().name(unique("room")).build());
-        postAs("/api/room/join/" + room.getId() + "/" + alice.getId(), token(alice), Map.of()).andExpect(status().isOk());
         User facilitator = user(Role.FACILITATOR, null);
+        Room room = roomRepository.save(Room.builder().name(unique("room"))
+                .facilitators(new ArrayList<>(List.of(facilitator.getId()))).build());
+        postAs("/api/room/join/" + room.getId() + "/" + alice.getId(), token(alice), Map.of()).andExpect(status().isOk());
         postAs("/api/room/add-points/" + room.getId() + "/" + alice.getId(), token(facilitator),
                 Map.of("points", 50, "reason", "Writeup bonus")).andExpect(status().isOk());
 
