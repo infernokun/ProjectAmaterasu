@@ -16,7 +16,7 @@ import { AddServerData, AddServerDialogComponent } from './add-server-dialog';
 import { EditServerData, EditServerDialogComponent } from './edit-server-dialog';
 import { MoveLabData, MoveLabDialogComponent } from './move-lab-dialog';
 import { Deployment, ServerSettings } from './servers.service';
-import { address, serverHealth, serverTypeLabel, uptime } from './server-health';
+import { address, osLine, sentence, serverHealth, serverTypeLabel } from './server-health';
 import { ServerCard, ServersStore } from './servers.store';
 
 const REFRESH_MS = 60_000;
@@ -44,7 +44,7 @@ export class AdminServersPage {
 
   protected readonly typeLabel = serverTypeLabel;
   protected readonly address = address;
-  protected readonly uptime = uptime;
+  protected readonly sentence = sentence;
   protected readonly since = relativeTime;
   protected readonly at = formatDateTime;
 
@@ -94,13 +94,7 @@ export class AdminServersPage {
   }
 
   protected osLine(card: ServerCard): string {
-    const stats = card.server.stats;
-    const os = [stats?.osName, stats?.osVersion].filter(Boolean).join(' ');
-    const health = serverHealth(card.server);
-    if (!health.online) {
-      return os || serverTypeLabel(card.server.serverType);
-    }
-    return `${os || serverTypeLabel(card.server.serverType)} · up ${uptime(stats?.uptime ?? 0)}`;
+    return osLine(card.server);
   }
 
   protected addServer(): void {
@@ -179,7 +173,8 @@ export class AdminServersPage {
       if (health.online) {
         this.toast.success(`${checked.name} answered`);
       } else {
-        this.toast.show(`${checked.name} did not answer`, 'bad');
+        const reason = checked.stats?.warning;
+        this.toast.show(reason ? `${checked.name}: ${sentence(reason)}` : `${checked.name} did not answer`, 'bad');
       }
     } catch (error) {
       this.toast.error(`${card.server.name} could not be checked.`, error);

@@ -3,6 +3,8 @@ package com.infernokun.amaterasu.services.alt;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.models.ServerCheck;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
+import com.infernokun.amaterasu.models.entities.lab.RemoteServerStats;
+import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.utils.AESUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -171,5 +173,56 @@ class ProxmoxServiceCheckTest {
 
         assertThat(proxmox.checkConnection(server)).isEqualTo(ServerCheck.ok());
         node.verify();
+    }
+
+    @Test
+    void hostStatsComeFromTheNodesStatusInGbAndSeconds() {
+        expectVersion();
+        expectNodeStatus();
+        expectPermissions(ProxmoxFixtures.body("permissions.json"));
+
+        RemoteServerStats stats = proxmox.nodeStats(server);
+
+        assertThat(stats.getStatus()).isEqualTo(LabStatus.ACTIVE);
+        assertThat(stats.getWarning()).isNull();
+        assertThat(stats.getHostname()).isEqualTo("proxmox2");
+        assertThat(stats.getOsName()).isEqualTo("Proxmox VE");
+        assertThat(stats.getOsVersion()).isEqualTo("9.2.2");
+        assertThat(stats.getCpu()).isEqualTo(4);
+        assertThat(stats.getCpuUsagePercent()).isEqualTo(0.2);
+        // memory.total 33512198144, used 1865261056, available 31646937088 bytes
+        assertThat(stats.getTotalRam()).isEqualTo(31.2f);
+        assertThat(stats.getUsedRam()).isEqualTo(1.7f);
+        assertThat(stats.getAvailableRam()).isEqualTo(29.5f);
+        // rootfs.total 68781744128, used 4440428544, avail 60800487424 bytes
+        assertThat(stats.getTotalDiskSpace()).isEqualTo(64.1f);
+        assertThat(stats.getUsedDiskSpace()).isEqualTo(4.1f);
+        assertThat(stats.getAvailableDiskSpace()).isEqualTo(56.6f);
+        assertThat(stats.getUptime()).isEqualTo(16532L);
+    }
+
+    @Test
+    void aFailedCheckIsOfflineWithItsReason() {
+        node.expect(requestTo(API + "/version")).andRespond(withStatus(HttpStatus.UNAUTHORIZED));
+
+        RemoteServerStats stats = proxmox.nodeStats(server);
+
+        assertThat(stats.getStatus()).isEqualTo(LabStatus.OFFLINE);
+        assertThat(stats.getWarning()).isEqualTo(ProxmoxService.TOKEN_REJECTED);
+        assertThat(stats.getTotalRam()).isZero();
+    }
+
+    @Test
+    void aReadOnlyTokenIsActiveWithItsWarning() throws Exception {
+        expectVersion();
+        expectNodeStatus();
+        expectPermissions(permissions(Map.of("/vms", List.of("VM.Audit"), "/nodes/proxmox2", List.of("Sys.Audit", "Sys.Modify"),
+                "/storage", List.of("Datastore.AllocateSpace"))));
+
+        RemoteServerStats stats = proxmox.nodeStats(server);
+
+        assertThat(stats.getStatus()).isEqualTo(LabStatus.ACTIVE);
+        assertThat(stats.getWarning()).startsWith("Can list VMs but can't deploy labs: missing VM.Clone");
+        assertThat(stats.getTotalRam()).isEqualTo(31.2f);
     }
 }
