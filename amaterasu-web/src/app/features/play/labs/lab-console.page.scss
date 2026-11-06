@@ -19,3 +19,18 @@
   grid-template-columns: 64px minmax(0, 1fr);
   gap: 12px;
 }
+
+.uses {
+  text-decoration: none;
+  color: inherit;
+}
+
+.uses:hover {
+  background: var(--surface-2);
+}
+
+.uses-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}

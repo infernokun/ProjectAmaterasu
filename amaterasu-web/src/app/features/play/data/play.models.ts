@@ -137,3 +137,16 @@ export interface LabFiles {
   yml: string;
   json: { services?: Record<string, { image?: string; volumes?: (string | { source?: string; target?: string })[] }> } | null;
 }
+
+/** A challenge that uses a lab, from GET /api/ctf-entity/by-lab/{labId}. Never carries flags. */
+export interface LabChallenge {
+  id: string;
+  question?: string | null;
+  title?: string | null;
+  roomId: string;
+  roomName?: string | null;
+  category?: string | null;
+  points?: number | null;
+  /** Whether the caller solved it. */
+  solved?: boolean | null;
+}

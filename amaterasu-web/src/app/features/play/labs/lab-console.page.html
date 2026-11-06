@@ -164,6 +164,25 @@
           <div class="row between"><span class="muted">Last change</span><span>{{ ago(t.updatedAt) || '-' }}</span></div>
         </div>
       </section>
+      <section class="card flush" aria-labelledby="uses-h">
+        <div class="card-head"><h2 class="h2" id="uses-h">Challenges that use it</h2></div>
+        @if (usedBy() === null) {
+          <div class="card-body"><app-skeleton [count]="2" label="Loading challenges" /></div>
+        } @else {
+          <div class="list">
+            @for (challenge of usedBy(); track challenge.id) {
+              <a class="list-item uses" [routerLink]="['/rooms', challenge.roomId]" [queryParams]="{ challenge: challenge.id }">
+                <app-status-badge [tone]="challenge.solved ? 'active' : 'off'" [label]="challenge.solved ? 'Solved' : 'Open'" />
+                <span class="grow uses-text"><span>{{ challenge.question || challenge.title }}</span>
+                  @if (challenge.roomName) {<span class="small muted">{{ challenge.roomName }}</span>}</span>
+                <span class="small muted num">{{ challenge.points ?? 0 }}</span>
+              </a>
+            } @empty {
+              <app-empty-state title="No challenges use this lab" message="Challenges that need this lab show here once an author links them to it." />
+            }
+          </div>
+        }
+      </section>
       <a class="btn ghost" routerLink="/labs"><app-icon name="flask" />All team labs</a>
     </aside>
   </div>
