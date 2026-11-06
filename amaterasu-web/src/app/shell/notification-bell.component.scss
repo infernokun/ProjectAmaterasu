@@ -1,0 +1,113 @@
+:host {
+  display: inline-flex;
+  flex: none;
+}
+
+.pop {
+  width: min(400px, calc(100vw - 16px));
+  max-height: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px 12px 16px;
+  border-bottom: 1px solid var(--border);
+  min-height: 52px;
+}
+
+.head h2 {
+  margin-right: auto;
+}
+
+.list {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.pad {
+  padding: 16px;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.item:last-child {
+  border-bottom: 0;
+}
+
+.item:hover {
+  background: var(--surface-2);
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.item.unread {
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+}
+
+.item.unread:hover {
+  background: var(--surface-2);
+}
+
+.feed-ico {
+  width: 30px;
+  height: 30px;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  font-weight: 500;
+}
+
+.item.unread .title {
+  font-weight: 600;
+}
+
+.body {
+  overflow-wrap: anywhere;
+}
+
+.unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+  margin-top: 6px;
+}
+
+.foot {
+  border-top: 1px solid var(--border);
+  padding: 6px;
+  background: var(--surface-2);
+}
