@@ -3,6 +3,7 @@ package com.infernokun.amaterasu.services.alt;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.LabActionResult;
+import com.infernokun.amaterasu.models.ServerCheck;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.ServerType;
@@ -71,15 +72,144 @@ public class ProxmoxService extends BaseService {
         return api(remoteServer, "/nodes/" + remoteServer.getNodeName() + path);
     }
 
-    public boolean proxmoxHealthCheck(RemoteServer remoteServer) {
-        HttpEntity<String> entity = new HttpEntity<>(createHeaders(remoteServer));
-        try {
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    api(remoteServer, "/version"), HttpMethod.GET, entity, new ParameterizedTypeReference<>() { });
-            return response.getStatusCode().is2xxSuccessful();
-        } catch (RestClientException e) {
-            return false;
+    static final String TOKEN_REJECTED = "Proxmox rejected the token. Use the full USER@REALM!TOKENID=SECRET";
+
+    /** Privileges to list VMs and read the node, by ACL path. Without them the server is not usable. */
+    static Map<String, List<String>> readPrivileges(String node) {
+        Map<String, List<String>> needed = new LinkedHashMap<>();
+        needed.put("/vms", List.of("VM.Audit"));
+        needed.put("/nodes/" + node, List.of("Sys.Audit"));
+        return needed;
+    }
+
+    /** Privileges to clone, network, start, open and destroy lab VMs and add their bridges. */
+    static Map<String, List<String>> deployPrivileges(String node) {
+        Map<String, List<String>> needed = new LinkedHashMap<>();
+        needed.put("/vms", List.of("VM.Clone", "VM.Allocate", "VM.Config.Network", "VM.Config.Options",
+                "VM.PowerMgmt", "VM.Console"));
+        needed.put("/storage", List.of("Datastore.AllocateSpace"));
+        needed.put("/nodes/" + node, List.of("Sys.Modify"));
+        return needed;
+    }
+
+    /** A check of a Proxmox server, with the node status and version it read on the way. */
+    public record NodeCheck(ServerCheck result, Map<String, Object> status, String version) {
+        static NodeCheck failed(String reason) {
+            return new NodeCheck(ServerCheck.failed(reason), null, null);
         }
+    }
+
+    public ServerCheck checkConnection(RemoteServer remoteServer) {
+        return checkNode(remoteServer).result();
+    }
+
+    /**
+     * Usable means the token is accepted, the node exists and the token can list VMs and read the node.
+     * Missing deploy privileges only warn: such a server can still be watched.
+     */
+    public NodeCheck checkNode(RemoteServer remoteServer) {
+        String version;
+        try {
+            Object value = getData(remoteServer, api(remoteServer, "/version")).get("version");
+            version = value != null ? value.toString() : null;
+        } catch (RestClientResponseException e) {
+            return NodeCheck.failed(e.getStatusCode().value() == 401 ? TOKEN_REJECTED
+                    : "Proxmox at " + address(remoteServer) + " answered " + e.getStatusCode().value() + " " + proxmoxMessage(e));
+        } catch (RestClientException e) {
+            return NodeCheck.failed(noAnswer(remoteServer));
+        }
+
+        Map<String, Object> status = null;
+        try {
+            status = getData(remoteServer, nodeApi(remoteServer, "/status"));
+        } catch (RestClientResponseException e) {
+            int code = e.getStatusCode().value();
+            if (code == 401) {
+                return NodeCheck.failed(TOKEN_REJECTED);
+            }
+            // 403 is a missing Sys.Audit, named below. Anything else is a node name the host cannot route to
+            if (code != 403) {
+                return NodeCheck.failed("No node called " + remoteServer.getNodeName() + " on that host");
+            }
+        } catch (RestClientException e) {
+            return NodeCheck.failed(noAnswer(remoteServer));
+        }
+
+        Map<String, List<String>> read = readPrivileges(remoteServer.getNodeName());
+        Map<String, List<String>> deploy = deployPrivileges(remoteServer.getNodeName());
+        Map<String, Set<String>> privileges;
+        try {
+            Set<String> paths = new LinkedHashSet<>(read.keySet());
+            paths.addAll(deploy.keySet());
+            privileges = privilegesAt(remoteServer, paths);
+        } catch (RestClientResponseException e) {
+            return new NodeCheck(ServerCheck.failed(e.getStatusCode().value() == 401 ? TOKEN_REJECTED
+                    : "Could not read the token's privileges: " + e.getStatusCode().value() + " " + proxmoxMessage(e)), status, version);
+        } catch (RestClientException e) {
+            return new NodeCheck(ServerCheck.failed(noAnswer(remoteServer)), status, version);
+        }
+
+        List<String> missingRead = missing(privileges, read);
+        if (!missingRead.isEmpty()) {
+            return new NodeCheck(ServerCheck.failed("The Proxmox token is missing " + String.join("; ", missingRead)), status, version);
+        }
+        List<String> missingDeploy = missing(privileges, deploy);
+        return new NodeCheck(missingDeploy.isEmpty() ? ServerCheck.ok()
+                : ServerCheck.warning("Can list VMs but can't deploy labs: missing " + String.join("; ", missingDeploy)),
+                status, version);
+    }
+
+    /**
+     * The token's effective privileges at each path, as PVE resolves them. An ACL on a deeper path replaces
+     * what it inherits, so each path is read from /access/permissions, never derived from a parent.
+     */
+    Map<String, Set<String>> privilegesAt(RemoteServer remoteServer, Collection<String> paths) {
+        Map<String, Object> all = getData(remoteServer, api(remoteServer, "/access/permissions"));
+        Map<String, Set<String>> privileges = new LinkedHashMap<>();
+        for (String path : paths) {
+            Object at = all.get(path);
+            if (at == null) {
+                // Not listed: ask for that path itself
+                at = getData(remoteServer, api(remoteServer, "/access/permissions?path=" + path)).get(path);
+            }
+            // Values are the propagate flag, so a 0 is still held at this path
+            privileges.put(path, at instanceof Map<?, ?> map
+                    ? map.keySet().stream().map(String::valueOf).collect(Collectors.toSet()) : Set.of());
+        }
+        return privileges;
+    }
+
+    /** "VM.Clone, VM.Allocate on /vms" for each path that lacks some of what is needed. */
+    static List<String> missing(Map<String, Set<String>> held, Map<String, List<String>> needed) {
+        List<String> missing = new ArrayList<>();
+        needed.forEach((path, privileges) -> {
+            List<String> lacking = privileges.stream()
+                    .filter(privilege -> !held.getOrDefault(path, Set.of()).contains(privilege))
+                    .toList();
+            if (!lacking.isEmpty()) {
+                missing.add(String.join(", ", lacking) + " on " + path);
+            }
+        });
+        return missing;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getData(RemoteServer remoteServer, String url) {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                url, HttpMethod.GET, new HttpEntity<>(createHeaders(remoteServer)), new ParameterizedTypeReference<>() { });
+        Object data = response.getBody() != null ? response.getBody().get("data") : null;
+        if (!(data instanceof Map<?, ?> map)) {
+            throw new RestClientException("Proxmox sent no data for " + url);
+        }
+        return (Map<String, Object>) map;
+    }
+
+    private static String address(RemoteServer remoteServer) {
+        return remoteServer.getIpAddress() + ":8006";
+    }
+
+    private static String noAnswer(RemoteServer remoteServer) {
+        return "No answer from " + address(remoteServer) + ". Check the address and that the node is up";
     }
 
     public List<ProxmoxVM> getVMs(RemoteServer remoteServer) {

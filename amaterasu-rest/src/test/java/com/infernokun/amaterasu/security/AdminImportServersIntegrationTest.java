@@ -182,7 +182,7 @@ class AdminImportServersIntegrationTest extends IntegrationSupport {
         JsonNode valid = data(send(post("/api/remote-server/" + server.getId() + "/validate"),
                 Map.of("name", server.getName(), "ipAddress", "127.0.0.1", "port", 1, "username", "labs"), admin())
                 .andExpect(status().isOk()).andReturn());
-        assertThat(valid.asBoolean()).isFalse();
+        assertThat(valid.get("connected").asBoolean()).isFalse();
     }
 
     @Test

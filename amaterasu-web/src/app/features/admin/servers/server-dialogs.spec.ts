@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { LabStatus } from '../../../enums/lab-status.enum';
 import { ServerType } from '../../../enums/server-type.enum';
+import { AddServerData, AddServerDialogComponent } from './add-server-dialog';
 import { EditServerData, EditServerDialogComponent, editProblems } from './edit-server-dialog';
 import { MoveLabData, MoveLabDialogComponent } from './move-lab-dialog';
 import { Deployment, Server, ServerSettings } from './servers.service';
@@ -46,7 +47,7 @@ describe('editProblems', () => {
     const proxmox = { name: 'pve-a', ipAddress: 'pve-a.lab', port: 8006, nodeName: '' , apiToken: 'no-equals' };
     const problems = editProblems(proxmox, ServerType.PROXMOX, []);
     expect(problems.nodeName).toBeDefined();
-    expect(problems.apiToken).toBe('Format TOKEN_ID=SECRET');
+    expect(problems.apiToken).toBe('Format USER@REALM!TOKENID=SECRET');
   });
 });
 
@@ -58,7 +59,7 @@ describe('EditServerDialogComponent', () => {
   beforeEach(() => {
     data = {
       settings, otherNames: ['dock-02'],
-      validate: jasmine.createSpy('validate').and.resolveTo(true),
+      validate: jasmine.createSpy('validate').and.resolveTo({ connected: true }),
       save: jasmine.createSpy('save').and.resolveTo(undefined),
     };
     TestBed.configureTestingModule({
@@ -88,14 +89,14 @@ describe('EditServerDialogComponent', () => {
     expect(button(el(), 'Save changes').disabled).toBeTrue();
     expect(el().textContent).toContain('Test them before saving');
 
-    (data.validate as jasmine.Spy).and.resolveTo(false);
+    (data.validate as jasmine.Spy).and.resolveTo({ connected: false });
     button(el(), 'Test connection').click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(el().querySelector('[role=alert]')!.textContent).toContain('No answer from 10.20.0.99:22');
     expect(button(el(), 'Save changes').disabled).toBeTrue();
 
-    (data.validate as jasmine.Spy).and.resolveTo(true);
+    (data.validate as jasmine.Spy).and.resolveTo({ connected: true });
     button(el(), 'Test connection').click();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -109,6 +110,109 @@ describe('EditServerDialogComponent', () => {
     expect(el().textContent).toContain('Another server is called dock-02');
     expect(el().textContent).toContain('A port from 1 to 65535');
     expect(button(el(), 'Test connection').disabled).toBeTrue();
+  });
+});
+
+describe('Proxmox connection tests', () => {
+  const proxmox: ServerSettings = {
+    id: 'p1', name: 'pve-a', serverType: ServerType.PROXMOX, ipAddress: '10.0.0.205', port: 8006,
+    username: null, nodeName: 'proxmox2', hasPassword: false, hasApiToken: true,
+  };
+
+  async function test(fixture: ComponentFixture<unknown>): Promise<void> {
+    button(fixture.nativeElement, 'Test connection').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  it('shows why the edit dialog\'s test failed, and a warning that still allows saving', async () => {
+    const data: EditServerData = {
+      settings: proxmox, otherNames: [],
+      validate: jasmine.createSpy('validate').and.resolveTo({ connected: false, reason: 'Proxmox rejected the token. Use the full USER@REALM!TOKENID=SECRET' }),
+      save: jasmine.createSpy('save').and.resolveTo(undefined),
+    };
+    TestBed.configureTestingModule({
+      imports: [EditServerDialogComponent],
+      providers: [{ provide: MAT_DIALOG_DATA, useValue: data }, { provide: MatDialogRef, useValue: jasmine.createSpyObj('ref', ['close']) }],
+    });
+    const fixture = TestBed.createComponent(EditServerDialogComponent);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector<HTMLInputElement>('input[autocomplete=off]')!.placeholder).toBe('Leave empty to keep the stored token');
+    expect(el.textContent).toContain('Format USER@REALM!TOKENID=SECRET');
+
+    type(el, 'Node name', 'pve9');
+    fixture.detectChanges();
+    await test(fixture);
+    expect(el.querySelector('[role=alert]')!.textContent!.trim()).toBe('Proxmox rejected the token. Use the full USER@REALM!TOKENID=SECRET.');
+    expect(el.textContent).not.toContain('No answer from');
+
+    (data.validate as jasmine.Spy).and.resolveTo({ connected: false, reason: 'No node called pve9 on that host' });
+    await test(fixture);
+    expect(el.querySelector('[role=alert]')!.textContent!.trim()).toBe('No node called pve9 on that host.');
+    expect(button(el, 'Save changes').disabled).toBeTrue();
+
+    (data.validate as jasmine.Spy).and.resolveTo({ connected: true, warning: "Can list VMs but can't deploy labs: missing VM.Clone on /vms" });
+    await test(fixture);
+    expect(el.querySelector('[role=alert]')).toBeNull();
+    expect(el.querySelector('.banner.warn')!.textContent!.trim()).toBe("Can list VMs but can't deploy labs: missing VM.Clone on /vms.");
+    expect(button(el, 'Save changes').disabled).toBeFalse();
+  });
+
+  describe('AddServerDialogComponent', () => {
+    let fixture: ComponentFixture<AddServerDialogComponent>;
+    let data: AddServerData;
+    const el = () => fixture.nativeElement as HTMLElement;
+
+    beforeEach(() => {
+      data = {
+        validate: jasmine.createSpy('validate').and.resolveTo({ connected: false, reason: 'The Proxmox token is missing VM.Audit on /vms' }),
+        add: jasmine.createSpy('add').and.resolveTo(undefined),
+      };
+      TestBed.configureTestingModule({
+        imports: [AddServerDialogComponent],
+        providers: [{ provide: MAT_DIALOG_DATA, useValue: data }, { provide: MatDialogRef, useValue: jasmine.createSpyObj('ref', ['close']) }],
+      });
+      fixture = TestBed.createComponent(AddServerDialogComponent);
+      fixture.detectChanges();
+      button(el(), 'Proxmox node').click();
+      fixture.detectChanges();
+      type(el(), 'Name', 'pve-a');
+      type(el(), 'Address', '10.0.0.205');
+      type(el(), 'Node name', 'proxmox2');
+      type(el(), 'API token', 'amaterasu@pve!labs=secret');
+      fixture.detectChanges();
+    });
+
+    it('asks for the full token format', () => {
+      const field = [...el().querySelectorAll('label.field')].find(f => f.querySelector('.label')!.textContent!.trim() === 'API token')!;
+      expect(field.querySelector('input')!.placeholder).toBe('USER@REALM!TOKENID=SECRET');
+      expect(field.textContent).toContain('Format USER@REALM!TOKENID=SECRET');
+    });
+
+    it('lists missing privileges instead of saying the node did not answer', async () => {
+      await test(fixture);
+      expect(data.validate).toHaveBeenCalledWith(jasmine.objectContaining({ serverType: ServerType.PROXMOX, nodeName: 'proxmox2' }));
+      expect(el().querySelector('[role=alert]')!.textContent!.trim()).toBe('The Proxmox token is missing VM.Audit on /vms.');
+      expect(button(el(), 'Add server').disabled).toBeTrue();
+    });
+
+    it('falls back to the address when the server gave no reason', async () => {
+      (data.validate as jasmine.Spy).and.resolveTo({ connected: false });
+      await test(fixture);
+      expect(el().querySelector('[role=alert]')!.textContent).toContain('No answer from 10.0.0.205');
+    });
+
+    it('adds a read-only node with its warning shown', async () => {
+      (data.validate as jasmine.Spy).and.resolveTo({ connected: true, warning: "Can list VMs but can't deploy labs: missing Sys.Modify on /nodes/proxmox2" });
+      await test(fixture);
+      expect(el().textContent).toContain('Token accepted by the node.');
+      expect(el().querySelector('.banner.warn')!.textContent).toContain('missing Sys.Modify on /nodes/proxmox2.');
+      expect(button(el(), 'Add server').disabled).toBeFalse();
+      button(el(), 'Add server').click();
+      await fixture.whenStable();
+      expect(data.add).toHaveBeenCalled();
+    });
   });
 });
 

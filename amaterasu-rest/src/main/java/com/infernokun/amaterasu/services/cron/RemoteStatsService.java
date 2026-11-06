@@ -106,7 +106,7 @@ public class RemoteStatsService extends BaseService {
             RemoteServerStats stats = existingStats.get();
             stats.setUpdatedAt(LocalDateTime.now());
 
-            boolean isServerHealthy = proxmoxService.proxmoxHealthCheck(proxmoxServer);
+            boolean isServerHealthy = proxmoxService.checkConnection(proxmoxServer).connected();
             stats.setStatus(isServerHealthy ? LabStatus.ACTIVE : LabStatus.OFFLINE);
 
             LOGGER.debug("Updating stats for Proxmox server {}: status={}",
