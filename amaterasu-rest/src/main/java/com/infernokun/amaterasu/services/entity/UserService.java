@@ -12,8 +12,11 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -85,6 +88,19 @@ public class UserService extends BaseService implements UserDetailsService {
 
         user.setTeam(team);
         return userRepository.save(user);
+    }
+
+    /** Moves every listed user, or none of them when one id or the team is unknown. */
+    @Transactional
+    public List<User> updateUsersTeam(List<String> userIds, String teamId) {
+        if (userIds == null || userIds.isEmpty()) {
+            throw new IllegalArgumentException("Pick at least one user to move");
+        }
+        Team team = teamId == null ? null : teamRepository.findById(teamId)
+                .orElseThrow(() -> new ResourceNotFoundException("Team ID not found"));
+        List<User> users = new ArrayList<>(new LinkedHashSet<>(userIds)).stream().map(this::findUserById).toList();
+        users.forEach(user -> user.setTeam(team));
+        return userRepository.saveAll(users);
     }
 
     @Override

@@ -40,7 +40,8 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
     private final UserRepository userRepository;
 
     public AmaterasuSocketHandler(ObjectMapper objectMapper, UserRepository userRepository) {
-        this.objectMapper = objectMapper;
+        // The app's mapper adds type info for the Redis cache; browsers need plain JSON, with lists as arrays
+        this.objectMapper = objectMapper.copy().deactivateDefaultTyping();
         this.userRepository = userRepository;
     }
 
@@ -115,6 +116,27 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
         }
         for (WebSocketSession session : this.currentSessions) {
             if (session.isOpen()) {
+                send(session, message);
+            }
+        }
+    }
+
+    /** Sends a new notification to its recipient's open sockets only. */
+    @TransactionalEventListener(fallbackExecution = true)
+    public void onNotificationCreated(NotificationCreatedEvent event) {
+        String recipientId = event.notification().getRecipientId();
+        String message;
+        try {
+            ObjectNode node = objectMapper.createObjectNode();
+            node.put("type", "notification");
+            node.set("notification", objectMapper.valueToTree(event.notification()));
+            message = objectMapper.writeValueAsString(node);
+        } catch (JsonProcessingException | IllegalArgumentException e) {
+            log.warn("WEBSOCKET Could not serialize notification {}: {}", event.notification().getId(), e.getMessage());
+            return;
+        }
+        for (WebSocketSession session : this.currentSessions) {
+            if (session.isOpen() && recipientId != null && recipientId.equals(session.getAttributes().get(USER_ID))) {
                 send(session, message);
             }
         }

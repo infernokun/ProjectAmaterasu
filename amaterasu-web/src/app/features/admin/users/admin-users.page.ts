@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
@@ -13,6 +13,7 @@ import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { SkeletonComponent } from '../../../shared/ui/skeleton.component';
 import { AdminTeam, AdminUser } from './admin-users.service';
+import { ImportUsersData, ImportUsersDialogComponent } from './import-users-dialog';
 import { TeamDialogComponent, TeamFormData, TeamMembersData, TeamMembersDialogComponent } from './team-dialogs';
 import { ASSIGNABLE_ROLES, AddUserData, AddUserDialogComponent, ResetPasswordData, ResetPasswordDialogComponent } from './user-dialogs';
 import { RoleFilter, TeamCard, UsersAdminStore } from './users-admin.store';
@@ -33,7 +34,7 @@ const ROLE_POWERS: Record<string, string> = {
   providers: [UsersAdminStore],
   templateUrl: './admin-users.page.html',
   styles: `
-    .sel-sm { min-height: 34px; font-size: 13px; padding: 0 8px; width: auto; }
+    .sel-sm { min-height: var(--seg-h); font-size: 13px; padding: 0 8px; width: auto; }
     .bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 16px; background: var(--accent-soft); border-bottom: 1px solid var(--border); }
     .filters .search { margin: 0; max-width: 320px; }
     .pick-box { width: 16px; height: 16px; accent-color: var(--accent); }
@@ -54,6 +55,7 @@ export class AdminUsersPage {
   /** From the ?tab= query parameter. */
   readonly tabParam = input<string>(undefined, { alias: 'tab' });
   protected readonly tab = linkedSignal<Tab>(() => (this.tabParam() === 'teams' ? 'teams' : 'users'));
+  readonly queryParam = input<string>(undefined, { alias: 'q' });
 
   protected readonly roles = ASSIGNABLE_ROLES;
   protected readonly labels = ROLE_LABELS;
@@ -62,6 +64,7 @@ export class AdminUsersPage {
     ...ASSIGNABLE_ROLES.map(role => ({ value: role as RoleFilter, label: ROLE_LABELS[role] })),
   ];
   protected readonly initials = initialsOf;
+  protected readonly moving = signal(false);
   protected readonly lastSeen = relativeTime;
 
   protected readonly subtitle = computed(() => {
@@ -72,6 +75,11 @@ export class AdminUsersPage {
 
   constructor() {
     this.store.load();
+    // ?q= from the top bar search
+    effect(() => {
+      const query = this.queryParam();
+      if (query !== undefined) untracked(() => this.store.setQuery(query));
+    });
   }
 
   protected isMe(user: AdminUser): boolean {
@@ -181,8 +189,31 @@ export class AdminUsersPage {
       return;
     }
     const teamId = choice === 'none' ? null : choice;
-    const { done, failed } = await this.store.forSelected(id => this.store.moveToTeam(id, teamId));
-    this.report(done, failed, teamId ? `moved to ${this.store.teams().find(t => t.id === teamId)?.name}` : 'taken off their team');
+    const what = teamId ? `moved to ${this.store.teams().find(t => t.id === teamId)?.name}` : 'taken off their team';
+    this.moving.set(true);
+    try {
+      const moved = await this.store.moveSelected(teamId);
+      this.toast.success(`${moved.length} ${moved.length === 1 ? 'account' : 'accounts'} ${what}`);
+    } catch (error) {
+      this.toast.error('The accounts could not be moved. Nobody was moved.', error);
+    } finally {
+      this.moving.set(false);
+    }
+  }
+
+  protected importCsv(): void {
+    const data: ImportUsersData = {
+      teams: this.store.teams(),
+      existing: this.store.users().map(user => user.username),
+      run: async rows => {
+        const result = await this.store.importUsers(rows);
+        if (result.created.length) {
+          this.toast.success(`${result.created.length} ${result.created.length === 1 ? 'account' : 'accounts'} imported`);
+        }
+        return result;
+      },
+    };
+    this.dialog.open(ImportUsersDialogComponent, { ...DIALOG_DEFAULTS, width: '880px', data, disableClose: true });
   }
 
   protected async bulkRole(event: Event): Promise<void> {

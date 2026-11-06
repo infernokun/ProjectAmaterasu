@@ -1,6 +1,7 @@
 package com.infernokun.amaterasu.components;
 
 import com.infernokun.amaterasu.models.entities.User;
+import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.enums.Role;
 import com.infernokun.amaterasu.services.entity.UserService;
@@ -56,6 +57,20 @@ public class CurrentUser {
     public void requireSelfOrAdmin(String userId) {
         if (!isAdmin() && !id().equals(userId)) {
             throw new AccessDeniedException("Access denied");
+        }
+    }
+
+    /** Admins run every room; a facilitator only runs the rooms they were assigned to. */
+    public boolean canRun(Room room) {
+        if (isAdmin()) {
+            return true;
+        }
+        return hasRole(Role.FACILITATOR) && room.getFacilitators() != null && room.getFacilitators().contains(id());
+    }
+
+    public void requireCanRun(Room room) {
+        if (!canRun(room)) {
+            throw new AccessDeniedException("You do not facilitate " + room.getName());
         }
     }
 

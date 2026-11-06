@@ -9,6 +9,7 @@ import com.infernokun.amaterasu.repositories.ctf.CTFEntityHintUsageRepository;
 import com.infernokun.amaterasu.repositories.ctf.CTFEntityRepository;
 import com.infernokun.amaterasu.repositories.ctf.HintRepository;
 import com.infernokun.amaterasu.repositories.ctf.FlagRepository;
+import com.infernokun.amaterasu.repositories.lab.LabRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,10 +17,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -30,6 +36,7 @@ public class CTFEntityService {
     private final HintRepository hintRepository;
     private final CTFAnswerRepository ctfAnswerRepository;
     private final CTFEntityHintUsageRepository hintUsageRepository;
+    private final LabRepository labRepository;
 
     public CTFEntity findCTFEntityById(String id) {
         log.info("Fetching CTF entity with id: {}", id);
@@ -55,7 +62,65 @@ public class CTFEntityService {
             throw new IllegalArgumentException("Room ID cannot be null or empty");
         }
 
-        return ctfEntityRepository.findByRoomId(roomId);
+        return inRoomOrder(ctfEntityRepository.findByRoomId(roomId));
+    }
+
+    /** The order authors set; challenges without a position come last, by category and points. */
+    public static final Comparator<CTFEntity> ROOM_ORDER = Comparator
+            .comparing(CTFEntity::getSortOrder, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparing(challenge -> challenge.getCategory() == null ? "" : challenge.getCategory())
+            .thenComparing(challenge -> challenge.getPoints() == null ? 0 : challenge.getPoints())
+            .thenComparing(challenge -> challenge.getQuestion() == null ? "" : challenge.getQuestion());
+
+    public static List<CTFEntity> inRoomOrder(List<CTFEntity> challenges) {
+        return challenges.stream().sorted(ROOM_ORDER).toList();
+    }
+
+    /** Challenges that use a lab, in room order. */
+    public List<CTFEntity> findByLabId(String labId) {
+        return inRoomOrder(ctfEntityRepository.findByLabId(labId));
+    }
+
+    /**
+     * Puts a room's challenges in the given order. Every challenge in the room has to be listed
+     * exactly once, so a stale list from another tab cannot drop or duplicate positions.
+     */
+    @Transactional
+    public List<CTFEntity> reorder(String roomId, List<String> challengeIds) {
+        List<CTFEntity> challenges = ctfEntityRepository.findByRoomId(roomId);
+        Set<String> inRoom = challenges.stream().map(CTFEntity::getId).collect(Collectors.toSet());
+        if (challengeIds == null || challengeIds.size() != inRoom.size()
+                || !inRoom.equals(new HashSet<>(challengeIds))) {
+            throw new IllegalArgumentException("The order has to list every challenge in the room once. Reload and try again.");
+        }
+        Map<String, CTFEntity> byId = challenges.stream().collect(Collectors.toMap(CTFEntity::getId, c -> c));
+        List<CTFEntity> ordered = new ArrayList<>();
+        for (int i = 0; i < challengeIds.size(); i++) {
+            CTFEntity challenge = byId.get(challengeIds.get(i));
+            challenge.setSortOrder(i);
+            ordered.add(challenge);
+        }
+        return ctfEntityRepository.saveAll(ordered);
+    }
+
+    /** Clears the lab on challenges that used it, for when the lab is deleted. */
+    @Transactional
+    public void unlinkLab(String labId) {
+        List<CTFEntity> linked = ctfEntityRepository.findByLabId(labId);
+        linked.forEach(challenge -> challenge.setLabId(null));
+        ctfEntityRepository.saveAll(linked);
+    }
+
+    private int nextPosition(String roomId) {
+        return ctfEntityRepository.findByRoomId(roomId).stream()
+                .map(CTFEntity::getSortOrder).filter(Objects::nonNull)
+                .max(Integer::compare).map(max -> max + 1).orElse(0);
+    }
+
+    private void requireLab(String labId) {
+        if (labId != null && !labRepository.existsById(labId)) {
+            throw new IllegalArgumentException("That lab no longer exists. Pick another one or none.");
+        }
     }
 
     @Transactional
@@ -64,6 +129,11 @@ public class CTFEntityService {
         log.info("Flags before processing: {}", ctfEntity.getFlags() != null ? ctfEntity.getFlags().size() : "null");
 
         validateCTFEntity(ctfEntity);
+        ctfEntity.setLabId(blankToNull(ctfEntity.getLabId()));
+        requireLab(ctfEntity.getLabId());
+        if (ctfEntity.getRoom() != null && ctfEntity.getRoom().getId() != null) {
+            ctfEntity.setSortOrder(nextPosition(ctfEntity.getRoom().getId()));
+        }
 
         if (!CollectionUtils.isEmpty(ctfEntity.getHints())) {
             log.info("Setting bidirectional relationships for {} hints", ctfEntity.getFlags().size());
@@ -103,6 +173,7 @@ public class CTFEntityService {
         if (CollectionUtils.isEmpty(ctfEntities)) {
             throw new IllegalArgumentException("CTF entities list cannot be empty");
         }
+        Map<String, Integer> nextByRoom = new HashMap<>();
         for (int i = 0; i < ctfEntities.size(); i++) {
             CTFEntity entity = ctfEntities.get(i);
             if (entity == null || entity.getQuestion() == null || entity.getQuestion().isBlank()) {
@@ -110,6 +181,15 @@ public class CTFEntityService {
             }
             entity.setId(null);
             entity.setVersioning(null);
+            // A lab id from another install would point at nothing here
+            String labId = blankToNull(entity.getLabId());
+            entity.setLabId(labId != null && labRepository.existsById(labId) ? labId : null);
+            if (entity.getRoom() != null && entity.getRoom().getId() != null) {
+                String roomId = entity.getRoom().getId();
+                int position = nextByRoom.computeIfAbsent(roomId, this::nextPosition);
+                entity.setSortOrder(position);
+                nextByRoom.put(roomId, position + 1);
+            }
             if (entity.getFlags() != null) {
                 entity.getFlags().forEach(flag -> {
                     flag.setId(null);
@@ -137,9 +217,13 @@ public class CTFEntityService {
         log.info("Updating CTF entity with id: {}", id);
 
         CTFEntity existingEntity = findCTFEntityById(id);
+        String labId = blankToNull(updatedEntity.getLabId());
+        requireLab(labId);
 
         // Update fields
         updateEntityFields(existingEntity, updatedEntity);
+        // Like the expiry, an update without a lab clears it
+        existingEntity.setLabId(labId);
 
         CTFEntity savedEntity = ctfEntityRepository.save(existingEntity);
 
@@ -231,6 +315,10 @@ public class CTFEntityService {
     }
 
     // Private helper methods
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
 
     private void validateCTFEntity(CTFEntity ctfEntity) {
         if (ctfEntity == null) {

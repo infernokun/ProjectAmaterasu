@@ -62,6 +62,8 @@
           }
         }
       </nav>
+      <app-global-search [narrow]="narrow()" />
+      <app-notification-bell />
       <a class="me" routerLink="/account" [attr.aria-label]="'Account for ' + session.username()">
         <div class="avatar" aria-hidden="true">{{ session.initials() }}</div>
         <div class="me-text">

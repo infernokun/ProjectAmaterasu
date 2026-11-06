@@ -7,7 +7,8 @@ import { isDeployed } from '../../../core/lab-deployment';
 import { RequestState, initialRequestState } from '../../../core/stores/request-status';
 import { toDate } from '../../../core/time';
 import { ServerHealth, serverHealth } from './server-health';
-import { Deployment, NewServer, Server, ServersService } from './servers.service';
+import { LabStatus } from '../../../enums/lab-status.enum';
+import { Deployment, NewServer, Server, ServerEdit, ServerSettings, ServersService } from './servers.service';
 
 interface ServersState extends RequestState {
   servers: Server[];
@@ -20,7 +21,10 @@ interface ServersState extends RequestState {
 export interface ServerCard {
   server: Server;
   health: ServerHealth;
+  /** Team labs with containers or VMs on it. */
   deployments: Deployment[];
+  /** Every team lab that starts on it, deployed or stopped. */
+  labs: Deployment[];
 }
 
 /** Every server with its health, capacity and the team labs deployed on it. */
@@ -32,6 +36,8 @@ export const ServersStore = signalStore(
         server,
         health: serverHealth(server),
         deployments: deployments().filter(d => d.serverId === server.id && isDeployed(d.status)),
+        labs: deployments().filter(d => d.serverId === server.id && d.status !== LabStatus.DELETED)
+          .sort((a, b) => Number(isDeployed(b.status)) - Number(isDeployed(a.status)) || a.teamName.localeCompare(b.teamName)),
       }))
       .sort((a, b) => a.server.name.localeCompare(b.server.name)));
     return {
@@ -65,6 +71,34 @@ export const ServersStore = signalStore(
       const added = await firstValueFrom(api.add(server));
       patchState(store, { servers: [...store.servers(), added], selectedId: added.id });
       return added;
+    },
+    settings(serverId: string): Promise<ServerSettings> {
+      return firstValueFrom(api.settings(serverId));
+    },
+    validateEdit(serverId: string, edit: ServerEdit): Promise<boolean> {
+      return firstValueFrom(api.validateEdit(serverId, edit));
+    },
+    async update(serverId: string, edit: ServerEdit): Promise<Server> {
+      const saved = await firstValueFrom(api.update(serverId, edit));
+      patchState(store, { servers: store.servers().map(server => (server.id === serverId ? saved : server)) });
+      return saved;
+    },
+    /** Moves a team's lab and reloads, since a fresh copy changes the tracker on both servers. */
+    async moveLab(trackerId: string, serverId: string, startFresh: boolean): Promise<Deployment> {
+      try {
+        const moved = await firstValueFrom(api.moveLab(trackerId, serverId, startFresh));
+        patchState(store, { deployments: store.deployments().map(d => (d.id === trackerId ? moved : d)) });
+        return moved;
+      } catch (error) {
+        const deployments = await firstValueFrom(api.deployments()).catch(() => store.deployments());
+        patchState(store, { deployments });
+        throw error;
+      }
+    },
+    async setNewLabs(serverId: string, allowed: boolean): Promise<Server> {
+      const saved = await firstValueFrom(api.setNewLabs(serverId, allowed));
+      patchState(store, { servers: store.servers().map(server => (server.id === serverId ? saved : server)) });
+      return saved;
     },
     async check(serverId: string): Promise<Server> {
       patchState(store, { checking: serverId });

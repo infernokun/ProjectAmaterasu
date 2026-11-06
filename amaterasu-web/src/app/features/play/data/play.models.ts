@@ -65,7 +65,10 @@ export interface TeamStanding {
   rank: number;
   teamId: string;
   name: string;
+  /** Members who joined this room. */
   members: number;
+  /** Everyone on the team. */
+  teamSize?: number;
   points: number;
   solves: number;
   hintsUsed: number;
@@ -77,6 +80,8 @@ export interface TeamStanding {
 export interface RoomStandings {
   roomId: string;
   roomName: string;
+  /** When the room was created (ISO); the points chart starts there. */
+  openedAt?: string | null;
   players: PlayerStanding[];
   teams: TeamStanding[];
 }
@@ -136,4 +141,17 @@ export interface AnswerResult {
 export interface LabFiles {
   yml: string;
   json: { services?: Record<string, { image?: string; volumes?: (string | { source?: string; target?: string })[] }> } | null;
+}
+
+/** A challenge that uses a lab, from GET /api/ctf-entity/by-lab/{labId}. Never carries flags. */
+export interface LabChallenge {
+  id: string;
+  question?: string | null;
+  title?: string | null;
+  roomId: string;
+  roomName?: string | null;
+  category?: string | null;
+  points?: number | null;
+  /** Whether the caller solved it. */
+  solved?: boolean | null;
 }

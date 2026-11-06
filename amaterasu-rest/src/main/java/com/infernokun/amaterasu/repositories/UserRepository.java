@@ -20,4 +20,9 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     @Query("SELECT COUNT(u) > 0 FROM User u WHERE LOWER(u.username) = LOWER(:username)")
     boolean existsByUsernameIgnoreCase(@Param("username") String username);
+
+    /** [teamId, count] for every team with enabled members. */
+    @Query("SELECT u.team.id, COUNT(u) FROM User u WHERE u.team IS NOT NULL AND (u.disabled IS NULL OR u.disabled = false)"
+            + " GROUP BY u.team.id")
+    List<Object[]> countEnabledByTeam();
 }

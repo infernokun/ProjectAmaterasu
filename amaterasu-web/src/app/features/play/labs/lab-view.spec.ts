@@ -43,5 +43,7 @@ describe('lab view rules', () => {
       new RemoteServer({ id: name, name, remoteServerStats: { status, availableRam } });
     expect(bestServer([server('a', LabStatus.ACTIVE, 2), server('b', LabStatus.OFFLINE, 64), server('c', LabStatus.ACTIVE, 8)])?.name).toBe('c');
     expect(bestServer([server('b', LabStatus.OFFLINE, 64)])).toBeUndefined();
+    const closed = new RemoteServer({ id: 'd', name: 'd', noNewLabs: true, remoteServerStats: { status: LabStatus.ACTIVE, availableRam: 128 } });
+    expect(bestServer([closed, server('a', LabStatus.ACTIVE, 2)])?.name).toBe('a');
   });
 });

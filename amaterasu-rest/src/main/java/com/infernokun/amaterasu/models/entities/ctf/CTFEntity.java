@@ -15,6 +15,7 @@ import jakarta.validation.constraints.Min;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -62,4 +63,21 @@ public class CTFEntity extends StoredObject {
     private List<String> attachments = new ArrayList<>();
     private String solutionExplanation;
     private List<String> relatedChallengeIds = new ArrayList<>();
+    /** The lab players use for this challenge, if any. */
+    private String labId;
+    /** Position in the room; rooms list their challenges in this order. */
+    private Integer sortOrder;
+
+    // Stored at the API's precision; the database rounds sub-second values, which made a release
+    // saved with nanoseconds compare later than the same instant in a query
+    @PrePersist
+    @PreUpdate
+    void storeDatesToTheSecond() {
+        if (releaseDate != null) {
+            releaseDate = releaseDate.truncatedTo(ChronoUnit.SECONDS);
+        }
+        if (expirationDate != null) {
+            expirationDate = expirationDate.truncatedTo(ChronoUnit.SECONDS);
+        }
+    }
 }

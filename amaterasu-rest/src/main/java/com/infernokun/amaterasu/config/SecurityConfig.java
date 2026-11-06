@@ -72,6 +72,23 @@ public class SecurityConfig {
                         .requestMatchers("/", "/health", "/error", "/actuator/health/**",
                                 "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
+                        // Imports, bulk moves, server edits, moving labs, room staff, lab drafts and the
+                        // classification banner. Kept ahead of the broader rules below.
+                        .requestMatchers(HttpMethod.POST, "/api/user/import").hasRole(admin)
+                        .requestMatchers(HttpMethod.PUT, "/api/user/team/bulk").hasRole(admin)
+                        .requestMatchers(HttpMethod.GET, "/api/remote-server/*/settings").hasRole(admin)
+                        .requestMatchers(HttpMethod.POST, "/api/remote-server/*/validate").hasRole(admin)
+                        .requestMatchers(HttpMethod.PUT, "/api/remote-server/*", "/api/remote-server/*/new-labs").hasRole(admin)
+                        .requestMatchers(HttpMethod.POST, "/api/lab-tracker/*/move").hasRole(admin)
+                        .requestMatchers(HttpMethod.PUT, "/api/application-info/classification").hasRole(admin)
+                        .requestMatchers(HttpMethod.GET, "/api/room/facilitated").hasAnyRole(admin, FACILITATOR.name())
+                        .requestMatchers(HttpMethod.GET, "/api/room/facilitator-candidates", "/api/room/*/facilitators")
+                                .hasAnyRole(authors)
+                        .requestMatchers(HttpMethod.PUT, "/api/room/*/facilitators", "/api/room/*/order").hasAnyRole(authors)
+                        .requestMatchers(HttpMethod.PUT, "/api/labs/*/publish", "/api/labs/*/unpublish").hasAnyRole(authors)
+                        // The controller filters it to what the caller may see
+                        .requestMatchers(HttpMethod.GET, "/api/ctf-entity/by-lab/*").authenticated()
+
                         // Administration
                         .requestMatchers("/actuator/**").hasRole(admin)
                         .requestMatchers(HttpMethod.GET, "/api/user").hasRole(admin)
@@ -118,6 +135,14 @@ public class SecurityConfig {
                         // scope them: non-admins only see their team's events and only their own sessions.
                         .requestMatchers(HttpMethod.GET, "/api/audit").authenticated()
                         .requestMatchers("/api/auth/sessions", "/api/auth/sessions/**").authenticated()
+
+                        // Top bar search, notifications and VM consoles: any signed in user. Search results
+                        // are scoped by role, notifications to their recipient, and a console to the team
+                        // that owns the lab (or an admin), in the services and the console relay.
+                        .requestMatchers(HttpMethod.GET, "/api/search").authenticated()
+                        .requestMatchers("/api/notifications", "/api/notifications/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/lab-tracker/*/vms/*/console").authenticated()
+                        .requestMatchers("/socket-handler/console/**").authenticated()
 
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2

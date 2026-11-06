@@ -1,0 +1,80 @@
+<header class="page-head">
+  <div class="stack tight">
+    <div class="row"><span class="tag">{{ typeLabel() }}</span><app-status-badge [tone]="look().tone" [label]="look().label" /></div>
+    <h1 class="h1">{{ vmName() }}</h1>
+    <div class="small muted row">
+      @if (tracker(); as t) {
+        <span>Console for <a class="lab-link" [routerLink]="['/labs', t.id]">{{ t.labStarted?.name }}</a></span>
+        <span aria-hidden="true">·</span>
+      }
+      <span>VMID <span class="mono">{{ vmid() }}</span></span>
+      @if (tracker()?.remoteServer) {
+        <span aria-hidden="true">·</span><span>on <strong class="dim">{{ server() }}</strong></span>
+      }
+    </div>
+  </div>
+  <div class="row">
+    @if (state() === 'connected') {
+      <button type="button" class="btn" (click)="ctrlAltDel()"><app-icon name="keyboard" />Send Ctrl+Alt+Del</button>
+      <button type="button" class="btn" (click)="fullScreen()"><app-icon name="expand" />Full screen</button>
+      <button type="button" class="btn ghost" (click)="disconnect()">Disconnect</button>
+    } @else if (state() !== 'connecting') {
+      <button type="button" class="btn primary" (click)="reconnect()"><app-icon name="refresh" />Reconnect</button>
+    }
+    <a class="btn ghost" [routerLink]="['/labs', trackerId()]"><app-icon name="flask" />Back to lab</a>
+  </div>
+</header>
+
+@if (vms().length > 1) {
+  <nav class="row vm-picks" aria-label="VMs in this lab">
+    <span class="small muted">VMs in this lab</span>
+    @for (machine of vms(); track machine.vmid) {
+      <a class="pick" [class.on]="'' + machine.vmid === '' + vmid()" [attr.aria-current]="'' + machine.vmid === '' + vmid() ? 'page' : null"
+         [routerLink]="['/labs', trackerId(), 'console', machine.vmid]">
+        <span class="pill-dot" [class]="machine.status === 'running' ? 's-active' : 's-off'"></span>{{ machine.name }}
+      </a>
+    }
+  </nav>
+}
+
+<section class="card flush" aria-labelledby="screen-h">
+  <div class="card-head screen-head">
+    <h2 class="h3" id="screen-h">Screen</h2>
+    @if (desktopName()) {
+      <span class="small muted mono">{{ desktopName() }}</span>
+    }
+    <span class="small muted help">Click the screen to type. Keys go to the VM until you click outside it.</span>
+  </div>
+  <div class="frame" #frame>
+    <div #screen class="console-screen" [class.dim]="state() !== 'connected'" role="application"
+         [attr.aria-label]="'Screen of ' + vmName()"></div>
+    @switch (state()) {
+      @case ('connecting') {
+        <div class="overlay" role="status">
+          <app-icon name="spinner" size="lg" [spin]="true" />
+          <strong>Connecting to {{ vmName() }}</strong>
+          <span class="small">Asking {{ server() }} for a console</span>
+        </div>
+      }
+      @case ('disconnected') {
+        <div class="overlay" role="status">
+          <span class="feed-ico"><app-icon name="monitor" /></span>
+          <strong>Disconnected</strong>
+          <span class="small">{{ reason() }}</span>
+          <button type="button" class="btn sm primary" (click)="reconnect()"><app-icon name="refresh" size="sm" />Reconnect</button>
+        </div>
+      }
+      @case ('unavailable') {
+        <div class="overlay" role="alert">
+          <span class="feed-ico s-bad"><app-icon name="alert" /></span>
+          <strong>Console not available</strong>
+          <span class="small">{{ reason() }}</span>
+          <div class="row">
+            <button type="button" class="btn sm" (click)="reconnect()"><app-icon name="refresh" size="sm" />Try again</button>
+            <a class="btn sm ghost" [routerLink]="['/labs', trackerId()]">Back to lab</a>
+          </div>
+        </div>
+      }
+    }
+  </div>
+</section>

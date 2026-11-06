@@ -1,6 +1,53 @@
 // Design tokens. Dark is the default; light applies when chosen, or when the system asks for it
 // and the person has not picked a theme (the theme store sets data-theme on <html>).
 
+// Spacing and control sizes. Compact applies when chosen under Account (data-density on <html>).
+@mixin comfortable {
+  --page-y: 28px;
+  --page-x: 32px;
+  --gap-section: 24px;
+  --gap-grid: 16px;
+  --gap-stack: 12px;
+  --gap-stack-loose: 20px;
+  --gap-side: 20px;
+  --pad-side-y: 18px;
+  --topbar-y: 11px;
+  --pad-card: 18px;
+  --pad-card-head: 14px;
+  --pad-row: 12px;
+  --control-h: 38px;
+  --control-h-sm: 32px;
+  --input-h: 40px;
+  --seg-h: 34px;
+  --tab-h: 42px;
+  --cell-y: 11px;
+  --cell-head-y: 10px;
+  --cell-x: 14px;
+}
+
+@mixin compact {
+  --page-y: 18px;
+  --page-x: 24px;
+  --gap-section: 16px;
+  --gap-grid: 12px;
+  --gap-stack: 8px;
+  --gap-stack-loose: 14px;
+  --gap-side: 14px;
+  --pad-side-y: 12px;
+  --topbar-y: 7px;
+  --pad-card: 14px;
+  --pad-card-head: 10px;
+  --pad-row: 8px;
+  --control-h: 32px;
+  --control-h-sm: 28px;
+  --input-h: 34px;
+  --seg-h: 28px;
+  --tab-h: 36px;
+  --cell-y: 6px;
+  --cell-head-y: 7px;
+  --cell-x: 12px;
+}
+
 @mixin dark {
   --bg: #0E1013;
   --surface: #15181D;
@@ -74,6 +121,7 @@
 
   --sidebar-width: 248px;
 
+  @include comfortable;
   @include dark;
 }
 
@@ -85,4 +133,8 @@
 
 :root[data-theme="light"] {
   @include light;
+}
+
+:root[data-density="compact"] {
+  @include compact;
 }

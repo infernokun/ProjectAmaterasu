@@ -87,6 +87,22 @@ export const LabBuilderStore = signalStore(
       sourceReady,
       composeChanged: computed(() => store.savedCompose() === null || store.savedCompose() !== store.compose()),
       validated: computed(() => store.validation() === 'done' && problems() === 0),
+      published: computed(() => !!store.original()?.published),
+      /** Why Publish lab is not available yet, or null when it is. */
+      publishBlocker: computed<string | null>(() => {
+        if (!store.name().trim() || store.capacity() < 1 || !sourceReady()) {
+          return `Fill in the basics and the ${compose() ? 'compose file' : 'templates'} first`;
+        }
+        if (store.validation() === 'done' && problems() > 0) {
+          return 'Fix the problems Validation found first';
+        }
+        if (compose() && (!store.labId() || store.dirty() || !store.original()?.ready)) {
+          return store.labId() && !store.dirty()
+            ? 'Validate first. A Docker host has to accept the saved file; the check also runs every minute.'
+            : 'Save the draft, then validate it on a Docker host';
+        }
+        return null;
+      }),
       canSave: computed(() => !!store.name().trim() && store.capacity() >= 1 && !!server() && sourceReady() && !store.saving()),
       capacityCheck: computed(() => {
         const stats = server()?.stats;
@@ -244,7 +260,44 @@ export const LabBuilderStore = signalStore(
       return results;
     };
 
+    /** Creates or updates the lab, uploading the compose file when it changed. */
+    const save = async (): Promise<CatalogLab> => {
+      const server = store.server();
+      if (!server) {
+        throw new Error('Choose a server first');
+      }
+      patchState(store, { saving: true });
+      try {
+        const request: LabRequest = {
+          name: store.name().trim(),
+          description: store.description().trim(),
+          version: store.version().trim(),
+          labType: store.type(),
+          capacity: store.capacity(),
+          ...(store.isCompose() ? { dockerFile: store.compose() } : { vms: store.picked() }),
+        };
+        let lab: CatalogLab;
+        if (store.labId()) {
+          lab = await firstValueFrom(api.update(store.labId()!, request));
+          if (store.isCompose() && store.composeChanged()) {
+            await firstValueFrom(api.uploadCompose(lab.id, server.id, store.compose()));
+          }
+        } else {
+          lab = await firstValueFrom(api.create(request, server.id));
+        }
+        patchState(store, {
+          labId: lab.id, original: lab, dirty: false, savedAt: Date.now(),
+          savedCompose: store.isCompose() ? store.compose() : store.savedCompose(),
+        });
+        labs.load(true);
+        return lab;
+      } finally {
+        patchState(store, { saving: false });
+      }
+    };
+
     return {
+      save,
       async init(labId: string | null): Promise<void> {
         patchState(store, { ...initial, labId, status: 'loading' });
         try {
@@ -307,35 +360,27 @@ export const LabBuilderStore = signalStore(
         const results = store.isCompose() ? await validateCompose() : await validateVms();
         patchState(store, { validation: 'done', results });
       },
-      /** Creates or updates the lab, uploading the compose file when it changed. */
-      async save(): Promise<CatalogLab> {
-        const server = store.server();
-        if (!server) {
-          throw new Error('Choose a server first');
+      /** Saves if needed, then makes the lab visible to teams. */
+      async publish(): Promise<CatalogLab> {
+        if (store.dirty() || !store.labId()) {
+          await save();
         }
         patchState(store, { saving: true });
         try {
-          const request: LabRequest = {
-            name: store.name().trim(),
-            description: store.description().trim(),
-            version: store.version().trim(),
-            labType: store.type(),
-            capacity: store.capacity(),
-            ...(store.isCompose() ? { dockerFile: store.compose() } : { vms: store.picked() }),
-          };
-          let lab: CatalogLab;
-          if (store.labId()) {
-            lab = await firstValueFrom(api.update(store.labId()!, request));
-            if (store.isCompose() && store.composeChanged()) {
-              await firstValueFrom(api.uploadCompose(lab.id, server.id, store.compose()));
-            }
-          } else {
-            lab = await firstValueFrom(api.create(request, server.id));
-          }
-          patchState(store, {
-            labId: lab.id, original: lab, dirty: false, savedAt: Date.now(),
-            savedCompose: store.isCompose() ? store.compose() : store.savedCompose(),
-          });
+          const lab = await firstValueFrom(api.publish(store.labId()!));
+          patchState(store, { original: lab, savedAt: Date.now() });
+          labs.load(true);
+          return lab;
+        } finally {
+          patchState(store, { saving: false });
+        }
+      },
+      /** Back to a draft; the API refuses while a team has it deployed. */
+      async unpublish(): Promise<CatalogLab> {
+        patchState(store, { saving: true });
+        try {
+          const lab = await firstValueFrom(api.unpublish(store.labId()!));
+          patchState(store, { original: lab, savedAt: Date.now() });
           labs.load(true);
           return lab;
         } finally {

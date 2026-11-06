@@ -40,14 +40,14 @@
     <section class="card stack" aria-labelledby="chart-h">
       <div class="row between">
         <div><h2 class="h2" id="chart-h">{{ teams() ? 'Team points over time' : 'Points over time' }}</h2>
-          <div class="small muted">Top 3 and {{ teams() ? 'your team' : 'you' }} since the first points in this room</div></div>
+          <div class="small muted">Top 3 and {{ teams() ? 'your team' : 'you' }} {{ since() }}</div></div>
         <div class="row small dim" aria-label="Legend">
           @for (line of series(); track line.name) {
             <span class="row legend"><span class="sw" [class]="'sw ' + line.tone"></span>{{ line.name }}</span>
           }
         </div>
       </div>
-      <app-points-chart [series]="series()" [label]="chartLabel()" />
+      <app-points-chart [series]="series()" [label]="chartLabel()" [start]="chartStart()" />
     </section>
 
     <section class="card flush" aria-labelledby="tbl-h">

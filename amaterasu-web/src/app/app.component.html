@@ -1,4 +1,6 @@
-<div class="classification" role="note">{{ classification }}</div>
+@if (banner().value !== 'NONE') {
+  <div class="classification" role="note" [style.background]="banner().background" [style.color]="banner().color">{{ banner().label }}</div>
+}
 <div class="app-body">
   @if (!ready()) {
     <div class="booting" role="status">
@@ -8,4 +10,6 @@
   }
   <router-outlet />
 </div>
-<div class="classification" role="note">{{ classification }}</div>
+@if (banner().value !== 'NONE') {
+  <div class="classification" role="note" [style.background]="banner().background" [style.color]="banner().color">{{ banner().label }}</div>
+}

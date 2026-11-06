@@ -9,6 +9,7 @@ import com.infernokun.amaterasu.models.entities.ctf.CTFEntityHintUsage;
 import com.infernokun.amaterasu.models.entities.ctf.Hint;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.ctf.RoomUser;
+import com.infernokun.amaterasu.models.entities.ctf.dto.play.LabChallenge;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomLive;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomOverview;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomOverview.ChallengeState;
@@ -118,7 +119,9 @@ public class RoomPlayService {
                     history));
         }
 
-        return new RoomStandings(room.getId(), room.getName(), players, teams(players));
+        return new RoomStandings(room.getId(), room.getName(),
+                room.getCreatedAt() != null ? toInstant(room.getCreatedAt()) : null, players,
+                teams(players, teamSizes()));
     }
 
     public RoomLive live(String roomId) {
@@ -205,6 +208,40 @@ public class RoomPlayService {
                 feed.size() > FEED_LIMIT ? feed.subList(0, FEED_LIMIT) : feed, health, refs);
     }
 
+    /**
+     * Challenges that use a lab. Authors and admins see all of them; everyone else only sees released
+     * challenges in rooms they joined.
+     */
+    public List<LabChallenge> forLab(String labId, String viewerId, boolean seeAll) {
+        LocalDateTime now = LocalDateTime.now();
+        Map<String, Optional<RoomUser>> seats = new HashMap<>();
+        Optional<User> viewer = Optional.ofNullable(viewerId).flatMap(userRepository::findById);
+        List<LabChallenge> result = new ArrayList<>();
+        for (CTFEntity challenge : ctfEntityService.findByLabId(labId)) {
+            Room room = challenge.getRoom();
+            if (room == null) {
+                continue;
+            }
+            Optional<RoomUser> seat = seats.computeIfAbsent(room.getId(), id -> viewer
+                    .flatMap(user -> roomUserService.findByUserAndRoom(user, room)));
+            boolean joined = seat.map(roomUser -> roomUser.getRoomUserStatus() == RoomUserStatus.JOINED).orElse(false);
+            ChallengeState state = stateOf(challenge, now);
+            boolean released = !Boolean.FALSE.equals(challenge.getVisible()) && !Boolean.FALSE.equals(challenge.getIsActive())
+                    && state != ChallengeState.LOCKED;
+            if (!seeAll && !(joined && released)) {
+                continue;
+            }
+            boolean solved = seat.flatMap(roomUser -> answerRepository
+                            .findByRoomUserIdAndCtfEntityId(roomUser.getId(), challenge.getId()))
+                    .map(answer -> Boolean.TRUE.equals(answer.getCorrect())).orElse(false);
+            result.add(new LabChallenge(challenge.getId(), challenge.getQuestion(), challenge.getQuestion(), room.getId(),
+                    room.getName(), categoryOf(challenge),
+                    challenge.getDifficultyLevel() != null ? challenge.getDifficultyLevel().name() : null,
+                    value(challenge.getPoints()), state, solved));
+        }
+        return result;
+    }
+
     private RoomOverview.Challenge challengeView(CTFEntity challenge, CTFEntityAnswer answer, long solves,
                                                  LocalDateTime now) {
         ChallengeState state = stateOf(challenge, now);
@@ -270,8 +307,7 @@ public class RoomPlayService {
         return challenges.stream()
                 .filter(challenge -> !Boolean.FALSE.equals(challenge.getVisible())
                         && !Boolean.FALSE.equals(challenge.getIsActive()))
-                .sorted(Comparator.comparing(RoomPlayService::categoryOf)
-                        .thenComparing(challenge -> value(challenge.getPoints())))
+                .sorted(CTFEntityService.ROOM_ORDER)
                 .toList();
     }
 
@@ -318,7 +354,13 @@ public class RoomPlayService {
         return total;
     }
 
-    private static List<RoomStandings.TeamRow> teams(List<RoomStandings.Player> players) {
+    private Map<String, Integer> teamSizes() {
+        Map<String, Integer> sizes = new HashMap<>();
+        userRepository.countEnabledByTeam().forEach(row -> sizes.put((String) row[0], ((Number) row[1]).intValue()));
+        return sizes;
+    }
+
+    private static List<RoomStandings.TeamRow> teams(List<RoomStandings.Player> players, Map<String, Integer> sizes) {
         Map<String, List<RoomStandings.Player>> byTeam = new LinkedHashMap<>();
         players.stream().filter(player -> player.teamId() != null)
                 .forEach(player -> byTeam.computeIfAbsent(player.teamId(), key -> new ArrayList<>()).add(player));
@@ -326,6 +368,7 @@ public class RoomPlayService {
         List<RoomStandings.TeamRow> rows = byTeam.values().stream().map(members -> {
             RoomStandings.Player first = members.getFirst();
             return new RoomStandings.TeamRow(0, first.teamId(), first.teamName(), members.size(),
+                    Math.max(members.size(), sizes.getOrDefault(first.teamId(), 0)),
                     members.stream().mapToInt(RoomStandings.Player::points).sum(),
                     members.stream().mapToInt(RoomStandings.Player::solves).sum(),
                     members.stream().mapToInt(RoomStandings.Player::hintsUsed).sum(),
@@ -340,7 +383,7 @@ public class RoomPlayService {
         List<RoomStandings.TeamRow> ranked = new ArrayList<>();
         for (int i = 0; i < rows.size(); i++) {
             RoomStandings.TeamRow row = rows.get(i);
-            ranked.add(new RoomStandings.TeamRow(i + 1, row.teamId(), row.name(), row.members(), row.points(),
+            ranked.add(new RoomStandings.TeamRow(i + 1, row.teamId(), row.name(), row.members(), row.teamSize(), row.points(),
                     row.solves(), row.hintsUsed(), row.lastSolveAt(), row.lastHourChange(), row.history()));
         }
         return ranked;

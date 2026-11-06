@@ -18,6 +18,11 @@ export const PLAY_ROUTES: Routes = [
     data: { title: 'Lab console' },
   }),
   page({
+    path: 'labs/:trackerId/console/:vmid',
+    loadComponent: () => import('./labs/vm-console.page').then(m => m.VmConsolePage),
+    data: { title: 'VM console' },
+  }),
+  page({
     path: 'rooms',
     loadComponent: () => import('./rooms/rooms.page').then(m => m.RoomsPage),
     data: { title: 'Rooms' },

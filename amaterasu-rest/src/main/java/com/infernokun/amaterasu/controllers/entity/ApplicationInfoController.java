@@ -29,6 +29,16 @@ public class ApplicationInfoController extends BaseController {
         );
     }
 
+    public record ClassificationRequest(String classification) {
+    }
+
+    /** Sets the classification banner shown above and below every page. SecurityConfig limits it to admins. */
+    @PutMapping("/classification")
+    public ResponseEntity<ApiResponse<ApplicationInfo>> setClassification(@RequestBody ClassificationRequest request) {
+        ApplicationInfo saved = applicationInfoService.setClassification(request == null ? null : request.classification());
+        return createSuccessResponse(saved, "Classification banner saved.");
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<ApplicationInfo>> createApplicationInfo(@RequestBody ApplicationInfo applicationInfo) {
         // Public so the first-run setup works before any user can log in; it can only ever run once

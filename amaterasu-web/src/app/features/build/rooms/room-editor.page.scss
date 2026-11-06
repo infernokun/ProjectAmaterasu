@@ -13,3 +13,19 @@
 .desc { margin: 0; line-height: 1.6; white-space: pre-wrap; }
 label.btn { cursor: pointer; }
 .seg { flex-wrap: wrap; }
+.room-save { margin-top: 12px; }
+.fac { padding-right: 2px; }
+.tag-x { display: inline-grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 4px; background: transparent; color: var(--text-3); cursor: pointer; padding: 0; }
+.tag-x:hover { color: var(--text); background: var(--surface-2); }
+.menu-note { padding: 10px 16px; max-width: 260px; }
+.drop-list { display: flex; flex-direction: column; }
+.item { cursor: default; gap: 10px; }
+.item .pick { all: unset; cursor: pointer; display: block; min-width: 0; }
+.item .pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+.grip { display: inline-grid; place-items: center; width: 24px; height: 28px; border: 0; border-radius: 4px; background: transparent; color: var(--text-3); cursor: grab; padding: 0; flex: none; }
+.grip:hover { color: var(--text); background: var(--surface-3); }
+.grip:active { cursor: grabbing; }
+.order-note { padding: 12px 16px; }
+.drag-placeholder { min-height: 60px; background: var(--surface-2); border: 1px dashed var(--border-2); }
+.cdk-drag-preview { box-sizing: border-box; border-radius: var(--radius); box-shadow: var(--shadow); background: var(--surface); }
+.cdk-drag-animating, .drop-list.cdk-drop-list-dragging .item:not(.cdk-drag-placeholder) { transition: transform 200ms cubic-bezier(0, 0, .2, 1); }

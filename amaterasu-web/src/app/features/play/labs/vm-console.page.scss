@@ -1,0 +1,89 @@
+.lab-link {
+  color: var(--text-2);
+}
+
+.vm-picks {
+  gap: 6px;
+}
+
+.vm-picks .pick {
+  text-decoration: none;
+}
+
+.vm-picks .pill-dot {
+  margin-right: 2px;
+}
+
+.screen-head {
+  justify-content: flex-start;
+}
+
+.help {
+  margin-left: auto;
+}
+
+// A VM screen is dark in both themes
+.frame {
+  position: relative;
+  height: clamp(320px, 64vh, 760px);
+  background: #08090b;
+  color: #c9ced6;
+}
+
+.frame:fullscreen {
+  height: 100vh;
+}
+
+.console-screen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.console-screen.dim {
+  opacity: .25;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+}
+
+.overlay strong {
+  color: #f1f3f5;
+  font-size: 15px;
+}
+
+.overlay .small {
+  max-width: 460px;
+  color: #a9b0ba;
+}
+
+.overlay .feed-ico {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, .06);
+  color: #c9ced6;
+}
+
+.overlay .feed-ico.s-bad {
+  color: #f2555a;
+}
+
+.overlay .btn:not(.primary) {
+  background: rgba(255, 255, 255, .06);
+  border-color: rgba(255, 255, 255, .18);
+  color: #e8eaed;
+}
+
+.overlay .btn.ghost {
+  background: transparent;
+  border-color: transparent;
+}

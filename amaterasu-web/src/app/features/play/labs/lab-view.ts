@@ -132,9 +132,9 @@ export function changedAgo(tracker: LabTracker): string {
   return at ? `updated ${formatDistanceToNowStrict(at, { addSuffix: true })}` : '';
 }
 
-/** The ACTIVE server of the right kind with the most free memory. */
+/** The ACTIVE server of the right kind with the most free memory, skipping servers taking no new labs. */
 export function bestServer(servers: RemoteServer[]): RemoteServer | undefined {
-  const active = servers.filter(server => server.remoteServerStats?.status === LabStatus.ACTIVE);
+  const active = servers.filter(server => server.remoteServerStats?.status === LabStatus.ACTIVE && !server.noNewLabs);
   return [...active].sort((a, b) => (b.remoteServerStats?.availableRam ?? 0) - (a.remoteServerStats?.availableRam ?? 0))[0];
 }
 

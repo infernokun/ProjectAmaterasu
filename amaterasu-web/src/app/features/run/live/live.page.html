@@ -1,6 +1,13 @@
-@if (!roomId()) {
+@if (runnable() === null) {
+  <app-skeleton variant="card" [count]="3" label="Loading the live view" />
+} @else if (!roomId()) {
   <header class="page-head"><div><h1 class="h1">Live event</h1></div></header>
-  <section class="card"><app-empty-state icon="activity" title="No rooms yet" message="The live view follows a room. Create one in Build first." /></section>
+  @if (session.isAdmin()) {
+    <section class="card"><app-empty-state icon="activity" title="No rooms yet" message="The live view follows a room. Create one in Build first." /></section>
+  } @else {
+    <section class="card"><app-empty-state icon="activity" title="No rooms to run yet"
+      message="You see the rooms you facilitate here. Ask a room's author to add you as a facilitator in the room editor." /></section>
+  }
 } @else if (store.live(); as live) {
   <header class="page-head">
     <div>
@@ -11,10 +18,10 @@
       <h1 class="h1 title">{{ live.roomName }}</h1>
     </div>
     <div class="row">
-      @if (rooms.rooms().length > 1) {
+      @if (runRooms().length > 1) {
         <label class="visually-hidden" for="room-pick">Room</label>
         <select id="room-pick" class="input room-pick" [value]="roomId()" (change)="pickRoom($any($event.target).value)">
-          @for (room of rooms.rooms(); track room.id) {
+          @for (room of runRooms(); track room.id) {
             <option [value]="room.id" [selected]="room.id === roomId()">{{ room.name }}</option>
           }
         </select>

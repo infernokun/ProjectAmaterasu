@@ -19,6 +19,7 @@
                     "builder": "@angular/build:application",
                     "options": {
                         "outputPath": "dist/app",
+                        "allowedCommonJsDependencies": ["papaparse"],
                         "index": "src/index.html",
                         "browser": "src/main.ts",
                         "tsConfig": "tsconfig.app.json",
@@ -31,6 +32,21 @@
                                 "glob": "**/*",
                                 "input": "node_modules/monaco-editor/min",
                                 "output": "assets/monaco-editor/min"
+                            },
+                            {
+                                "glob": "core/**/*.js",
+                                "input": "node_modules/@novnc/novnc",
+                                "output": "assets/novnc"
+                            },
+                            {
+                                "glob": "vendor/**/*.js",
+                                "input": "node_modules/@novnc/novnc",
+                                "output": "assets/novnc"
+                            },
+                            {
+                                "glob": "LICENSE.txt",
+                                "input": "node_modules/@novnc/novnc",
+                                "output": "assets/novnc"
                             }
                         ],
                         "styles": [

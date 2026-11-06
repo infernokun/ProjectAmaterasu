@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
+const { attachConsoles, issueTicket } = require("./vnc");
 
 // Stateful Proxmox VE API mock: long running calls return a task UPID that finishes
 // after TASK_MS, clones stay locked until then, and running VMs cannot be destroyed.
@@ -203,6 +204,14 @@ app.delete("/api2/json/nodes/:node/qemu/:vmid", (req, res) => {
   });
 });
 
+app.post("/api2/json/nodes/:node/qemu/:vmid/vncproxy", (req, res) => {
+  const vm = getVm(req, res);
+  if (!vm || !requireUnlocked(vm, res)) return;
+  if (vm.template) return error(res, 500, "you can't open a console on a template");
+  if (vm.status !== "running") return error(res, 500, `VM ${vm.vmid} not running`);
+  res.json({ data: issueTicket(req.params.node, vm) });
+});
+
 app.get("/api2/json/nodes/:node/network", (req, res) => res.json({ data: networks }));
 
 app.post("/api2/json/nodes/:node/network", (req, res) => {
@@ -235,6 +244,8 @@ app.all("/{*any}", (req, res) => {
   res.status(501).send("API endpoint not implemented in mock");
 });
 
-https.createServer(sslOptions, app).listen(port, hostname, () => {
+const server = https.createServer(sslOptions, app);
+attachConsoles(server, vms);
+server.listen(port, hostname, () => {
   console.log(`Proxmox API Mock HTTPS Server running at https://${hostname}:${port}/`);
 });

@@ -11,6 +11,8 @@ import { IconComponent } from '../../shared/ui/icon.component';
 import { IconName } from '../../shared/ui/icons';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
 import { ThemePickerComponent } from '../../shared/ui/theme-picker.component';
+import { DensityPickerComponent } from '../../shared/ui/density-picker.component';
+import { ClassificationSettingComponent } from './classification-setting.component';
 import { AccountSession } from './account.service';
 import { AccountStore } from './account.store';
 import { deviceName } from './user-agent';
@@ -32,7 +34,7 @@ interface Capability {
 @Component({
   selector: 'app-account',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, SkeletonComponent, ThemePickerComponent],
+  imports: [IconComponent, SkeletonComponent, ThemePickerComponent, DensityPickerComponent, ClassificationSettingComponent],
   providers: [AccountStore],
   templateUrl: './account.page.html',
   styles: `

@@ -94,6 +94,11 @@
                     <div class="small muted">VMID <app-mono-id [value]="'' + machine.vmid" [copyable]="true" label="VMID" /></div>
                     <div class="meter-row"><span class="muted">CPU</span><div class="bar info"><span [style.width.%]="cpuPct(machine)"></span></div><span class="num dim">{{ cpuPct(machine) }}% of {{ machine.cpus }} vCPU</span></div>
                     <div class="meter-row"><span class="muted">Memory</span><div class="bar info"><span [style.width.%]="memPct(machine)"></span></div><span class="num dim">{{ gib(machine.mem) }}</span></div>
+                    @if (machine.status === 'running') {
+                      <a class="btn sm primary block" [routerLink]="['/labs', t.id, 'console', machine.vmid]"><app-icon name="monitor" size="sm" />Open console</a>
+                    } @else {
+                      <button type="button" class="btn sm primary block" disabled [title]="machine.name + ' is ' + (machine.status ?? 'not running')"><app-icon name="monitor" size="sm" />Open console</button>
+                    }
                   </article>
                 }
               </div>
@@ -158,6 +163,25 @@
             <span>{{ server()?.name ?? '-' }}@if (server()) { · <span [class]="serverOnline() ? 's-active' : 's-bad'">{{ serverOnline() ? 'online' : 'offline' }}</span>}</span></div>
           <div class="row between"><span class="muted">Last change</span><span>{{ ago(t.updatedAt) || '-' }}</span></div>
         </div>
+      </section>
+      <section class="card flush" aria-labelledby="uses-h">
+        <div class="card-head"><h2 class="h2" id="uses-h">Challenges that use it</h2></div>
+        @if (usedBy() === null) {
+          <div class="card-body"><app-skeleton [count]="2" label="Loading challenges" /></div>
+        } @else {
+          <div class="list">
+            @for (challenge of usedBy(); track challenge.id) {
+              <a class="list-item uses" [routerLink]="['/rooms', challenge.roomId]" [queryParams]="{ challenge: challenge.id }">
+                <app-status-badge [tone]="challenge.solved ? 'active' : 'off'" [label]="challenge.solved ? 'Solved' : 'Open'" />
+                <span class="grow uses-text"><span>{{ challenge.question || challenge.title }}</span>
+                  @if (challenge.roomName) {<span class="small muted">{{ challenge.roomName }}</span>}</span>
+                <span class="small muted num">{{ challenge.points ?? 0 }}</span>
+              </a>
+            } @empty {
+              <app-empty-state title="No challenges use this lab" message="Challenges that need this lab show here once an author links them to it." />
+            }
+          </div>
+        }
       </section>
       <a class="btn ghost" routerLink="/labs"><app-icon name="flask" />All team labs</a>
     </aside>

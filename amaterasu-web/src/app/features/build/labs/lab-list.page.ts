@@ -21,7 +21,7 @@ import { LabBuilderService } from './lab-builder.service';
     <div class="page-head">
       <div>
         <h1 class="h1">Labs</h1>
-        <p class="sub">Docker Compose and Proxmox VM labs that teams can start</p>
+        <p class="sub">Docker Compose and Proxmox VM labs. Teams only see the published ones.</p>
       </div>
       <a class="btn primary" routerLink="new"><app-icon name="plus" />New lab</a>
     </div>
@@ -54,11 +54,16 @@ import { LabBuilderService } from './lab-builder.service';
                   <td class="mono small dim">{{ lab.version || 'none' }}</td>
                   <td class="r num">{{ lab.capacity ?? 'Any' }}</td>
                   <td>
-                    @if (lab.ready) {
-                      <app-status-badge tone="active" label="Ready" />
-                    } @else {
-                      <app-status-badge tone="warn" label="Not ready" />
-                    }
+                    <div class="row nowrap">
+                      @if (lab.published) {
+                        <app-status-badge tone="active" label="Published" />
+                      } @else {
+                        <app-status-badge tone="off" label="Draft" />
+                      }
+                      @if (!lab.ready) {
+                        <span class="small muted nobreak" title="A Docker host has not accepted its compose file yet">Not checked</span>
+                      }
+                    </div>
                   </td>
                   <td class="dim small">{{ updated(lab) }}</td>
                   <td class="r">
@@ -74,13 +79,14 @@ import { LabBuilderService } from './lab-builder.service';
         </div>
       }
     </section>
-    <p class="small muted">Compose labs turn ready once the file passes docker compose config on a Docker host; the check runs every minute.</p>
+    <p class="small muted">New labs are drafts until you publish them. Compose labs can be published once the file passes docker compose config on a Docker host; the check runs every minute.</p>
   `,
   styles: `
     .name { font-weight: 500; color: var(--text); text-decoration: none; }
     .name:hover { text-decoration: underline; }
     .clamp { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .nowrap { flex-wrap: nowrap; }
+    .nobreak { white-space: nowrap; }
     p { margin: 0; }
   `,
   host: { class: 'content' },

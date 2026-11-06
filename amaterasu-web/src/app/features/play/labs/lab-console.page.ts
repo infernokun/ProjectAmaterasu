@@ -18,6 +18,7 @@ import { MonoIdComponent } from '../../../shared/ui/mono-id.component';
 import { SkeletonComponent } from '../../../shared/ui/skeleton.component';
 import { StatusBadgeComponent } from '../../../shared/ui/status-badge.component';
 import { ActivityLine, activityLine } from '../data/activity';
+import { LabChallenge } from '../data/play.models';
 import { PlayApiService } from '../data/play-api.service';
 import { LabActionsService } from './lab-actions.service';
 import { LabFilesComponent } from './lab-files.component';
@@ -55,6 +56,8 @@ export class LabConsolePage {
   protected readonly logService = signal('all');
   protected readonly refreshing = signal(false);
   protected readonly activity = signal<ActivityLine[] | null>(null);
+  /** Challenges that use this lab; null while loading. */
+  protected readonly usedBy = signal<LabChallenge[] | null>(null);
 
   protected readonly state = computed(() => {
     const tracker = this.tracker();
@@ -92,6 +95,10 @@ export class LabConsolePage {
       }
     });
     effect(() => {
+      const labId = this.tracker()?.labStarted?.id;
+      if (labId) untracked(() => this.loadChallenges(labId));
+    });
+    effect(() => {
       if (this.tab() === 'activity') {
         untracked(() => this.loadActivity());
       }
@@ -106,6 +113,20 @@ export class LabConsolePage {
       this.fetched.set(await firstValueFrom(this.api.tracker(id)));
     } catch (error) {
       this.loadError.set(errorMessage(error) ?? 'This lab could not be loaded.');
+    }
+  }
+
+  private loadedChallengesFor: string | null = null;
+
+  private async loadChallenges(labId: string): Promise<void> {
+    if (this.loadedChallengesFor === labId) return;
+    this.loadedChallengesFor = labId;
+    this.usedBy.set(null);
+    try {
+      const challenges = await firstValueFrom(this.api.challengesForLab(labId));
+      if (this.loadedChallengesFor === labId) this.usedBy.set(challenges);
+    } catch {
+      if (this.loadedChallengesFor === labId) this.usedBy.set([]);
     }
   }
 

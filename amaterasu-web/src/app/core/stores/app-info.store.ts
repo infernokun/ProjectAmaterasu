@@ -1,6 +1,8 @@
 import { computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { signalStore, withComputed, withProps } from '@ngrx/signals';
+import { signalStore, withComputed, withMethods, withProps } from '@ngrx/signals';
+import { firstValueFrom } from 'rxjs';
+import { Classification, classificationOf } from '../classification';
 import { ApplicationInfo } from '../../models/application-info.model';
 import { AppInitService } from '../../services/app-init.service';
 import { EnvironmentService } from '../../services/environment.service';
@@ -13,6 +15,7 @@ export const AppInfoStore = signalStore(
     return {
       _info: toSignal(init.getApplicationInfo(), { initialValue: new ApplicationInfo({}) }),
       initialized: toSignal(init.isInitialized(), { initialValue: false }),
+      _init: init,
       _environment: inject(EnvironmentService),
     };
   }),
@@ -36,5 +39,14 @@ export const AppInfoStore = signalStore(
     }),
     /** Developer pages such as /dev/code are only routed when the environment turns them on. */
     devTools: computed(() => _environment.settings?.devTools === true),
+  })),
+  withComputed(({ settings }) => ({
+    /** The banner shown above and below every page, set by an admin. */
+    classification: computed(() => classificationOf(settings()['classification'])),
+  })),
+  withMethods(({ _init }) => ({
+    async setClassification(value: Classification): Promise<void> {
+      await firstValueFrom(_init.setClassification(value));
+    },
   })),
 );

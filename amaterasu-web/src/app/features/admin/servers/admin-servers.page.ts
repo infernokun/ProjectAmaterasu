@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal, untracked } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 import { ServerType } from '../../../enums/server-type.enum';
@@ -10,7 +10,12 @@ import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { SkeletonComponent } from '../../../shared/ui/skeleton.component';
 import { StatusBadgeComponent } from '../../../shared/ui/status-badge.component';
+import { RouterLink } from '@angular/router';
+import { isDeployed } from '../../../core/lab-deployment';
 import { AddServerData, AddServerDialogComponent } from './add-server-dialog';
+import { EditServerData, EditServerDialogComponent } from './edit-server-dialog';
+import { MoveLabData, MoveLabDialogComponent } from './move-lab-dialog';
+import { Deployment, ServerSettings } from './servers.service';
 import { address, serverHealth, serverTypeLabel, uptime } from './server-health';
 import { ServerCard, ServersStore } from './servers.store';
 
@@ -19,7 +24,7 @@ const REFRESH_MS = 60_000;
 @Component({
   selector: 'app-admin-servers',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, EmptyStateComponent, SkeletonComponent, StatusBadgeComponent],
+  imports: [RouterLink, IconComponent, EmptyStateComponent, SkeletonComponent, StatusBadgeComponent],
   providers: [ServersStore],
   templateUrl: './admin-servers.page.html',
   styles: `
@@ -27,6 +32,7 @@ const REFRESH_MS = 60_000;
     .srv:hover { border-color: var(--border-2); }
     .srv .meter-row, .srv .full { width: 100%; }
     .detail-banner { padding: 16px 18px 0; }
+    .nowrap { flex-wrap: nowrap; }
   `,
   host: { class: 'content' },
 })
@@ -61,8 +67,15 @@ export class AdminServersPage {
     return seconds < 60 ? `last update ${seconds}s ago` : `last update ${relativeTime(at, new Date(this.now())).toLowerCase()}`;
   });
 
+  /** ?server= from the top bar search. */
+  readonly serverParam = input<string>(undefined, { alias: 'server' });
+
   constructor() {
     this.store.load();
+    effect(() => {
+      const serverId = this.serverParam();
+      if (serverId) untracked(() => this.store.select(serverId));
+    });
     const refresh = setInterval(() => this.store.load(), REFRESH_MS);
     const tick = setInterval(() => this.now.set(Date.now()), 5_000);
     inject(DestroyRef).onDestroy(() => {
@@ -77,7 +90,7 @@ export class AdminServersPage {
 
   protected deleteNote(card: ServerCard): string {
     const count = card.deployments.length;
-    return count ? `Stop its ${count} team ${count === 1 ? 'lab' : 'labs'} first` : `Delete ${card.server.name}`;
+    return count ? `Move or stop its ${count} team ${count === 1 ? 'lab' : 'labs'} first` : `Delete ${card.server.name}`;
   }
 
   protected osLine(card: ServerCard): string {
@@ -99,6 +112,64 @@ export class AdminServersPage {
       },
     };
     this.dialog.open(AddServerDialogComponent, { ...DIALOG_DEFAULTS, width: '520px', data });
+  }
+
+  protected deployed(deployment: Deployment): boolean {
+    return isDeployed(deployment.status);
+  }
+
+  protected async edit(card: ServerCard): Promise<void> {
+    let settings: ServerSettings;
+    try {
+      settings = await this.store.settings(card.server.id);
+    } catch (error) {
+      this.toast.error(`${card.server.name} could not be opened for editing.`, error);
+      return;
+    }
+    const data: EditServerData = {
+      settings,
+      otherNames: this.store.servers().filter(server => server.id !== card.server.id).map(server => server.name),
+      validate: edit => this.store.validateEdit(card.server.id, edit),
+      save: async edit => {
+        const saved = await this.store.update(card.server.id, edit);
+        this.toast.success(`${saved.name} saved`);
+      },
+    };
+    this.dialog.open(EditServerDialogComponent, { ...DIALOG_DEFAULTS, width: '520px', data });
+  }
+
+  protected move(card: ServerCard, deployment: Deployment): void {
+    const data: MoveLabData = {
+      deployment,
+      from: card.server,
+      targets: this.store.servers()
+        .filter(server => server.id !== card.server.id && server.serverType === card.server.serverType)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      move: async (serverId, startFresh) => {
+        await this.store.moveLab(deployment.id, serverId, startFresh);
+        const target = this.store.servers().find(server => server.id === serverId)?.name ?? 'the new server';
+        this.toast.success(startFresh
+          ? `${deployment.teamName}'s ${deployment.labName} started fresh on ${target}`
+          : `${deployment.teamName}'s ${deployment.labName} will start on ${target}`);
+      },
+    };
+    this.dialog.open(MoveLabDialogComponent, { ...DIALOG_DEFAULTS, width: '520px', data });
+  }
+
+  protected readonly togglingNewLabs = signal(false);
+
+  /** Stop new labs here, or allow them again. Labs already on the server are not touched. */
+  protected async toggleNewLabs(card: ServerCard): Promise<void> {
+    const allowed = card.server.noNewLabs;
+    this.togglingNewLabs.set(true);
+    try {
+      const saved = await this.store.setNewLabs(card.server.id, allowed);
+      this.toast.success(allowed ? `New labs can start on ${saved.name} again` : `No new labs start on ${saved.name}. Labs already there keep running.`);
+    } catch (error) {
+      this.toast.error(`${card.server.name} could not be changed.`, error);
+    } finally {
+      this.togglingNewLabs.set(false);
+    }
   }
 
   protected async check(card: ServerCard): Promise<void> {

@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
+import { AppInfoStore } from './core/stores/app-info.store';
+import { DensityStore } from './core/theme/density.store';
 import { ThemeStore } from './core/theme/theme.store';
 import { IconComponent } from './shared/ui/icon.component';
 
@@ -13,8 +15,8 @@ import { IconComponent } from './shared/ui/icon.component';
   styleUrl: './app.component.scss',
 })
 export class AppComponent {
-  /** The classification banner shown above and below every page. */
-  readonly classification = 'UNCLASSIFIED';
+  /** The classification banner shown above and below every page, as an admin set it. */
+  protected readonly banner = inject(AppInfoStore).classification;
 
   /** False until the first page is ready, while settings and the session load. */
   protected readonly ready = toSignal(
@@ -24,5 +26,6 @@ export class AppComponent {
 
   constructor() {
     inject(ThemeStore);
+    inject(DensityStore);
   }
 }

@@ -11,7 +11,9 @@ import { RoomsStore } from '../core/stores/rooms.store';
 import { SessionStore } from '../core/stores/session.store';
 import { ThemeStore } from '../core/theme/theme.store';
 import { IconComponent } from '../shared/ui/icon.component';
+import { GlobalSearchComponent } from './global-search.component';
 import { NavCountKey, navFor } from './nav';
+import { NotificationBellComponent } from './notification-bell.component';
 
 const NARROW = '(max-width: 959.98px)';
 
@@ -19,7 +21,8 @@ const NARROW = '(max-width: 959.98px)';
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatSidenavContainer, MatSidenav, MatSidenavContent, IconComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatSidenavContainer, MatSidenav, MatSidenavContent, IconComponent,
+    GlobalSearchComponent, NotificationBellComponent],
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.scss',
 })

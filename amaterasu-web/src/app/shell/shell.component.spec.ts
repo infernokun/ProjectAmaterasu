@@ -2,6 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { EMPTY, of } from 'rxjs';
+import { NotificationsService } from '../core/services/notifications.service';
+import { SearchService } from '../core/services/search.service';
 import { AuthService } from '../services/auth.service';
 import { RoomService } from '../services/ctf/room.service';
 import { LabTrackerService } from '../services/lab/lab-tracker.service';
@@ -24,6 +26,8 @@ describe('ShellComponent', () => {
         { provide: LabTrackerService, useValue: { getLabTrackersByTeam: () => of([]) } },
         { provide: RoomService, useValue: { getAllRooms: () => of({ data: [] }), checkJoinable: () => of({ data: {} }) } },
         { provide: WebsocketService, useValue: { getMessage: () => EMPTY } },
+        { provide: SearchService, useValue: { search: () => of({ query: '', hits: [] }) } },
+        { provide: NotificationsService, useValue: { list: () => of({ content: [], last: true }), unreadCount: () => of(0) } },
       ],
     });
   });
@@ -53,6 +57,13 @@ describe('ShellComponent', () => {
     expect(el.querySelector('.me-name')?.textContent).toContain('jmorales');
     expect(el.querySelector('.me-meta')?.textContent).toContain('Red Fox · Creator');
     expect(el.querySelector('.avatar')?.textContent).toContain('JM');
+  });
+
+  it('has the search box and the notification bell in the top bar', () => {
+    const el = render('MEMBER');
+    // The test browser may be narrow, where the box becomes an icon
+    expect(el.querySelector('.topbar app-global-search input[type="search"], .topbar app-global-search button[aria-label="Search"]')).toBeTruthy();
+    expect(el.querySelector('.topbar button[aria-label="Notifications"]')).toBeTruthy();
   });
 
   it('signs out from the sidebar', () => {

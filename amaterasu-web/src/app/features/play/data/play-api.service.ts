@@ -7,7 +7,7 @@ import { LabTracker } from '../../../models/lab/lab-tracker.model';
 import { RemoteServer } from '../../../models/lab/remote-server.model';
 import { Team } from '../../../models/team.model';
 import { EnvironmentService } from '../../../services/environment.service';
-import { AnswerResult, LabFiles, RoomLive, RoomOverview, RoomStandings } from './play.models';
+import { AnswerResult, LabChallenge, LabFiles, RoomLive, RoomOverview, RoomStandings } from './play.models';
 
 /** HTTP for the Play and Run screens. */
 @Injectable({ providedIn: 'root' })
@@ -51,6 +51,12 @@ export class PlayApiService {
   allTrackers(): Observable<LabTracker[]> {
     return this.data(this.http.get<ApiResponse<unknown[]>>(this.url('/lab-tracker/overview')))
       .pipe(map(trackers => (trackers ?? []).map(tracker => new LabTracker(tracker))));
+  }
+
+  /** Challenges that use a lab, limited by the API to what the caller may see. */
+  challengesForLab(labId: string): Observable<LabChallenge[]> {
+    return this.data(this.http.get<ApiResponse<LabChallenge[]>>(this.url(`/ctf-entity/by-lab/${labId}`)))
+      .pipe(map(challenges => challenges ?? []));
   }
 
   tracker(trackerId: string): Observable<LabTracker> {

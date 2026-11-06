@@ -39,6 +39,11 @@ export class RoomService extends BaseService {
     return this.get<ApiResponse<Room[]>>(`${this.reqUrl}`);
   }
 
+  /** Rooms the caller can run: every room for admins, the ones they facilitate otherwise. */
+  getFacilitatedRooms(): Observable<ApiResponse<Room[]>> {
+    return this.get<ApiResponse<Room[]>>(`${this.reqUrl}/facilitated`);
+  }
+
   getRoomById(roomId: string): Observable<ApiResponse<Room>> {
     return this.get<ApiResponse<Room>>(`${this.reqUrl}/by?id=${roomId}`);
   }

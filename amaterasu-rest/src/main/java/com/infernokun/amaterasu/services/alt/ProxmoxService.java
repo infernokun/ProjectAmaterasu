@@ -20,6 +20,7 @@ import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.util.Timeout;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -51,9 +52,14 @@ public class ProxmoxService extends BaseService {
     private final AESUtil aesUtil;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Autowired
     public ProxmoxService(AESUtil aesUtil) {
+        this(aesUtil, createRestTemplate());
+    }
+
+    ProxmoxService(AESUtil aesUtil, RestTemplate restTemplate) {
         this.aesUtil = aesUtil;
-        this.restTemplate = createRestTemplate();
+        this.restTemplate = restTemplate;
     }
 
     private String api(RemoteServer remoteServer, String path) {
@@ -134,6 +140,39 @@ public class ProxmoxService extends BaseService {
         return objectMapper.convertValue(
                 response.getBody().get("data"),
                 objectMapper.getTypeFactory().constructCollectionType(List.class, ProxmoxNetwork.class));
+    }
+
+    /**
+     * Asks the node for a VNC ticket for one VM. The ticket opens the node's vncwebsocket once,
+     * for the same API token, and doubles as the VNC password.
+     */
+    public ProxmoxVncTicket createVncProxy(RemoteServer remoteServer, int vmid) {
+        requireProxmox(remoteServer);
+        HttpHeaders headers = createHeaders(remoteServer);
+        String body = "{\"websocket\":1}";
+        headers.setContentLength(body.getBytes(StandardCharsets.UTF_8).length);
+        ResponseEntity<Map<String, Map<String, Object>>> response = restTemplate.exchange(
+                nodeApi(remoteServer, "/qemu/" + vmid + "/vncproxy"), HttpMethod.POST, new HttpEntity<>(body, headers),
+                new ParameterizedTypeReference<>() { });
+        Map<String, Object> data = response.getBody() != null ? response.getBody().get("data") : null;
+        if (data == null || data.get("ticket") == null || data.get("port") == null) {
+            throw new IllegalStateException("Proxmox did not return a console ticket");
+        }
+        return new ProxmoxVncTicket(String.valueOf(data.get("port")), String.valueOf(data.get("ticket")),
+                data.get("user") != null ? String.valueOf(data.get("user")) : null);
+    }
+
+    /** The node's websocket for a ticket from {@link #createVncProxy}. */
+    public java.net.URI vncWebSocketUri(RemoteServer remoteServer, int vmid, ProxmoxVncTicket ticket) {
+        return java.net.URI.create(String.format("wss://%s:8006/api2/json/nodes/%s/qemu/%d/vncwebsocket?port=%s&vncticket=%s",
+                remoteServer.getIpAddress(), remoteServer.getNodeName(), vmid,
+                java.net.URLEncoder.encode(ticket.port(), StandardCharsets.UTF_8),
+                java.net.URLEncoder.encode(ticket.ticket(), StandardCharsets.UTF_8)));
+    }
+
+    /** The Authorization header value for the node's API token. */
+    public String authorization(RemoteServer remoteServer) {
+        return createHeaders(remoteServer).getFirst(HttpHeaders.AUTHORIZATION);
     }
 
     /**

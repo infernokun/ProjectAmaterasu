@@ -10,6 +10,7 @@ import com.infernokun.amaterasu.models.entities.lab.dto.LabRequest;
 import com.infernokun.amaterasu.models.entities.lab.Lab;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
+import com.infernokun.amaterasu.models.enums.Role;
 import com.infernokun.amaterasu.services.alt.LabFileUploadService;
 import com.infernokun.amaterasu.services.entity.lab.LabService;
 import com.infernokun.amaterasu.services.entity.lab.RemoteServerService;
@@ -30,26 +31,45 @@ public class LabController extends BaseController {
     private final RemoteServerService remoteServerService;
     private final CurrentUser currentUser;
 
+    /** Authors and admins get drafts too; everyone else only sees published labs. */
     @GetMapping
     public ResponseEntity<ApiResponse<List<Lab>>> getAllLabs() {
         return ResponseEntity.ok(
                 ApiResponse.<List<Lab>>builder()
                         .code(HttpStatus.OK.value())
                         .message("Labs retrieved successfully.")
-                        .data(labService.findAllLabs())
+                        .data(isAuthor() ? labService.findAllLabs() : labService.findPublishedLabs())
                         .build()
         );
     }
 
     @GetMapping("{labId}")
     public ResponseEntity<ApiResponse<Lab>> getLabById(@PathVariable String labId) {
+        Lab lab = labService.findLabById(labId);
+        if (!isAuthor() && !LabService.isPublished(lab)) {
+            throw new ResourceNotFoundException("Lab " + labId + " not found");
+        }
         return ResponseEntity.ok(
                 ApiResponse.<Lab>builder()
                         .code(HttpStatus.OK.value())
                         .message("Lab retrieved successfully.")
-                        .data(labService.findLabById(labId))
+                        .data(lab)
                         .build()
         );
+    }
+
+    @PutMapping("/{id}/publish")
+    public ResponseEntity<ApiResponse<Lab>> publishLab(@PathVariable String id) {
+        return createSuccessResponse(labService.publish(id), "Lab published.");
+    }
+
+    @PutMapping("/{id}/unpublish")
+    public ResponseEntity<ApiResponse<Lab>> unpublishLab(@PathVariable String id) {
+        return createSuccessResponse(labService.unpublish(id), "Lab is a draft again.");
+    }
+
+    private boolean isAuthor() {
+        return currentUser.isAdmin() || currentUser.hasRole(Role.CREATOR);
     }
 
     /*@GetMapping("/settings/{teamId}/{labId}")

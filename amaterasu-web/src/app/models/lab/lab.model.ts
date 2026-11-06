@@ -13,6 +13,8 @@ export class Lab extends StoredObject {
   dockerFile?: string;
   ready?: boolean;
   vmIds?: number[];
+  /** Drafts are only listed for authors and cannot be started. */
+  published?: boolean;
 
   constructor(serverResult?: any) {
     if (serverResult) {
@@ -27,6 +29,7 @@ export class Lab extends StoredObject {
       this.dockerFile = serverResult.dockerFile;
       this.ready = serverResult.ready;
       this.vmIds = serverResult.vmIds;
+      this.published = serverResult.published;
     }
   }
 }
