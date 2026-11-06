@@ -11,8 +11,8 @@ const settings: ServerSettings = {
   username: 'amaterasu', nodeName: null, hasPassword: true, hasApiToken: false,
 };
 
-const server = (id: string, online = true, type = ServerType.DOCKER_HOST): Server => ({
-  id, name: id, ipAddress: '10.20.0.1', port: 22, serverType: type,
+const server = (id: string, online = true, type = ServerType.DOCKER_HOST, noNewLabs = false): Server => ({
+  id, name: id, ipAddress: '10.20.0.1', port: 22, serverType: type, noNewLabs,
   stats: {
     status: online ? LabStatus.ACTIVE : LabStatus.OFFLINE, totalRam: 32, usedRam: 8, availableRam: 24, cpu: 8, cpuUsagePercent: 10,
     totalDiskSpace: 500, usedDiskSpace: 100, availableDiskSpace: 400, uptime: 100, updatedAt: null,
@@ -154,6 +154,13 @@ describe('MoveLabDialogComponent', () => {
     button(el, 'Destroy and start fresh').click();
     await fixture.whenStable();
     expect(data.move).toHaveBeenCalledWith('dock-01', true);
+  });
+
+  it('will not move a lab onto a server taking no new labs', () => {
+    const { el } = create(LabStatus.STOPPED, [server('dock-03', true, ServerType.DOCKER_HOST, true)]);
+    expect(el.textContent).toContain('dock-03 takes no new labs');
+    expect(el.textContent).toContain('No new labs');
+    expect(button(el, 'Move lab').disabled).toBeTrue();
   });
 
   it('shows why a move failed and stays open', async () => {

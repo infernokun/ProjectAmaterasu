@@ -43,6 +43,7 @@ export interface MoveLabData {
                 <input type="radio" name="target" [value]="server.id" [checked]="target() === server.id" (change)="pick(server.id)">
                 <span class="grow"><span class="mono name">{{ server.name }}</span>
                   <span class="small muted"> · {{ addressOf(server) }}</span></span>
+                @if (server.noNewLabs) { <span class="tag">No new labs</span> }
                 <app-status-badge [tone]="health(server).tone" [label]="health(server).label" />
               </label>
             }
@@ -54,9 +55,13 @@ export interface MoveLabData {
               <div><strong>Its current copy is destroyed.</strong> The {{ units() }} on {{ data.from.name }} are removed, with anything
                 {{ data.deployment.teamName }} changed or saved in them. A fresh copy is then started on {{ nameOf(id) }}.</div>
             </div>
-            @if (!online(id)) {
+            @if (takesNoNewLabs(id)) {
+              <div class="banner bad"><app-icon name="alert" /><div>{{ nameOf(id) }} takes no new labs. Pick another server, or allow new labs on it first.</div></div>
+            } @else if (!online(id)) {
               <div class="banner bad"><app-icon name="alert" /><div>{{ nameOf(id) }} is not online, so the fresh copy cannot start there. Pick an online server.</div></div>
             }
+          } @else if (takesNoNewLabs(id)) {
+            <div class="banner bad"><app-icon name="alert" /><div>{{ nameOf(id) }} takes no new labs. Pick another server, or allow new labs on it first.</div></div>
           } @else {
             <div class="banner"><app-icon name="check" />
               <div>It is not deployed, so nothing is destroyed. The next time {{ data.deployment.teamName }} starts it, it starts on {{ nameOf(id) }}.</div>
@@ -100,7 +105,7 @@ export class MoveLabDialogComponent {
   protected readonly addressOf = address;
 
   protected readonly target = signal<string | null>(
-    this.data.targets.find(server => serverHealth(server).online)?.id ?? this.data.targets[0]?.id ?? null);
+    this.data.targets.find(server => serverHealth(server).online && !server.noNewLabs)?.id ?? this.data.targets[0]?.id ?? null);
   protected readonly moving = signal(false);
   protected readonly error = signal('');
 
@@ -108,7 +113,7 @@ export class MoveLabDialogComponent {
   protected readonly units = computed(() => (this.data.from.serverType === 'PROXMOX' ? 'cloned VMs and their bridge' : 'containers and volumes'));
   protected readonly canMove = computed(() => {
     const id = this.target();
-    return !!id && !this.moving() && (!this.deployed || this.online(id));
+    return !!id && !this.moving() && !this.takesNoNewLabs(id) && (!this.deployed || this.online(id));
   });
 
   protected nameOf(serverId: string): string {
@@ -118,6 +123,10 @@ export class MoveLabDialogComponent {
   protected online(serverId: string): boolean {
     const server = this.data.targets.find(candidate => candidate.id === serverId);
     return !!server && serverHealth(server).online;
+  }
+
+  protected takesNoNewLabs(serverId: string): boolean {
+    return !!this.data.targets.find(candidate => candidate.id === serverId)?.noNewLabs;
   }
 
   protected pick(serverId: string): void {

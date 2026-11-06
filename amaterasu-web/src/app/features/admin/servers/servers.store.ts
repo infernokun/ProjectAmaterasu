@@ -95,6 +95,11 @@ export const ServersStore = signalStore(
         throw error;
       }
     },
+    async setNewLabs(serverId: string, allowed: boolean): Promise<Server> {
+      const saved = await firstValueFrom(api.setNewLabs(serverId, allowed));
+      patchState(store, { servers: store.servers().map(server => (server.id === serverId ? saved : server)) });
+      return saved;
+    },
     async check(serverId: string): Promise<Server> {
       patchState(store, { checking: serverId });
       try {

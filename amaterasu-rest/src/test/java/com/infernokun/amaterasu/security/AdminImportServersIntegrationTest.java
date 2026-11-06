@@ -261,6 +261,91 @@ class AdminImportServersIntegrationTest extends IntegrationSupport {
         assertThat(events("LAB_ACTION_FAILED", tracker.getId()).getFirst().getDetail()).contains("Move to " + to.getName());
     }
 
+    // Stop new labs here
+
+    private RemoteServer drained() {
+        RemoteServer server = server(ServerType.DOCKER_HOST, true);
+        server.setNoNewLabs(true);
+        return remoteServerRepository.save(server);
+    }
+
+    private String output(org.springframework.test.web.servlet.ResultActions result) throws Exception {
+        JsonNode body = objectMapper.readTree(result.andReturn().getResponse().getContentAsString());
+        return body.get("data") != null && body.get("data").has("output") ? body.get("data").get("output").asText()
+                : body.get("message").asText();
+    }
+
+    @Test
+    void onlyAdminsStopAndAllowNewLabsOnAServer() throws Exception {
+        RemoteServer server = server(ServerType.DOCKER_HOST, true);
+        for (String token : nonAdmins()) {
+            send(put("/api/remote-server/" + server.getId() + "/new-labs"), Map.of("allowed", false), token)
+                    .andExpect(status().isForbidden());
+        }
+        assertThat(remoteServerRepository.findById(server.getId()).orElseThrow().getNoNewLabs()).isFalse();
+
+        String admin = admin();
+        send(put("/api/remote-server/" + server.getId() + "/new-labs"), Map.of(), admin).andExpect(status().isBadRequest());
+        JsonNode stopped = data(send(put("/api/remote-server/" + server.getId() + "/new-labs"), Map.of("allowed", false), admin)
+                .andExpect(status().isOk()).andReturn());
+        assertThat(stopped.get("noNewLabs").asBoolean()).isTrue();
+        assertThat(events("SERVER_NEW_LABS_STOPPED", server.getId())).hasSize(1);
+
+        send(put("/api/remote-server/" + server.getId() + "/new-labs"), Map.of("allowed", true), admin).andExpect(status().isOk());
+        assertThat(remoteServerRepository.findById(server.getId()).orElseThrow().getNoNewLabs()).isFalse();
+        assertThat(events("SERVER_NEW_LABS_ALLOWED", server.getId())).hasSize(1);
+    }
+
+    @Test
+    void aServerTakingNoNewLabsRefusesFreshStartsAndMovesOntoIt() throws Exception {
+        RemoteServer closed = drained();
+        RemoteServer open = server(ServerType.DOCKER_HOST, false);
+        Team team = team();
+        Lab lab = lab(LabType.DOCKER_COMPOSE, true);
+        String member = token(user(Role.MEMBER, team));
+
+        // From the catalog
+        String fresh = output(send(post("/api/labs/start"), Map.of("labId", lab.getId(), "remoteServerId", closed.getId()), member)
+                .andExpect(status().isBadRequest()));
+        assertThat(fresh).contains(closed.getName() + " takes no new labs");
+        assertThat(labTrackerRepository.findByLabStarted(lab)).isEmpty();
+
+        // A stopped copy starts fresh, so it is refused as well
+        LabTracker stopped = tracker(lab, team, LabStatus.STOPPED, open);
+        String again = output(send(post("/api/labs/start"), Map.of("labId", lab.getId(), "labTrackerId", stopped.getId(),
+                "remoteServerId", closed.getId()), member).andExpect(status().isBadRequest()));
+        assertThat(again).contains("takes no new labs");
+
+        // Moving onto it, deployed or not
+        String admin = admin();
+        assertThat(output(send(post("/api/lab-tracker/" + stopped.getId() + "/move"), Map.of("remoteServerId", closed.getId()), admin)
+                .andExpect(status().isBadRequest()))).contains("takes no new labs");
+        LabTracker running = tracker(lab(LabType.DOCKER_COMPOSE, true), team, LabStatus.ACTIVE, open);
+        assertThat(output(send(post("/api/lab-tracker/" + running.getId() + "/move"),
+                Map.of("remoteServerId", closed.getId(), "startFresh", true), admin)
+                .andExpect(status().isBadRequest()))).contains("takes no new labs");
+        assertThat(labTrackerRepository.findById(stopped.getId()).orElseThrow().getRemoteServer().getId()).isEqualTo(open.getId());
+    }
+
+    @Test
+    void labsAlreadyOnTheServerStillPauseAndResume() throws Exception {
+        RemoteServer closed = drained();
+        Team team = team();
+        String member = token(user(Role.MEMBER, team));
+        Lab lab = lab(LabType.DOCKER_COMPOSE, true);
+        LabTracker paused = tracker(lab, team, LabStatus.PAUSED, closed);
+        LabTracker running = tracker(lab(LabType.DOCKER_COMPOSE, true), team, LabStatus.ACTIVE, closed);
+
+        // Both get past the check and only fail where the test server does not answer
+        String resumed = output(send(post("/api/labs/start"), Map.of("labId", lab.getId(), "labTrackerId", paused.getId(),
+                "remoteServerId", closed.getId()), member));
+        assertThat(resumed).doesNotContain("takes no new labs").isNotBlank();
+        String pausedOut = output(send(post("/api/labs/pause"), Map.of("labId", running.getLabStarted().getId(),
+                "labTrackerId", running.getId(), "remoteServerId", closed.getId()), member).andExpect(status().isOk()));
+        assertThat(pausedOut).doesNotContain("takes no new labs");
+        assertThat(labTrackerRepository.findById(paused.getId()).orElseThrow().getRemoteServer().getId()).isEqualTo(closed.getId());
+    }
+
     // Classification banner
 
     @Test

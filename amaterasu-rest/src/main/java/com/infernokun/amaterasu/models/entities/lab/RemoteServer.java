@@ -26,6 +26,9 @@ public class RemoteServer extends StoredObject {
     private String apiToken;
     private ServerType serverType;
     private String nodeName;
+    /** Set by an admin: no new deployments start here. Labs already on it keep running, pausing and resuming. */
+    @Builder.Default
+    private Boolean noNewLabs = false;
     @OneToOne(mappedBy = "remoteServer", cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "stats_id", referencedColumnName = "id")
     private RemoteServerStats remoteServerStats;

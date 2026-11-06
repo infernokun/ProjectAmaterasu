@@ -149,6 +149,22 @@ export class AdminServersPage {
     this.dialog.open(MoveLabDialogComponent, { ...DIALOG_DEFAULTS, width: '520px', data });
   }
 
+  protected readonly togglingNewLabs = signal(false);
+
+  /** Stop new labs here, or allow them again. Labs already on the server are not touched. */
+  protected async toggleNewLabs(card: ServerCard): Promise<void> {
+    const allowed = card.server.noNewLabs;
+    this.togglingNewLabs.set(true);
+    try {
+      const saved = await this.store.setNewLabs(card.server.id, allowed);
+      this.toast.success(allowed ? `New labs can start on ${saved.name} again` : `No new labs start on ${saved.name}. Labs already there keep running.`);
+    } catch (error) {
+      this.toast.error(`${card.server.name} could not be changed.`, error);
+    } finally {
+      this.togglingNewLabs.set(false);
+    }
+  }
+
   protected async check(card: ServerCard): Promise<void> {
     try {
       const checked = await this.store.check(card.server.id);

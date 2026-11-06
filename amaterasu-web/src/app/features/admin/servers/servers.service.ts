@@ -33,6 +33,8 @@ export interface Server {
   port: number | null;
   serverType: ServerType;
   nodeName?: string | null;
+  /** An admin stopped new labs here; labs already on it keep running. */
+  noNewLabs: boolean;
   stats: ServerStats | null;
 }
 
@@ -128,6 +130,11 @@ export class ServersService {
       .pipe(map(r => toDeployment(r.data?.labTracker)));
   }
 
+  /** Stops or allows new labs on a server. */
+  setNewLabs(serverId: string, allowed: boolean): Observable<Server> {
+    return this.http.put<ApiResponse<any>>(this.url(`/remote-server/${serverId}/new-labs`), { allowed }).pipe(map(r => toServer(r.data)));
+  }
+
   check(serverId: string): Observable<Server> {
     return this.http.post<ApiResponse<any>>(this.url(`/remote-server/${serverId}/check`), {}).pipe(map(r => toServer(r.data)));
   }
@@ -146,6 +153,7 @@ export function toServer(raw: any): Server {
     port: raw.port ?? null,
     serverType: raw.serverType,
     nodeName: raw.nodeName,
+    noNewLabs: !!raw.noNewLabs,
     stats: stats ? {
       status: stats.status ?? null,
       hostname: stats.hostname,

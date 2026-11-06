@@ -78,7 +78,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/user/team/bulk").hasRole(admin)
                         .requestMatchers(HttpMethod.GET, "/api/remote-server/*/settings").hasRole(admin)
                         .requestMatchers(HttpMethod.POST, "/api/remote-server/*/validate").hasRole(admin)
-                        .requestMatchers(HttpMethod.PUT, "/api/remote-server/*").hasRole(admin)
+                        .requestMatchers(HttpMethod.PUT, "/api/remote-server/*", "/api/remote-server/*/new-labs").hasRole(admin)
                         .requestMatchers(HttpMethod.POST, "/api/lab-tracker/*/move").hasRole(admin)
                         .requestMatchers(HttpMethod.PUT, "/api/application-info/classification").hasRole(admin)
                         .requestMatchers(HttpMethod.GET, "/api/room/facilitated").hasAnyRole(admin, FACILITATOR.name())

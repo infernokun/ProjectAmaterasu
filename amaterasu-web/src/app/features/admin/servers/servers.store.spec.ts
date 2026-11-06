@@ -12,7 +12,7 @@ const stats = (patch: Partial<ServerStats> = {}): ServerStats => ({
 });
 
 const server = (id: string, patch: Partial<Server> = {}): Server => ({
-  id, name: id, ipAddress: '10.20.0.11', port: 22, serverType: ServerType.DOCKER_HOST, stats: stats(), ...patch,
+  id, name: id, ipAddress: '10.20.0.11', port: 22, serverType: ServerType.DOCKER_HOST, noNewLabs: false, stats: stats(), ...patch,
 });
 
 describe('serverHealth', () => {
@@ -49,7 +49,7 @@ describe('ServersStore', () => {
 
   beforeEach(() => {
     api = jasmine.createSpyObj<ServersService>('ServersService', ['servers', 'deployments', 'validate', 'add', 'check', 'delete',
-      'settings', 'validateEdit', 'update', 'moveLab']);
+      'settings', 'validateEdit', 'update', 'moveLab', 'setNewLabs']);
     api.servers.and.returnValue(of([server('dock-02'), server('dock-01')]));
     api.deployments.and.returnValue(of([
       { id: 'a', labName: 'Web', labType: null, teamId: 't1', teamName: 'Red Fox', status: LabStatus.ACTIVE, serverId: 'dock-01', units: '4 containers', updatedAt: null },
@@ -88,6 +88,16 @@ describe('ServersStore', () => {
     const store = TestBed.inject(ServersStore);
     store.load();
     expect(store.cards()[0].labs.map(d => d.id)).toEqual(['a', 'b']);
+    expect(store.cards()[0].deployments.map(d => d.id)).toEqual(['a']);
+  });
+
+  it('stops and allows new labs on a server', async () => {
+    const store = TestBed.inject(ServersStore);
+    store.load();
+    api.setNewLabs.and.returnValue(of(server('dock-01', { noNewLabs: true })));
+    await store.setNewLabs('dock-01', false);
+    expect(api.setNewLabs).toHaveBeenCalledWith('dock-01', false);
+    expect(store.cards()[0].server.noNewLabs).toBeTrue();
     expect(store.cards()[0].deployments.map(d => d.id)).toEqual(['a']);
   });
 

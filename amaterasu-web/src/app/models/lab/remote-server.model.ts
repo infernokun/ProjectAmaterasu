@@ -10,6 +10,8 @@ export class RemoteServer extends StoredObject {
   serverType?: ServerType;
   remoteServerStats?: RemoteServerStats;
   nodeName?: string;
+  /** An admin stopped new labs here; labs already on it keep running. */
+  noNewLabs?: boolean;
 
   constructor(serverResult?: any) {
     super(serverResult);
@@ -20,6 +22,7 @@ export class RemoteServer extends StoredObject {
       this.serverType = serverResult.serverType;
       this.remoteServerStats = serverResult.remoteServerStats ? new RemoteServerStats(serverResult.remoteServerStats) : undefined;
       this.nodeName = serverResult.nodeName;
+      this.noNewLabs = !!serverResult.noNewLabs;
     }
   }
 }

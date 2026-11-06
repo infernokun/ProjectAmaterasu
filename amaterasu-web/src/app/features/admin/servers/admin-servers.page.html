@@ -30,7 +30,12 @@
               [attr.aria-pressed]="store.selected()?.server?.id === card.server.id" (click)="store.select(card.server.id)">
         <div class="row between full">
           <span class="row"><app-icon name="server" /><strong class="mono" style="font-size:15px">{{ card.server.name }}</strong></span>
-          <app-status-badge [tone]="card.health.tone" [label]="card.health.label" />
+          <span class="row">
+            @if (card.server.noNewLabs) {
+              <span class="tag" title="An admin stopped new labs here">No new labs</span>
+            }
+            <app-status-badge [tone]="card.health.tone" [label]="card.health.label" />
+          </span>
         </div>
         <div class="small muted">{{ typeLabel(card.server.serverType) }} · <span class="mono">{{ address(card.server) }}</span></div>
         @for (meter of [card.health.cpu, card.health.memory, card.health.disk]; track meter.label) {
@@ -61,10 +66,22 @@
             {{ card.health.online ? 'Check now' : 'Retry now' }}
           </button>
           <button type="button" class="btn sm" (click)="edit(card)"><app-icon name="edit" size="sm" />Edit</button>
+          <button type="button" class="btn sm" [disabled]="togglingNewLabs()" (click)="toggleNewLabs(card)">
+            {{ card.server.noNewLabs ? 'Allow new labs' : 'Stop new labs here' }}</button>
           <button type="button" class="btn sm danger" [disabled]="card.deployments.length > 0" [title]="deleteNote(card)"
                   (click)="remove(card)">Delete</button>
         </div>
       </div>
+      @if (card.server.noNewLabs) {
+        <div class="detail-banner">
+          <div class="banner warn"><app-icon name="pause" />
+            <div class="grow"><strong>No new labs start on {{ card.server.name }}.</strong>
+              {{ card.deployments.length ? 'The ' + card.deployments.length + ' team ' + (card.deployments.length === 1 ? 'lab' : 'labs') + ' already here keep running, and teams can pause and resume them.' : 'Nothing is deployed here now.' }}
+              Teams start new labs on other servers, and labs cannot be moved here.</div>
+            <button type="button" class="btn sm" [disabled]="togglingNewLabs()" (click)="toggleNewLabs(card)">Allow new labs</button>
+          </div>
+        </div>
+      }
       @if (card.health.label === 'Offline') {
         <div class="detail-banner">
           <div class="banner bad"><app-icon name="alert" />

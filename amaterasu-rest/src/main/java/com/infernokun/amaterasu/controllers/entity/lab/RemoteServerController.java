@@ -113,6 +113,21 @@ public class RemoteServerController extends BaseController {
         return createSuccessResponse(server, changed.isEmpty() ? "Nothing changed." : "Server saved.");
     }
 
+    public record NewLabsRequest(Boolean allowed) {
+    }
+
+    /** Admins stop or allow new labs on a server; labs already there keep running, pausing and resuming. */
+    @PutMapping("/{id}/new-labs")
+    public ResponseEntity<ApiResponse<RemoteServer>> setNewLabs(@PathVariable String id, @RequestBody NewLabsRequest request) {
+        if (request == null || request.allowed() == null) {
+            throw new IllegalArgumentException("Say whether new labs are allowed");
+        }
+        RemoteServer server = remoteServerService.setNoNewLabs(id, !request.allowed());
+        auditService.record(request.allowed() ? "SERVER_NEW_LABS_ALLOWED" : "SERVER_NEW_LABS_STOPPED", "SERVER", id,
+                server.getName(), null, request.allowed() ? "New labs can start here again" : "No new labs start here");
+        return createSuccessResponse(server, request.allowed() ? "New labs can start here." : "No new labs start here.");
+    }
+
     /** Checks a saved server now and refreshes its stats. */
     @PostMapping("/{id}/check")
     public ResponseEntity<ApiResponse<RemoteServer>> checkRemoteServer(@PathVariable String id) {

@@ -160,8 +160,10 @@ abstract class IntegrationSupport {
     LabTracker tracker(Lab lab, Team owner, LabStatus status, RemoteServer server) {
         LabTracker tracker = labTrackerRepository.save(LabTracker.builder()
                 .labStarted(lab).labOwner(owner).labStatus(status).remoteServer(server).build());
-        owner.getTeamActiveLabs().add(tracker.getId());
-        teamRepository.save(owner);
+        // Reloaded, so one team can be given several labs
+        Team fresh = teamRepository.findById(owner.getId()).orElseThrow();
+        fresh.getTeamActiveLabs().add(tracker.getId());
+        teamRepository.save(fresh);
         return tracker;
     }
 

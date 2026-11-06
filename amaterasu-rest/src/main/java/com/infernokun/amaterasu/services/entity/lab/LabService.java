@@ -334,6 +334,11 @@ public class LabService extends BaseService {
         }
         RemoteServer server = hasDeployment(labTracker) ? LabTrackerService.serverFor(labTracker, remoteServer) : remoteServer;
 
+        // Resuming a paused lab is not a new deployment, so it still works on a server taking no new labs
+        if (!hasDeployment(labTracker) && RemoteServerService.takesNoNewLabs(server)) {
+            return new LabActionResult(false, labTracker, noNewLabsMessage(server));
+        }
+
         if (server.getRemoteServerStats() == null || server.getRemoteServerStats().getStatus() != LabStatus.ACTIVE) {
             return new LabActionResult(false, labTracker, server.getName() + " is not ACTIVE!");
         }
@@ -534,6 +539,9 @@ public class LabService extends BaseService {
             throw new IllegalArgumentException(target.getName() + " cannot run this kind of lab. Pick a "
                     + (type == LabType.VIRTUAL_MACHINE ? "Proxmox node." : "Docker host."));
         }
+        if (RemoteServerService.takesNoNewLabs(target)) {
+            throw new IllegalStateException(noNewLabsMessage(target));
+        }
         boolean deployed = hasDeployment(labTracker);
         if (deployed && !startFresh) {
             throw new ResourceInUseException(name + " is deployed on " + (source != null ? source.getName() : "its server")
@@ -595,6 +603,10 @@ public class LabService extends BaseService {
         } finally {
             labActionGuard.release(labTracker.getId());
         }
+    }
+
+    private static String noNewLabsMessage(RemoteServer server) {
+        return server.getName() + " takes no new labs right now. Pick another server, or ask an admin to allow new labs on it.";
     }
 
     /** Records a lab action: the action on success, LAB_ACTION_FAILED with the reason otherwise. */

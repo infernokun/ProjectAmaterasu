@@ -9,7 +9,7 @@ import { CatalogLab, LabBuilderService } from './lab-builder.service';
 import { LabBuilderStore } from './lab-builder.store';
 
 const server = (id: string, type: ServerType, status: LabStatus | null = LabStatus.ACTIVE): Server => ({
-  id, name: id, ipAddress: '10.0.0.1', port: 22, serverType: type,
+  id, name: id, ipAddress: '10.0.0.1', port: 22, serverType: type, noNewLabs: false,
   stats: status ? {
     status, totalRam: 32, usedRam: 8, availableRam: 24, cpu: 8, cpuUsagePercent: 10,
     totalDiskSpace: 500, usedDiskSpace: 100, availableDiskSpace: 400, uptime: 100,

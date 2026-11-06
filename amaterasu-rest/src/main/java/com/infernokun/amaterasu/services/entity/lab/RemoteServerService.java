@@ -239,6 +239,18 @@ public class RemoteServerService extends BaseService {
         return value == null ? "" : value.trim();
     }
 
+    public static boolean takesNoNewLabs(RemoteServer server) {
+        return server != null && Boolean.TRUE.equals(server.getNoNewLabs());
+    }
+
+    /** Stops or allows new deployments on a server; labs already on it are left alone. */
+    public RemoteServer setNoNewLabs(String id, boolean noNewLabs) {
+        RemoteServer server = findServerById(id);
+        server.setNoNewLabs(noNewLabs);
+        server.setUpdatedAt(LocalDateTime.now());
+        return remoteServerRepository.save(server);
+    }
+
     public void requireValidNewServer(RemoteServer server) {
         if (server.getServerType() == null || server.getServerType() == ServerType.UNKNOWN) {
             throw new IllegalArgumentException("Choose a Docker host or a Proxmox node");
