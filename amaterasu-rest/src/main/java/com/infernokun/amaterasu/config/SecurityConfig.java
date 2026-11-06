@@ -119,6 +119,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/audit").authenticated()
                         .requestMatchers("/api/auth/sessions", "/api/auth/sessions/**").authenticated()
 
+                        // Top bar search: any signed in user. The service scopes results by role.
+                        .requestMatchers(HttpMethod.GET, "/api/search").authenticated()
+
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .bearerTokenResolver(bearerTokenResolver())
