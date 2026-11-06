@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal, untracked } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 import { ServerType } from '../../../enums/server-type.enum';
@@ -61,8 +61,15 @@ export class AdminServersPage {
     return seconds < 60 ? `last update ${seconds}s ago` : `last update ${relativeTime(at, new Date(this.now())).toLowerCase()}`;
   });
 
+  /** ?server= from the top bar search. */
+  readonly serverParam = input<string>(undefined, { alias: 'server' });
+
   constructor() {
     this.store.load();
+    effect(() => {
+      const serverId = this.serverParam();
+      if (serverId) untracked(() => this.store.select(serverId));
+    });
     const refresh = setInterval(() => this.store.load(), REFRESH_MS);
     const tick = setInterval(() => this.now.set(Date.now()), 5_000);
     inject(DestroyRef).onDestroy(() => {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, effect, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
@@ -54,6 +54,7 @@ export class AdminUsersPage {
   /** From the ?tab= query parameter. */
   readonly tabParam = input<string>(undefined, { alias: 'tab' });
   protected readonly tab = linkedSignal<Tab>(() => (this.tabParam() === 'teams' ? 'teams' : 'users'));
+  readonly queryParam = input<string>(undefined, { alias: 'q' });
 
   protected readonly roles = ASSIGNABLE_ROLES;
   protected readonly labels = ROLE_LABELS;
@@ -72,6 +73,11 @@ export class AdminUsersPage {
 
   constructor() {
     this.store.load();
+    // ?q= from the top bar search
+    effect(() => {
+      const query = this.queryParam();
+      if (query !== undefined) untracked(() => this.store.setQuery(query));
+    });
   }
 
   protected isMe(user: AdminUser): boolean {
