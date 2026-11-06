@@ -38,7 +38,8 @@ COPY --link --chown=101:101 --from=compile-stage /app/dist/app/browser /usr/shar
 COPY --chmod=755 ./scripts/docker-entrypoint.sh /docker-entrypoint.sh
 
 EXPOSE 80
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s CMD wget -q --spider http://localhost/health || exit 1
+# 127.0.0.1, not localhost: localhost resolves to ::1 first and nginx listens on IPv4 only
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s CMD wget -q --spider http://127.0.0.1/health || exit 1
 
 USER nginx
 
