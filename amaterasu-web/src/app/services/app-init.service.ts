@@ -80,6 +80,16 @@ export class AppInitService extends BaseService {
     return this.post<ApiResponse<ApplicationInfo>>(this.environmentService.settings?.restUrl + '/application-info', applicationInfo);
   }
 
+  /** Admins set the classification banner; everyone sees the new one at once in this tab. */
+  setClassification(classification: string): Observable<ApplicationInfo> {
+    return this.put<ApiResponse<ApplicationInfo>>(this.environmentService.settings?.restUrl + '/application-info/classification', { classification })
+      .pipe(map(response => {
+        const info = new ApplicationInfo(response.data);
+        this.applicationInfo$.next(info);
+        return info;
+      }));
+  }
+
   setInitialized(value: boolean): void {
     this.initializedSubject$.next(value);
   }
