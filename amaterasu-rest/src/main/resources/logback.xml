@@ -63,6 +63,9 @@
     <logger name="com.zaxxer.hikari" level="WARN" />
     <logger name="org.apache.catalina" level="WARN" />
     <logger name="org.apache.tomcat" level="WARN" />
+    <!-- Wire logs carry the API token and cloud-init passwords -->
+    <logger name="org.apache.hc.client5.http.wire" level="INFO" />
+    <logger name="org.apache.hc.client5.http.headers" level="INFO" />
 
     <!-- Root logger -->
     <root level="INFO">
