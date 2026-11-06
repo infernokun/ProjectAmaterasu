@@ -118,7 +118,9 @@ public class RoomPlayService {
                     history));
         }
 
-        return new RoomStandings(room.getId(), room.getName(), players, teams(players));
+        return new RoomStandings(room.getId(), room.getName(),
+                room.getCreatedAt() != null ? toInstant(room.getCreatedAt()) : null, players,
+                teams(players, teamSizes()));
     }
 
     public RoomLive live(String roomId) {
@@ -318,7 +320,13 @@ public class RoomPlayService {
         return total;
     }
 
-    private static List<RoomStandings.TeamRow> teams(List<RoomStandings.Player> players) {
+    private Map<String, Integer> teamSizes() {
+        Map<String, Integer> sizes = new HashMap<>();
+        userRepository.countEnabledByTeam().forEach(row -> sizes.put((String) row[0], ((Number) row[1]).intValue()));
+        return sizes;
+    }
+
+    private static List<RoomStandings.TeamRow> teams(List<RoomStandings.Player> players, Map<String, Integer> sizes) {
         Map<String, List<RoomStandings.Player>> byTeam = new LinkedHashMap<>();
         players.stream().filter(player -> player.teamId() != null)
                 .forEach(player -> byTeam.computeIfAbsent(player.teamId(), key -> new ArrayList<>()).add(player));
@@ -326,6 +334,7 @@ public class RoomPlayService {
         List<RoomStandings.TeamRow> rows = byTeam.values().stream().map(members -> {
             RoomStandings.Player first = members.getFirst();
             return new RoomStandings.TeamRow(0, first.teamId(), first.teamName(), members.size(),
+                    Math.max(members.size(), sizes.getOrDefault(first.teamId(), 0)),
                     members.stream().mapToInt(RoomStandings.Player::points).sum(),
                     members.stream().mapToInt(RoomStandings.Player::solves).sum(),
                     members.stream().mapToInt(RoomStandings.Player::hintsUsed).sum(),
@@ -340,7 +349,7 @@ public class RoomPlayService {
         List<RoomStandings.TeamRow> ranked = new ArrayList<>();
         for (int i = 0; i < rows.size(); i++) {
             RoomStandings.TeamRow row = rows.get(i);
-            ranked.add(new RoomStandings.TeamRow(i + 1, row.teamId(), row.name(), row.members(), row.points(),
+            ranked.add(new RoomStandings.TeamRow(i + 1, row.teamId(), row.name(), row.members(), row.teamSize(), row.points(),
                     row.solves(), row.hintsUsed(), row.lastSolveAt(), row.lastHourChange(), row.history()));
         }
         return ranked;
