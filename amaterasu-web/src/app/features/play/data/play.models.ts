@@ -65,7 +65,10 @@ export interface TeamStanding {
   rank: number;
   teamId: string;
   name: string;
+  /** Members who joined this room. */
   members: number;
+  /** Everyone on the team. */
+  teamSize?: number;
   points: number;
   solves: number;
   hintsUsed: number;
@@ -77,6 +80,8 @@ export interface TeamStanding {
 export interface RoomStandings {
   roomId: string;
   roomName: string;
+  /** When the room was created (ISO); the points chart starts there. */
+  openedAt?: string | null;
   players: PlayerStanding[];
   teams: TeamStanding[];
 }

@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { CrumbsService } from '../../../core/crumbs.service';
 import { RoomsStore } from '../../../core/stores/rooms.store';
 import { SessionStore } from '../../../core/stores/session.store';
-import { clock, initials, ordinal, points } from '../../../shared/format';
+import { clock, dateTime, initials, ordinal, points, toDate } from '../../../shared/format';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { SkeletonComponent } from '../../../shared/ui/skeleton.component';
@@ -65,7 +65,7 @@ export class ScoreboardPage {
     const roomId = this.room();
     if (this.teams()) {
       return this.store.teams().map(team => ({
-        id: team.teamId, rank: team.rank, name: team.name, sub: `${team.members} ${team.members === 1 ? 'member' : 'members'}`,
+        id: team.teamId, rank: team.rank, name: team.name, sub: memberCount(team.teamSize ?? team.members),
         points: team.points, solves: team.solves, hints: team.hintsUsed, last: clock(team.lastSolveAt) || '-',
         trend: trend(team.lastHourChange), you: team.teamId === this.session.teamId(), link: null,
       }));
@@ -117,7 +117,24 @@ export class ScoreboardPage {
     return leader ? `Line chart of ${this.teams() ? 'team ' : ''}points over time. ${leader.name} leads with ${points(leader.points)}.` : 'No points yet';
   });
 
+  /** Where the chart starts: the room's opening, or its first points if those came earlier. */
+  protected readonly chartStart = computed(() => {
+    const opened = toDate(this.store.standings()?.openedAt)?.getTime();
+    return opened ?? null;
+  });
+
+  protected readonly since = computed(() => {
+    const opened = toDate(this.store.standings()?.openedAt);
+    if (!opened) return 'since the first points in this room';
+    const today = new Date().toDateString() === opened.toDateString();
+    return `since the room opened ${today ? 'at ' + clock(opened) : 'on ' + dateTime(opened)}`;
+  });
+
   protected setView(view: ScoreView): void {
     this.store.setView(view);
   }
+}
+
+function memberCount(count: number): string {
+  return `${count} ${count === 1 ? 'member' : 'members'}`;
 }

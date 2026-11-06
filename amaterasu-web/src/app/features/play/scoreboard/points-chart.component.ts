@@ -93,6 +93,8 @@ function totalAt(series: ChartSeries, at: number): number {
 export class PointsChartComponent {
   readonly series = input.required<ChartSeries[]>();
   readonly label = input('Points over time');
+  /** Where the time axis starts (epoch ms); the first point when left out or later. */
+  readonly start = input<number | null>(null);
 
   protected readonly left = LEFT;
   protected readonly right = RIGHT;
@@ -101,7 +103,9 @@ export class PointsChartComponent {
   private readonly range = computed(() => {
     const times = this.series().flatMap(series => series.points.map(point => point.at));
     const totals = this.series().flatMap(series => series.points.map(point => point.total));
-    const start = times.length ? Math.min(...times) : Date.now() - 3600_000;
+    const first = times.length ? Math.min(...times) : Date.now() - 3600_000;
+    const opened = this.start();
+    const start = opened !== null && opened < first ? opened : first;
     const end = Math.max(Date.now(), ...(times.length ? times : [start + 1]));
     const step = niceStep(Math.max(1, ...totals));
     const max = Math.max(step, Math.ceil(Math.max(0, ...totals) / step) * step);

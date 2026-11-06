@@ -23,6 +23,21 @@ describe('PointsChartComponent', () => {
     expect(el.querySelector('svg')?.getAttribute('aria-label')).toBe('Points over time');
   });
 
+  it('starts the time axis at the room opening when that came first', () => {
+    const first = Date.now() - 2 * 3600_000;
+    fixture.componentRef.setInput('series', [{ name: 'jmorales', tone: 'you', points: [{ at: first, total: 0 }, { at: first + 600_000, total: 100 }] }]);
+    const firstTick = () => (fixture.nativeElement as HTMLElement).querySelector('text.axis[y="258"]')?.textContent;
+    const label = (at: number) => new Date(at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    fixture.detectChanges();
+    expect(firstTick()).toBe(label(first));
+    fixture.componentRef.setInput('start', first - 3600_000);
+    fixture.detectChanges();
+    expect(firstTick()).toBe(label(first - 3600_000));
+    fixture.componentRef.setInput('start', first + 600_000);
+    fixture.detectChanges();
+    expect(firstTick()).toBe(label(first));
+  });
+
   it('marks your points', () => {
     expect((fixture.nativeElement as HTMLElement).querySelectorAll('circle.mk').length).toBe(2);
   });
