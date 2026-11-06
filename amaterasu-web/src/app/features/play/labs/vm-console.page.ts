@@ -11,6 +11,7 @@ import { StatusBadgeComponent } from '../../../shared/ui/status-badge.component'
 import { PlayApiService } from '../data/play-api.service';
 import { ConsoleService } from './console.service';
 import { ConsoleState, disconnectReason, unavailableReason } from './console-state';
+import { LabAccessComponent } from './lab-access.component';
 import { isVm, labTypeLabel } from './lab-view';
 import { RFB_LOADER, RfbClient } from './novnc';
 
@@ -25,7 +26,7 @@ const STATE_LOOK: Record<ConsoleState, { tone: StatusTone; label: string }> = {
 @Component({
   selector: 'app-vm-console-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, StatusBadgeComponent],
+  imports: [RouterLink, IconComponent, StatusBadgeComponent, LabAccessComponent],
   templateUrl: './vm-console.page.html',
   styleUrl: './vm-console.page.scss',
   host: { class: 'content' },

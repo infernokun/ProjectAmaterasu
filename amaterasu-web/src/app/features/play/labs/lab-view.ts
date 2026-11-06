@@ -4,6 +4,7 @@ import { LabType } from '../../../enums/lab-type.enum';
 import { DockerServiceInfo } from '../../../models/lab/docker-service-info.model';
 import { LabTracker } from '../../../models/lab/lab-tracker.model';
 import { Lab } from '../../../models/lab/lab.model';
+import { ProxmoxVM } from '../../../models/lab/proxmox-vm.model';
 import { RemoteServer } from '../../../models/lab/remote-server.model';
 import { LabDisplayState, StatusTone, labStateMeta } from '../../../shared/lab-status';
 
@@ -22,6 +23,31 @@ export function labTypeLabel(lab: Lab | undefined): string {
 }
 
 const RUNNING = new Set<LabDisplayState>([LabStatus.ACTIVE, LabStatus.DEGRADED, LabStatus.ACTIVE_FAILED, LabStatus.FAILED_ACTIVE]);
+
+export const isRunningState = (state: LabDisplayState) => RUNNING.has(state);
+
+/** The lab's way in from the LAN, if it has one. */
+export function bastionOf(tracker: LabTracker | null | undefined): ProxmoxVM | null {
+  return (tracker?.vms ?? []).find(vm => vm.role === 'bastion') ?? null;
+}
+
+/** The cloud-init user the copy's password is for: the bastion's, else the first VM that has one. */
+export function loginUser(tracker: LabTracker | null | undefined): string | null {
+  const bastion = bastionOf(tracker);
+  return bastion?.ciuser ?? (tracker?.vms ?? []).find(vm => vm.ciuser)?.ciuser ?? null;
+}
+
+/** A running VM whose guest agent has not answered yet is still starting up. */
+export const startingUp = (vm: ProxmoxVM) => vm.status === 'running' && !!vm.guestAgent && vm.ready === false;
+
+export function vmLook(vm: ProxmoxVM): { tone: StatusTone; label: string } {
+  if (vm.status === 'running') {
+    if (startingUp(vm)) return { tone: 'work', label: 'Starting up' };
+    return { tone: 'active', label: vm.guestAgent && vm.ready ? 'Ready' : 'running' };
+  }
+  if (vm.status === 'paused') return { tone: 'paused', label: 'paused' };
+  return { tone: 'off', label: vm.status ?? 'unknown' };
+}
 
 export interface LabCardActions {
   canOpen: boolean;
@@ -93,9 +119,13 @@ export function labDetail(tracker: LabTracker, state: LabDisplayState): string {
   const { up, total, noun } = unitCounts(tracker);
   const server = tracker.remoteServer?.name ?? 'the server';
   switch (state) {
-    case LabStatus.ACTIVE:
+    case LabStatus.ACTIVE: {
       if (total === 0) return vm ? 'Running. Reach the VMs through the Proxmox console.' : 'Running.';
-      return vm ? `${up} of ${total} VMs running. Reach them through the Proxmox console.` : `${up} of ${total} services running.`;
+      if (!vm) return `${up} of ${total} services running.`;
+      const starting = (tracker.vms ?? []).filter(startingUp).length;
+      const reach = bastionOf(tracker) ? 'SSH in through the bastion or use the console.' : 'Reach them through the Proxmox console.';
+      return `${up} of ${total} VMs running${starting ? `, ${starting} starting up` : ''}. ${reach}`;
+    }
     case LabStatus.DEGRADED: {
       const down = failedServices(tracker).map(service => serviceName(tracker, service));
       return total
