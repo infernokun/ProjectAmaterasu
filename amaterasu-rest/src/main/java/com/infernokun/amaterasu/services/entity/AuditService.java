@@ -6,6 +6,7 @@ import com.infernokun.amaterasu.repositories.AuditEventRepository;
 import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -34,11 +35,13 @@ public class AuditService {
     private final AuditEventRepository repository;
     private final CurrentUser currentUser;
     private final TransactionTemplate ownTransaction;
+    private final ApplicationEventPublisher events;
 
     public AuditService(AuditEventRepository repository, CurrentUser currentUser,
-                        PlatformTransactionManager transactionManager) {
+                        PlatformTransactionManager transactionManager, ApplicationEventPublisher events) {
         this.repository = repository;
         this.currentUser = currentUser;
+        this.events = events;
         this.ownTransaction = new TransactionTemplate(transactionManager);
         this.ownTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -80,6 +83,7 @@ public class AuditService {
                     .detail(clip(detail, MAX_DETAIL))
                     .build();
             ownTransaction.executeWithoutResult(status -> repository.save(event));
+            events.publishEvent(new AuditRecordedEvent(event));
         } catch (RuntimeException e) {
             LOGGER.warn("Could not record audit event {} on {} {}", action, targetType, targetId, e);
         }

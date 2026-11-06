@@ -119,8 +119,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/audit").authenticated()
                         .requestMatchers("/api/auth/sessions", "/api/auth/sessions/**").authenticated()
 
-                        // Top bar search: any signed in user. The service scopes results by role.
+                        // Top bar search and notifications: any signed in user. The services scope search
+                        // results by role and notifications to their recipient.
                         .requestMatchers(HttpMethod.GET, "/api/search").authenticated()
+                        .requestMatchers("/api/notifications", "/api/notifications/**").authenticated()
 
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2

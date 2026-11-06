@@ -120,6 +120,27 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /** Sends a new notification to its recipient's open sockets only. */
+    @TransactionalEventListener(fallbackExecution = true)
+    public void onNotificationCreated(NotificationCreatedEvent event) {
+        String recipientId = event.notification().getRecipientId();
+        String message;
+        try {
+            ObjectNode node = objectMapper.createObjectNode();
+            node.put("type", "notification");
+            node.set("notification", objectMapper.valueToTree(event.notification()));
+            message = objectMapper.writeValueAsString(node);
+        } catch (JsonProcessingException | IllegalArgumentException e) {
+            log.warn("WEBSOCKET Could not serialize notification {}: {}", event.notification().getId(), e.getMessage());
+            return;
+        }
+        for (WebSocketSession session : this.currentSessions) {
+            if (session.isOpen() && recipientId != null && recipientId.equals(session.getAttributes().get(USER_ID))) {
+                send(session, message);
+            }
+        }
+    }
+
     private void send(WebSocketSession session, String message) {
         try {
             session.sendMessage(new TextMessage(message));

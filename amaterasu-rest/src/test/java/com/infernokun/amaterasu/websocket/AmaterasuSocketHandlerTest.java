@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.websocket;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.infernokun.amaterasu.models.entities.Notification;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
@@ -82,6 +83,25 @@ class AmaterasuSocketHandlerTest {
         ArgumentCaptor<TextMessage> message = ArgumentCaptor.forClass(TextMessage.class);
         verify(session).sendMessage(message.capture());
         return objectMapper.readTree(message.getValue().getPayload());
+    }
+
+    @Test
+    void sendsNotificationsOnlyToTheirRecipient() throws Exception {
+        user("member-red", Role.MEMBER, red, false);
+        user("member-blue", Role.MEMBER, blue, false);
+        WebSocketSession redSession = connect("member-red");
+        WebSocketSession blueSession = connect("member-blue");
+        Notification notification = Notification.builder().id("n1").recipientId("member-red").type("POINTS_AWARDED")
+                .title("+50 pts").createdAt(java.time.Instant.parse("2026-11-06T10:00:00Z")).build();
+
+        handler.onNotificationCreated(new NotificationCreatedEvent(notification));
+
+        JsonNode payload = sentTo(redSession);
+        assertThat(payload.get("type").asText()).isEqualTo("notification");
+        assertThat(payload.get("notification").get("title").asText()).isEqualTo("+50 pts");
+        assertThat(payload.get("notification").get("createdAt").asText()).isEqualTo("2026-11-06T10:00:00Z");
+        assertThat(payload.get("notification").has("recipientId")).isFalse();
+        verify(blueSession, never()).sendMessage(any());
     }
 
     @Test
