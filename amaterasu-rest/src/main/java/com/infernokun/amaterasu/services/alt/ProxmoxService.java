@@ -27,6 +27,7 @@ import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.net.ssl.SSLContext;
@@ -57,7 +58,7 @@ public class ProxmoxService extends BaseService {
         this(aesUtil, createRestTemplate());
     }
 
-    ProxmoxService(AESUtil aesUtil, RestTemplate restTemplate) {
+    public ProxmoxService(AESUtil aesUtil, RestTemplate restTemplate) {
         this.aesUtil = aesUtil;
         this.restTemplate = restTemplate;
     }
@@ -98,7 +99,10 @@ public class ProxmoxService extends BaseService {
                 .collect(Collectors.toList());
     }
 
-    /** Returns the current state of the given VMs, skipping any that no longer exist. */
+    /**
+     * Returns the current state of the given VMs, skipping only those Proxmox says do not exist.
+     * Any other failure throws, so callers never mistake an unreadable VM for a destroyed one.
+     */
     public List<ProxmoxVM> getVMsByIds(RemoteServer remoteServer, List<Integer> vmIds) {
         HttpEntity<String> entity = new HttpEntity<>(createHeaders(remoteServer));
         List<ProxmoxVM> found = new ArrayList<>();
@@ -107,14 +111,44 @@ public class ProxmoxService extends BaseService {
                 ResponseEntity<Map<String, ProxmoxVM>> response = restTemplate.exchange(
                         nodeApi(remoteServer, "/qemu/" + vmid + "/status/current"), HttpMethod.GET, entity,
                         new ParameterizedTypeReference<>() { });
-                if (response.getBody() != null && response.getBody().get("data") != null) {
-                    found.add(response.getBody().get("data"));
+                if (response.getBody() == null || response.getBody().get("data") == null) {
+                    throw new IllegalStateException("Could not read VM " + vmid + " on " + remoteServer.getName()
+                            + ": Proxmox sent no VM status");
                 }
+                found.add(response.getBody().get("data"));
+            } catch (RestClientResponseException e) {
+                if (!vmDoesNotExist(e)) {
+                    throw new IllegalStateException("Could not read VM " + vmid + " on " + remoteServer.getName()
+                            + ": " + e.getStatusCode().value() + " " + proxmoxMessage(e));
+                }
+                LOGGER.info("VM {} no longer exists on {}", vmid, remoteServer.getName());
             } catch (RestClientException e) {
-                LOGGER.warn("Could not read VM {} on {}: {}", vmid, remoteServer.getIpAddress(), e.getMessage());
+                throw new IllegalStateException("Could not read VM " + vmid + " on " + remoteServer.getName()
+                        + ": no answer from " + remoteServer.getIpAddress() + " (" + e.getMessage() + ")");
             }
         }
         return found;
+    }
+
+    /** PVE answers 500 "Configuration file '…/123.conf' does not exist" for a missing VM. 595 and the rest are not "gone". */
+    static boolean vmDoesNotExist(RestClientResponseException e) {
+        int code = e.getStatusCode().value();
+        return code == 404 || (code == 500 && (String.valueOf(e.getStatusText()) + " " + e.getResponseBodyAsString())
+                .contains("does not exist"));
+    }
+
+    /** Proxmox's own error text: the body's message, else the status line. */
+    static String proxmoxMessage(RestClientResponseException e) {
+        try {
+            Object message = objectMapper.readValue(e.getResponseBodyAsString(), Map.class).get("message");
+            if (message != null && !message.toString().isBlank()) {
+                return message.toString().trim();
+            }
+        } catch (Exception ignored) {
+            // Not JSON
+        }
+        String text = e.getStatusText();
+        return text != null && !text.isBlank() ? text.trim() : e.getResponseBodyAsString().trim();
     }
 
     public ProxmoxVMConfig getVmConfigById(RemoteServer remoteServer, Integer vmid) {
