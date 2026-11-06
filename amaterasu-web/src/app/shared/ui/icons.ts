@@ -44,6 +44,8 @@ export const ICONS = {
   menu: ['M4 6h16M4 12h16M4 18h16'],
   chevronRight: ['M9 6l6 6-6 6'],
   code: ['M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14'],
+  keyboard: ['M3 6h18v12H3zM7 10h.01M11 10h.01M15 10h.01M7 14h10'],
+  expand: ['M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type IconName = keyof typeof ICONS;

@@ -48,6 +48,12 @@ export class TeamLabCardComponent {
     return failed ? serviceName(this.tracker(), failed) : '';
   });
 
+  /** The first running VM of a VM lab, for the Console button. */
+  protected readonly consoleVm = computed(() => {
+    if (!this.vm() || this.can().working) return null;
+    return (this.tracker().vms ?? []).find(machine => machine.status === 'running') ?? null;
+  });
+
   protected readonly confirming = signal(false);
 
   protected stepClass(step: LifeStep): string {

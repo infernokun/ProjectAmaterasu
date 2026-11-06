@@ -94,6 +94,11 @@
                     <div class="small muted">VMID <app-mono-id [value]="'' + machine.vmid" [copyable]="true" label="VMID" /></div>
                     <div class="meter-row"><span class="muted">CPU</span><div class="bar info"><span [style.width.%]="cpuPct(machine)"></span></div><span class="num dim">{{ cpuPct(machine) }}% of {{ machine.cpus }} vCPU</span></div>
                     <div class="meter-row"><span class="muted">Memory</span><div class="bar info"><span [style.width.%]="memPct(machine)"></span></div><span class="num dim">{{ gib(machine.mem) }}</span></div>
+                    @if (machine.status === 'running') {
+                      <a class="btn sm primary block" [routerLink]="['/labs', t.id, 'console', machine.vmid]"><app-icon name="monitor" size="sm" />Open console</a>
+                    } @else {
+                      <button type="button" class="btn sm primary block" disabled [title]="machine.name + ' is ' + (machine.status ?? 'not running')"><app-icon name="monitor" size="sm" />Open console</button>
+                    }
                   </article>
                 }
               </div>
