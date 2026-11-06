@@ -60,6 +60,30 @@ export interface NewServer {
   nodeName?: string;
 }
 
+/** A saved server's editable fields. Credentials never come back, only whether one is stored. */
+export interface ServerSettings {
+  id: string;
+  name: string;
+  serverType: ServerType;
+  ipAddress: string;
+  port: number | null;
+  username: string | null;
+  nodeName: string | null;
+  hasPassword: boolean;
+  hasApiToken: boolean;
+}
+
+/** Changes to a saved server. Leave password and apiToken out to keep the stored ones. */
+export interface ServerEdit {
+  name: string;
+  ipAddress: string;
+  port: number;
+  username?: string;
+  nodeName?: string;
+  password?: string;
+  apiToken?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ServersService {
   private readonly http = inject(HttpClient);
@@ -83,6 +107,25 @@ export class ServersService {
 
   add(server: NewServer): Observable<Server> {
     return this.http.post<ApiResponse<any>>(this.url('/remote-server'), server).pipe(map(r => toServer(r.data)));
+  }
+
+  settings(serverId: string): Observable<ServerSettings> {
+    return this.http.get<ApiResponse<ServerSettings>>(this.url(`/remote-server/${serverId}/settings`)).pipe(map(r => r.data));
+  }
+
+  /** Tests a saved server with edits that are not saved yet. */
+  validateEdit(serverId: string, edit: ServerEdit): Observable<boolean> {
+    return this.http.post<ApiResponse<boolean>>(this.url(`/remote-server/${serverId}/validate`), edit).pipe(map(r => !!r.data));
+  }
+
+  update(serverId: string, edit: ServerEdit): Observable<Server> {
+    return this.http.put<ApiResponse<any>>(this.url(`/remote-server/${serverId}`), edit).pipe(map(r => toServer(r.data)));
+  }
+
+  /** Moves a team's lab; a deployed one only with startFresh, which destroys its copy. */
+  moveLab(trackerId: string, remoteServerId: string, startFresh: boolean): Observable<Deployment> {
+    return this.http.post<ApiResponse<any>>(this.url(`/lab-tracker/${trackerId}/move`), { remoteServerId, startFresh })
+      .pipe(map(r => toDeployment(r.data?.labTracker)));
   }
 
   check(serverId: string): Observable<Server> {

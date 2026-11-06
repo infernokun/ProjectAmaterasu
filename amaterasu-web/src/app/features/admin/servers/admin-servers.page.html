@@ -60,6 +60,7 @@
             <app-icon [name]="store.checking() === card.server.id ? 'spinner' : 'refresh'" size="sm" [spin]="store.checking() === card.server.id" />
             {{ card.health.online ? 'Check now' : 'Retry now' }}
           </button>
+          <button type="button" class="btn sm" (click)="edit(card)"><app-icon name="edit" size="sm" />Edit</button>
           <button type="button" class="btn sm danger" [disabled]="card.deployments.length > 0" [title]="deleteNote(card)"
                   (click)="remove(card)">Delete</button>
         </div>
@@ -84,18 +85,24 @@
           </div>
         </div>
       }
-      @if (card.deployments.length) {
+      @if (card.labs.length) {
         <div class="table-wrap">
           <table class="t">
-            <thead><tr><th>Team</th><th>Lab</th><th>State</th><th>{{ unitColumn(card) }}</th><th>Since</th></tr></thead>
+            <thead><tr><th>Team</th><th>Lab</th><th>State</th><th>{{ unitColumn(card) }}</th><th>Since</th><th class="r">Actions</th></tr></thead>
             <tbody>
-              @for (deployment of card.deployments; track deployment.id) {
+              @for (deployment of card.labs; track deployment.id) {
                 <tr>
                   <td style="font-weight:500">{{ deployment.teamName }}</td>
                   <td>{{ deployment.labName }}</td>
                   <td><app-status-badge [state]="deployment.status" /></td>
-                  <td class="mono small dim">{{ deployment.units || 'No details yet' }}</td>
+                  <td class="mono small dim">{{ deployment.units || (deployed(deployment) ? 'No details yet' : 'Starts here next') }}</td>
                   <td class="dim">{{ since(deployment.updatedAt) }}</td>
+                  <td class="r">
+                    <div class="row end nowrap">
+                      <a class="btn sm ghost" [routerLink]="['/labs', deployment.id]">Open</a>
+                      <button type="button" class="btn sm" (click)="move(card, deployment)">Move</button>
+                    </div>
+                  </td>
                 </tr>
               }
             </tbody>
