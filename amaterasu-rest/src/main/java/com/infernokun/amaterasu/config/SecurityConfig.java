@@ -119,10 +119,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/audit").authenticated()
                         .requestMatchers("/api/auth/sessions", "/api/auth/sessions/**").authenticated()
 
-                        // Top bar search and notifications: any signed in user. The services scope search
-                        // results by role and notifications to their recipient.
+                        // Top bar search, notifications and VM consoles: any signed in user. Search results
+                        // are scoped by role, notifications to their recipient, and a console to the team
+                        // that owns the lab (or an admin), in the services and the console relay.
                         .requestMatchers(HttpMethod.GET, "/api/search").authenticated()
                         .requestMatchers("/api/notifications", "/api/notifications/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/lab-tracker/*/vms/*/console").authenticated()
+                        .requestMatchers("/socket-handler/console/**").authenticated()
 
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
