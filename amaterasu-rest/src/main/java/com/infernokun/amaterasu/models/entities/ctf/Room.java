@@ -22,7 +22,7 @@ public class Room extends StoredObject {
     @JoinColumn(name = "creator")
     @JsonIgnore
     private User creator;
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @JsonIgnore
     @Builder.Default
     private List<String> facilitators = new ArrayList<>();

@@ -9,6 +9,7 @@ import com.infernokun.amaterasu.models.entities.ctf.CTFEntityHintUsage;
 import com.infernokun.amaterasu.models.entities.ctf.Hint;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.ctf.RoomUser;
+import com.infernokun.amaterasu.models.entities.ctf.dto.play.LabChallenge;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomLive;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomOverview;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomOverview.ChallengeState;
@@ -205,6 +206,40 @@ public class RoomPlayService {
                 feed.size() > FEED_LIMIT ? feed.subList(0, FEED_LIMIT) : feed, health, refs);
     }
 
+    /**
+     * Challenges that use a lab. Authors and admins see all of them; everyone else only sees released
+     * challenges in rooms they joined.
+     */
+    public List<LabChallenge> forLab(String labId, String viewerId, boolean seeAll) {
+        LocalDateTime now = LocalDateTime.now();
+        Map<String, Optional<RoomUser>> seats = new HashMap<>();
+        Optional<User> viewer = Optional.ofNullable(viewerId).flatMap(userRepository::findById);
+        List<LabChallenge> result = new ArrayList<>();
+        for (CTFEntity challenge : ctfEntityService.findByLabId(labId)) {
+            Room room = challenge.getRoom();
+            if (room == null) {
+                continue;
+            }
+            Optional<RoomUser> seat = seats.computeIfAbsent(room.getId(), id -> viewer
+                    .flatMap(user -> roomUserService.findByUserAndRoom(user, room)));
+            boolean joined = seat.map(roomUser -> roomUser.getRoomUserStatus() == RoomUserStatus.JOINED).orElse(false);
+            ChallengeState state = stateOf(challenge, now);
+            boolean released = !Boolean.FALSE.equals(challenge.getVisible()) && !Boolean.FALSE.equals(challenge.getIsActive())
+                    && state != ChallengeState.LOCKED;
+            if (!seeAll && !(joined && released)) {
+                continue;
+            }
+            boolean solved = seat.flatMap(roomUser -> answerRepository
+                            .findByRoomUserIdAndCtfEntityId(roomUser.getId(), challenge.getId()))
+                    .map(answer -> Boolean.TRUE.equals(answer.getCorrect())).orElse(false);
+            result.add(new LabChallenge(challenge.getId(), challenge.getQuestion(), challenge.getQuestion(), room.getId(),
+                    room.getName(), categoryOf(challenge),
+                    challenge.getDifficultyLevel() != null ? challenge.getDifficultyLevel().name() : null,
+                    value(challenge.getPoints()), state, solved));
+        }
+        return result;
+    }
+
     private RoomOverview.Challenge challengeView(CTFEntity challenge, CTFEntityAnswer answer, long solves,
                                                  LocalDateTime now) {
         ChallengeState state = stateOf(challenge, now);
@@ -270,8 +305,7 @@ public class RoomPlayService {
         return challenges.stream()
                 .filter(challenge -> !Boolean.FALSE.equals(challenge.getVisible())
                         && !Boolean.FALSE.equals(challenge.getIsActive()))
-                .sorted(Comparator.comparing(RoomPlayService::categoryOf)
-                        .thenComparing(challenge -> value(challenge.getPoints())))
+                .sorted(CTFEntityService.ROOM_ORDER)
                 .toList();
     }
 

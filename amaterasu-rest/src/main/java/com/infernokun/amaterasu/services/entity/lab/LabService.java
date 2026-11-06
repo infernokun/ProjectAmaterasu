@@ -16,6 +16,7 @@ import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.enums.LabType;
+import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.repositories.lab.LabFileChangeLogRepository;
 import com.infernokun.amaterasu.repositories.lab.LabRepository;
 import com.infernokun.amaterasu.services.alt.LabFileUploadService;
@@ -25,6 +26,7 @@ import com.infernokun.amaterasu.services.BaseService;
 import com.infernokun.amaterasu.services.entity.AuditService;
 import com.infernokun.amaterasu.services.entity.TeamService;
 import com.infernokun.amaterasu.services.entity.UserService;
+import com.infernokun.amaterasu.services.entity.ctf.CTFEntityService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -51,6 +53,7 @@ public class LabService extends BaseService {
     private final LabActionGuard labActionGuard;
     private final CurrentUser currentUser;
     private final AuditService auditService;
+    private final CTFEntityService ctfEntityService;
 
     public LabService(
             LabRepository labRepository, UserService userService,
@@ -58,7 +61,7 @@ public class LabService extends BaseService {
             LabActionService labActionService, LabFileUploadService labFileUploadService,
             LabReadinessService labReadinessService, LabFileChangeLogRepository labFileChangeLogRepository,
             AmaterasuConfig amaterasuConfig, LabActionGuard labActionGuard, CurrentUser currentUser,
-            AuditService auditService) {
+            AuditService auditService, CTFEntityService ctfEntityService) {
         this.labRepository = labRepository;
         this.userService = userService;
         this.teamService = teamService;
@@ -71,6 +74,7 @@ public class LabService extends BaseService {
         this.labActionGuard = labActionGuard;
         this.currentUser = currentUser;
         this.auditService = auditService;
+        this.ctfEntityService = ctfEntityService;
     }
 
     static String composeFileSlug(String name) {
@@ -80,6 +84,55 @@ public class LabService extends BaseService {
 
     public List<Lab> findAllLabs() {
         return labRepository.findAll();
+    }
+
+    public List<Lab> findPublishedLabs() {
+        return labRepository.findAll().stream().filter(LabService::isPublished).toList();
+    }
+
+    public static boolean isPublished(Lab lab) {
+        return Boolean.TRUE.equals(lab.getPublished());
+    }
+
+    /**
+     * Makes a draft visible to teams. Only a lab that passed its checks can be published: a compose
+     * file that a Docker host accepted, or VM templates.
+     */
+    public Lab publish(String id) {
+        Lab lab = findLabById(id);
+        if (isPublished(lab)) {
+            return lab;
+        }
+        if (!lab.isReady()) {
+            throw new IllegalStateException(lab.getName() + " is not ready yet. Validate it on a server first; "
+                    + "compose labs turn ready once a Docker host accepts the file.");
+        }
+        lab.setPublished(true);
+        lab.setUpdatedAt(LocalDateTime.now());
+        Lab saved = labRepository.save(lab);
+        auditService.record("LAB_PUBLISHED", "LAB", saved.getId(), saved.getName(), null, null);
+        return saved;
+    }
+
+    /**
+     * Turns a lab back into a draft. Refused while any team has it deployed, so no team loses a running
+     * copy; teams that stopped it keep it in their list but cannot start it until it is published again.
+     */
+    public Lab unpublish(String id) {
+        Lab lab = findLabById(id);
+        if (!isPublished(lab)) {
+            return lab;
+        }
+        long deployed = labTrackerService.findByLabStarted(lab).stream().filter(LabService::hasDeployment).count();
+        if (deployed > 0) {
+            throw new ResourceInUseException(lab.getName() + " is deployed by " + deployed
+                    + (deployed == 1 ? " team" : " teams") + ". They need to stop it before it goes back to draft.");
+        }
+        lab.setPublished(false);
+        lab.setUpdatedAt(LocalDateTime.now());
+        Lab saved = labRepository.save(lab);
+        auditService.record("LAB_UNPUBLISHED", "LAB", saved.getId(), saved.getName(), null, "Back to draft");
+        return saved;
     }
 
     public Lab findLabById(String id) {
@@ -212,6 +265,7 @@ public class LabService extends BaseService {
 
         for (Lab lab : labs) {
             lab.setDockerFile(composeFileSlug(lab.getName()) + "_" + timestamp + ".yml");
+            lab.setPublished(false);
         }
         return labRepository.saveAll(labs);
     }
@@ -253,6 +307,9 @@ public class LabService extends BaseService {
         LOGGER.info("lab id {} user id {}, lab tracker id {}", labId, userId, labTrackerId);
 
         Lab lab = findLabById(labId);
+        if (!isPublished(lab)) {
+            return new LabActionResult(false, null, lab.getName() + " is a draft. Its authors need to publish it before teams can start it.");
+        }
         User user = this.userService.findUserById(userId);
         Team userTeam = user.getTeam();
         if (userTeam == null) {
@@ -454,6 +511,92 @@ public class LabService extends BaseService {
         return removed;
     }
 
+    /**
+     * Moves a team's lab to another server. A lab that is not deployed only changes where it starts
+     * next. A deployed one is torn down where it is and started fresh on the new server, so the
+     * caller has to confirm with startFresh; its current containers or VMs and their data are lost.
+     */
+    @Transactional
+    public LabActionResult moveLab(String labTrackerId, RemoteServer target, boolean startFresh) {
+        LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId)
+                .filter(tracker -> tracker.getLabStatus() != LabStatus.DELETED)
+                .orElseThrow(() -> new ResourceNotFoundException("Lab tracker not found"));
+        RemoteServer source = labTracker.getRemoteServer();
+        String name = labName(labTracker);
+        String teamId = labTracker.getLabOwner() != null ? labTracker.getLabOwner().getId() : null;
+
+        if (source != null && source.getId().equals(target.getId())) {
+            throw new IllegalArgumentException(name + " is already on " + target.getName());
+        }
+        LabType type = labTracker.getLabStarted() != null ? labTracker.getLabStarted().getLabType() : null;
+        if (type == LabType.DOCKER_COMPOSE && target.getServerType() != ServerType.DOCKER_HOST
+                || type == LabType.VIRTUAL_MACHINE && target.getServerType() != ServerType.PROXMOX) {
+            throw new IllegalArgumentException(target.getName() + " cannot run this kind of lab. Pick a "
+                    + (type == LabType.VIRTUAL_MACHINE ? "Proxmox node." : "Docker host."));
+        }
+        boolean deployed = hasDeployment(labTracker);
+        if (deployed && !startFresh) {
+            throw new ResourceInUseException(name + " is deployed on " + (source != null ? source.getName() : "its server")
+                    + ". Moving it destroys that copy and starts a fresh one on " + target.getName() + ".");
+        }
+        if (!labActionGuard.tryAcquire(labTracker.getId())) {
+            throw new ResourceInUseException("Another action is already running for this lab");
+        }
+        try {
+            String from = source != null ? source.getName() : "no server";
+            if (!deployed) {
+                labTracker.setRemoteServer(target);
+                LabTracker saved = labTrackerService.updateLabTracker(labTracker);
+                auditService.record("LAB_MOVED", "LAB_TRACKER", saved.getId(), name, teamId,
+                        "From " + from + " to " + target.getName() + "; starts there next time");
+                return new LabActionResult(true, saved, name + " will start on " + target.getName());
+            }
+
+            if (target.getRemoteServerStats() == null || target.getRemoteServerStats().getStatus() != LabStatus.ACTIVE) {
+                throw new IllegalStateException(target.getName() + " is not online. Check it, then try the move again.");
+            }
+            LabActionResult teardown = source == null
+                    ? new LabActionResult(true, labTracker, "Nothing was deployed")
+                    : labActionService.teardownLab(labTracker, source);
+            if (!teardown.isSuccessful()) {
+                String reason = teardown.getOutput() == null || teardown.getOutput().isBlank() ? "no output" : teardown.getOutput();
+                auditService.record("LAB_ACTION_FAILED", "LAB_TRACKER", labTracker.getId(), name, teamId,
+                        "Move to " + target.getName() + " failed: the copy on " + from + " could not be removed: " + reason);
+                return new LabActionResult(false, labTracker, "The copy on " + from
+                        + " could not be removed, so nothing was moved: " + reason);
+            }
+
+            LabTracker moved = teardown.getLabTracker() != null ? teardown.getLabTracker() : labTracker;
+            moved.setRemoteServer(target);
+            moved.setLabStatus(LabStatus.STOPPED);
+            moved.setUpdatedBy(currentUser.id());
+            moved = labTrackerService.updateLabTracker(moved);
+
+            LabActionResult started = labActionService.startLab(moved, target);
+            LabTracker result = started.getLabTracker() != null ? started.getLabTracker() : moved;
+            result.setRemoteServer(target);
+            result.setLabStatus(started.isSuccessful() ? LabStatus.ACTIVE : LabStatus.FAILED);
+            if (started.isSuccessful() && result.getServices() != null
+                    && result.getServices().stream().anyMatch(service -> !"running".equals(service.getState()))) {
+                result.setLabStatus(LabStatus.DEGRADED);
+            }
+            started.setLabTracker(labTrackerService.updateLabTracker(result));
+            if (started.isSuccessful()) {
+                auditService.record("LAB_MOVED", "LAB_TRACKER", result.getId(), name, teamId,
+                        "From " + from + " to " + target.getName() + "; the old copy was destroyed and a fresh one started");
+            } else {
+                String reason = started.getOutput() == null || started.getOutput().isBlank() ? "no output" : started.getOutput();
+                auditService.record("LAB_ACTION_FAILED", "LAB_TRACKER", result.getId(), name, teamId,
+                        "Moved from " + from + " to " + target.getName() + ", but the fresh copy did not start: " + reason);
+                started.setOutput("The copy on " + from + " was removed, but the fresh copy did not start on "
+                        + target.getName() + ": " + reason);
+            }
+            return started;
+        } finally {
+            labActionGuard.release(labTracker.getId());
+        }
+    }
+
     /** Records a lab action: the action on success, LAB_ACTION_FAILED with the reason otherwise. */
     private LabActionResult audited(String action, String verb, LabActionResult result, String requestedTrackerId) {
         LabTracker tracker = result.getLabTracker();
@@ -592,6 +735,7 @@ public class LabService extends BaseService {
             }
         }
         labTrackerService.deleteAll(trackers);
+        ctfEntityService.unlinkLab(labId);
         labFileChangeLogRepository.deleteByLabId(labId);
         labRepository.deleteById(labId);
         auditService.record("LAB_REMOVED", "LAB", labId, lab.get().getName(), null, null);

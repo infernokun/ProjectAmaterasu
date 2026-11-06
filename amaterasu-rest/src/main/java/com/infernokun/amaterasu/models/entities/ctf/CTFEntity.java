@@ -62,4 +62,8 @@ public class CTFEntity extends StoredObject {
     private List<String> attachments = new ArrayList<>();
     private String solutionExplanation;
     private List<String> relatedChallengeIds = new ArrayList<>();
+    /** The lab players use for this challenge, if any. */
+    private String labId;
+    /** Position in the room; rooms list their challenges in this order. */
+    private Integer sortOrder;
 }

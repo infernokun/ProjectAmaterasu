@@ -2,7 +2,12 @@ package com.infernokun.amaterasu.controllers.entity.ctf;
 
 import com.infernokun.amaterasu.components.CurrentUser;
 
+import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.ApiResponse;
+import com.infernokun.amaterasu.models.entities.ctf.dto.play.LabChallenge;
+import com.infernokun.amaterasu.models.entities.lab.Lab;
+import com.infernokun.amaterasu.models.enums.Role;
+import com.infernokun.amaterasu.services.entity.lab.LabService;
 import com.infernokun.amaterasu.models.entities.ctf.*;
 import com.infernokun.amaterasu.models.entities.ctf.dto.*;
 import com.infernokun.amaterasu.services.entity.AuditService;
@@ -33,6 +38,8 @@ public class CTFEntityController {
     private final HintService hintService;
     private final CurrentUser currentUser;
     private final AuditService auditService;
+    private final RoomPlayService roomPlayService;
+    private final LabService labService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<CTFEntityResponse>>> getAllCTFEntities() {
@@ -108,6 +115,21 @@ public class CTFEntityController {
                 ctfEntityResponses,
                 HttpStatus.OK
         );
+    }
+
+    /**
+     * Challenges that use a lab, without flags. Authors and admins see all of them; everyone else sees
+     * released challenges in rooms they joined, and nothing for a lab that is still a draft.
+     */
+    @GetMapping("/by-lab/{labId}")
+    public ResponseEntity<ApiResponse<List<LabChallenge>>> getByLab(@PathVariable String labId) {
+        boolean author = currentUser.isAdmin() || currentUser.hasRole(Role.CREATOR);
+        Lab lab = labService.findLabById(labId);
+        if (!author && !Boolean.TRUE.equals(lab.getPublished())) {
+            throw new ResourceNotFoundException("Lab " + labId + " not found");
+        }
+        return buildSuccessResponse("Challenges that use " + lab.getName(),
+                roomPlayService.forLab(labId, currentUser.id(), author), HttpStatus.OK);
     }
 
     @GetMapping("/room/{roomId}")

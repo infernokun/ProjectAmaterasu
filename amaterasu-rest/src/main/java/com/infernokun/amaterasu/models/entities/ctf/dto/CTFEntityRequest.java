@@ -25,4 +25,5 @@ public class CTFEntityRequest {
     private List<String> attachments;
     private String solutionExplanation;
     private List<String> relatedChallengeIds;
+    private String labId;
 }

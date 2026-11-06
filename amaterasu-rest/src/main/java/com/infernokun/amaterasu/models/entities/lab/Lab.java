@@ -36,6 +36,9 @@ public class Lab extends StoredObject {
     @Column(columnDefinition = "TEXT")
     @Convert(converter = IntegerListConverter.class)
     private List<Integer> vmIds = new ArrayList<>();
+    /** Drafts are hidden from teams and cannot be started until an author publishes them. */
+    @Builder.Default
+    private Boolean published = false;
 
     public String toJsonString() throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();
