@@ -26,6 +26,10 @@ const nodes = require("./data/nodes.json");
 const nodeDetails = require("./data/nodeDetails.json");
 const storage = require("./data/storage.json");
 const tickets = require("./data/tickets.json");
+// Answers from a PVE 9.2.2 node called proxmox2
+const nodeStatus = require("./data/nodeStatus.json");
+const permissions = require("./data/permissions.json");
+const STARTED = Date.now();
 
 const vms = new Map();
 const configs = new Map();
@@ -38,7 +42,9 @@ function randomMac() {
   return `52:54:00:${hex()}:${hex()}:${hex()}`;
 }
 
+const knownNodes = new Set(nodes.data.map((n) => n.node));
 for (const vm of require("./data/vms.json").data) {
+  knownNodes.add(vm.node);
   vms.set(vm.vmid, { ...vm, status: vm.template ? "stopped" : vm.status });
   const config = { name: vm.name, agent: "0" };
   config.net0 = `virtio=${randomMac()},bridge=vmbr0,firewall=1`;
@@ -97,6 +103,22 @@ app.get("/api2/json/nodes/:node", (req, res) => {
   const response = JSON.parse(JSON.stringify(nodeDetails));
   response.data.node = req.params.node;
   res.json(response);
+});
+
+app.get("/api2/json/nodes/:node/status", (req, res) => {
+  const response = JSON.parse(JSON.stringify(nodeStatus));
+  response.data.uptime += Math.floor((Date.now() - STARTED) / 1000);
+  res.json(response);
+});
+
+// The token's privileges per path; the recorded node's entry stands for every node
+app.get("/api2/json/access/permissions", (req, res) => {
+  const nodePrivileges = permissions.data["/nodes/proxmox2"];
+  const all = Object.fromEntries(Object.entries(permissions.data).filter(([path]) => path !== "/nodes/proxmox2"));
+  for (const node of knownNodes) all[`/nodes/${node}`] = nodePrivileges;
+  const path = req.query.path;
+  if (!path) return res.json({ data: all });
+  res.json({ data: { [path]: all[path] || (path.startsWith("/nodes/") ? nodePrivileges : {}) } });
 });
 
 app.get("/api2/json/cluster/nextid", (req, res) => {
@@ -212,13 +234,36 @@ app.post("/api2/json/nodes/:node/qemu/:vmid/vncproxy", (req, res) => {
   res.json({ data: issueTicket(req.params.node, vm) });
 });
 
-app.get("/api2/json/nodes/:node/network", (req, res) => res.json({ data: networks }));
+function stanza(n) {
+  const lines = n.autostart ? [`auto ${n.iface}`] : [];
+  lines.push(`iface ${n.iface} inet ${n.method || "manual"}`);
+  if (n.type === "bridge") lines.push(`\tbridge-ports ${n.bridge_ports || "none"}`, "\tbridge-stp off", "\tbridge-fd 0");
+  if (n.comments) lines.push(`#${String(n.comments).trim()}`);
+  return lines;
+}
+
+// Like PVE, "changes" is a diff of interfaces against interfaces.new, sent only while edits are pending
+function pendingChanges() {
+  if (!pendingNetworks) return null;
+  const before = new Set(networks.map((n) => n.iface));
+  const after = new Set(pendingNetworks.map((n) => n.iface));
+  const hunks = [];
+  for (const n of networks.filter((n) => !after.has(n.iface))) hunks.push("@@ -1,1 +1,0 @@", "-", ...stanza(n).map((l) => `-${l}`));
+  for (const n of pendingNetworks.filter((n) => !before.has(n.iface))) hunks.push("@@ -1,0 +1,1 @@", "+", ...stanza(n).map((l) => `+${l}`));
+  if (!hunks.length) return null;
+  return ["--- /etc/network/interfaces", "+++ /etc/network/interfaces.new", ...hunks].join("\n") + "\n";
+}
+
+app.get("/api2/json/nodes/:node/network", (req, res) => {
+  const changes = pendingChanges();
+  res.json({ ...(changes ? { changes } : {}), data: pendingNetworks || networks });
+});
 
 app.post("/api2/json/nodes/:node/network", (req, res) => {
   const { iface, type } = req.body;
   const target = pendingNetworks || (pendingNetworks = JSON.parse(JSON.stringify(networks)));
   if (target.some((n) => n.iface === iface)) return error(res, 400, `interface '${iface}' already exists`);
-  target.push({ iface, type, active: 0, autostart: Number(req.body.autostart || 0), families: [] });
+  target.push({ iface, type, active: 0, autostart: Number(req.body.autostart || 0), comments: req.body.comments, families: [] });
   res.json({ data: null });
 });
 

@@ -2,8 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 import { LabStatus } from '../../../enums/lab-status.enum';
 import { ServerType } from '../../../enums/server-type.enum';
-import { serverHealth, uptime, usage } from './server-health';
-import { Server, ServerStats, ServersService } from './servers.service';
+import { osLine, sentence, serverHealth, uptime, usage } from './server-health';
+import { Server, ServerStats, ServersService, toCheck, toServer } from './servers.service';
 import { ServersStore } from './servers.store';
 
 const stats = (patch: Partial<ServerStats> = {}): ServerStats => ({
@@ -30,9 +30,45 @@ describe('serverHealth', () => {
     expect(serverHealth(server('pve-b', { stats: stats({ status: LabStatus.OFFLINE }) })).label).toBe('Offline');
     expect(serverHealth(server('new', { stats: null })).label).toBe('Not checked');
 
-    const proxmox = serverHealth(server('pve-a', { serverType: ServerType.PROXMOX, stats: stats({ totalRam: 0, cpu: 0, cpuUsagePercent: 0 }) }));
-    expect(proxmox.label).toBe('Online');
-    expect(proxmox.memory.text).toBe('no data');
+    const unread = serverHealth(server('pve-a', { serverType: ServerType.PROXMOX, stats: stats({ totalRam: 0, cpu: 0, cpuUsagePercent: 0 }) }));
+    expect(unread.label).toBe('Online');
+    expect(unread.memory.text).toBe('no data');
+  });
+
+  it('shows a Proxmox node\'s meters and uptime from its node status', () => {
+    // What the REST side stores for the PVE 9.2.2 node proxmox2
+    const pve = server('pve-a', {
+      serverType: ServerType.PROXMOX, port: 8006, nodeName: 'proxmox2',
+      stats: stats({
+        hostname: 'proxmox2', osName: 'Proxmox VE', osVersion: '9.2.2', cpu: 4, cpuUsagePercent: 0.2,
+        totalRam: 31.2, usedRam: 1.7, availableRam: 29.5, totalDiskSpace: 64.1, usedDiskSpace: 4.1, availableDiskSpace: 56.6,
+        uptime: 16532,
+      }),
+    });
+    const health = serverHealth(pve);
+    expect(health.label).toBe('Online');
+    expect(health.cpu).toEqual({ label: 'CPU', pct: 0, level: 'ok', text: '0% of 4' });
+    expect(health.memory).toEqual({ label: 'Memory', pct: 5, level: 'ok', text: '2 of 31 GB' });
+    expect(health.disk).toEqual({ label: 'Disk', pct: 6, level: 'ok', text: '4 of 64 GB' });
+    expect(osLine(pve)).toBe('Proxmox VE 9.2.2 · up 4 h');
+
+    const offline = server('pve-a', { serverType: ServerType.PROXMOX, stats: stats({ status: LabStatus.OFFLINE, osName: 'Proxmox VE', osVersion: '9.2.2' }) });
+    expect(osLine(offline)).toBe('Proxmox VE 9.2.2');
+    expect(serverHealth(offline).memory.text).toBe('no data');
+  });
+
+  it('carries the reason or warning of the last check', () => {
+    const raw = { id: 'p1', name: 'pve-a', serverType: ServerType.PROXMOX,
+      remoteServerStats: { status: LabStatus.ACTIVE, totalRam: 31.2, warning: "Can list VMs but can't deploy labs: missing VM.Clone on /vms" } };
+    expect(toServer(raw).stats?.warning).toBe("Can list VMs but can't deploy labs: missing VM.Clone on /vms");
+    expect(sentence('No node called pve9 on that host')).toBe('No node called pve9 on that host.');
+    expect(sentence('Done.')).toBe('Done.');
+  });
+
+  it('reads connection tests from this API and from older ones', () => {
+    expect(toCheck(true)).toEqual({ connected: true });
+    expect(toCheck({ connected: false, reason: 'Proxmox rejected the token. Use the full USER@REALM!TOKENID=SECRET' }))
+      .toEqual({ connected: false, reason: 'Proxmox rejected the token. Use the full USER@REALM!TOKENID=SECRET', warning: null });
   });
 
   it('formats sizes and uptime', () => {

@@ -85,7 +85,8 @@
       @if (card.health.label === 'Offline') {
         <div class="detail-banner">
           <div class="banner bad"><app-icon name="alert" />
-            <div class="grow"><strong>No response at the last check{{ card.server.stats?.updatedAt ? ', ' + at(card.server.stats.updatedAt) : '' }}.</strong>
+            <div class="grow"><strong>{{ card.server.stats?.warning ? 'Failed' : 'No response at' }} the last check{{ card.server.stats?.updatedAt ? ', ' + at(card.server.stats.updatedAt) : '' }}.</strong>
+              @if (card.server.stats?.warning) { {{ sentence(card.server.stats!.warning!) }} }
               Labs cannot start here until it answers again. Teams with labs on it see them as offline.</div>
           </div>
         </div>
@@ -99,6 +100,13 @@
         <div class="detail-banner">
           <div class="banner"><app-icon name="clock" />
             <div>No stats yet. They are collected every minute, or press Check now.</div>
+          </div>
+        </div>
+      }
+      @if (card.health.online && card.server.stats?.warning) {
+        <div class="detail-banner">
+          <div class="banner warn"><app-icon name="alert" />
+            <div>{{ sentence(card.server.stats!.warning!) }}</div>
           </div>
         </div>
       }

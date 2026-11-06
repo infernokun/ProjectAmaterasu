@@ -51,7 +51,8 @@ public class ProxmoxLabStatsService extends BaseService {
                 labTrackerService.updateVmsIfStatus(labTracker, missing ? labTracker.getVms() : vms,
                         missing ? LabStatus.DEGRADED : LabStatus.ACTIVE, LabStatus.ACTIVE);
             } catch (Exception e) {
-                LOGGER.error("Could not refresh VMs for lab tracker {}: {}", labTracker.getId(), e.getMessage());
+                // Unreadable is not gone: the lab keeps its VMs and status until the node answers
+                LOGGER.warn("Could not refresh VMs for lab tracker {}: {}", labTracker.getId(), e.getMessage());
             }
         });
     }

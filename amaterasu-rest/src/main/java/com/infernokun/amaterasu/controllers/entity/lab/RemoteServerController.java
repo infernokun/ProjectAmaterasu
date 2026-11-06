@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.controllers.entity.lab;
 
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
+import com.infernokun.amaterasu.models.ServerCheck;
 import com.infernokun.amaterasu.models.entities.lab.dto.RemoteServerRequest;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.LabStatus;
@@ -75,16 +76,18 @@ public class RemoteServerController extends BaseController {
         );
     }
 
+    /** Tests a server before it is added. A failed test says why; a usable one may carry a warning. */
     @PostMapping("/validate")
-    public ResponseEntity<ApiResponse<Boolean>> validateRemoteServer(@RequestBody RemoteServerRequest remoteServer) {
-        boolean isRemoteServerValid = remoteServerService.validateRemoteServer(modelMapper.map(remoteServer, RemoteServer.class));
-        return ResponseEntity.status(HttpStatus.OK).body(
-                ApiResponse.<Boolean>builder()
-                    .code(HttpStatus.OK.value())
-                    .message("Remote server status is: " + isRemoteServerValid)
-                    .data(isRemoteServerValid)
-                    .build()
-        );
+    public ResponseEntity<ApiResponse<ServerCheck>> validateRemoteServer(@RequestBody RemoteServerRequest remoteServer) {
+        ServerCheck check = remoteServerService.validateRemoteServer(modelMapper.map(remoteServer, RemoteServer.class));
+        return createSuccessResponse(check, checkMessage(check));
+    }
+
+    private static String checkMessage(ServerCheck check) {
+        if (!check.connected()) {
+            return check.reason() != null ? check.reason() : "Could not connect with these settings.";
+        }
+        return check.warning() != null ? check.warning() : "Connected.";
     }
 
     /** The editable fields of a saved server, without its credentials. */
@@ -95,10 +98,10 @@ public class RemoteServerController extends BaseController {
 
     /** Tests a saved server with edits that are not saved yet; blank credentials use the stored ones. */
     @PostMapping("/{id}/validate")
-    public ResponseEntity<ApiResponse<Boolean>> validateChanges(@PathVariable String id,
-                                                                @RequestBody RemoteServerRequest changes) {
-        boolean valid = remoteServerService.validateRemoteServer(remoteServerService.withChanges(id, changes));
-        return createSuccessResponse(valid, valid ? "Connected." : "Could not connect with these settings.");
+    public ResponseEntity<ApiResponse<ServerCheck>> validateChanges(@PathVariable String id,
+                                                                    @RequestBody RemoteServerRequest changes) {
+        ServerCheck check = remoteServerService.validateRemoteServer(remoteServerService.withChanges(id, changes));
+        return createSuccessResponse(check, checkMessage(check));
     }
 
     @PutMapping("/{id}")
