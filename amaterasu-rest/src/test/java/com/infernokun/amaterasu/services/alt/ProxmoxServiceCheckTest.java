@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
@@ -224,5 +225,35 @@ class ProxmoxServiceCheckTest {
         assertThat(stats.getStatus()).isEqualTo(LabStatus.ACTIVE);
         assertThat(stats.getWarning()).startsWith("Can list VMs but can't deploy labs: missing VM.Clone");
         assertThat(stats.getTotalRam()).isEqualTo(31.2f);
+    }
+
+    @Test
+    void anEmptyVmListFromATokenWithoutVmAuditIsAnError() throws Exception {
+        // The real node's answer to GET /nodes/proxmox2/qemu
+        node.expect(requestTo(API + "/nodes/proxmox2/qemu")).andRespond(withSuccess("{\"data\":[]}", MediaType.APPLICATION_JSON));
+        expectPermissions(permissions(Map.of("/vms", List.of("VM.PowerMgmt"), "/nodes/proxmox2", List.of("Sys.Audit"))));
+
+        assertThatThrownBy(() -> proxmox.getVMTemplates(server)).isInstanceOf(IllegalStateException.class)
+                .hasMessage("The Proxmox token can't see VMs (missing VM.Audit on /vms)");
+        node.verify();
+    }
+
+    @Test
+    void anEmptyVmListFromATokenThatCanAuditIsJustEmpty() {
+        node.expect(requestTo(API + "/nodes/proxmox2/qemu")).andRespond(withSuccess("{\"data\":[]}", MediaType.APPLICATION_JSON));
+        expectPermissions(ProxmoxFixtures.body("permissions.json"));
+
+        assertThat(proxmox.getVMTemplates(server)).isEmpty();
+        node.verify();
+    }
+
+    @Test
+    void aVmListWithVmsIsNotCheckedFurther() {
+        node.expect(requestTo(API + "/nodes/proxmox2/qemu")).andRespond(withSuccess(
+                "{\"data\":[{\"vmid\":9000,\"name\":\"kali\",\"template\":1},{\"vmid\":101,\"name\":\"web\",\"template\":0}]}",
+                MediaType.APPLICATION_JSON));
+
+        assertThat(proxmox.getVMTemplates(server)).extracting(vm -> vm.getVmid()).containsExactly(9000);
+        node.verify();
     }
 }

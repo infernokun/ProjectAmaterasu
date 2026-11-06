@@ -274,15 +274,30 @@ public class ProxmoxService extends BaseService {
         return "No answer from " + address(remoteServer) + ". Check the address and that the node is up";
     }
 
+    static final String CANNOT_SEE_VMS = "The Proxmox token can't see VMs (missing VM.Audit on /vms)";
+
+    /** The node's VMs. PVE leaves out VMs the token may not audit, so an empty list is checked against its privileges. */
     public List<ProxmoxVM> getVMs(RemoteServer remoteServer) {
         HttpEntity<String> entity = new HttpEntity<>(createHeaders(remoteServer));
         ResponseEntity<ProxmoxResponse> response = restTemplate.exchange(
                 nodeApi(remoteServer, "/qemu"), HttpMethod.GET, entity, ProxmoxResponse.class);
 
-        if (response.getBody() != null && response.getBody().getData() != null) {
-            return response.getBody().getData();
+        List<ProxmoxVM> vms = response.getBody() != null && response.getBody().getData() != null
+                ? response.getBody().getData() : List.of();
+        if (vms.isEmpty() && !canAuditVms(remoteServer)) {
+            throw new IllegalStateException(CANNOT_SEE_VMS);
         }
-        return List.of();
+        return vms;
+    }
+
+    private boolean canAuditVms(RemoteServer remoteServer) {
+        try {
+            return privilegesAt(remoteServer, List.of("/vms")).get("/vms").contains("VM.Audit");
+        } catch (RestClientException e) {
+            // Unknown: report the list as it came
+            LOGGER.warn("Could not read the token's privileges on {}: {}", remoteServer.getName(), e.getMessage());
+            return true;
+        }
     }
 
     public List<ProxmoxVM> getVMTemplates(RemoteServer remoteServer) {
