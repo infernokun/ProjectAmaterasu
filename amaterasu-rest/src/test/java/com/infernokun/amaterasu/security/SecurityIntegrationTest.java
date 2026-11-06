@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.security;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.infernokun.amaterasu.components.RefreshCookie;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.lab.Lab;
@@ -18,16 +19,19 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.Instant;
@@ -36,6 +40,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -70,6 +75,39 @@ class SecurityIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         return objectMapper.readTree(body).get("data");
+    }
+
+    /** The refresh cookie set by a response, or "" when it was cleared, or null when none was set. */
+    private static String refreshCookie(MvcResult result) {
+        return result.getResponse().getHeaders(HttpHeaders.SET_COOKIE).stream()
+                .filter(header -> header.startsWith(RefreshCookie.NAME + "="))
+                .map(header -> header.substring(RefreshCookie.NAME.length() + 1, header.indexOf(';')))
+                .findFirst().orElse(null);
+    }
+
+    private record Session(String accessToken, String refreshCookie) {
+    }
+
+    private Session session(String username, String password) throws Exception {
+        MvcResult result = postJson("/api/auth/login", Map.of("username", username, "password", password), null)
+                .andExpect(status().isOk()).andReturn();
+        String access = objectMapper.readTree(result.getResponse().getContentAsString())
+                .get("data").get("accessToken").asText();
+        return new Session(access, refreshCookie(result));
+    }
+
+    private ResultActions withRefreshCookie(String url, String cookie) throws Exception {
+        var request = post(url);
+        if (cookie != null) {
+            request.cookie(new Cookie(RefreshCookie.NAME, cookie));
+        }
+        return mvc.perform(request);
+    }
+
+    private boolean isValid(String cookie) throws Exception {
+        String body = withRefreshCookie("/api/auth/refresh/validate", cookie)
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(body).get("data").asBoolean();
     }
 
     private String accessToken(String username, String password) throws Exception {
@@ -175,20 +213,38 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    void refreshTokenOnlyTravelsInAnHttpOnlyCookie() throws Exception {
+        User user = createUser(Role.MEMBER, null);
+        MvcResult result = postJson("/api/auth/login",
+                Map.of("username", user.getUsername(), "password", "password123"), null).andReturn();
+
+        assertThat(objectMapper.readTree(result.getResponse().getContentAsString()).get("data").has("refreshToken"))
+                .isFalse();
+        String header = result.getResponse().getHeader(HttpHeaders.SET_COOKIE);
+        assertThat(header).startsWith(RefreshCookie.NAME + "=").contains("HttpOnly", "SameSite=Strict",
+                "Path=/api/auth");
+        // A token in the body is ignored
+        postJson("/api/auth/refresh", Map.of("refreshToken", refreshCookie(result)), null)
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void refreshRotatesAndDetectsReplay() throws Exception {
         User user = createUser(Role.MEMBER, null);
-        String first = login(user.getUsername(), "password123").get("refreshToken").asText();
+        String first = session(user.getUsername(), "password123").refreshCookie();
 
         assertThat(refreshTokenRepository.findAll()).noneMatch(token -> token.getToken().equals(first));
 
-        String second = objectMapper.readTree(postJson("/api/auth/refresh", Map.of("refreshToken", first), null)
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString())
-                .get("data").get("refreshToken").asText();
-        assertThat(second).isNotEqualTo(first);
+        MvcResult rotated = withRefreshCookie("/api/auth/refresh", first).andExpect(status().isOk()).andReturn();
+        String second = refreshCookie(rotated);
+        assertThat(second).isNotBlank().isNotEqualTo(first);
 
-        // Replaying the first token inside the grace window fails but leaves the session alone
-        postJson("/api/auth/refresh", Map.of("refreshToken", first), null).andExpect(status().isUnauthorized());
-        postJson("/api/auth/refresh/validate", Map.of("refreshToken", second), null).andExpect(status().isOk());
+        // Another tab refreshing with the old cookie inside the grace window gets an access token and
+        // keeps the newer cookie
+        MvcResult concurrent = withRefreshCookie("/api/auth/refresh", first).andExpect(status().isOk()).andReturn();
+        assertThat(refreshCookie(concurrent)).isNull();
+        assertThat(objectMapper.readTree(concurrent.getResponse().getContentAsString())
+                .get("data").get("accessToken").asText()).isNotBlank();
         assertThat(isValid(second)).isTrue();
 
         // Outside the grace window a replay means the token leaked: every session is revoked
@@ -198,23 +254,24 @@ class SecurityIntegrationTest {
                     token.setRevokedAt(Instant.now().minusSeconds(120));
                     refreshTokenRepository.save(token);
                 });
-        postJson("/api/auth/refresh", Map.of("refreshToken", first), null).andExpect(status().isUnauthorized());
+        MvcResult replay = withRefreshCookie("/api/auth/refresh", first)
+                .andExpect(status().isUnauthorized()).andReturn();
+        assertThat(refreshCookie(replay)).isEmpty();
         assertThat(isValid(second)).isFalse();
-    }
-
-    private boolean isValid(String refreshToken) throws Exception {
-        String body = postJson("/api/auth/refresh/validate", Map.of("refreshToken", refreshToken), null)
-                .andReturn().getResponse().getContentAsString();
-        return objectMapper.readTree(body).get("data").asBoolean();
     }
 
     @Test
     void logoutRevokesTheRefreshToken() throws Exception {
         User user = createUser(Role.MEMBER, null);
-        String refresh = login(user.getUsername(), "password123").get("refreshToken").asText();
-        postJson("/api/auth/logout", Map.of("refreshToken", refresh), null).andExpect(status().isOk());
-        postJson("/api/auth/refresh", Map.of("refreshToken", refresh), null).andExpect(status().isUnauthorized());
-        postJson("/api/auth/logout", Map.of("refreshToken", "unknown"), null).andExpect(status().isOk());
+        String first = session(user.getUsername(), "password123").refreshCookie();
+        String second = refreshCookie(withRefreshCookie("/api/auth/refresh", first).andReturn());
+
+        MvcResult logout = withRefreshCookie("/api/auth/logout", second).andExpect(status().isOk()).andReturn();
+        assertThat(refreshCookie(logout)).isEmpty();
+        withRefreshCookie("/api/auth/refresh", second).andExpect(status().isUnauthorized());
+        // The grace window does not bring back a session that was signed out
+        withRefreshCookie("/api/auth/refresh", first).andExpect(status().isUnauthorized());
+        withRefreshCookie("/api/auth/logout", null).andExpect(status().isOk());
     }
 
     @Test
@@ -277,20 +334,22 @@ class SecurityIntegrationTest {
     @Test
     void changingPasswordSignsOutOtherSessions() throws Exception {
         User user = createUser(Role.MEMBER, null);
-        JsonNode first = login(user.getUsername(), "password123");
-        String oldAccess = first.get("accessToken").asText();
-        String oldRefresh = first.get("refreshToken").asText();
+        Session first = session(user.getUsername(), "password123");
+        String oldAccess = first.accessToken();
+        String oldRefresh = first.refreshCookie();
         Thread.sleep(1100); // access tokens carry whole-second timestamps
 
         postJson("/api/auth/password", Map.of("currentPassword", "wrong-one", "newPassword", "newpassword1"), oldAccess)
-                .andExpect(status().isUnauthorized());
-        String body = postJson("/api/auth/password",
+                .andExpect(status().isBadRequest());
+        MvcResult changed = postJson("/api/auth/password",
                 Map.of("currentPassword", "password123", "newPassword", "newpassword1"), oldAccess)
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        String newAccess = objectMapper.readTree(body).get("data").get("accessToken").asText();
+                .andExpect(status().isOk()).andReturn();
+        String newAccess = objectMapper.readTree(changed.getResponse().getContentAsString())
+                .get("data").get("accessToken").asText();
+        assertThat(refreshCookie(changed)).isNotBlank();
 
         mvc.perform(get("/api/labs").header("Authorization", "Bearer " + oldAccess)).andExpect(status().isUnauthorized());
-        postJson("/api/auth/refresh", Map.of("refreshToken", oldRefresh), null).andExpect(status().isUnauthorized());
+        withRefreshCookie("/api/auth/refresh", oldRefresh).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/labs").header("Authorization", "Bearer " + newAccess)).andExpect(status().isOk());
         login(user.getUsername(), "newpassword1");
     }
@@ -298,8 +357,8 @@ class SecurityIntegrationTest {
     @Test
     void disabledUsersAreLockedOutImmediately() throws Exception {
         User user = createUser(Role.MEMBER, null);
-        JsonNode session = login(user.getUsername(), "password123");
-        String access = session.get("accessToken").asText();
+        Session session = session(user.getUsername(), "password123");
+        String access = session.accessToken();
         Thread.sleep(1100);
 
         String admin = accessToken("test_admin", "test_password");
@@ -309,8 +368,7 @@ class SecurityIntegrationTest {
                 .andExpect(status().isOk());
 
         mvc.perform(get("/api/labs").header("Authorization", "Bearer " + access)).andExpect(status().isUnauthorized());
-        postJson("/api/auth/refresh", Map.of("refreshToken", session.get("refreshToken").asText()), null)
-                .andExpect(status().isUnauthorized());
+        withRefreshCookie("/api/auth/refresh", session.refreshCookie()).andExpect(status().isUnauthorized());
         postJson("/api/auth/login", Map.of("username", user.getUsername(), "password", "password123"), null)
                 .andExpect(status().isUnauthorized());
     }
@@ -323,5 +381,24 @@ class SecurityIntegrationTest {
                         .header("Authorization", "Bearer " + admin)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"disabled\":true}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void socketHandshakeNeedsAToken() throws Exception {
+        mvc.perform(get("/socket-handler/update")).andExpect(status().isUnauthorized());
+        int status = mvc.perform(get("/socket-handler/update").param("access_token", memberToken()))
+                .andReturn().getResponse().getStatus();
+        assertThat(status).isNotIn(401, 403);
+        // Only the socket accepts a token in the query string
+        mvc.perform(get("/api/labs").param("access_token", memberToken())).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void noCrossOriginAccessUnlessConfigured() throws Exception {
+        String origin = mvc.perform(options("/api/labs")
+                        .header("Origin", "https://elsewhere.example")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andReturn().getResponse().getHeader("Access-Control-Allow-Origin");
+        assertThat(origin).isNull();
     }
 }

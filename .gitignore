@@ -1,5 +1,7 @@
 # Java / Gradle
 build/
+# The web app's Build area is source, not output
+!amaterasu-web/src/app/features/build/
 .gradle/
 *.class
 *.log

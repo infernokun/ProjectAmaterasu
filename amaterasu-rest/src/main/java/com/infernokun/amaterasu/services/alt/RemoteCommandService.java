@@ -44,7 +44,9 @@ public class RemoteCommandService extends BaseService {
             LOGGER.error("Exception while running command for server {}: {}", remoteServer.getId(), e.getMessage());
             return new RemoteCommandResponse("", e.getMessage(), 1);
         } catch (Exception e) {
-            throw new RemoteCommandException("Unexpected error occurred: " + e.getMessage());
+            LOGGER.error("Command failed on server {}", remoteServer != null ? remoteServer.getId() : null, e);
+            throw new RemoteCommandException("Could not run the command on "
+                    + (remoteServer != null ? remoteServer.getName() : "the server"));
         } finally {
             disconnectSession(session, remoteServer);
         }
@@ -104,7 +106,7 @@ public class RemoteCommandService extends BaseService {
             return session;
         } catch (JSchException e) {
             disconnectSession(session, remoteServer);
-            throw new RemoteCommandException("RemoteCommandException: SSH connection failed: " + e.getMessage());
+            throw new RemoteCommandException("Could not connect to " + remoteServer.getName() + " over SSH (" + e.getMessage() + ")");
         }
     }
 
@@ -120,7 +122,8 @@ public class RemoteCommandService extends BaseService {
             return Normalizer.normalize(decryptedPassword, Normalizer.Form.NFKC);
         } catch (Exception e) {
             LOGGER.error("Error decrypting password for server: {}", remoteServer.getId());
-            throw new RemoteCommandException("Error decrypting password: " + e.getMessage());
+            throw new RemoteCommandException("Could not read the stored password for " + remoteServer.getName()
+                    + ". Re-enter it on the Servers page.");
         }
     }
 

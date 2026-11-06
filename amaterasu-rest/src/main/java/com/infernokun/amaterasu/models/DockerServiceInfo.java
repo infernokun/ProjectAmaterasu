@@ -14,6 +14,9 @@ import java.util.*;
 public class DockerServiceInfo {
     private String name;
     private String state;
+    /** The compose service name, which logs and restarts take. */
+    private String service;
+    private String image;
     private List<String> ports = new ArrayList<>();
     private List<Map<String, String>> volumes = new ArrayList<>();
     private List<String> ipAddresses = new ArrayList<>();

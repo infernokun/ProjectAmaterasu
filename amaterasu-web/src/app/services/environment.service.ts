@@ -8,6 +8,8 @@ export interface EnvironmentSettings {
   restUrl: string;
   baseEndPoint: string;
   websocketUrl: string;
+  /** Turns on developer pages such as /dev/code. */
+  devTools?: boolean;
 }
 @Injectable({
   providedIn: 'root',

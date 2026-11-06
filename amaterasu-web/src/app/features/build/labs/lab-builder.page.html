@@ -1,0 +1,239 @@
+@if (store.status() === 'error') {
+  <div class="banner bad" role="alert">
+    <app-icon name="alert" /><div class="grow">{{ store.error() }}</div>
+    <a class="btn sm" routerLink="/build/labs">Back to labs</a>
+  </div>
+} @else if (store.status() !== 'loaded') {
+  <app-skeleton variant="card" [count]="2" label="Loading the lab" />
+} @else {
+  <div class="page-head">
+    <div>
+      <div class="row">
+        <span class="tag" [class.accent]="statusTag() === 'Ready'">{{ statusTag() }}</span>
+        <span class="small muted">{{ savedNote() }}</span>
+      </div>
+      <h1 class="h1" style="margin-top:8px">{{ title() }}</h1>
+    </div>
+    <div class="row">
+      <button type="button" class="btn ghost" (click)="discard()">Discard</button>
+      <button type="button" class="btn primary" [disabled]="!store.canSave() || (!store.dirty() && !!store.labId())"
+              [title]="store.canSave() ? '' : 'Fill in the basics and the ' + (store.isCompose() ? 'compose file' : 'templates') + ' first'"
+              (click)="save()">
+        @if (store.saving()) { <app-icon name="spinner" size="sm" [spin]="true" /> }
+        {{ store.labId() ? 'Save lab' : 'Create lab' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="stepper" aria-label="Progress">
+    @for (step of steps(); track step.label; let i = $index) {
+      <span class="st" [class.done]="step.state === 'done'" [class.now]="step.state === 'now'">
+        <b>@if (step.state === 'done') { <app-icon name="check" size="sm" /> } @else { {{ i + 1 }} }</b>{{ step.label }}
+      </span>
+    }
+  </div>
+
+  <div class="cols">
+    <div class="col-main">
+      <section class="card stack loose" aria-labelledby="basics-h">
+        <div class="row between">
+          <h2 class="h2" id="basics-h">Basics</h2>
+          <div class="seg" role="group" aria-label="Lab type">
+            <button type="button" [class.on]="store.isCompose()" [disabled]="!!store.labId() && !store.isCompose()"
+                    (click)="pickType(types.DOCKER_COMPOSE)"><app-icon name="compose" size="sm" />Docker Compose</button>
+            <button type="button" [class.on]="!store.isCompose()" [disabled]="!!store.labId() && store.isCompose()"
+                    (click)="pickType(types.VIRTUAL_MACHINE)"><app-icon name="monitor" size="sm" />Proxmox VM</button>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label class="field"><span class="label">Name</span>
+            <input class="input" [value]="store.name()" (input)="store.update({ name: value($event) })" maxlength="80"
+                   placeholder="API Abuse Basics">
+          </label>
+          <label class="field"><span class="label">Version</span>
+            <input class="input mono" [value]="store.version()" (input)="store.update({ version: value($event) })" maxlength="20">
+          </label>
+          <label class="field"><span class="label">Team copies at once</span>
+            <input class="input num" type="number" min="1" max="500" [value]="store.capacity()"
+                   (input)="store.update({ capacity: +value($event) || 0 })">
+            <span class="help">How many teams can run it at the same time</span>
+          </label>
+          <label class="field"><span class="label">Server</span>
+            <select class="input" [disabled]="!store.serversForType().length" (change)="store.setServer(value($event))">
+              @for (server of store.serversForType(); track server.id) {
+                <option [value]="server.id" [selected]="server.id === store.serverId()">{{ serverOption(server) }}</option>
+              } @empty {
+                <option value="">No {{ store.isCompose() ? 'Docker hosts' : 'Proxmox nodes' }} yet</option>
+              }
+            </select>
+            @if (!store.serversForType().length) {
+              <span class="help">An admin adds servers under Admin, Servers.</span>
+            }
+          </label>
+        </div>
+        <label class="field"><span class="label">Description shown to teams</span>
+          <textarea class="input" rows="2" maxlength="500" [value]="store.description()"
+                    (input)="store.update({ description: value($event) })"
+                    placeholder="What the lab is and what teams will do in it"></textarea>
+        </label>
+      </section>
+
+      @if (store.isCompose()) {
+        <section class="card flush" aria-labelledby="src-h">
+          <div class="card-head">
+            <div>
+              <h2 class="h2 mono" id="src-h">docker-compose.yml</h2>
+              <div class="small muted">Each team gets its own Compose project from this file</div>
+            </div>
+            <label class="btn sm">
+              <app-icon name="upload" size="sm" />Upload file
+              <input type="file" accept=".yml,.yaml,text/yaml" class="visually-hidden" (change)="upload($event)">
+            </label>
+          </div>
+          @if (store.composeLoad() === 'error') {
+            <div class="pad-top">
+              <div class="banner warn"><app-icon name="alert" />
+                <div>The saved file could not be read from {{ serverName() }}: {{ store.composeError() }} Paste or upload it to save a new copy there.</div>
+              </div>
+            </div>
+          }
+          <div class="editor">
+            @if (store.composeLoad() === 'loading') {
+              <app-skeleton [count]="8" label="Loading the compose file" />
+            } @else {
+              <amaterasu-monaco-editor [codeModel]="codeModel()" [theme]="editorTheme()"
+                                       [options]="{ minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false, tabSize: 2 }"
+                                       (valueChanged)="store.setCompose($event)" />
+            }
+          </div>
+        </section>
+      } @else {
+        <section class="card flush" aria-labelledby="tpl-h">
+          <div class="card-head">
+            <div>
+              <h2 class="h2" id="tpl-h">VM templates on {{ serverName() }}</h2>
+              <div class="small muted">Every selected template is cloned once per team copy</div>
+            </div>
+            <button type="button" class="btn sm" [disabled]="!store.serverId() || store.templatesLoad() === 'loading'"
+                    (click)="store.reloadTemplates()">
+              <app-icon name="refresh" size="sm" [spin]="store.templatesLoad() === 'loading'" />Reload
+            </button>
+          </div>
+          @switch (store.templatesLoad()) {
+            @case ('loading') { <div class="card-body"><app-skeleton variant="rows" [count]="3" label="Loading templates" /></div> }
+            @case ('error') {
+              <div class="card-body"><div class="banner bad" role="alert"><app-icon name="alert" />
+                <div class="grow">Templates could not be read from {{ serverName() }}: {{ store.templatesError() }}</div>
+                <button type="button" class="btn sm" (click)="store.reloadTemplates()">Try again</button></div></div>
+            }
+            @default {
+              @for (template of store.templates(); track template.vmid) {
+                <label class="vmrow">
+                  <input type="checkbox" class="pick-box" [checked]="store.picked().includes(template.vmid)"
+                         (change)="store.toggleTemplate(template.vmid)">
+                  <span class="grow"><span class="mono" style="font-weight:600">{{ template.name }}</span>
+                    <span class="small muted"> · VMID {{ template.vmid }}</span></span>
+                  <span class="small dim num">{{ template.cpus }} vCPU · {{ gb(template.maxmem) }} GB</span>
+                </label>
+              } @empty {
+                <div class="empty small">
+                  @if (store.serverId()) {
+                    No templates on {{ serverName() }}. Convert a VM to a template in Proxmox, then reload.
+                  } @else {
+                    Choose a Proxmox node to see its templates.
+                  }
+                </div>
+              }
+            }
+          }
+        </section>
+
+        <section class="card stack" aria-labelledby="net-h">
+          <h2 class="h2" id="net-h">Network for each team copy</h2>
+          <div class="netbox">
+            <div class="row between">
+              <span class="row"><app-icon name="shield" /><strong class="mono">abrN</strong>
+                <span class="small muted">private bridge per source bridge, created at start, no host address</span></span>
+              <span class="tag">Isolated</span>
+            </div>
+            <div class="row">
+              @for (template of store.selectedTemplates(); track template.vmid) {
+                <span class="node"><app-icon name="monitor" size="sm" /><span class="mono">{{ template.name }}</span></span>
+              } @empty {
+                <span class="small muted">Pick templates to see them here.</span>
+              }
+            </div>
+            <div class="small muted">Teams reach these VMs through the Proxmox console. They cannot reach other labs or the node's own networks.</div>
+            @if (bridgeNote()) {
+              <div class="small dim">Bridges on {{ serverName() }}: <span class="mono">{{ bridgeNote() }}</span></div>
+            }
+          </div>
+        </section>
+      }
+    </div>
+
+    <aside class="col-side">
+      <section class="card stack" aria-labelledby="val-h">
+        <div class="row between">
+          <h2 class="h2" id="val-h">Validation</h2>
+          <span class="chip" [class]="validationChip().tone"><span class="dot"></span>{{ validationChip().label }}</span>
+        </div>
+        <p class="small dim">
+          @if (store.isCompose()) {
+            Parses the file, shows what changes per team copy, and runs docker compose config on the host once the lab is saved.
+          } @else {
+            Checks that every template exists on the node, has a network card to move onto the team bridge, and that its bridges exist.
+          }
+        </p>
+        <button type="button" class="btn primary block" [disabled]="store.validation() === 'running' || !store.serverId()"
+                (click)="store.validate()">
+          @if (store.validation() === 'running') { <app-icon name="spinner" size="sm" [spin]="true" /> }
+          {{ store.validation() === 'running' ? 'Validating on ' + serverName() : store.validation() === 'done' ? 'Validate again' : 'Validate on ' + serverName() }}
+        </button>
+        @if (store.validation() === 'done') {
+          <div class="stack tight">
+            @for (result of store.results(); track $index) {
+              <div class="result">
+                <span [class]="'s-' + result.tone" class="dot-wrap"><span class="pill-dot"></span></span>
+                <div><div style="font-weight:500">{{ result.title }}</div><div class="small muted">{{ result.body }}</div></div>
+              </div>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="card stack" aria-labelledby="est-h">
+        <h2 class="h2" id="est-h">Capacity check</h2>
+        <div class="small muted">{{ perCopyText() }}, times {{ store.capacity() || 0 }} copies, against what {{ serverName() }} has free</div>
+        @if (store.capacityCheck().measured) {
+          <div class="meter-row"><span class="muted">CPU</span>
+            <div class="bar" [class]="store.capacityCheck().cpu.level"><span [style.width.%]="store.capacityCheck().cpu.pct"></span></div>
+            <span class="num dim">{{ store.capacityCheck().cpu.text }}</span></div>
+          <div class="meter-row"><span class="muted">Memory</span>
+            <div class="bar" [class]="store.capacityCheck().memory.level"><span [style.width.%]="store.capacityCheck().memory.pct"></span></div>
+            <span class="num dim">{{ store.capacityCheck().memory.text }}</span></div>
+          @if (store.capacityCheck().overMemory) {
+            <div class="banner warn"><app-icon name="alert" />
+              <div>At {{ store.capacity() }} copies this lab needs more memory than {{ serverName() }} has free. Lower the number of copies or add a server.</div></div>
+          }
+        } @else {
+          <div class="small dim">
+            {{ store.server() ? store.server()!.name + ' has no usage numbers to compare against yet.' : 'Choose a server to compare against.' }}
+            Docker hosts report CPU, memory and disk every minute; Proxmox nodes report whether they answer.
+          </div>
+        }
+      </section>
+
+      <section class="card stack" aria-labelledby="prev-h">
+        <h2 class="h2" id="prev-h">What teams will see</h2>
+        <div class="card stack preview">
+          <div class="row between"><span class="tag">{{ store.isCompose() ? 'Docker Compose' : 'Proxmox VM' }}</span>
+            <span class="small muted">{{ unitsLabel() }}</span></div>
+          <strong>{{ title() }}</strong>
+          <span class="small dim">{{ store.description() || 'No description yet.' }}</span>
+          <span class="btn sm primary block" aria-hidden="true">Start on {{ serverName() }}</span>
+        </div>
+      </section>
+    </aside>
+  </div>
+}

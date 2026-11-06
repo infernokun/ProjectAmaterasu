@@ -1,0 +1,65 @@
+<app-page-header title="Rooms" subtitle="Each room holds a set of challenges. Join one to submit flags and get on its scoreboard.">
+  @if (session.canBuild()) {
+    <a class="btn" routerLink="/build/rooms"><app-icon name="plus" />Create a room</a>
+  }
+</app-page-header>
+
+<label class="search"><app-icon name="search" size="sm" />
+  <input type="search" placeholder="Find a room" aria-label="Find a room" [value]="query()" (input)="query.set($any($event.target).value)"></label>
+
+@if (rooms.loading() && !rooms.rooms().length) {
+  <app-skeleton variant="card" [count]="3" label="Loading rooms" />
+} @else if (rooms.error()) {
+  <div class="banner bad" role="alert"><app-icon name="alert" /><div class="grow row between"><span>{{ rooms.error() }}</span><button type="button" class="btn sm" (click)="rooms.load()">Try again</button></div></div>
+} @else {
+  <div class="grid wide">
+    @for (card of cards(); track card.id) {
+      <article class="card stack room" [class.sel]="rooms.currentRoom()?.id === card.id">
+        <div class="row between">
+          <h3 class="h3">{{ card.name }}</h3>
+          @if (card.joined) {
+            <app-status-badge tone="active" label="Joined" />
+          } @else if (card.left) {
+            <app-status-badge tone="off" label="Left" />
+          } @else {
+            <app-status-badge tone="off" label="Not joined" />
+          }
+        </div>
+        <div class="small muted">
+          @if (card.overview) {
+            {{ card.total }} {{ card.total === 1 ? 'challenge' : 'challenges' }} · {{ card.overview.playerCount }} {{ card.overview.playerCount === 1 ? 'player' : 'players' }}
+          }
+          @if (card.tag) {
+            · flags look like <span class="mono">{{ card.tag }}</span>
+          }
+        </div>
+        @if (card.joined && card.overview) {
+          <div class="bar" aria-hidden="true"><span [style.width.%]="card.pct"></span></div>
+          <div class="row between small muted">
+            <span>{{ card.overview.me.solved }} of {{ card.total }} solved</span>
+            <span class="num">{{ fmt.points(card.overview.me.points) }} pts{{ card.overview.me.rank ? ' · ' + fmt.ordinal(card.overview.me.rank) : '' }}</span>
+          </div>
+        }
+        <div class="grow-space"></div>
+        <div class="row">
+          @if (card.joined) {
+            <a class="btn sm primary" [routerLink]="['/rooms', card.id]" (click)="rooms.setCurrentRoom(card.id)"><app-icon name="flag" size="sm" />Open room</a>
+            <a class="btn sm" [routerLink]="['/rooms', card.id, 'scoreboard']"><app-icon name="trophy" size="sm" />Scoreboard</a>
+            <span class="grow"></span>
+            <button type="button" class="btn sm ghost" [disabled]="busy() === card.id" (click)="leave(card.id, card.name)">Leave</button>
+          } @else {
+            <button type="button" class="btn sm primary" [disabled]="busy() === card.id" (click)="join(card.id, card.name)">
+              @if (busy() === card.id) {<app-icon name="spinner" size="sm" [spin]="true" />}{{ card.left ? 'Rejoin' : 'Join room' }}</button>
+            <a class="btn sm ghost" [routerLink]="['/rooms', card.id]">Look inside</a>
+          }
+        </div>
+      </article>
+    }
+  </div>
+  @if (!cards().length) {
+    <section class="card">
+      <app-empty-state icon="flag" [title]="query() ? 'No rooms match' : 'No rooms yet'"
+        [message]="query() ? 'Try another name.' : 'Rooms show here once someone creates one.'" />
+    </section>
+  }
+}

@@ -20,6 +20,9 @@ public class ModelMapperConfig {
                     mapping.skip(CTFEntity::setId);
                     mapping.skip(CTFEntity::setCreatedAt);
                     mapping.skip(CTFEntity::setUpdatedAt);
+                    // Parsed by the controller, which accepts more than one date format
+                    mapping.skip(CTFEntity::setReleaseDate);
+                    mapping.skip(CTFEntity::setExpirationDate);
                 });
 
         mapper.createTypeMap(FlagRequest.class, Flag.class)

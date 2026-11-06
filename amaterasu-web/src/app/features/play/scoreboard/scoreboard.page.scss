@@ -1,0 +1,48 @@
+.live {
+  display: inline-flex;
+}
+
+.podium-name {
+  margin-top: 10px;
+}
+
+.podium-name strong {
+  font-size: 16px;
+}
+
+.legend {
+  gap: 6px;
+}
+
+.sw {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.sw.you { background: var(--accent); }
+.sw.o1 { background: var(--text-2); }
+.sw.o2 { background: var(--text-3); }
+.sw.o3 { background: var(--border-2); }
+
+.rank {
+  font-weight: 600;
+}
+
+.name, .name-link {
+  font-weight: 500;
+}
+
+.name-link {
+  text-decoration: none;
+}
+
+.name-link:hover {
+  text-decoration: underline;
+}
+
+.table-search {
+  margin: 0;
+  flex: 0 1 260px;
+}

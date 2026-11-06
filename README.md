@@ -43,7 +43,9 @@ Set the passwords and `ENCRYPTION_KEY` in `.env`, then:
 docker compose --env-file .env up -d
 ```
 
-The web app is on port `8764`. The API listens on `127.0.0.1:8765` (context path `/amaterasu-rest`) and is reached through nginx at `/api`.
+The web app is on port `8764`. The API listens on `127.0.0.1:8765` (context path `/amaterasu-rest`) and is reached through nginx at `/api`. Serve it over HTTPS outside a lab network; if TLS ends at a proxy in front of the web container, have that proxy send `X-Forwarded-Proto`.
+
+Upgrading from a version that defaulted `ENCRYPTION_KEY` to `secret_key`: the API now refuses that key. Set a new one, then re-enter the password or API token of each remote server, since they were encrypted with the old key.
 
 On first start the API creates the `amaterasu_admin` account with the password from `ADMIN_PASSWORD`. If that is blank, a random password is generated and printed once in the API log:
 
@@ -55,7 +57,9 @@ It also generates the RSA key pair it signs JWTs with into the `amaterasu-rest` 
 
 ## Accounts and access
 
-Every API route except login, registration, token refresh and the health check needs a bearer token. Access tokens last 15 minutes. Refresh tokens are rotated on every use, expire after 7 days idle or 30 days in total, and reusing an old one signs that user out everywhere.
+Every API route except login, registration, token refresh and the health check needs a bearer token, and so does the live update socket. Access tokens last 15 minutes and the web app keeps them in memory only. The refresh token is an HttpOnly cookie scoped to `/api/auth`, so page scripts can't read it. It is rotated on every use, expires after 7 days idle or 30 days in total, and reusing an old one signs that user out everywhere.
+
+Failed logins and the registration and refresh rate limits are counted in Redis, so they hold across restarts and API instances. If Redis is unreachable the API counts in memory until it is back.
 
 | Role | Can |
 | ---- | --- |
@@ -117,9 +121,9 @@ Every compose setting has a default; see [`.env.example`](.env.example) for the 
 | `REST_BIND` / `REST_PORT` | `127.0.0.1` / `8765` | Published API address and port |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `amaterasu` | Database credentials |
 | `REDIS_PASSWORD` | `amaterasu` | Redis password |
-| `ENCRYPTION_KEY` | `secret_key` | Encrypts stored server passwords and API tokens. Change it before adding servers |
+| `ENCRYPTION_KEY` | required | Encrypts stored server passwords and API tokens. At least 32 characters; the API will not start with a short or default key |
 | `ADMIN_PASSWORD` | generated | Password for `amaterasu_admin`, used only when that account is first created |
-| `ALLOWED_ORIGINS` | `*` | Origins allowed to call the API from a browser, comma-separated |
+| `ALLOWED_ORIGINS` | same origin only | Other origins allowed to call the API from a browser, comma-separated |
 | `DOCKER_COMPOSE_PATH` | `/var/tmp/amaterasu` | Working directory for lab files on each Docker host |
 | `RSA_PRIVATE_KEY_PATH` / `RSA_PUBLIC_KEY_PATH` | `/var/tmp/amaterasu/*.pem` | JWT keys, generated on first start when missing |
 

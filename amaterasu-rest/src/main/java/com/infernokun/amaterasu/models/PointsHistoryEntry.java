@@ -22,4 +22,10 @@ public class PointsHistoryEntry {
     private Integer totalPoints;
     private Integer pointsChange;
     private String reason;
+    /** Username of the facilitator or admin who awarded the change; empty for solves and hints. */
+    private String awardedBy;
+
+    public PointsHistoryEntry(LocalDateTime timestamp, Integer totalPoints, Integer pointsChange, String reason) {
+        this(timestamp, totalPoints, pointsChange, reason, null);
+    }
 }

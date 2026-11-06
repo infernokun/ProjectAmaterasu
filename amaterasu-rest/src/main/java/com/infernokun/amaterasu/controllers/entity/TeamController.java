@@ -3,6 +3,7 @@ package com.infernokun.amaterasu.controllers.entity;
 import com.infernokun.amaterasu.controllers.BaseController;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.Team;
+import com.infernokun.amaterasu.services.entity.AuditService;
 import com.infernokun.amaterasu.services.entity.TeamService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,7 @@ import java.util.List;
 @RequestMapping("/api/team")
 public class TeamController extends BaseController {
     private final TeamService teamService;
+    private final AuditService auditService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Team>>> getAllTeams() {
@@ -41,6 +43,7 @@ public class TeamController extends BaseController {
     @PostMapping
     public ResponseEntity<ApiResponse<Team>> createTeam(@RequestBody Team team) {
         Team createdTeam = teamService.createTeam(team);
+        auditService.record("TEAM_CREATED", "TEAM", createdTeam.getId(), createdTeam.getName(), createdTeam.getId(), null);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.<Team>builder()
                 .code(HttpStatus.CREATED.value())
                 .message("Team created successfully.")
@@ -61,6 +64,7 @@ public class TeamController extends BaseController {
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Team>> deleteTeam(@PathVariable String id) {
         Team deletedTeam = teamService.deleteTeam(id);
+        auditService.record("TEAM_DELETED", "TEAM", id, deletedTeam.getName(), id, null);
         return ResponseEntity.ok(ApiResponse.<Team>builder()
                 .code(HttpStatus.OK.value())
                 .message("Team deleted successfully.")
@@ -68,13 +72,20 @@ public class TeamController extends BaseController {
                 .build());
     }
 
-    @PutMapping()
-    public ResponseEntity<ApiResponse<Team>> updateTeam(@RequestBody Team team) {
-        Team updatedTeam = teamService.updateTeam(team);
+    /** Renames a team or changes its description. Its labs and members are left as they are. */
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<Team>> editTeam(@PathVariable String id, @RequestBody Team changes) {
+        Team updatedTeam = teamService.editTeam(id, changes.getName(), changes.getDescription());
+        auditService.record("TEAM_UPDATED", "TEAM", id, updatedTeam.getName(), id, null);
         return ResponseEntity.ok(ApiResponse.<Team>builder()
                 .code(HttpStatus.OK.value())
                 .message("Team updated successfully.")
                 .data(updatedTeam)
                 .build());
+    }
+
+    @PutMapping()
+    public ResponseEntity<ApiResponse<Team>> updateTeam(@RequestBody Team team) {
+        return editTeam(team.getId(), team);
     }
 }

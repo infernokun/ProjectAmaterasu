@@ -1,40 +1,75 @@
-import { Routes } from '@angular/router';
-import { HomeComponent } from './components/home/home.component';
-import { AuditLogComponent } from './components/audit-log/audit-log.component';
-import { TeamAuditLogComponent } from './components/app-lab/team-audit-log/team-audit-log.component';
-import { CodeBlockComponent } from './components/common/code-block/code-block.component';
-import { RemoteServerComponent } from './components/app-lab/remote-server/remote-server.component';
-import { LabSettingsComponent } from './components/app-lab/lab-settings/lab-settings.component';
-import { UsersComponent } from './components/users/users.component';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
 import { AppInitGuard } from './guards/app-init.guard';
-import { TeamsComponent } from './components/teams/teams.component';
-import { CTFMainComponent } from './components/app-ctf/ctf/ctf-main/ctf-main.component';
-import { adminGuard, authGuard, homeAuthGuard } from './guards/auth.guard';
-import { VMLabBuilderComponent } from './components/app-lab/vm-lab-builder/vm-lab-builder.component';
-import { InitializationComponent } from './components/initialization/initialization.component';
-import { RoomComponent } from './components/app-ctf/room/room.component';
-import { ScoreboardComponent } from './components/app-ctf/scoreboard/scoreboard.component';
-import { PlayerScoreboardComponent } from './components/app-ctf/player-scoreboard/player-scoreboard.component';
+import { authGuard, devToolsGuard, roleGuard, signedOutGuard } from './guards/auth.guard';
+import { AREA_ROLES } from './core/auth/roles';
+import { ShellComponent } from './shell/shell.component';
+
+/** Old addresses, kept working for bookmarks and links in the wild. */
+const LEGACY_REDIRECTS: Routes = [
+  { path: 'challenges', redirectTo: '/rooms' },
+  { path: 'room/:room', redirectTo: ({ params }) => inject(Router).createUrlTree(['/rooms', params['room']]) },
+  { path: 'room/:room/scoreboard', redirectTo: ({ params }) => inject(Router).createUrlTree(['/rooms', params['room'], 'scoreboard']) },
+  {
+    path: 'room/:room/scoreboard/:username',
+    redirectTo: ({ params }) => inject(Router).createUrlTree(['/rooms', params['room'], 'scoreboard', params['username']]),
+  },
+  {
+    path: 'lab/settings/:name',
+    redirectTo: ({ queryParams }) => inject(Router).createUrlTree(queryParams['id'] ? ['/labs', queryParams['id']] : ['/labs']),
+  },
+  { path: 'users', redirectTo: '/admin/users' },
+  { path: 'teams', redirectTo: () => inject(Router).createUrlTree(['/admin/users'], { queryParams: { tab: 'teams' } }) },
+  { path: 'remote-server', redirectTo: '/admin/servers' },
+  { path: 'log', redirectTo: '/admin/audit' },
+  { path: 'team-log', redirectTo: '/admin/audit' },
+  { path: 'vm-lab-builder', redirectTo: '/build/labs' },
+  { path: 'code', redirectTo: '/dev/code' },
+  { path: 'login', redirectTo: '/welcome' },
+];
 
 export const routes: Routes = [
-  { path: 'challenges', component: RoomComponent, canActivate: [AppInitGuard, authGuard] },
-  { path: 'room/:room', component: CTFMainComponent, canActivate: [AppInitGuard, authGuard] },
-  { path: 'room/:room/scoreboard', component: ScoreboardComponent, canActivate: [AppInitGuard, authGuard] },
-  { path: 'room/:room/scoreboard/:username', component: PlayerScoreboardComponent, canActivate: [AppInitGuard, authGuard] },
-  { path: 'vm-lab-builder', component: VMLabBuilderComponent, canActivate: [AppInitGuard, authGuard] },
-  { path: 'teams', component: TeamsComponent, canActivate: [AppInitGuard, authGuard] },
-  { path: 'users', component: UsersComponent, canActivate: [AppInitGuard, adminGuard] },
-  { path: 'lab/settings/:name', component: LabSettingsComponent, canActivate: [AppInitGuard, authGuard] },
-  { path: 'remote-server', component: RemoteServerComponent, canActivate: [AppInitGuard, authGuard] },
-  { path: 'code', component: CodeBlockComponent, canActivate: [AppInitGuard, authGuard] },
-  { path: 'team-log', component: TeamAuditLogComponent, canActivate: [AppInitGuard, authGuard] },
-  { path: 'log', component: AuditLogComponent, canActivate: [AppInitGuard, authGuard] },
-  { path: 'home', component: HomeComponent, canActivate: [AppInitGuard, homeAuthGuard] },
-  { path: 'init', component: InitializationComponent },
+  {
+    path: 'init',
+    title: 'Set up',
+    loadComponent: () => import('./components/initialization/initialization.component').then(m => m.InitializationComponent),
+  },
+  {
+    path: 'welcome',
+    title: 'Sign in',
+    canActivate: [AppInitGuard, signedOutGuard],
+    loadComponent: () => import('./shell/landing.component').then(m => m.LandingComponent),
+  },
+  ...LEGACY_REDIRECTS,
   {
     path: '',
-    redirectTo: '/home', // Will be redirected to home if initialized
-    pathMatch: 'full',
+    component: ShellComponent,
+    canActivate: [AppInitGuard, authGuard],
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'home' },
+      { path: '', loadChildren: () => import('./features/play/play.routes').then(m => m.PLAY_ROUTES) },
+      {
+        path: 'run',
+        canActivate: [roleGuard(...AREA_ROLES.run)],
+        loadChildren: () => import('./features/run/run.routes').then(m => m.RUN_ROUTES),
+      },
+      {
+        path: 'build',
+        canActivate: [roleGuard(...AREA_ROLES.build)],
+        loadChildren: () => import('./features/build/build.routes').then(m => m.BUILD_ROUTES),
+      },
+      {
+        path: 'admin',
+        canActivate: [roleGuard(...AREA_ROLES.admin)],
+        loadChildren: () => import('./features/admin/admin.routes').then(m => m.ADMIN_ROUTES),
+      },
+      { path: 'account', loadChildren: () => import('./features/account/account.routes').then(m => m.ACCOUNT_ROUTES) },
+      {
+        path: 'dev',
+        canActivate: [devToolsGuard],
+        loadChildren: () => import('./features/dev/dev.routes').then(m => m.DEV_ROUTES),
+      },
+    ],
   },
-  { path: '**', redirectTo: '' } // Wildcard route for a 404 page, redirect to root
+  { path: '**', redirectTo: '' },
 ];

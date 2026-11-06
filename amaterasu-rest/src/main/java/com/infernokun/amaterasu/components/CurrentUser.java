@@ -26,6 +26,19 @@ public class CurrentUser {
         return token.getName();
     }
 
+    public boolean isAuthenticated() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication instanceof JwtAuthenticationToken token && token.isAuthenticated();
+    }
+
+    /** The username claim of the access token. */
+    public String username() {
+        id();
+        JwtAuthenticationToken token = (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        Object username = token.getToken().getClaims().get("username");
+        return username != null ? username.toString() : token.getName();
+    }
+
     public User user() {
         return userService.findUserById(id());
     }
