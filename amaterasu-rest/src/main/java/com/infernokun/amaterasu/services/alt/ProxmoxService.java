@@ -35,6 +35,7 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.net.ssl.SSLContext;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.*;
@@ -49,11 +50,20 @@ public class ProxmoxService extends BaseService {
     private static final Duration STATUS_TIMEOUT = Duration.ofMinutes(3);
     private static final Pattern BRIDGE = Pattern.compile("bridge=([^,]+)");
     private static final Pattern LAB_BRIDGE = Pattern.compile("abr(\\d+)");
+    private static final Pattern MAC = Pattern.compile("(?i)[0-9a-f]{2}(:[0-9a-f]{2}){5}");
+    private static final Pattern STATIC_IP = Pattern.compile("(?:^|,)ip=(\\d+\\.\\d+\\.\\d+\\.\\d+)/(\\d+)");
+    /** How long a deploy waits for a bastion's guest agent to report its address. */
+    private static final Duration GUEST_TIMEOUT = Duration.ofMinutes(3);
+    private static final SecureRandom RANDOM = new SecureRandom();
+    // No l, o, 0 or 1: easy to read off the screen and type
+    private static final String PASSWORD_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
     // Bridge numbers are picked from what exists on the node, so two deploys must not pick at once
     private static final Object BRIDGE_LOCK = new Object();
 
     private final RestTemplate restTemplate;
     private final AESUtil aesUtil;
+    private Duration guestTimeout = GUEST_TIMEOUT;
+    private long guestPollMillis = 3000;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
@@ -64,6 +74,12 @@ public class ProxmoxService extends BaseService {
     public ProxmoxService(AESUtil aesUtil, RestTemplate restTemplate) {
         this.aesUtil = aesUtil;
         this.restTemplate = restTemplate;
+    }
+
+    /** For tests: how long a deploy waits for guest agents, and how often it asks. */
+    void guestWait(Duration timeout, long pollMillis) {
+        this.guestTimeout = timeout;
+        this.guestPollMillis = pollMillis;
     }
 
     private String api(RemoteServer remoteServer, String path) {
@@ -527,11 +543,12 @@ public class ProxmoxService extends BaseService {
                 templateConfigs.put(id, getVmConfigById(remoteServer, id));
             }
 
+            // A bastion's uplink keeps its bridge, so it needs no lab bridge of its own
             Set<String> sourceBridges = new LinkedHashSet<>();
-            templateConfigs.values().forEach(config -> config.getNetworks().values().forEach(net -> {
-                Matcher matcher = BRIDGE.matcher(net);
-                if (matcher.find()) {
-                    sourceBridges.add(matcher.group(1));
+            templateConfigs.values().forEach(config -> config.getNetworks().forEach((nic, net) -> {
+                String bridge = bridgeOf(net);
+                if (bridge != null && !config.isUplink(nic)) {
+                    sourceBridges.add(bridge);
                 }
             }));
 
@@ -542,6 +559,14 @@ public class ProxmoxService extends BaseService {
 
             List<ProxmoxVM> clones = new ArrayList<>();
             labTracker.setVms(clones);
+
+            // One password per copy, for every clone whose template has a cloud-init user
+            String password = null;
+            labTracker.setAccessPassword(null);
+            if (templateConfigs.values().stream().anyMatch(ProxmoxVMConfig::hasCiuser)) {
+                password = newPassword();
+                labTracker.setAccessPassword(aesUtil.encrypt(password));
+            }
 
             for (Integer templateId : templateIds) {
                 ProxmoxVM template = templates.get(templateId);
@@ -559,7 +584,9 @@ public class ProxmoxService extends BaseService {
                     failures++;
                     continue;
                 }
-                clones.add(new ProxmoxVM(newVmid, template));
+                ProxmoxVMConfig source = templateConfigs.get(templateId);
+                ProxmoxVM copy = labCopy(newVmid, template, source);
+                clones.add(copy);
 
                 if (!waitForTask(remoteServer, upid(clone), CLONE_TIMEOUT)) {
                     responses.add("Clone of " + template.getName() + " did not finish");
@@ -567,19 +594,30 @@ public class ProxmoxService extends BaseService {
                     continue;
                 }
 
-                Map<String, Object> config = new HashMap<>();
-                templateConfigs.get(templateId).getNetworks().forEach((key, value) -> {
-                    Matcher matcher = BRIDGE.matcher(value);
-                    if (matcher.find()) {
-                        config.put(key, matcher.replaceFirst("bridge=" + bridgeMap.get(matcher.group(1))));
-                    }
-                });
-                config.put("agent", "1");
                 ResponseEntity<ProxmoxActionResponse> update = sendProxmoxRequest(
-                        nodeApi(remoteServer, "/qemu/" + newVmid + "/config"), config, HttpMethod.PUT, remoteServer);
+                        nodeApi(remoteServer, "/qemu/" + newVmid + "/config"), labNetworkConfig(source, bridgeMap),
+                        HttpMethod.PUT, remoteServer);
                 responses.add("Network config " + newVmid + ": " + describe(update));
                 if (!update.getStatusCode().is2xxSuccessful()) {
                     failures++;
+                    continue;
+                }
+
+                // Before the first start, so cloud-init applies it on first boot
+                if (password != null && source.hasCiuser()) {
+                    ResponseEntity<ProxmoxActionResponse> secret = sendProxmoxRequest(
+                            nodeApi(remoteServer, "/qemu/" + newVmid + "/config"), Map.of("cipassword", password),
+                            HttpMethod.PUT, remoteServer);
+                    responses.add("Password for " + source.getCiuser() + " on " + newVmid + ": "
+                            + secret.getStatusCode().value());
+                    if (!secret.getStatusCode().is2xxSuccessful()) {
+                        failures++;
+                        continue;
+                    }
+                }
+
+                if (copy.isBastion()) {
+                    readMacs(remoteServer, copy, responses);
                 }
             }
 
@@ -589,6 +627,9 @@ public class ProxmoxService extends BaseService {
                 running = failures == 0 && waitForVMsToReachStatus(clones, remoteServer, "running");
             }
             refreshVMs(labTracker, remoteServer);
+            if (running) {
+                awaitGuests(labTracker, remoteServer, responses);
+            }
 
             return LabActionResult.builder()
                     .labTracker(labTracker)
@@ -615,6 +656,9 @@ public class ProxmoxService extends BaseService {
             int failures = startVMs(notRunning, remoteServer, responses);
             boolean running = failures == 0 && waitForVMsToReachStatus(labTracker.getVms(), remoteServer, "running");
             refreshVMs(labTracker, remoteServer);
+            if (running) {
+                updateGuests(remoteServer, labTracker.getVms());
+            }
             return LabActionResult.builder()
                     .labTracker(labTracker)
                     .isSuccessful(running)
@@ -683,6 +727,7 @@ public class ProxmoxService extends BaseService {
 
             if (failures == 0) {
                 labTracker.setVms(new ArrayList<>());
+                labTracker.setAccessPassword(null);
                 if (removeLabBridges(remoteServer, labTracker, responses)) {
                     labTracker.setBridges(new ArrayList<>());
                 } else {
@@ -881,11 +926,251 @@ public class ProxmoxService extends BaseService {
         try {
             List<ProxmoxVM> current = getVMsByIds(remoteServer, vmIds(labTracker));
             if (current.size() == labTracker.getVms().size()) {
-                labTracker.setVms(new ArrayList<>(current));
+                labTracker.setVms(new ArrayList<>(keepLabDetails(labTracker.getVms(), current)));
             }
         } catch (Exception e) {
             LOGGER.warn("Could not refresh VMs for lab tracker {}: {}", labTracker.getId(), e.getMessage());
         }
+    }
+
+    /** The tracked copy of a clone: its role, login user and whether its guest agent is watched. */
+    static ProxmoxVM labCopy(int vmid, ProxmoxVM template, ProxmoxVMConfig source) {
+        ProxmoxVM copy = new ProxmoxVM(vmid, template);
+        copy.setTemplate(0);
+        if (source.hasCiuser()) {
+            copy.setCiuser(source.getCiuser());
+        }
+        if (source.isAgentEnabled()) {
+            copy.setGuestAgent(true);
+            copy.setReady(false);
+        }
+        if (source.isBastion()) {
+            copy.setRole(ProxmoxVM.BASTION);
+            String uplink = source.getNetworks().get(ProxmoxVMConfig.UPLINK_NIC);
+            copy.setUplinkBridge(uplink != null ? bridgeOf(uplink) : null);
+            copy.setLabSubnet(source.getIpconfigs().entrySet().stream()
+                    .filter(entry -> !source.isUplink("net" + entry.getKey().substring("ipconfig".length())))
+                    .sorted(Map.Entry.comparingByKey())
+                    .map(entry -> staticSubnet(entry.getValue()))
+                    .filter(Objects::nonNull)
+                    .findFirst().orElse(null));
+        }
+        return copy;
+    }
+
+    /**
+     * A clone's NICs: each moves to its lab bridge except a bastion's uplink, and none keeps the
+     * template's MAC, so PVE generates a fresh one per clone.
+     */
+    static Map<String, Object> labNetworkConfig(ProxmoxVMConfig source, Map<String, String> bridgeMap) {
+        Map<String, Object> config = new TreeMap<>();
+        source.getNetworks().forEach((nic, value) -> {
+            String fresh = withoutMac(value);
+            String bridge = bridgeOf(fresh);
+            if (bridge != null && !source.isUplink(nic)) {
+                // Never leave a lab NIC on the template's bridge
+                if (!bridgeMap.containsKey(bridge)) {
+                    throw new IllegalStateException("No lab bridge for " + nic + " on " + bridge);
+                }
+                fresh = BRIDGE.matcher(fresh).replaceFirst("bridge=" + Matcher.quoteReplacement(bridgeMap.get(bridge)));
+            }
+            config.put(nic, fresh);
+        });
+        config.put("agent", "1");
+        return config;
+    }
+
+    /** "virtio=BC:24:11:D1:F1:8C,bridge=vmbr0,firewall=1" becomes "virtio,bridge=vmbr0,firewall=1". */
+    static String withoutMac(String nic) {
+        List<String> kept = new ArrayList<>();
+        for (String part : nic.split(",")) {
+            String[] kv = part.split("=", 2);
+            if (kv.length == 2 && kv[0].trim().equals("macaddr")) {
+                continue;
+            }
+            kept.add(kv.length == 2 && MAC.matcher(kv[1].trim()).matches() ? kv[0].trim() : part);
+        }
+        return String.join(",", kept);
+    }
+
+    static String bridgeOf(String nic) {
+        Matcher matcher = BRIDGE.matcher(nic);
+        return matcher.find() ? matcher.group(1) : null;
+    }
+
+    static String macOf(String nic) {
+        for (String part : nic.split(",")) {
+            String[] kv = part.split("=", 2);
+            if (kv.length == 2 && MAC.matcher(kv[1].trim()).matches()) {
+                return kv[1].trim().toLowerCase(Locale.ROOT);
+            }
+        }
+        return null;
+    }
+
+    /** "ip=172.16.0.1/24,gw=..." gives 172.16.0.0/24; dhcp and IPv6 give null. */
+    static String staticSubnet(String ipconfig) {
+        Matcher matcher = STATIC_IP.matcher(ipconfig);
+        return matcher.find() ? subnet(matcher.group(1), Integer.parseInt(matcher.group(2))) : null;
+    }
+
+    static String subnet(String ip, int prefix) {
+        if (prefix < 0 || prefix > 32) {
+            return null;
+        }
+        String[] octets = ip.split("\\.");
+        if (octets.length != 4) {
+            return null;
+        }
+        long address = 0;
+        for (String octet : octets) {
+            address = (address << 8) | (Integer.parseInt(octet) & 0xff);
+        }
+        long mask = prefix == 0 ? 0 : (0xffffffffL << (32 - prefix)) & 0xffffffffL;
+        long network = address & mask;
+        return String.format("%d.%d.%d.%d/%d", network >> 24 & 0xff, network >> 16 & 0xff, network >> 8 & 0xff,
+                network & 0xff, prefix);
+    }
+
+    /** Four groups of four from an alphabet without look-alikes: about 80 bits. */
+    static String newPassword() {
+        StringBuilder password = new StringBuilder();
+        for (int i = 0; i < 16; i++) {
+            if (i > 0 && i % 4 == 0) {
+                password.append('-');
+            }
+            password.append(PASSWORD_ALPHABET.charAt(RANDOM.nextInt(PASSWORD_ALPHABET.length())));
+        }
+        return password.toString();
+    }
+
+    /** Reads the MACs PVE generated for a clone, to find its interfaces in the guest agent's answer. */
+    private boolean readMacs(RemoteServer remoteServer, ProxmoxVM vm, List<String> responses) {
+        try {
+            Map<String, String> macs = new TreeMap<>();
+            getVmConfigById(remoteServer, vm.getVmid()).getNetworks().forEach((nic, value) -> {
+                String mac = macOf(value);
+                if (mac != null) {
+                    macs.put(nic, mac);
+                }
+            });
+            vm.setMacs(macs);
+            return true;
+        } catch (RuntimeException e) {
+            if (responses != null) {
+                responses.add("Could not read the MACs of " + vm.getVmid() + ": " + e.getMessage());
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Waits up to {@link #GUEST_TIMEOUT} for every bastion's address. A lab without one gets a single
+     * readiness pass; either way the minute cron fills in what is still missing.
+     */
+    private void awaitGuests(LabTracker labTracker, RemoteServer remoteServer, List<String> responses) {
+        List<ProxmoxVM> vms = labTracker.getVms();
+        long deadline = System.nanoTime() + guestTimeout.toNanos();
+        while (true) {
+            updateGuests(remoteServer, vms);
+            boolean waiting = vms.stream().anyMatch(vm -> vm.isBastion() && vm.getAccessAddress() == null);
+            if (!waiting || System.nanoTime() >= deadline || !sleep(guestPollMillis)) {
+                break;
+            }
+        }
+        vms.stream().filter(ProxmoxVM::isBastion).forEach(vm -> responses.add(vm.getAccessAddress() != null
+                ? "Bastion " + vm.getName() + " is at " + vm.getAccessAddress()
+                : "Bastion " + vm.getName() + " has no address yet; it shows once its guest agent answers"));
+    }
+
+    /**
+     * Fresh status reads with what the tracker learned about each VM, then one pass over the guest
+     * agents. For the minute cron.
+     */
+    public List<ProxmoxVM> refreshLabVMs(RemoteServer remoteServer, List<ProxmoxVM> tracked, List<ProxmoxVM> current) {
+        List<ProxmoxVM> vms = keepLabDetails(tracked, current);
+        updateGuests(remoteServer, vms);
+        return vms;
+    }
+
+    private static List<ProxmoxVM> keepLabDetails(List<ProxmoxVM> tracked, List<ProxmoxVM> current) {
+        Map<Integer, ProxmoxVM> byId = new HashMap<>();
+        tracked.forEach(vm -> byId.put(vm.getVmid(), vm));
+        return current.stream().map(vm -> vm.keepLabDetails(byId.get(vm.getVmid()))).collect(Collectors.toList());
+    }
+
+    /**
+     * Asks the guest agent of each running VM that is not ready yet, and of each bastion still without
+     * an address. An answer means ready; a bastion's address is the IPv4 on the interface whose MAC is
+     * its uplink's.
+     */
+    void updateGuests(RemoteServer remoteServer, List<ProxmoxVM> vms) {
+        for (ProxmoxVM vm : vms) {
+            boolean watched = vm.isGuestAgent() && !Boolean.TRUE.equals(vm.getReady());
+            boolean needsAddress = vm.isBastion() && vm.getAccessAddress() == null;
+            if (!"running".equals(vm.getStatus()) || (!watched && !needsAddress)) {
+                continue;
+            }
+            List<Map<String, Object>> interfaces = guestInterfaces(remoteServer, vm.getVmid());
+            if (vm.isGuestAgent()) {
+                vm.setReady(interfaces != null);
+            }
+            if (interfaces == null || !vm.isBastion()) {
+                continue;
+            }
+            if ((vm.getMacs() == null || vm.getMacs().isEmpty()) && !readMacs(remoteServer, vm, null)) {
+                continue;
+            }
+            Map<String, Object> uplink = ipv4(interfaces, vm.getMacs().get(ProxmoxVMConfig.UPLINK_NIC));
+            if (uplink != null) {
+                vm.setAccessAddress(String.valueOf(uplink.get("ip-address")));
+            }
+            // The lab subnet hint: the first other NIC with an IPv4
+            vm.getMacs().entrySet().stream()
+                    .filter(entry -> !ProxmoxVMConfig.UPLINK_NIC.equals(entry.getKey()))
+                    .map(entry -> ipv4(interfaces, entry.getValue()))
+                    .filter(address -> address != null && address.get("prefix") instanceof Number)
+                    .map(address -> subnet(String.valueOf(address.get("ip-address")), ((Number) address.get("prefix")).intValue()))
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .ifPresent(vm::setLabSubnet);
+        }
+    }
+
+    /** GET …/agent/network-get-interfaces; null while the agent does not answer. */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> guestInterfaces(RemoteServer remoteServer, int vmid) {
+        try {
+            Object result = getData(remoteServer, nodeApi(remoteServer, "/qemu/" + vmid + "/agent/network-get-interfaces"))
+                    .get("result");
+            return result instanceof List<?> list ? (List<Map<String, Object>>) list : null;
+        } catch (RestClientException e) {
+            LOGGER.debug("Guest agent of VM {} on {} did not answer: {}", vmid, remoteServer.getName(), e.getMessage());
+            return null;
+        }
+    }
+
+    /** The first usable IPv4 of the interface with this MAC. */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> ipv4(List<Map<String, Object>> interfaces, String mac) {
+        if (mac == null) {
+            return null;
+        }
+        for (Map<String, Object> iface : interfaces) {
+            if (!mac.equalsIgnoreCase(String.valueOf(iface.get("hardware-address")))
+                    || !(iface.get("ip-addresses") instanceof List<?> addresses)) {
+                continue;
+            }
+            for (Object entry : addresses) {
+                if (entry instanceof Map<?, ?> address && "ipv4".equals(address.get("ip-address-type"))) {
+                    String ip = String.valueOf(address.get("ip-address"));
+                    if (!ip.startsWith("127.") && !ip.startsWith("169.254.")) {
+                        return (Map<String, Object>) address;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private static List<Integer> vmIds(LabTracker labTracker) {

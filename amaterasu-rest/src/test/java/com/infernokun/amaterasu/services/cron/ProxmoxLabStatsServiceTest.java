@@ -22,6 +22,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -35,6 +36,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** The minute poll marks a lab DEGRADED only for VMs Proxmox says are gone, never for a failed read. */
 class ProxmoxLabStatsServiceTest {
@@ -100,6 +102,69 @@ class ProxmoxLabStatsServiceTest {
         stats.updateActiveProxmoxLabStats();
 
         verify(trackers).updateVmsIfStatus(eq(tracker), argThat(vms -> vms.size() == 2), eq(LabStatus.DEGRADED), eq(LabStatus.ACTIVE));
+    }
+
+    private static final String AGENT_INTERFACES = "{\"data\":{\"result\":["
+            + "{\"name\":\"lo\",\"hardware-address\":\"00:00:00:00:00:00\",\"ip-addresses\":[{\"ip-address\":\"127.0.0.1\",\"ip-address-type\":\"ipv4\",\"prefix\":8}]},"
+            + "{\"name\":\"eth1\",\"hardware-address\":\"bc:24:11:c3:00:47\",\"ip-addresses\":[{\"ip-address\":\"172.16.0.1\",\"ip-address-type\":\"ipv4\",\"prefix\":24}]},"
+            + "{\"name\":\"eth0\",\"hardware-address\":\"bc:24:11:fa:35:62\",\"ip-addresses\":[{\"ip-address\":\"10.0.0.42\",\"ip-address-type\":\"ipv4\",\"prefix\":24},"
+            + "{\"ip-address\":\"fe80::be24:11ff:fefa:3562\",\"ip-address-type\":\"ipv6\",\"prefix\":64}]}]}}";
+
+    @Test
+    void theCronFillsInTheBastionAddressAndReadiness() {
+        tracker.setVms(new ArrayList<>(List.of(
+                ProxmoxVM.builder().vmid(105).status("running").role("bastion").ciuser("player").guestAgent(true).ready(false)
+                        .macs(Map.of("net0", "bc:24:11:fa:35:62", "net1", "bc:24:11:c3:00:47")).build(),
+                ProxmoxVM.builder().vmid(106).status("running").guestAgent(true).ready(false).build(),
+                ProxmoxVM.builder().vmid(107).status("running").build())));
+        node.expect(requestTo(NODE + "/qemu/105/status/current")).andRespond(withSuccess(running(105), MediaType.APPLICATION_JSON));
+        node.expect(requestTo(NODE + "/qemu/106/status/current")).andRespond(withSuccess(running(106), MediaType.APPLICATION_JSON));
+        node.expect(requestTo(NODE + "/qemu/107/status/current")).andRespond(withSuccess(running(107), MediaType.APPLICATION_JSON));
+        node.expect(requestTo(NODE + "/qemu/105/agent/network-get-interfaces"))
+                .andRespond(withSuccess(AGENT_INTERFACES, MediaType.APPLICATION_JSON));
+        // 106's agent is still starting; 107 has no agent and is never asked
+        node.expect(requestTo(NODE + "/qemu/106/agent/network-get-interfaces")).andRespond(withServerError()
+                .body("{\"data\":null,\"message\":\"QEMU guest agent is not running\\n\"}").contentType(MediaType.APPLICATION_JSON));
+
+        stats.updateActiveProxmoxLabStats();
+
+        node.verify();
+        verify(trackers).updateVmsIfStatus(eq(tracker), argThat(vms -> {
+            ProxmoxVM bastion = vms.get(0);
+            return bastion.getVmid() == 105 && "10.0.0.42".equals(bastion.getAccessAddress())
+                    && "172.16.0.0/24".equals(bastion.getLabSubnet()) && Boolean.TRUE.equals(bastion.getReady())
+                    && "bastion".equals(bastion.getRole()) && "player".equals(bastion.getCiuser())
+                    && Boolean.FALSE.equals(vms.get(1).getReady()) && vms.get(2).getReady() == null;
+        }), eq(LabStatus.ACTIVE), eq(LabStatus.ACTIVE));
+    }
+
+    @Test
+    void aReadyBastionWithAnAddressIsNotAskedAgain() {
+        tracker.setVms(new ArrayList<>(List.of(
+                ProxmoxVM.builder().vmid(105).status("running").role("bastion").guestAgent(true).ready(true)
+                        .accessAddress("10.0.0.42").macs(Map.of("net0", "bc:24:11:fa:35:62")).build())));
+        node.expect(requestTo(NODE + "/qemu/105/status/current")).andRespond(withSuccess(running(105), MediaType.APPLICATION_JSON));
+
+        stats.updateActiveProxmoxLabStats();
+
+        node.verify();
+        verify(trackers).updateVmsIfStatus(eq(tracker), argThat(vms -> "10.0.0.42".equals(vms.get(0).getAccessAddress())
+                && Boolean.TRUE.equals(vms.get(0).getReady())), eq(LabStatus.ACTIVE), eq(LabStatus.ACTIVE));
+    }
+
+    @Test
+    void aStoppedVmIsNotReady() {
+        tracker.setVms(new ArrayList<>(List.of(
+                ProxmoxVM.builder().vmid(105).status("running").guestAgent(true).ready(true).build())));
+        node.expect(requestTo(NODE + "/qemu/105/status/current"))
+                .andRespond(withSuccess("{\"data\":{\"vmid\":105,\"status\":\"stopped\"}}", MediaType.APPLICATION_JSON));
+
+        stats.updateActiveProxmoxLabStats();
+
+        node.verify();
+        verify(trackers).updateVmsIfStatus(eq(tracker), argThat(vms -> Boolean.FALSE.equals(vms.get(0).getReady())),
+                eq(LabStatus.ACTIVE), eq(LabStatus.ACTIVE));
+        assertThat(tracker.getVms().get(0).getReady()).isTrue();
     }
 
     @Test

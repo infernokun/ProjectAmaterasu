@@ -155,3 +155,13 @@ export interface LabChallenge {
   /** Whether the caller solved it. */
   solved?: boolean | null;
 }
+
+/** How to log in to a lab copy's VMs. Only the owning team and admins can read it. */
+export interface LabAccess {
+  username: string | null;
+  password: string | null;
+  /** The bastion's LAN address, null until its guest agent reports it. */
+  address: string | null;
+  labSubnet: string | null;
+  bastion: string | null;
+}

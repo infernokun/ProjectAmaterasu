@@ -1,0 +1,24 @@
+{
+ "data": {
+  "agent": "1",
+  "boot": "order=scsi0",
+  "ciuser": "player",
+  "cores": 1,
+  "digest": "5f0c2a6e1d4b9e8f7a3c2b1d0e9f8a7b6c5d4e3f",
+  "ide2": "local-lvm:vm-9003-cloudinit,media=cdrom",
+  "ipconfig0": "ip=dhcp",
+  "ipconfig1": "ip=172.16.0.1/24",
+  "memory": "512",
+  "meta": "creation-qemu=10.0.2,ctime=1793931200",
+  "name": "tpl-bastion",
+  "net0": "virtio=BC:24:11:D1:F1:8C,bridge=vmbr0",
+  "net1": "virtio=BC:24:11:3D:72:44,bridge=vmbr0",
+  "ostype": "l26",
+  "scsi0": "local-lvm:base-9003-disk-0,size=4G",
+  "scsihw": "virtio-scsi-pci",
+  "smbios1": "uuid=6b0f3c8e-2f1a-4d5b-9c7e-1a2b3c4d5e6f",
+  "tags": "amaterasu;bastion",
+  "template": 1,
+  "vmgenid": "0d6e3b1a-7c2f-4e8d-9a5b-3c1d2e4f5a6b"
+ }
+}

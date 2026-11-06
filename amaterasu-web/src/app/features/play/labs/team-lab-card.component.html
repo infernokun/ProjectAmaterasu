@@ -19,6 +19,9 @@
     @if (detail()) {
       <div class="dim">{{ detail() }}</div>
     }
+    @if (showAccess()) {
+      <app-lab-access [tracker]="tracker()" [compact]="true" />
+    }
     <div class="life" aria-label="Lifecycle">
       <span [class]="stepClass('run')"><span class="node"></span>Running</span>
       <span class="life-line"></span>

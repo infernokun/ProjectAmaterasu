@@ -6,16 +6,17 @@ import { labStateMeta } from '../../../shared/lab-status';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { MonoIdComponent } from '../../../shared/ui/mono-id.component';
 import { StatusBadgeComponent } from '../../../shared/ui/status-badge.component';
+import { LabAccessComponent } from './lab-access.component';
 import { LabActionsService } from './lab-actions.service';
 import {
-  LifeStep, changedAgo, failedServices, isVm, labActions, labDetail, labTypeLabel, lifeStep, serviceName, shortId, stopWarning, toneOf,
+  LifeStep, bastionOf, changedAgo, failedServices, isRunningState, isVm, labActions, labDetail, labTypeLabel, lifeStep, serviceName, shortId, stopWarning, toneOf,
 } from './lab-view';
 
 /** One of the team's labs, with its live state and the actions that state allows. */
 @Component({
   selector: 'app-team-lab-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, MonoIdComponent, StatusBadgeComponent],
+  imports: [RouterLink, IconComponent, MonoIdComponent, StatusBadgeComponent, LabAccessComponent],
   templateUrl: './team-lab-card.component.html',
   styles: `
     :host { display: block; }
@@ -53,6 +54,9 @@ export class TeamLabCardComponent {
     if (!this.vm() || this.can().working) return null;
     return (this.tracker().vms ?? []).find(machine => machine.status === 'running') ?? null;
   });
+
+  /** SSH access while the copy runs, when it has a bastion. */
+  protected readonly showAccess = computed(() => this.vm() && isRunningState(this.state()) && !!bastionOf(this.tracker()));
 
   protected readonly confirming = signal(false);
 

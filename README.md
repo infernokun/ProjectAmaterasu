@@ -88,6 +88,8 @@ Self registration always creates a `MEMBER`. Repeated failed logins are throttle
 
 Each deployment is its own Compose project, so published ports and fixed container, volume and network names are dropped to let several teams run the same lab on one host. Each VM lab gets its own `abrN` bridges with no host address, so labs cannot reach each other or the Proxmox host's networks. Students reach VMs through the Proxmox console.
 
+A template tagged `bastion` in Proxmox is a lab's way in over SSH: its `net0` stays on the bridge the template has (the uplink, e.g. `vmbr0`) and its other NICs join the lab bridge. Every clone NIC gets a fresh MAC. Each copy gets its own password for the templates' cloud-init user (`ciuser`), set before the first boot and shown only to the owning team and admins. The bastion's LAN address is read from its guest agent and shown with the password on the lab card and page.
+
 ## Build and development
 
 The root `package.json` wraps the common commands:

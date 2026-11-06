@@ -37,6 +37,10 @@
   </nav>
 }
 
+@if (vm()?.ciuser && tracker(); as t) {
+  <app-lab-access class="vm-login" [tracker]="t" [compact]="true" />
+}
+
 <section class="card flush" aria-labelledby="screen-h">
   <div class="card-head screen-head">
     <h2 class="h3" id="screen-h">Screen</h2>
