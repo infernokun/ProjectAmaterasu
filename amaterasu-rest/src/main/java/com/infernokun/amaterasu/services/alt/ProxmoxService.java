@@ -6,6 +6,8 @@ import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.ServerCheck;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
+import com.infernokun.amaterasu.models.entities.lab.RemoteServerStats;
+import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.models.proxmox.*;
 import com.infernokun.amaterasu.services.BaseService;
@@ -157,6 +159,66 @@ public class ProxmoxService extends BaseService {
         return new NodeCheck(missingDeploy.isEmpty() ? ServerCheck.ok()
                 : ServerCheck.warning("Can list VMs but can't deploy labs: missing " + String.join("; ", missingDeploy)),
                 status, version);
+    }
+
+    private static final Pattern PVE_VERSION = Pattern.compile("pve-manager/([^/\\s]+)");
+    private static final double GB = 1024d * 1024 * 1024;
+
+    /**
+     * Checks the node and reads its host stats from /nodes/{node}/status, in the units the Docker
+     * stats script uses: GB for memory and disk, seconds for uptime.
+     */
+    public RemoteServerStats nodeStats(RemoteServer remoteServer) {
+        NodeCheck check = checkNode(remoteServer);
+        RemoteServerStats stats = new RemoteServerStats();
+        stats.setHostname(remoteServer.getNodeName());
+        stats.setOsName("Proxmox VE");
+        stats.setStatus(check.result().connected() ? LabStatus.ACTIVE : LabStatus.OFFLINE);
+        stats.setWarning(check.result().connected() ? check.result().warning() : check.result().reason());
+        stats.setOsVersion(check.version());
+        Map<String, Object> status = check.status();
+        if (status == null) {
+            return stats;
+        }
+        Matcher version = PVE_VERSION.matcher(String.valueOf(status.get("pveversion")));
+        if (version.find()) {
+            stats.setOsVersion(version.group(1));
+        }
+        stats.setCpu((int) number(section(status, "cpuinfo"), "cpus"));
+        stats.setCpuUsagePercent(Math.round(number(status, "cpu") * 1000) / 10d);
+        Map<String, Object> memory = section(status, "memory");
+        stats.setTotalRam(gb(number(memory, "total")));
+        stats.setUsedRam(gb(number(memory, "used")));
+        // PVE 9 adds "available" (MemAvailable, as the Docker script reads); older nodes have only "free"
+        stats.setAvailableRam(gb(memory.containsKey("available") ? number(memory, "available") : number(memory, "free")));
+        Map<String, Object> rootfs = section(status, "rootfs");
+        stats.setTotalDiskSpace(gb(number(rootfs, "total")));
+        stats.setUsedDiskSpace(gb(number(rootfs, "used")));
+        stats.setAvailableDiskSpace(gb(number(rootfs, "avail")));
+        stats.setUptime((long) number(status, "uptime"));
+        return stats;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> section(Map<String, Object> status, String key) {
+        return status.get(key) instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    private static double number(Map<String, Object> values, String key) {
+        Object value = values.get(key);
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return value != null ? Double.parseDouble(value.toString()) : 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /** Bytes to GB with one decimal, as the Docker stats script reports. */
+    private static float gb(double bytes) {
+        return (float) (Math.round(bytes / GB * 10) / 10d);
     }
 
     /**

@@ -45,7 +45,7 @@ export function serverHealth(server: Server): ServerHealth {
   if (!online) {
     return { tone: 'bad', label: 'Offline', online, busy: false, cpu: noData('CPU'), memory: noData('Memory'), disk: noData('Disk') };
   }
-  // Proxmox nodes report reachability only
+  // Docker hosts and Proxmox nodes both report numbers; rows saved before a full read have none
   const measured = stats.totalRam > 0 || stats.cpu > 0;
   const busy = measured && stats.cpuUsagePercent >= BUSY_CPU;
   const cpuPct = Math.round(stats.cpuUsagePercent);
@@ -70,6 +70,13 @@ export function serverHealth(server: Server): ServerHealth {
 export function sentence(text: string): string {
   const trimmed = text.trim();
   return !trimmed || /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
+/** "Proxmox VE 9.2.2 · up 4 h", or just the OS while offline. */
+export function osLine(server: Server): string {
+  const stats = server.stats;
+  const os = [stats?.osName, stats?.osVersion].filter(Boolean).join(' ') || serverTypeLabel(server.serverType);
+  return serverHealth(server).online ? `${os} · up ${uptime(stats?.uptime ?? 0)}` : os;
 }
 
 export function serverTypeLabel(type: ServerType): string {

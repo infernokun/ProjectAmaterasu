@@ -23,6 +23,8 @@ export interface ServerStats {
   availableDiskSpace: number;
   /** Seconds. */
   uptime: number;
+  /** Why the last check failed, or what an online server cannot do yet. */
+  warning?: string | null;
   updatedAt?: string | null;
 }
 
@@ -183,6 +185,7 @@ export function toServer(raw: any): Server {
       usedDiskSpace: stats.usedDiskSpace ?? 0,
       availableDiskSpace: stats.availableDiskSpace ?? 0,
       uptime: stats.uptime ?? 0,
+      warning: stats.warning ?? null,
       updatedAt: stats.updatedAt ?? null,
     } : null,
   };
