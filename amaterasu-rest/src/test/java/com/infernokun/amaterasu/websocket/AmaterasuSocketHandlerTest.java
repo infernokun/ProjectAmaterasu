@@ -8,6 +8,7 @@ import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.enums.Role;
+import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
 import com.infernokun.amaterasu.repositories.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -83,6 +84,24 @@ class AmaterasuSocketHandlerTest {
         ArgumentCaptor<TextMessage> message = ArgumentCaptor.forClass(TextMessage.class);
         verify(session).sendMessage(message.capture());
         return objectMapper.readTree(message.getValue().getPayload());
+    }
+
+    @Test
+    void sendsListsAsPlainArraysEvenWhenTheAppMapperAddsTypes() throws Exception {
+        ObjectMapper typed = new ObjectMapper().findAndRegisterModules();
+        typed.activateDefaultTyping(typed.getPolymorphicTypeValidator(), ObjectMapper.DefaultTyping.NON_FINAL,
+                com.fasterxml.jackson.annotation.JsonTypeInfo.As.PROPERTY);
+        handler = new AmaterasuSocketHandler(typed, userRepository);
+        user("member-red", Role.MEMBER, red, false);
+        WebSocketSession session = connect("member-red");
+        LabTracker tracker = tracker(red);
+        tracker.setVms(new java.util.ArrayList<>(List.of(ProxmoxVM.builder().vmid(125).name("kali").status("running").build())));
+
+        handler.onLabTrackerChanged(LabTrackerChangedEvent.updated(tracker));
+
+        JsonNode vms = sentTo(session).get("labTracker").get("vms");
+        assertThat(vms.isArray()).isTrue();
+        assertThat(vms.get(0).get("name").asText()).isEqualTo("kali");
     }
 
     @Test

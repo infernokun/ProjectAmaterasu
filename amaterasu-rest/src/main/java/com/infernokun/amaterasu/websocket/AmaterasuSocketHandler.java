@@ -40,7 +40,8 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
     private final UserRepository userRepository;
 
     public AmaterasuSocketHandler(ObjectMapper objectMapper, UserRepository userRepository) {
-        this.objectMapper = objectMapper;
+        // The app's mapper adds type info for the Redis cache; browsers need plain JSON, with lists as arrays
+        this.objectMapper = objectMapper.copy().deactivateDefaultTyping();
         this.userRepository = userRepository;
     }
 
