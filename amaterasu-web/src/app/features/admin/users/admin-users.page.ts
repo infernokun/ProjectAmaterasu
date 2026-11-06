@@ -34,7 +34,7 @@ const ROLE_POWERS: Record<string, string> = {
   providers: [UsersAdminStore],
   templateUrl: './admin-users.page.html',
   styles: `
-    .sel-sm { min-height: 34px; font-size: 13px; padding: 0 8px; width: auto; }
+    .sel-sm { min-height: var(--seg-h); font-size: 13px; padding: 0 8px; width: auto; }
     .bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 16px; background: var(--accent-soft); border-bottom: 1px solid var(--border); }
     .filters .search { margin: 0; max-width: 320px; }
     .pick-box { width: 16px; height: 16px; accent-color: var(--accent); }

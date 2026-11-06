@@ -61,7 +61,7 @@ import { LabBuilderService } from './lab-builder.service';
                         <app-status-badge tone="off" label="Draft" />
                       }
                       @if (!lab.ready) {
-                        <span class="small muted" title="A Docker host has not accepted its compose file yet">Not checked</span>
+                        <span class="small muted nobreak" title="A Docker host has not accepted its compose file yet">Not checked</span>
                       }
                     </div>
                   </td>
@@ -86,6 +86,7 @@ import { LabBuilderService } from './lab-builder.service';
     .name:hover { text-decoration: underline; }
     .clamp { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .nowrap { flex-wrap: nowrap; }
+    .nobreak { white-space: nowrap; }
     p { margin: 0; }
   `,
   host: { class: 'content' },
