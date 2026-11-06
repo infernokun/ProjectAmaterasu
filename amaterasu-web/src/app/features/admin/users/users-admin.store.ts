@@ -6,7 +6,8 @@ import { Role } from '../../../enums/role.enum';
 import { errorMessage } from '../../../core/http-error';
 import { isDeployed, isRunning } from '../../../core/lab-deployment';
 import { RequestState, initialRequestState } from '../../../core/stores/request-status';
-import { AdminTeam, AdminUser, AdminUsersService, NewUser, TeamLab } from './admin-users.service';
+import { AdminTeam, AdminUser, AdminUsersService, ImportResult, NewUser, TeamLab } from './admin-users.service';
+import { ImportRow } from './user-import';
 
 export type RoleFilter = Role | 'ALL';
 
@@ -103,6 +104,23 @@ export const UsersAdminStore = signalStore(
         const user = await firstValueFrom(api.setTeam(userId, teamId));
         replaceUser(user);
         return user;
+      },
+      /** Moves the selected users in one request; your own account moves too. Clears the selection. */
+      async moveSelected(teamId: string | null): Promise<AdminUser[]> {
+        const moved = await firstValueFrom(api.setTeamMany(store.selected(), teamId));
+        const byId = new Map(moved.map(user => [user.id, user]));
+        patchState(store, { users: store.users().map(user => byId.get(user.id) ?? user), selected: [] });
+        return moved;
+      },
+      async importUsers(rows: ImportRow[]): Promise<ImportResult> {
+        const result = await firstValueFrom(api.importUsers(rows.map(row => ({
+          row: row.line, username: row.username, password: row.password, role: row.role, team: row.team?.name ?? null,
+        }))));
+        if (result.created.length) {
+          const users = await firstValueFrom(api.users());
+          patchState(store, { users: [...users].sort(byName) });
+        }
+        return result;
       },
       async setDisabled(userId: string, disabled: boolean): Promise<AdminUser> {
         const user = await firstValueFrom(api.setDisabled(userId, disabled));

@@ -5,6 +5,7 @@
   </div>
   <div class="row">
     @if (tab() === 'users') {
+      <button type="button" class="btn" (click)="importCsv()"><app-icon name="upload" />Import CSV</button>
       <button type="button" class="btn primary" (click)="addUser()"><app-icon name="plus" />Add user</button>
     } @else {
       <button type="button" class="btn primary" (click)="newTeam()"><app-icon name="plus" />New team</button>
@@ -53,7 +54,7 @@
     @if (store.selected().length) {
       <div class="bulk">
         <strong>{{ store.selected().length }} selected</strong>
-        <select class="input sel-sm" aria-label="Move to team" (change)="bulkMove($event)">
+        <select class="input sel-sm" aria-label="Move to team" [disabled]="moving()" (change)="bulkMove($event)">
           <option value="">Move to team...</option>
           @for (team of store.teams(); track team.id) {
             <option [value]="team.id">{{ team.name }}</option>

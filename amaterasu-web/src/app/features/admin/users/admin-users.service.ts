@@ -34,6 +34,19 @@ export interface TeamLab {
   labName: string;
 }
 
+export interface ImportedRow {
+  row: number;
+  username: string;
+  password: string;
+  role: Role;
+  team: string | null;
+}
+
+export interface ImportResult {
+  created: { row: number; id: string; username: string; role: Role; team: string | null }[];
+  skipped: { row: number; username: string; reason: string }[];
+}
+
 export interface NewUser {
   username: string;
   password: string;
@@ -82,6 +95,17 @@ export class AdminUsersService {
   setTeam(userId: string, teamId: string | null): Observable<AdminUser> {
     const params: Record<string, string> = teamId ? { userId, teamId } : { userId };
     return this.http.put<ApiResponse<AdminUser>>(this.url('/user/team'), {}, { params }).pipe(map(r => toUser(r.data)));
+  }
+
+  /** Moves every listed user to the team, or off their team; all or none. */
+  setTeamMany(userIds: string[], teamId: string | null): Observable<AdminUser[]> {
+    return this.http.put<ApiResponse<any[]>>(this.url('/user/team/bulk'), { userIds, teamId })
+      .pipe(map(r => (r.data ?? []).map(toUser)));
+  }
+
+  importUsers(users: ImportedRow[]): Observable<ImportResult> {
+    return this.http.post<ApiResponse<ImportResult>>(this.url('/user/import'), { users })
+      .pipe(map(r => r.data ?? { created: [], skipped: [] }));
   }
 
   setDisabled(userId: string, disabled: boolean): Observable<AdminUser> {
