@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.services.entity.lab;
 
 import com.infernokun.amaterasu.exceptions.ResourceInUseException;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
+import com.infernokun.amaterasu.models.ServerCheck;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.repositories.lab.LabTrackerRepository;
@@ -82,16 +83,15 @@ public class RemoteServerService extends BaseService {
         return remoteServerRepository.save(remoteServer);
     }
 
-    public boolean validateRemoteServer(RemoteServer remoteServer) {
-        switch (remoteServer.getServerType()) {
-            case PROXMOX -> {
-                return proxmoxService.proxmoxHealthCheck(remoteServer);
-            }
-            case DOCKER_HOST -> {
-                return dockerService.dockerHealthCheck(remoteServer);
-            }
+    public ServerCheck validateRemoteServer(RemoteServer remoteServer) {
+        if (remoteServer.getServerType() == null) {
+            return ServerCheck.failed("Choose a Docker host or a Proxmox node");
         }
-        return false;
+        return switch (remoteServer.getServerType()) {
+            case PROXMOX -> proxmoxService.checkConnection(remoteServer);
+            case DOCKER_HOST -> new ServerCheck(dockerService.dockerHealthCheck(remoteServer), null, null);
+            default -> ServerCheck.failed("Choose a Docker host or a Proxmox node");
+        };
     }
 
     public RemoteServer modifyStatus(RemoteServer remoteServer) {
@@ -183,7 +183,7 @@ public class RemoteServerService extends BaseService {
             throw new IllegalArgumentException("Proxmox node name required");
         }
         if (!docker && !isBlank(changes.getApiToken()) && !changes.getApiToken().contains("=")) {
-            throw new IllegalArgumentException("The API token looks like TOKEN_ID=SECRET");
+            throw new IllegalArgumentException("The API token looks like USER@REALM!TOKENID=SECRET");
         }
         boolean taken = remoteServerRepository.findAll().stream()
                 .anyMatch(other -> !other.getId().equals(id) && name.equalsIgnoreCase(other.getName()));

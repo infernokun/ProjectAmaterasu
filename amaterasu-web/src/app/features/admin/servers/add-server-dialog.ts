@@ -3,10 +3,11 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ServerType } from '../../../enums/server-type.enum';
 import { errorMessage } from '../../../core/http-error';
 import { IconComponent } from '../../../shared/ui/icon.component';
-import { NewServer } from './servers.service';
+import { sentence } from './server-health';
+import { NewServer, ServerCheck } from './servers.service';
 
 export interface AddServerData {
-  validate: (server: NewServer) => Promise<boolean>;
+  validate: (server: NewServer) => Promise<ServerCheck>;
   add: (server: NewServer) => Promise<unknown>;
 }
 
@@ -57,16 +58,19 @@ type TestState = 'idle' | 'running' | 'ok' | 'failed';
           </label>
         </div>
         <label class="field"><span class="label">API token</span>
-          <input class="input mono" autocomplete="off" placeholder="TOKEN_ID=SECRET" [value]="apiToken()" (input)="edit(apiToken, $event)">
-          <span class="help">Format TOKEN_ID=SECRET. Stored encrypted.</span>
+          <input class="input mono" autocomplete="off" placeholder="USER@REALM!TOKENID=SECRET" [value]="apiToken()" (input)="edit(apiToken, $event)">
+          <span class="help">Format USER@REALM!TOKENID=SECRET. Stored encrypted.</span>
         </label>
       }
       @switch (test()) {
         @case ('ok') {
           <div class="banner ok" role="status"><app-icon name="check" /><div>{{ docker() ? 'Connected over SSH and found Docker.' : 'Token accepted by the node.' }} You can add {{ name() }} now.</div></div>
+          @if (warning()) {
+            <div class="banner warn" role="status"><app-icon name="alert" /><div>{{ sentence(warning()) }}</div></div>
+          }
         }
         @case ('failed') {
-          <div class="banner bad" role="alert"><app-icon name="alert" /><div>{{ error() || 'No answer from ' + address() + '. Check the address, port and credentials.' }}</div></div>
+          <div class="banner bad" role="alert"><app-icon name="alert" /><div>{{ error() ? sentence(error()) : 'No answer from ' + address() + '. Check the address, port and credentials.' }}</div></div>
         }
       }
       @if (addError()) {
@@ -88,6 +92,7 @@ export class AddServerDialogComponent {
   private readonly data = inject<AddServerData>(MAT_DIALOG_DATA);
   protected readonly ref = inject<MatDialogRef<AddServerDialogComponent>>(MatDialogRef);
   protected readonly types = ServerType;
+  protected readonly sentence = sentence;
 
   protected readonly type = signal<ServerType>(ServerType.DOCKER_HOST);
   protected readonly docker = computed(() => this.type() === ServerType.DOCKER_HOST);
@@ -100,6 +105,7 @@ export class AddServerDialogComponent {
   protected readonly nodeName = signal('');
   protected readonly test = signal<TestState>('idle');
   protected readonly error = signal('');
+  protected readonly warning = signal('');
   protected readonly addError = signal('');
   protected readonly adding = signal(false);
 
@@ -129,8 +135,12 @@ export class AddServerDialogComponent {
   protected async runTest(): Promise<void> {
     this.test.set('running');
     this.error.set('');
+    this.warning.set('');
     try {
-      this.test.set((await this.data.validate(this.request())) ? 'ok' : 'failed');
+      const check = await this.data.validate(this.request());
+      this.error.set(check.reason ?? '');
+      this.warning.set(check.warning ?? '');
+      this.test.set(check.connected ? 'ok' : 'failed');
     } catch (error) {
       this.error.set(errorMessage(error) ?? '');
       this.test.set('failed');

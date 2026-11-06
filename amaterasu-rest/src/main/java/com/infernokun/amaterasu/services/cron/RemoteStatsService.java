@@ -100,23 +100,35 @@ public class RemoteStatsService extends BaseService {
     }
 
     private void processProxmoxServerStats(RemoteServer proxmoxServer) {
+        // Checked before looking for a stats row, so a new server's first row holds a real answer
+        RemoteServerStats fresh = proxmoxService.nodeStats(proxmoxServer);
         Optional<RemoteServerStats> existingStats = remoteServerStatsRepository.findByRemoteServerId(proxmoxServer.getId());
-
-        if (existingStats.isPresent()) {
-            RemoteServerStats stats = existingStats.get();
-            stats.setUpdatedAt(LocalDateTime.now());
-
-            boolean isServerHealthy = proxmoxService.proxmoxHealthCheck(proxmoxServer);
-            stats.setStatus(isServerHealthy ? LabStatus.ACTIVE : LabStatus.OFFLINE);
-
-            LOGGER.debug("Updating stats for Proxmox server {}: status={}",
-                    proxmoxServer.getId(), stats.getStatus());
-            remoteServerStatsService.updateStats(stats);
-        } else {
-            LOGGER.debug("No existing stats found for Proxmox server {}, creating new",
-                    proxmoxServer.getId());
-            updateServerStats(proxmoxServer, null);
+        if (existingStats.isEmpty()) {
+            createNewStats(proxmoxServer, fresh);
+            return;
         }
+        RemoteServerStats stats = existingStats.get();
+        stats.setUpdatedAt(LocalDateTime.now());
+        stats.setStatus(fresh.getStatus());
+        stats.setWarning(fresh.getWarning());
+        stats.setHostname(fresh.getHostname());
+        stats.setOsName(fresh.getOsName());
+        if (fresh.getOsVersion() != null) {
+            stats.setOsVersion(fresh.getOsVersion());
+        }
+        if (fresh.getTotalRam() > 0) {
+            stats.setCpu(fresh.getCpu());
+            stats.setCpuUsagePercent(fresh.getCpuUsagePercent());
+            stats.setTotalRam(fresh.getTotalRam());
+            stats.setUsedRam(fresh.getUsedRam());
+            stats.setAvailableRam(fresh.getAvailableRam());
+            stats.setTotalDiskSpace(fresh.getTotalDiskSpace());
+            stats.setUsedDiskSpace(fresh.getUsedDiskSpace());
+            stats.setAvailableDiskSpace(fresh.getAvailableDiskSpace());
+            stats.setUptime(fresh.getUptime());
+        }
+        LOGGER.debug("Updating stats for Proxmox server {}: status={}", proxmoxServer.getId(), stats.getStatus());
+        remoteServerStatsService.updateStats(stats);
     }
 
     private void processDockerServerStats(RemoteServer dockerServer) {
@@ -248,7 +260,11 @@ public class RemoteStatsService extends BaseService {
     private void createNewStats(RemoteServer remoteServer, RemoteServerStats statsFromJson) {
         RemoteServerStats stats = statsFromJson != null ? statsFromJson : new RemoteServerStats();
         stats.setRemoteServer(remoteServer);
-        stats.setStatus(statsFromJson != null ? LabStatus.ACTIVE : LabStatus.OFFLINE);
+        if (statsFromJson == null) {
+            stats.setStatus(LabStatus.OFFLINE);
+        } else if (stats.getStatus() == null) {
+            stats.setStatus(LabStatus.ACTIVE);
+        }
 
         RemoteServerStats savedStats = remoteServerStatsService.createStats(stats);
 

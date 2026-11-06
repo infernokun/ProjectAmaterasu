@@ -3,8 +3,11 @@ package com.infernokun.amaterasu.services.alt;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.LabActionResult;
+import com.infernokun.amaterasu.models.ServerCheck;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
+import com.infernokun.amaterasu.models.entities.lab.RemoteServerStats;
+import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.models.proxmox.*;
 import com.infernokun.amaterasu.services.BaseService;
@@ -27,6 +30,7 @@ import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.net.ssl.SSLContext;
@@ -57,7 +61,7 @@ public class ProxmoxService extends BaseService {
         this(aesUtil, createRestTemplate());
     }
 
-    ProxmoxService(AESUtil aesUtil, RestTemplate restTemplate) {
+    public ProxmoxService(AESUtil aesUtil, RestTemplate restTemplate) {
         this.aesUtil = aesUtil;
         this.restTemplate = restTemplate;
     }
@@ -70,26 +74,230 @@ public class ProxmoxService extends BaseService {
         return api(remoteServer, "/nodes/" + remoteServer.getNodeName() + path);
     }
 
-    public boolean proxmoxHealthCheck(RemoteServer remoteServer) {
-        HttpEntity<String> entity = new HttpEntity<>(createHeaders(remoteServer));
-        try {
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    api(remoteServer, "/version"), HttpMethod.GET, entity, new ParameterizedTypeReference<>() { });
-            return response.getStatusCode().is2xxSuccessful();
-        } catch (RestClientException e) {
-            return false;
+    static final String TOKEN_REJECTED = "Proxmox rejected the token. Use the full USER@REALM!TOKENID=SECRET";
+
+    /** Privileges to list VMs and read the node, by ACL path. Without them the server is not usable. */
+    static Map<String, List<String>> readPrivileges(String node) {
+        Map<String, List<String>> needed = new LinkedHashMap<>();
+        needed.put("/vms", List.of("VM.Audit"));
+        needed.put("/nodes/" + node, List.of("Sys.Audit"));
+        return needed;
+    }
+
+    /** Privileges to clone, network, start, open and destroy lab VMs and add their bridges. */
+    static Map<String, List<String>> deployPrivileges(String node) {
+        Map<String, List<String>> needed = new LinkedHashMap<>();
+        needed.put("/vms", List.of("VM.Clone", "VM.Allocate", "VM.Config.Network", "VM.Config.Options",
+                "VM.PowerMgmt", "VM.Console"));
+        needed.put("/storage", List.of("Datastore.AllocateSpace"));
+        needed.put("/nodes/" + node, List.of("Sys.Modify"));
+        return needed;
+    }
+
+    /** A check of a Proxmox server, with the node status and version it read on the way. */
+    public record NodeCheck(ServerCheck result, Map<String, Object> status, String version) {
+        static NodeCheck failed(String reason) {
+            return new NodeCheck(ServerCheck.failed(reason), null, null);
         }
     }
 
+    public ServerCheck checkConnection(RemoteServer remoteServer) {
+        return checkNode(remoteServer).result();
+    }
+
+    /**
+     * Usable means the token is accepted, the node exists and the token can list VMs and read the node.
+     * Missing deploy privileges only warn: such a server can still be watched.
+     */
+    public NodeCheck checkNode(RemoteServer remoteServer) {
+        String version;
+        try {
+            Object value = getData(remoteServer, api(remoteServer, "/version")).get("version");
+            version = value != null ? value.toString() : null;
+        } catch (RestClientResponseException e) {
+            return NodeCheck.failed(e.getStatusCode().value() == 401 ? TOKEN_REJECTED
+                    : "Proxmox at " + address(remoteServer) + " answered " + e.getStatusCode().value() + " " + proxmoxMessage(e));
+        } catch (RestClientException e) {
+            return NodeCheck.failed(noAnswer(remoteServer));
+        }
+
+        Map<String, Object> status = null;
+        try {
+            status = getData(remoteServer, nodeApi(remoteServer, "/status"));
+        } catch (RestClientResponseException e) {
+            int code = e.getStatusCode().value();
+            if (code == 401) {
+                return NodeCheck.failed(TOKEN_REJECTED);
+            }
+            // 403 is a missing Sys.Audit, named below. Anything else is a node name the host cannot route to
+            if (code != 403) {
+                return NodeCheck.failed("No node called " + remoteServer.getNodeName() + " on that host");
+            }
+        } catch (RestClientException e) {
+            return NodeCheck.failed(noAnswer(remoteServer));
+        }
+
+        Map<String, List<String>> read = readPrivileges(remoteServer.getNodeName());
+        Map<String, List<String>> deploy = deployPrivileges(remoteServer.getNodeName());
+        Map<String, Set<String>> privileges;
+        try {
+            Set<String> paths = new LinkedHashSet<>(read.keySet());
+            paths.addAll(deploy.keySet());
+            privileges = privilegesAt(remoteServer, paths);
+        } catch (RestClientResponseException e) {
+            return new NodeCheck(ServerCheck.failed(e.getStatusCode().value() == 401 ? TOKEN_REJECTED
+                    : "Could not read the token's privileges: " + e.getStatusCode().value() + " " + proxmoxMessage(e)), status, version);
+        } catch (RestClientException e) {
+            return new NodeCheck(ServerCheck.failed(noAnswer(remoteServer)), status, version);
+        }
+
+        List<String> missingRead = missing(privileges, read);
+        if (!missingRead.isEmpty()) {
+            return new NodeCheck(ServerCheck.failed("The Proxmox token is missing " + String.join("; ", missingRead)), status, version);
+        }
+        List<String> missingDeploy = missing(privileges, deploy);
+        return new NodeCheck(missingDeploy.isEmpty() ? ServerCheck.ok()
+                : ServerCheck.warning("Can list VMs but can't deploy labs: missing " + String.join("; ", missingDeploy)),
+                status, version);
+    }
+
+    private static final Pattern PVE_VERSION = Pattern.compile("pve-manager/([^/\\s]+)");
+    private static final double GB = 1024d * 1024 * 1024;
+
+    /**
+     * Checks the node and reads its host stats from /nodes/{node}/status, in the units the Docker
+     * stats script uses: GB for memory and disk, seconds for uptime.
+     */
+    public RemoteServerStats nodeStats(RemoteServer remoteServer) {
+        NodeCheck check = checkNode(remoteServer);
+        RemoteServerStats stats = new RemoteServerStats();
+        stats.setHostname(remoteServer.getNodeName());
+        stats.setOsName("Proxmox VE");
+        stats.setStatus(check.result().connected() ? LabStatus.ACTIVE : LabStatus.OFFLINE);
+        stats.setWarning(check.result().connected() ? check.result().warning() : check.result().reason());
+        stats.setOsVersion(check.version());
+        Map<String, Object> status = check.status();
+        if (status == null) {
+            return stats;
+        }
+        Matcher version = PVE_VERSION.matcher(String.valueOf(status.get("pveversion")));
+        if (version.find()) {
+            stats.setOsVersion(version.group(1));
+        }
+        stats.setCpu((int) number(section(status, "cpuinfo"), "cpus"));
+        stats.setCpuUsagePercent(Math.round(number(status, "cpu") * 1000) / 10d);
+        Map<String, Object> memory = section(status, "memory");
+        stats.setTotalRam(gb(number(memory, "total")));
+        stats.setUsedRam(gb(number(memory, "used")));
+        // PVE 9 adds "available" (MemAvailable, as the Docker script reads); older nodes have only "free"
+        stats.setAvailableRam(gb(memory.containsKey("available") ? number(memory, "available") : number(memory, "free")));
+        Map<String, Object> rootfs = section(status, "rootfs");
+        stats.setTotalDiskSpace(gb(number(rootfs, "total")));
+        stats.setUsedDiskSpace(gb(number(rootfs, "used")));
+        stats.setAvailableDiskSpace(gb(number(rootfs, "avail")));
+        stats.setUptime((long) number(status, "uptime"));
+        return stats;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> section(Map<String, Object> status, String key) {
+        return status.get(key) instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    private static double number(Map<String, Object> values, String key) {
+        Object value = values.get(key);
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return value != null ? Double.parseDouble(value.toString()) : 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /** Bytes to GB with one decimal, as the Docker stats script reports. */
+    private static float gb(double bytes) {
+        return (float) (Math.round(bytes / GB * 10) / 10d);
+    }
+
+    /**
+     * The token's effective privileges at each path, as PVE resolves them. An ACL on a deeper path replaces
+     * what it inherits, so each path is read from /access/permissions, never derived from a parent.
+     */
+    Map<String, Set<String>> privilegesAt(RemoteServer remoteServer, Collection<String> paths) {
+        Map<String, Object> all = getData(remoteServer, api(remoteServer, "/access/permissions"));
+        Map<String, Set<String>> privileges = new LinkedHashMap<>();
+        for (String path : paths) {
+            Object at = all.get(path);
+            if (at == null) {
+                // Not listed: ask for that path itself
+                at = getData(remoteServer, api(remoteServer, "/access/permissions?path=" + path)).get(path);
+            }
+            // Values are the propagate flag, so a 0 is still held at this path
+            privileges.put(path, at instanceof Map<?, ?> map
+                    ? map.keySet().stream().map(String::valueOf).collect(Collectors.toSet()) : Set.of());
+        }
+        return privileges;
+    }
+
+    /** "VM.Clone, VM.Allocate on /vms" for each path that lacks some of what is needed. */
+    static List<String> missing(Map<String, Set<String>> held, Map<String, List<String>> needed) {
+        List<String> missing = new ArrayList<>();
+        needed.forEach((path, privileges) -> {
+            List<String> lacking = privileges.stream()
+                    .filter(privilege -> !held.getOrDefault(path, Set.of()).contains(privilege))
+                    .toList();
+            if (!lacking.isEmpty()) {
+                missing.add(String.join(", ", lacking) + " on " + path);
+            }
+        });
+        return missing;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getData(RemoteServer remoteServer, String url) {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                url, HttpMethod.GET, new HttpEntity<>(createHeaders(remoteServer)), new ParameterizedTypeReference<>() { });
+        Object data = response.getBody() != null ? response.getBody().get("data") : null;
+        if (!(data instanceof Map<?, ?> map)) {
+            throw new RestClientException("Proxmox sent no data for " + url);
+        }
+        return (Map<String, Object>) map;
+    }
+
+    private static String address(RemoteServer remoteServer) {
+        return remoteServer.getIpAddress() + ":8006";
+    }
+
+    private static String noAnswer(RemoteServer remoteServer) {
+        return "No answer from " + address(remoteServer) + ". Check the address and that the node is up";
+    }
+
+    static final String CANNOT_SEE_VMS = "The Proxmox token can't see VMs (missing VM.Audit on /vms)";
+
+    /** The node's VMs. PVE leaves out VMs the token may not audit, so an empty list is checked against its privileges. */
     public List<ProxmoxVM> getVMs(RemoteServer remoteServer) {
         HttpEntity<String> entity = new HttpEntity<>(createHeaders(remoteServer));
         ResponseEntity<ProxmoxResponse> response = restTemplate.exchange(
                 nodeApi(remoteServer, "/qemu"), HttpMethod.GET, entity, ProxmoxResponse.class);
 
-        if (response.getBody() != null && response.getBody().getData() != null) {
-            return response.getBody().getData();
+        List<ProxmoxVM> vms = response.getBody() != null && response.getBody().getData() != null
+                ? response.getBody().getData() : List.of();
+        if (vms.isEmpty() && !canAuditVms(remoteServer)) {
+            throw new IllegalStateException(CANNOT_SEE_VMS);
         }
-        return List.of();
+        return vms;
+    }
+
+    private boolean canAuditVms(RemoteServer remoteServer) {
+        try {
+            return privilegesAt(remoteServer, List.of("/vms")).get("/vms").contains("VM.Audit");
+        } catch (RestClientException e) {
+            // Unknown: report the list as it came
+            LOGGER.warn("Could not read the token's privileges on {}: {}", remoteServer.getName(), e.getMessage());
+            return true;
+        }
     }
 
     public List<ProxmoxVM> getVMTemplates(RemoteServer remoteServer) {
@@ -98,7 +306,10 @@ public class ProxmoxService extends BaseService {
                 .collect(Collectors.toList());
     }
 
-    /** Returns the current state of the given VMs, skipping any that no longer exist. */
+    /**
+     * Returns the current state of the given VMs, skipping only those Proxmox says do not exist.
+     * Any other failure throws, so callers never mistake an unreadable VM for a destroyed one.
+     */
     public List<ProxmoxVM> getVMsByIds(RemoteServer remoteServer, List<Integer> vmIds) {
         HttpEntity<String> entity = new HttpEntity<>(createHeaders(remoteServer));
         List<ProxmoxVM> found = new ArrayList<>();
@@ -107,14 +318,44 @@ public class ProxmoxService extends BaseService {
                 ResponseEntity<Map<String, ProxmoxVM>> response = restTemplate.exchange(
                         nodeApi(remoteServer, "/qemu/" + vmid + "/status/current"), HttpMethod.GET, entity,
                         new ParameterizedTypeReference<>() { });
-                if (response.getBody() != null && response.getBody().get("data") != null) {
-                    found.add(response.getBody().get("data"));
+                if (response.getBody() == null || response.getBody().get("data") == null) {
+                    throw new IllegalStateException("Could not read VM " + vmid + " on " + remoteServer.getName()
+                            + ": Proxmox sent no VM status");
                 }
+                found.add(response.getBody().get("data"));
+            } catch (RestClientResponseException e) {
+                if (!vmDoesNotExist(e)) {
+                    throw new IllegalStateException("Could not read VM " + vmid + " on " + remoteServer.getName()
+                            + ": " + e.getStatusCode().value() + " " + proxmoxMessage(e));
+                }
+                LOGGER.info("VM {} no longer exists on {}", vmid, remoteServer.getName());
             } catch (RestClientException e) {
-                LOGGER.warn("Could not read VM {} on {}: {}", vmid, remoteServer.getIpAddress(), e.getMessage());
+                throw new IllegalStateException("Could not read VM " + vmid + " on " + remoteServer.getName()
+                        + ": no answer from " + remoteServer.getIpAddress() + " (" + e.getMessage() + ")");
             }
         }
         return found;
+    }
+
+    /** PVE answers 500 "Configuration file '…/123.conf' does not exist" for a missing VM. 595 and the rest are not "gone". */
+    static boolean vmDoesNotExist(RestClientResponseException e) {
+        int code = e.getStatusCode().value();
+        return code == 404 || (code == 500 && (String.valueOf(e.getStatusText()) + " " + e.getResponseBodyAsString())
+                .contains("does not exist"));
+    }
+
+    /** Proxmox's own error text: the body's message, else the status line. */
+    static String proxmoxMessage(RestClientResponseException e) {
+        try {
+            Object message = objectMapper.readValue(e.getResponseBodyAsString(), Map.class).get("message");
+            if (message != null && !message.toString().isBlank()) {
+                return message.toString().trim();
+            }
+        } catch (Exception ignored) {
+            // Not JSON
+        }
+        String text = e.getStatusText();
+        return text != null && !text.isBlank() ? text.trim() : e.getResponseBodyAsString().trim();
     }
 
     public ProxmoxVMConfig getVmConfigById(RemoteServer remoteServer, Integer vmid) {
@@ -130,6 +371,13 @@ public class ProxmoxService extends BaseService {
     }
 
     public List<ProxmoxNetwork> getNodeNetworks(RemoteServer remoteServer) {
+        return readNetwork(remoteServer).interfaces();
+    }
+
+    /** The node's interfaces as /etc/network/interfaces.new has them, and the diff not applied yet. */
+    private record NodeNetwork(List<ProxmoxNetwork> interfaces, String changes) { }
+
+    private NodeNetwork readNetwork(RemoteServer remoteServer) {
         HttpEntity<String> entity = new HttpEntity<>(createHeaders(remoteServer));
         ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 nodeApi(remoteServer, "/network"), HttpMethod.GET, entity, new ParameterizedTypeReference<>() { });
@@ -137,9 +385,87 @@ public class ProxmoxService extends BaseService {
         if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
             throw new ResourceNotFoundException("Could not read node networks");
         }
-        return objectMapper.convertValue(
+        List<ProxmoxNetwork> interfaces = objectMapper.convertValue(
                 response.getBody().get("data"),
                 objectMapper.getTypeFactory().constructCollectionType(List.class, ProxmoxNetwork.class));
+        // PVE sets "changes" beside "data" only while edits are pending
+        Object changes = response.getBody().get("changes");
+        return new NodeNetwork(interfaces != null ? interfaces : List.of(), changes != null ? changes.toString() : null);
+    }
+
+    private static final Pattern IFACE_LINE = Pattern.compile("^iface\\s+(\\S+)");
+    private static final Pattern AUTO_LINE = Pattern.compile("^(?:auto|allow-\\S+)\\s+(.+)$");
+    /** Stands for changed lines whose stanza the diff does not show. */
+    static final String UNKNOWN_INTERFACE = "?";
+
+    /**
+     * Interfaces a pending interfaces diff touches. Lines are credited to the stanza they sit in;
+     * a changed line outside any visible stanza, or a diff that cannot be read, counts as {@link #UNKNOWN_INTERFACE}.
+     */
+    static Set<String> touchedInterfaces(String changes) {
+        Set<String> touched = new LinkedHashSet<>();
+        if (changes == null || changes.isBlank()) {
+            return touched;
+        }
+        boolean inHunk = false;
+        String stanza = null;
+        for (String line : changes.split("\\R")) {
+            if (line.startsWith("@@")) {
+                inHunk = true;
+                stanza = null;
+                continue;
+            }
+            if (!inHunk || line.startsWith("\\")) {
+                continue;
+            }
+            char kind = line.isEmpty() ? ' ' : line.charAt(0);
+            if (kind != ' ' && kind != '+' && kind != '-') {
+                touched.add(UNKNOWN_INTERFACE);
+                continue;
+            }
+            boolean changed = kind != ' ';
+            String text = line.isEmpty() ? "" : line.substring(1).trim();
+            Matcher iface = IFACE_LINE.matcher(text);
+            Matcher auto = AUTO_LINE.matcher(text);
+            if (iface.find()) {
+                stanza = iface.group(1);
+                if (changed) {
+                    touched.add(stanza);
+                }
+            } else if (auto.find()) {
+                if (changed) {
+                    touched.addAll(Arrays.asList(auto.group(1).trim().split("\\s+")));
+                }
+            } else if (text.isEmpty()) {
+                stanza = null;
+            } else if (changed && !(stanza == null && text.startsWith("#"))) { // a comment outside stanzas changes nothing
+                touched.add(stanza != null ? stanza : UNKNOWN_INTERFACE);
+            }
+        }
+        if (!inHunk) {
+            touched.add(UNKNOWN_INTERFACE);
+        }
+        return touched;
+    }
+
+    /** Throws when edits other than to {@code own} bridges wait in interfaces.new: a reload would apply them too. */
+    private static void requireNoOtherNetworkChanges(RemoteServer remoteServer, String changes, Collection<String> own) {
+        String problem = otherNetworkChanges(remoteServer, changes, own);
+        if (problem != null) {
+            throw new IllegalStateException(problem);
+        }
+    }
+
+    private static String otherNetworkChanges(RemoteServer remoteServer, String changes, Collection<String> own) {
+        Set<String> others = touchedInterfaces(changes);
+        others.removeIf(iface -> own.contains(iface) && LAB_BRIDGE.matcher(iface).matches());
+        if (others.isEmpty()) {
+            return null;
+        }
+        List<String> named = others.stream().filter(iface -> !UNKNOWN_INTERFACE.equals(iface)).toList();
+        return "Proxmox has unapplied network changes on " + remoteServer.getNodeName()
+                + (named.isEmpty() ? "" : " (" + String.join(", ", named) + ")")
+                + "; apply or revert them in the Proxmox UI first";
     }
 
     /**
@@ -383,7 +709,9 @@ public class ProxmoxService extends BaseService {
             return bridgeMap;
         }
         synchronized (BRIDGE_LOCK) {
-            int next = getNodeNetworks(remoteServer).stream()
+            NodeNetwork network = readNetwork(remoteServer);
+            requireNoOtherNetworkChanges(remoteServer, network.changes(), labTracker.getBridges());
+            int next = network.interfaces().stream()
                     .map(ProxmoxNetwork::getIface)
                     .filter(Objects::nonNull)
                     .map(LAB_BRIDGE::matcher)
@@ -409,7 +737,21 @@ public class ProxmoxService extends BaseService {
             }
             labTracker.setBridges(created);
 
-            if (!applyNetworkChanges(remoteServer, responses)) {
+            // Someone may have edited the node's network since the check above
+            String problem = otherNetworkChanges(remoteServer, readNetwork(remoteServer).changes(), created);
+            if (problem != null) {
+                responses.add(problem);
+                for (String bridge : bridgeMap.values()) {
+                    ResponseEntity<ProxmoxActionResponse> undo = sendProxmoxRequest(
+                            nodeApi(remoteServer, "/network/" + bridge), null, HttpMethod.DELETE, remoteServer);
+                    responses.add("Take back bridge " + bridge + ": " + describe(undo));
+                    if (undo.getStatusCode().is2xxSuccessful()) {
+                        created.remove(bridge);
+                    }
+                }
+                labTracker.setBridges(created);
+                bridgeMap.clear();
+            } else if (!applyNetworkChanges(remoteServer, responses)) {
                 bridgeMap.clear();
             }
         }
@@ -424,18 +766,32 @@ public class ProxmoxService extends BaseService {
             return true;
         }
         synchronized (BRIDGE_LOCK) {
-            Set<String> existing = getNodeNetworks(remoteServer).stream()
+            NodeNetwork network = readNetwork(remoteServer);
+            Set<String> existing = network.interfaces().stream()
                     .map(ProxmoxNetwork::getIface)
                     .collect(Collectors.toSet());
+            List<String> present = bridges.stream().filter(existing::contains).toList();
+            // A removal still pending from an earlier attempt needs the reload too
+            boolean pending = touchedInterfaces(network.changes()).stream().anyMatch(bridges::contains);
+            if (present.isEmpty() && !pending) {
+                return true;
+            }
+            String problem = otherNetworkChanges(remoteServer, network.changes(), bridges);
+            if (problem != null) {
+                responses.add(problem);
+                return false;
+            }
             boolean ok = true;
-            for (String bridge : bridges) {
-                if (!existing.contains(bridge)) {
-                    continue;
-                }
+            for (String bridge : present) {
                 ResponseEntity<ProxmoxActionResponse> response = sendProxmoxRequest(
                         nodeApi(remoteServer, "/network/" + bridge), null, HttpMethod.DELETE, remoteServer);
                 responses.add("Remove bridge " + bridge + ": " + describe(response));
                 ok &= response.getStatusCode().is2xxSuccessful();
+            }
+            problem = otherNetworkChanges(remoteServer, readNetwork(remoteServer).changes(), bridges);
+            if (problem != null) {
+                responses.add(problem);
+                return false;
             }
             return applyNetworkChanges(remoteServer, responses) && ok;
         }

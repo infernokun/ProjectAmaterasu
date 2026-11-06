@@ -1,0 +1,38 @@
+{
+ "data": [
+  {
+   "priority": 3,
+   "active": 1,
+   "type": "eth",
+   "families": [
+    "inet"
+   ],
+   "method6": "manual",
+   "exists": 1,
+   "method": "manual",
+   "iface": "nic0",
+   "altnames": [
+    "enxd89ef391212c"
+   ]
+  },
+  {
+   "address": "10.0.0.205",
+   "bridge_stp": "off",
+   "method6": "manual",
+   "bridge_fd": "0",
+   "gateway": "10.0.0.1",
+   "iface": "vmbr0",
+   "method": "static",
+   "netmask": "24",
+   "autostart": 1,
+   "families": [
+    "inet"
+   ],
+   "type": "bridge",
+   "bridge_ports": "nic0",
+   "cidr": "10.0.0.205/24",
+   "active": 1,
+   "priority": 4
+  }
+ ]
+}

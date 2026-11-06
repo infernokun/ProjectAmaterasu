@@ -8,7 +8,7 @@ import { RequestState, initialRequestState } from '../../../core/stores/request-
 import { toDate } from '../../../core/time';
 import { ServerHealth, serverHealth } from './server-health';
 import { LabStatus } from '../../../enums/lab-status.enum';
-import { Deployment, NewServer, Server, ServerEdit, ServerSettings, ServersService } from './servers.service';
+import { Deployment, NewServer, Server, ServerCheck, ServerEdit, ServerSettings, ServersService } from './servers.service';
 
 interface ServersState extends RequestState {
   servers: Server[];
@@ -64,7 +64,7 @@ export const ServersStore = signalStore(
     select(serverId: string): void {
       patchState(store, { selectedId: serverId });
     },
-    validate(server: NewServer): Promise<boolean> {
+    validate(server: NewServer): Promise<ServerCheck> {
       return firstValueFrom(api.validate(server));
     },
     async add(server: NewServer): Promise<Server> {
@@ -75,7 +75,7 @@ export const ServersStore = signalStore(
     settings(serverId: string): Promise<ServerSettings> {
       return firstValueFrom(api.settings(serverId));
     },
-    validateEdit(serverId: string, edit: ServerEdit): Promise<boolean> {
+    validateEdit(serverId: string, edit: ServerEdit): Promise<ServerCheck> {
       return firstValueFrom(api.validateEdit(serverId, edit));
     },
     async update(serverId: string, edit: ServerEdit): Promise<Server> {

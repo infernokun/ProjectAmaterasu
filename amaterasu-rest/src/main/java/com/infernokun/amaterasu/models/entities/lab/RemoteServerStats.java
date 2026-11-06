@@ -26,9 +26,13 @@ public class RemoteServerStats extends StoredObject {
     private float totalDiskSpace;
     private float availableDiskSpace;
     private float usedDiskSpace;
+    /** Seconds. */
     private long uptime;
     @Enumerated(EnumType.STRING)
     private LabStatus status;
+    /** Why the last check failed, or what a usable server cannot do yet. */
+    @Column(length = 1000)
+    private String warning;
     @ManyToOne
     @JoinColumn(name = "remote_server_id")
     @JsonIgnore
