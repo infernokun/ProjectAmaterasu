@@ -210,7 +210,8 @@ class NotificationIntegrationTest extends ApiTestSupport {
     void severalReleasesAtOnceBecomeOneNotification() throws Exception {
         Room room = roomRepository.save(Room.builder().name(unique("room")).build());
         postAs("/api/room/join/" + room.getId() + "/" + alice.getId(), token(alice), Map.of()).andExpect(status().isOk());
-        LocalDateTime release = LocalDateTime.now().plusMinutes(30);
+        // Sub-second precision on purpose: some clocks give nanoseconds, and the release must still match
+        LocalDateTime release = LocalDateTime.now().plusMinutes(30).withSecond(0).withNano(123_456_789);
         for (String title : List.of("One", "Two", "Three", "Four")) {
             challenge(room, title, release);
         }
