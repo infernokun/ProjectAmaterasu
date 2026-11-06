@@ -52,7 +52,14 @@ export class LabBuilderPage {
     if (!original) {
       return 'New';
     }
-    return original.ready ? 'Ready' : 'Not ready';
+    return original.published ? 'Published' : 'Draft';
+  });
+
+  protected readonly saveHint = computed(() => {
+    if (!this.store.canSave()) {
+      return `Fill in the basics and the ${this.store.isCompose() ? 'compose file' : 'templates'} first`;
+    }
+    return this.store.dirty() || !this.store.labId() ? '' : 'Nothing changed since the last save';
   });
 
   protected readonly savedNote = computed(() => {
@@ -74,9 +81,9 @@ export class LabBuilderPage {
       !!this.store.name().trim() && this.store.capacity() >= 1,
       this.store.sourceReady(),
       this.store.validated(),
-      !!this.store.original()?.ready && !this.store.dirty(),
+      this.store.published() && !this.store.dirty(),
     ];
-    const labels = ['Basics', this.store.isCompose() ? 'Compose file' : 'Pick templates', 'Validate', 'Ready for teams'];
+    const labels = ['Basics', this.store.isCompose() ? 'Compose file' : 'Pick templates', 'Validate', 'Publish'];
     const now = done.findIndex(d => !d);
     return labels.map((label, i) => ({ label, state: done[i] ? 'done' : i === now ? 'now' : '' }));
   });
@@ -184,6 +191,52 @@ export class LabBuilderPage {
       }
     } catch (error) {
       this.toast.error('The lab could not be saved.', error);
+    }
+  }
+
+  protected async publish(): Promise<void> {
+    const creating = !this.store.labId();
+    const answer = await firstValueFrom(this.confirm.open({
+      title: `Publish ${this.store.name().trim()}?`,
+      message: 'Teams see it in the lab catalog and can start their own copy right away.'
+        + (this.store.dirty() || creating ? ' Your changes are saved first.' : ''),
+      confirmLabel: 'Publish lab',
+      tone: 'primary',
+      icon: 'layers',
+    }));
+    if (answer !== 'confirm') {
+      return;
+    }
+    try {
+      const lab = await this.store.publish();
+      this.toast.success(`${lab.name} is published. Teams can start it now.`);
+      if (creating) {
+        this.router.navigate(['/build/labs', lab.id], { replaceUrl: true });
+      }
+    } catch (error) {
+      this.toast.error('The lab could not be published.', error);
+    }
+  }
+
+  protected async unpublish(): Promise<void> {
+    const name = this.store.name().trim();
+    const answer = await firstValueFrom(this.confirm.open({
+      title: `Unpublish ${name}?`,
+      message: 'It goes back to a draft: teams no longer see it in the catalog and cannot start it. '
+        + 'Teams that stopped their copy keep it in their list until you publish again. '
+        + 'While any team has it running or paused it stays published; they need to stop it first.',
+      confirmLabel: 'Unpublish',
+      tone: 'primary',
+      icon: 'layers',
+    }));
+    if (answer !== 'confirm') {
+      return;
+    }
+    try {
+      await this.store.unpublish();
+      this.toast.success(`${name} is a draft again`);
+    } catch (error) {
+      this.toast.error(`${name} could not go back to draft.`, error);
     }
   }
 

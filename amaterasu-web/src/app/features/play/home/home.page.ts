@@ -52,10 +52,10 @@ export class HomePage {
   protected readonly teamName = computed(() => this.session.team()?.name ?? '');
   protected readonly labCount = computed(() => this.trackers.teamLabs().length);
 
-  /** Ready labs the team has no copy of yet. */
+  /** Published labs the team has no copy of yet. Authors also load drafts, which stay out of here. */
   protected readonly catalog = computed(() => {
     const deployed = new Set(this.trackers.teamLabs().map(tracker => tracker.labStarted?.id));
-    return this.labs.labs().filter(lab => !deployed.has(lab.id) && lab.status !== LabStatus.HIDDEN && lab.status !== LabStatus.RETIRED);
+    return this.labs.labs().filter(lab => lab.published && !deployed.has(lab.id) && lab.status !== LabStatus.HIDDEN && lab.status !== LabStatus.RETIRED);
   });
 
   protected readonly subtitle = computed(() => {

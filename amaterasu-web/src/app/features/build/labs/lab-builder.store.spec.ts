@@ -18,7 +18,7 @@ const server = (id: string, type: ServerType, status: LabStatus | null = LabStat
 
 const lab = (patch: Partial<CatalogLab> = {}): CatalogLab => ({
   id: 'lab1', name: 'API Abuse Basics', description: 'A JSON API', version: '1.0.0', capacity: 10,
-  labType: LabType.DOCKER_COMPOSE, ready: false, vmIds: [], createdBy: null, updatedAt: null, ...patch,
+  labType: LabType.DOCKER_COMPOSE, ready: false, published: false, vmIds: [], createdBy: null, updatedAt: null, ...patch,
 });
 
 const flush = () => new Promise(resolve => setTimeout(resolve));
@@ -29,6 +29,7 @@ describe('LabBuilderStore', () => {
   beforeEach(() => {
     api = jasmine.createSpyObj<LabBuilderService>('LabBuilderService', [
       'servers', 'lab', 'templates', 'networks', 'networkCards', 'validateYaml', 'checkOnServer', 'composeFile', 'uploadCompose', 'create', 'update',
+      'publish', 'unpublish',
     ]);
     api.servers.and.returnValue(of([
       server('dock-01', ServerType.DOCKER_HOST, LabStatus.OFFLINE),
@@ -122,5 +123,40 @@ describe('LabBuilderStore', () => {
     expect(titles).toContain('Each team copy gets a private copy of vmbr1');
     expect(titles).toContain('vmbr9 does not exist on pve-a');
     expect(store.validated()).toBeFalse();
+  });
+
+  it('keeps a compose draft from publishing until a Docker host accepted the saved file', async () => {
+    api.lab.and.returnValue(of(lab()));
+    api.composeFile.and.returnValue(of('services:\n  web:\n    image: nginx\n'));
+    const store = TestBed.inject(LabBuilderStore);
+    await store.init('lab1');
+    await flush();
+    expect(store.published()).toBeFalse();
+    expect(store.publishBlocker()).toContain('Validate first');
+
+    store.update({ description: 'Changed' });
+    expect(store.publishBlocker()).toBe('Save the draft, then validate it on a Docker host');
+  });
+
+  it('publishes a ready lab, saving first, and unpublishes it', async () => {
+    api.lab.and.returnValue(of(lab({ labType: LabType.VIRTUAL_MACHINE, ready: true, vmIds: [9001] })));
+    api.update.and.returnValue(of(lab({ labType: LabType.VIRTUAL_MACHINE, ready: true, vmIds: [9001], description: 'Changed' })));
+    api.publish.and.returnValue(of(lab({ labType: LabType.VIRTUAL_MACHINE, ready: true, vmIds: [9001], published: true })));
+    api.unpublish.and.returnValue(of(lab({ labType: LabType.VIRTUAL_MACHINE, ready: true, vmIds: [9001], published: false })));
+    const store = TestBed.inject(LabBuilderStore);
+    await store.init('lab1');
+    await flush();
+    store.update({ description: 'Changed' });
+    expect(store.publishBlocker()).toBeNull();
+
+    await store.publish();
+    expect(api.update).toHaveBeenCalled();
+    expect(api.publish).toHaveBeenCalledWith('lab1');
+    expect(store.published()).toBeTrue();
+    expect(store.dirty()).toBeFalse();
+
+    await store.unpublish();
+    expect(api.unpublish).toHaveBeenCalledWith('lab1');
+    expect(store.published()).toBeFalse();
   });
 });
