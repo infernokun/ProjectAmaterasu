@@ -10,7 +10,8 @@
   "keywords": [],
   "dependencies": {
     "body-parser": "2.4.0",
-    "express": "5.3.0"
+    "express": "5.3.0",
+    "ws": "8.22.0"
   },
   "author": "",
   "license": "ISC"

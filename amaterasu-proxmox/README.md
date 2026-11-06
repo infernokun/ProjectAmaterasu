@@ -36,6 +36,7 @@ Dependencies are pinned in `requirements.in` and hash-locked in `requirements.tx
 - Clones stay locked until their task finishes, and running VMs cannot be destroyed.
 - Bridges can be created and deleted, and take effect once network changes are applied.
 - `/cluster/nextid` returns a free VM id.
+- `vncproxy` on a running VM returns a one-time ticket, and `vncwebsocket` with that ticket serves a text console over RFB, so the web app's VM console can be tried end to end. Set `MOCK_HOST=0.0.0.0` when the API runs in a container.
 
 Templates `9000` to `9004` and bridges `vmbr0` and `vmbr1` are seeded from `mock/data`.
 
