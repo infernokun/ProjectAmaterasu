@@ -66,6 +66,12 @@ export function serverHealth(server: Server): ServerHealth {
   };
 }
 
+/** Server reasons come without a closing period. */
+export function sentence(text: string): string {
+  const trimmed = text.trim();
+  return !trimmed || /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
 export function serverTypeLabel(type: ServerType): string {
   return type === ServerType.PROXMOX ? 'Proxmox node' : 'Docker host';
 }

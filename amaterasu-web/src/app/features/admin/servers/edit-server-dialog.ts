@@ -3,13 +3,14 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ServerType } from '../../../enums/server-type.enum';
 import { errorMessage } from '../../../core/http-error';
 import { IconComponent } from '../../../shared/ui/icon.component';
-import { ServerEdit, ServerSettings } from './servers.service';
+import { sentence } from './server-health';
+import { ServerCheck, ServerEdit, ServerSettings } from './servers.service';
 
 export interface EditServerData {
   settings: ServerSettings;
   /** Names of the other servers, which this one may not take. */
   otherNames: string[];
-  validate: (edit: ServerEdit) => Promise<boolean>;
+  validate: (edit: ServerEdit) => Promise<ServerCheck>;
   save: (edit: ServerEdit) => Promise<unknown>;
 }
 
@@ -39,7 +40,7 @@ export function editProblems(edit: ServerEdit, type: ServerType, otherNames: str
     problems.nodeName = 'The node name as Proxmox shows it';
   }
   if (type === ServerType.PROXMOX && edit.apiToken && !/^.+=.+$/.test(edit.apiToken.trim())) {
-    problems.apiToken = 'Format TOKEN_ID=SECRET';
+    problems.apiToken = 'Format USER@REALM!TOKENID=SECRET';
   }
   return problems;
 }
@@ -94,16 +95,19 @@ export function editProblems(edit: ServerEdit, type: ServerType, otherNames: str
       } @else {
         <label class="field"><span class="label">API token</span>
           <input class="input mono" autocomplete="off" [class.err]="shown('apiToken')" [value]="secret()" (input)="edit(secret, $event)"
-                 (blur)="touch('apiToken')" [placeholder]="data.settings.hasApiToken ? 'Leave empty to keep the stored token' : 'TOKEN_ID=SECRET'">
-          <span class="help" [class.bad]="shown('apiToken')">{{ shown('apiToken') ? problems().apiToken : 'Enter it again only to change it. Format TOKEN_ID=SECRET, stored encrypted.' }}</span>
+                 (blur)="touch('apiToken')" [placeholder]="data.settings.hasApiToken ? 'Leave empty to keep the stored token' : 'USER@REALM!TOKENID=SECRET'">
+          <span class="help" [class.bad]="shown('apiToken')">{{ shown('apiToken') ? problems().apiToken : 'Enter it again only to change it. Format USER@REALM!TOKENID=SECRET, stored encrypted.' }}</span>
         </label>
       }
       @switch (test()) {
         @case ('ok') {
           <div class="banner ok" role="status"><app-icon name="check" /><div>{{ docker ? 'Connected over SSH with these settings.' : 'The node accepted these settings.' }}</div></div>
+          @if (testWarning()) {
+            <div class="banner warn" role="status"><app-icon name="alert" /><div>{{ sentence(testWarning()) }}</div></div>
+          }
         }
         @case ('failed') {
-          <div class="banner bad" role="alert"><app-icon name="alert" /><div>{{ testError() || 'No answer from ' + address().trim() + ':' + port() + '. Check the address, port and credentials.' }}</div></div>
+          <div class="banner bad" role="alert"><app-icon name="alert" /><div>{{ testError() ? sentence(testError()) : 'No answer from ' + address().trim() + ':' + port() + '. Check the address, port and credentials.' }}</div></div>
         }
         @default {
           @if (connectionChanged()) {
@@ -133,6 +137,7 @@ export class EditServerDialogComponent {
   protected readonly data = inject<EditServerData>(MAT_DIALOG_DATA);
   protected readonly ref = inject<MatDialogRef<EditServerDialogComponent>>(MatDialogRef);
   protected readonly docker = this.data.settings.serverType === ServerType.DOCKER_HOST;
+  protected readonly sentence = sentence;
 
   private readonly original = this.data.settings;
   protected readonly name = signal(this.original.name);
@@ -143,6 +148,7 @@ export class EditServerDialogComponent {
   protected readonly secret = signal('');
   protected readonly test = signal<TestState>('idle');
   protected readonly testError = signal('');
+  protected readonly testWarning = signal('');
   protected readonly saveError = signal('');
   protected readonly saving = signal(false);
   private readonly touched = signal<Set<string>>(new Set());
@@ -192,8 +198,12 @@ export class EditServerDialogComponent {
   protected async runTest(): Promise<void> {
     this.test.set('running');
     this.testError.set('');
+    this.testWarning.set('');
     try {
-      this.test.set((await this.data.validate(this.request())) ? 'ok' : 'failed');
+      const check = await this.data.validate(this.request());
+      this.testError.set(check.reason ?? '');
+      this.testWarning.set(check.warning ?? '');
+      this.test.set(check.connected ? 'ok' : 'failed');
     } catch (error) {
       this.testError.set(errorMessage(error) ?? '');
       this.test.set('failed');

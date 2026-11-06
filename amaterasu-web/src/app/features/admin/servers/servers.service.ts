@@ -62,6 +62,13 @@ export interface NewServer {
   nodeName?: string;
 }
 
+/** A connection test: why a server cannot be used, or what a usable one cannot do yet. */
+export interface ServerCheck {
+  connected: boolean;
+  reason?: string | null;
+  warning?: string | null;
+}
+
 /** A saved server's editable fields. Credentials never come back, only whether one is stored. */
 export interface ServerSettings {
   id: string;
@@ -103,8 +110,8 @@ export class ServersService {
     return this.http.get<ApiResponse<any[]>>(this.url('/lab-tracker')).pipe(map(r => (r.data ?? []).map(toDeployment)));
   }
 
-  validate(server: NewServer): Observable<boolean> {
-    return this.http.post<ApiResponse<boolean>>(this.url('/remote-server/validate'), server).pipe(map(r => !!r.data));
+  validate(server: NewServer): Observable<ServerCheck> {
+    return this.http.post<ApiResponse<ServerCheck | boolean>>(this.url('/remote-server/validate'), server).pipe(map(r => toCheck(r.data)));
   }
 
   add(server: NewServer): Observable<Server> {
@@ -116,8 +123,8 @@ export class ServersService {
   }
 
   /** Tests a saved server with edits that are not saved yet. */
-  validateEdit(serverId: string, edit: ServerEdit): Observable<boolean> {
-    return this.http.post<ApiResponse<boolean>>(this.url(`/remote-server/${serverId}/validate`), edit).pipe(map(r => !!r.data));
+  validateEdit(serverId: string, edit: ServerEdit): Observable<ServerCheck> {
+    return this.http.post<ApiResponse<ServerCheck | boolean>>(this.url(`/remote-server/${serverId}/validate`), edit).pipe(map(r => toCheck(r.data)));
   }
 
   update(serverId: string, edit: ServerEdit): Observable<Server> {
@@ -142,6 +149,14 @@ export class ServersService {
   delete(serverId: string): Observable<unknown> {
     return this.http.delete(this.url(`/remote-server/${serverId}`));
   }
+}
+
+/** Older APIs answered a bare boolean. */
+export function toCheck(data: ServerCheck | boolean | null | undefined): ServerCheck {
+  if (typeof data === 'boolean' || data == null) {
+    return { connected: !!data };
+  }
+  return { connected: !!data.connected, reason: data.reason ?? null, warning: data.warning ?? null };
 }
 
 export function toServer(raw: any): Server {

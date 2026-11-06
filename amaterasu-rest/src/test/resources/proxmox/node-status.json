@@ -1,0 +1,57 @@
+{
+ "data": {
+  "loadavg": [
+   "0.00",
+   "0.01",
+   "0.00"
+  ],
+  "cpu": 0.00249252243270189,
+  "idle": 0,
+  "cpuinfo": {
+   "model": "Intel(R) Core(TM) i5-6500T CPU @ 2.50GHz",
+   "cores": 4,
+   "mhz": "3099.999",
+   "flags": "fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb pti ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp vnmi md_clear flush_l1d arch_capabilities",
+   "user_hz": 100,
+   "hvm": "1",
+   "sockets": 1,
+   "family": "6",
+   "cpus": 4,
+   "vendor": "GenuineIntel"
+  },
+  "boot-info": {
+   "secureboot": 0,
+   "mode": "efi"
+  },
+  "uptime": 16532,
+  "ksm": {
+   "shared": 0
+  },
+  "wait": 0,
+  "rootfs": {
+   "avail": 60800487424,
+   "used": 4440428544,
+   "total": 68781744128,
+   "free": 64341315584
+  },
+  "current-kernel": {
+   "machine": "x86_64",
+   "release": "7.0.2-6-pve",
+   "sysname": "Linux",
+   "version": "#1 SMP PREEMPT_DYNAMIC PMX 7.0.2-6 (2026-05-20T08:55Z)"
+  },
+  "swap": {
+   "total": 8589930496,
+   "free": 8589930496,
+   "used": 0
+  },
+  "kversion": "Linux 7.0.2-6-pve #1 SMP PREEMPT_DYNAMIC PMX 7.0.2-6 (2026-05-20T08:55Z)",
+  "pveversion": "pve-manager/9.2.2/b9984c6d90a4bd80",
+  "memory": {
+   "total": 33512198144,
+   "free": 31526707200,
+   "used": 1865261056,
+   "available": 31646937088
+  }
+ }
+}
