@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.models.entities.lab;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.infernokun.amaterasu.models.DockerServiceInfo;
 import com.infernokun.amaterasu.models.entities.StoredObject;
 import com.infernokun.amaterasu.models.entities.Team;
@@ -44,4 +45,8 @@ public class LabTracker extends StoredObject {
     @ManyToOne
     @JoinColumn(name = "remote_server_id")
     private RemoteServer remoteServer;
+    /** The copy's VM login password, AES encrypted. Only GET /api/lab-tracker/{id}/access reveals it. */
+    @JsonIgnore
+    @Column(columnDefinition = "TEXT")
+    private String accessPassword;
 }

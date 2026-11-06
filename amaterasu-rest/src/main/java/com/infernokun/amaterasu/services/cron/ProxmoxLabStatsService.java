@@ -48,7 +48,9 @@ public class ProxmoxLabStatsService extends BaseService {
                 if (missing) {
                     LOGGER.warn("Lab tracker {} is missing {} VM(s)", labTracker.getId(), labTracker.getVms().size() - vms.size());
                 }
-                labTrackerService.updateVmsIfStatus(labTracker, missing ? labTracker.getVms() : vms,
+                // Present VMs also get their guest agent readiness and a bastion's address
+                labTrackerService.updateVmsIfStatus(labTracker,
+                        missing ? labTracker.getVms() : proxmoxService.refreshLabVMs(labTracker.getRemoteServer(), labTracker.getVms(), vms),
                         missing ? LabStatus.DEGRADED : LabStatus.ACTIVE, LabStatus.ACTIVE);
             } catch (Exception e) {
                 // Unreadable is not gone: the lab keeps its VMs and status until the node answers
