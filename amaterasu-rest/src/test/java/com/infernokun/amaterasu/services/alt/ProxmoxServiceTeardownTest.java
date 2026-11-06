@@ -150,11 +150,13 @@ class ProxmoxServiceTeardownTest {
         expectStatus(105, doesNotExist(105));
         expectStatus(106, withStatus(HttpStatus.NOT_FOUND).body("{\"data\":null}"));
         node.expect(requestTo(NODE + "/network")).andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("{\"data\":[{\"iface\":\"vmbr0\",\"type\":\"bridge\"},{\"iface\":\"abr0\",\"type\":\"bridge\"}]}",
-                        MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess(ProxmoxFixtures.network(null, "abr0"), MediaType.APPLICATION_JSON));
         node.expect(requestTo(NODE + "/network/abr0")).andExpect(method(HttpMethod.DELETE))
                 .andRespond(withSuccess("{\"data\":null}", MediaType.APPLICATION_JSON));
-        expectReload();
+        node.expect(requestTo(NODE + "/network")).andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(ProxmoxFixtures.network(ProxmoxFixtures.diff(ProxmoxFixtures.removedBridge("abr0"))),
+                        MediaType.APPLICATION_JSON));
+        expectReload(node);
 
         LabActionResult result = proxmox.teardownProxmoxLab(tracker, server);
 
@@ -164,7 +166,7 @@ class ProxmoxServiceTeardownTest {
         assertThat(tracker.getBridges()).isEmpty();
     }
 
-    private void expectReload() {
+    static void expectReload(MockRestServiceServer node) {
         String upid = "UPID:proxmox2:0001:0002:0003:srvreload:networking:amaterasu@pve!labs:";
         node.expect(requestTo(NODE + "/network")).andExpect(method(HttpMethod.PUT))
                 .andRespond(withSuccess("{\"data\":\"" + upid + "\"}", MediaType.APPLICATION_JSON));
