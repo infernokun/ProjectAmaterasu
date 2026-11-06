@@ -38,9 +38,11 @@ Dependencies are pinned in `requirements.in` and hash-locked in `requirements.tx
 - `/cluster/nextid` returns a free VM id.
 - `/nodes/{node}/status` and `/access/permissions` answer as a PVE 9.2.2 node does, with a token that holds every privilege Amaterasu checks for.
 - `/nodes/{node}/network` shows pending bridges with the `changes` diff, as Proxmox does until the changes are applied.
+- A NIC written without a MAC (`virtio,bridge=abr0`) gets a fresh one, as PVE does, and `cipassword` reads back masked.
+- `agent/network-get-interfaces` answers for VMs with `agent` enabled once they have run for `MOCK_AGENT_MS` (default 8000), with a LAN address on NICs outside the `abrN` lab bridges and the `ipconfigN` address (else one in 172.16.0.0/24) on lab NICs.
 - `vncproxy` on a running VM returns a one-time ticket, and `vncwebsocket` with that ticket serves a text console over RFB, so the web app's VM console can be tried end to end. Set `MOCK_HOST=0.0.0.0` when the API runs in a container.
 
-Templates `9000` to `9004` and bridges `vmbr0` and `vmbr1` are seeded from `mock/data`.
+Templates `9000` to `9004` and bridges `vmbr0` and `vmbr1` are seeded from `mock/data`. `9004` has the guest agent, and `9005` is `tpl-bastion` as on the real node: tagged `bastion`, cloud-init user `player`, `net0` on `vmbr0` (the uplink) and `net1` on `vmbr1` (the lab side, `172.16.0.1/24`).
 
 ```bash
 cd mock && pnpm install && pnpm start
