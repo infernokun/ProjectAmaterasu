@@ -11,6 +11,8 @@ const { attachConsoles, issueTicket } = require("./vnc");
 const hostname = process.env.MOCK_HOST || "127.0.0.1";
 const port = Number(process.env.MOCK_PORT || 8006);
 const TASK_MS = Number(process.env.MOCK_TASK_MS || 3000);
+// How long after a start the guest agent of a clone takes to answer
+const AGENT_MS = Number(process.env.MOCK_AGENT_MS || 8000);
 
 const sslOptions = {
   key: fs.readFileSync(path.join(__dirname, "ssl", "key.pem")),
@@ -38,8 +40,18 @@ let networks = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "networkI
 let pendingNetworks = null;
 
 function randomMac() {
-  const hex = () => Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
-  return `52:54:00:${hex()}:${hex()}:${hex()}`;
+  const hex = () => Math.floor(Math.random() * 256).toString(16).padStart(2, "0").toUpperCase();
+  return `BC:24:11:${hex()}:${hex()}:${hex()}`;
+}
+
+const MAC = /^[0-9a-f]{2}(:[0-9a-f]{2}){5}$/i;
+
+// Like PVE, a NIC written without a MAC ("virtio,bridge=abr0") gets a fresh one
+function withMac(nic) {
+  const parts = String(nic).split(",");
+  if (parts.some((p) => p.startsWith("macaddr=") || MAC.test(p.split("=")[1] || ""))) return parts.join(",");
+  const model = parts[0].startsWith("model=") ? parts.shift().slice("model=".length) : parts[0].includes("=") ? null : parts.shift();
+  return [`${model || "virtio"}=${randomMac()}`, ...parts].join(",");
 }
 
 const knownNodes = new Set(nodes.data.map((n) => n.node));
@@ -54,8 +66,22 @@ for (const vm of require("./data/vms.json").data) {
   if (vm.vmid === 9001) {
     config.net0 = `virtio=${randomMac()},bridge=vmbr1,firewall=1`;
   }
+  if (vm.vmid === 9004) {
+    // A target with the guest agent, at a fixed lab address
+    Object.assign(config, { agent: "1", tags: "amaterasu", ipconfig0: "ip=172.16.0.20/24" });
+    config.net0 = `virtio=${randomMac()},bridge=vmbr1`;
+  }
   configs.set(vm.vmid, config);
 }
+
+// A bastion like tpl-bastion on proxmox2: net0 is the uplink, net1 joins the lab
+vms.set(9005, { vmid: 9005, name: "tpl-bastion", status: "stopped", uptime: 0, mem: 0, maxmem: 536870912, cpu: 0, maxcpu: 1,
+  node: "inferno", template: 1 });
+configs.set(9005, {
+  name: "tpl-bastion", agent: "1", tags: "amaterasu;bastion", ciuser: "player",
+  net0: `virtio=${randomMac()},bridge=vmbr0`, net1: `virtio=${randomMac()},bridge=vmbr1`,
+  ipconfig0: "ip=dhcp", ipconfig1: "ip=172.16.0.1/24",
+});
 
 function error(res, status, message) {
   res.status(status).json({ data: null, message, errors: { message } });
@@ -157,8 +183,11 @@ function updateConfig(req, res) {
       const bridge = /bridge=([^,]+)/.exec(String(value));
       const known = networks.some((n) => n.iface === (bridge && bridge[1]));
       if (bridge && !known) return error(res, 400, `bridge '${bridge[1]}' does not exist`);
+      config[key] = withMac(value);
+      continue;
     }
-    config[key] = String(value);
+    // PVE keeps only a hash and shows it masked
+    config[key] = key === "cipassword" ? "**********" : String(value);
   }
   if (toDelete) String(toDelete).split(",").forEach((key) => delete config[key.trim()]);
   res.json({ data: null });
@@ -202,6 +231,7 @@ function statusAction(type, check, finalStatus) {
       data: startTask(req.params.node, type, vm.vmid, () => {
         vm.status = finalStatus;
         vm.uptime = finalStatus === "running" ? 1 : 0;
+        vm.startedAt = finalStatus === "running" ? Date.now() : null;
       }),
     });
   };
@@ -212,6 +242,34 @@ app.post("/api2/json/nodes/:node/qemu/:vmid/status/start",
 app.post("/api2/json/nodes/:node/qemu/:vmid/status/stop", statusAction("qmstop", () => null, "stopped"));
 app.post("/api2/json/nodes/:node/qemu/:vmid/status/shutdown",
   statusAction("qmshutdown", (vm) => (vm.status !== "running" ? `VM ${vm.vmid} not running` : null), "stopped"));
+
+function agentEnabled(config) {
+  return /^(1|on|yes|true)$|(^|,)enabled=(1|on|yes|true)(,|$)/.test(String(config.agent || "0"));
+}
+
+// Clones answer AGENT_MS after they start. Uplink NICs (not on an abrN lab bridge) get a LAN address by
+// DHCP; lab NICs get their static ipconfig, else one from 172.16.0.0/24
+app.get("/api2/json/nodes/:node/qemu/:vmid/agent/network-get-interfaces", (req, res) => {
+  const vm = getVm(req, res);
+  if (!vm) return;
+  const config = configs.get(vm.vmid);
+  if (!agentEnabled(config)) return error(res, 500, "No QEMU guest agent configured");
+  if (vm.status !== "running") return error(res, 500, `VM ${vm.vmid} is not running`);
+  if (!vm.startedAt || Date.now() - vm.startedAt < AGENT_MS) return error(res, 500, "QEMU guest agent is not running");
+  const result = [{ name: "lo", "hardware-address": "00:00:00:00:00:00",
+    "ip-addresses": [{ "ip-address": "127.0.0.1", "ip-address-type": "ipv4", prefix: 8 }] }];
+  Object.keys(config).filter((key) => /^net\d+$/.test(key)).sort().forEach((key, index) => {
+    const n = key.slice(3);
+    const mac = (/=([0-9A-Fa-f:]{17})/.exec(config[key]) || [])[1];
+    const bridge = (/bridge=([^,]+)/.exec(config[key]) || [])[1] || "";
+    const fixed = /ip=([\d.]+)\/(\d+)/.exec(config[`ipconfig${n}`] || "");
+    const lan = !/^abr\d+$/.test(bridge);
+    const ip = fixed ? fixed[1] : lan ? `10.0.0.${20 + (vm.vmid % 200)}` : `172.16.0.${100 + (vm.vmid % 100)}`;
+    result.push({ name: `eth${index}`, "hardware-address": (mac || "").toLowerCase(),
+      "ip-addresses": [{ "ip-address": ip, "ip-address-type": "ipv4", prefix: fixed ? Number(fixed[2]) : 24 }] });
+  });
+  res.json({ data: { result } });
+});
 
 app.delete("/api2/json/nodes/:node/qemu/:vmid", (req, res) => {
   const vm = getVm(req, res);
