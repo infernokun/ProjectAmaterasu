@@ -164,6 +164,13 @@ public class ProxmoxService extends BaseService {
     }
 
     public List<ProxmoxNetwork> getNodeNetworks(RemoteServer remoteServer) {
+        return readNetwork(remoteServer).interfaces();
+    }
+
+    /** The node's interfaces as /etc/network/interfaces.new has them, and the diff not applied yet. */
+    private record NodeNetwork(List<ProxmoxNetwork> interfaces, String changes) { }
+
+    private NodeNetwork readNetwork(RemoteServer remoteServer) {
         HttpEntity<String> entity = new HttpEntity<>(createHeaders(remoteServer));
         ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 nodeApi(remoteServer, "/network"), HttpMethod.GET, entity, new ParameterizedTypeReference<>() { });
@@ -171,9 +178,87 @@ public class ProxmoxService extends BaseService {
         if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
             throw new ResourceNotFoundException("Could not read node networks");
         }
-        return objectMapper.convertValue(
+        List<ProxmoxNetwork> interfaces = objectMapper.convertValue(
                 response.getBody().get("data"),
                 objectMapper.getTypeFactory().constructCollectionType(List.class, ProxmoxNetwork.class));
+        // PVE sets "changes" beside "data" only while edits are pending
+        Object changes = response.getBody().get("changes");
+        return new NodeNetwork(interfaces != null ? interfaces : List.of(), changes != null ? changes.toString() : null);
+    }
+
+    private static final Pattern IFACE_LINE = Pattern.compile("^iface\\s+(\\S+)");
+    private static final Pattern AUTO_LINE = Pattern.compile("^(?:auto|allow-\\S+)\\s+(.+)$");
+    /** Stands for changed lines whose stanza the diff does not show. */
+    static final String UNKNOWN_INTERFACE = "?";
+
+    /**
+     * Interfaces a pending interfaces diff touches. Lines are credited to the stanza they sit in;
+     * a changed line outside any visible stanza, or a diff that cannot be read, counts as {@link #UNKNOWN_INTERFACE}.
+     */
+    static Set<String> touchedInterfaces(String changes) {
+        Set<String> touched = new LinkedHashSet<>();
+        if (changes == null || changes.isBlank()) {
+            return touched;
+        }
+        boolean inHunk = false;
+        String stanza = null;
+        for (String line : changes.split("\\R")) {
+            if (line.startsWith("@@")) {
+                inHunk = true;
+                stanza = null;
+                continue;
+            }
+            if (!inHunk || line.startsWith("\\")) {
+                continue;
+            }
+            char kind = line.isEmpty() ? ' ' : line.charAt(0);
+            if (kind != ' ' && kind != '+' && kind != '-') {
+                touched.add(UNKNOWN_INTERFACE);
+                continue;
+            }
+            boolean changed = kind != ' ';
+            String text = line.isEmpty() ? "" : line.substring(1).trim();
+            Matcher iface = IFACE_LINE.matcher(text);
+            Matcher auto = AUTO_LINE.matcher(text);
+            if (iface.find()) {
+                stanza = iface.group(1);
+                if (changed) {
+                    touched.add(stanza);
+                }
+            } else if (auto.find()) {
+                if (changed) {
+                    touched.addAll(Arrays.asList(auto.group(1).trim().split("\\s+")));
+                }
+            } else if (text.isEmpty()) {
+                stanza = null;
+            } else if (changed && !(stanza == null && text.startsWith("#"))) { // a comment outside stanzas changes nothing
+                touched.add(stanza != null ? stanza : UNKNOWN_INTERFACE);
+            }
+        }
+        if (!inHunk) {
+            touched.add(UNKNOWN_INTERFACE);
+        }
+        return touched;
+    }
+
+    /** Throws when edits other than to {@code own} bridges wait in interfaces.new: a reload would apply them too. */
+    private static void requireNoOtherNetworkChanges(RemoteServer remoteServer, String changes, Collection<String> own) {
+        String problem = otherNetworkChanges(remoteServer, changes, own);
+        if (problem != null) {
+            throw new IllegalStateException(problem);
+        }
+    }
+
+    private static String otherNetworkChanges(RemoteServer remoteServer, String changes, Collection<String> own) {
+        Set<String> others = touchedInterfaces(changes);
+        others.removeIf(iface -> own.contains(iface) && LAB_BRIDGE.matcher(iface).matches());
+        if (others.isEmpty()) {
+            return null;
+        }
+        List<String> named = others.stream().filter(iface -> !UNKNOWN_INTERFACE.equals(iface)).toList();
+        return "Proxmox has unapplied network changes on " + remoteServer.getNodeName()
+                + (named.isEmpty() ? "" : " (" + String.join(", ", named) + ")")
+                + "; apply or revert them in the Proxmox UI first";
     }
 
     /**
@@ -417,7 +502,9 @@ public class ProxmoxService extends BaseService {
             return bridgeMap;
         }
         synchronized (BRIDGE_LOCK) {
-            int next = getNodeNetworks(remoteServer).stream()
+            NodeNetwork network = readNetwork(remoteServer);
+            requireNoOtherNetworkChanges(remoteServer, network.changes(), labTracker.getBridges());
+            int next = network.interfaces().stream()
                     .map(ProxmoxNetwork::getIface)
                     .filter(Objects::nonNull)
                     .map(LAB_BRIDGE::matcher)
@@ -443,7 +530,21 @@ public class ProxmoxService extends BaseService {
             }
             labTracker.setBridges(created);
 
-            if (!applyNetworkChanges(remoteServer, responses)) {
+            // Someone may have edited the node's network since the check above
+            String problem = otherNetworkChanges(remoteServer, readNetwork(remoteServer).changes(), created);
+            if (problem != null) {
+                responses.add(problem);
+                for (String bridge : bridgeMap.values()) {
+                    ResponseEntity<ProxmoxActionResponse> undo = sendProxmoxRequest(
+                            nodeApi(remoteServer, "/network/" + bridge), null, HttpMethod.DELETE, remoteServer);
+                    responses.add("Take back bridge " + bridge + ": " + describe(undo));
+                    if (undo.getStatusCode().is2xxSuccessful()) {
+                        created.remove(bridge);
+                    }
+                }
+                labTracker.setBridges(created);
+                bridgeMap.clear();
+            } else if (!applyNetworkChanges(remoteServer, responses)) {
                 bridgeMap.clear();
             }
         }
@@ -458,18 +559,32 @@ public class ProxmoxService extends BaseService {
             return true;
         }
         synchronized (BRIDGE_LOCK) {
-            Set<String> existing = getNodeNetworks(remoteServer).stream()
+            NodeNetwork network = readNetwork(remoteServer);
+            Set<String> existing = network.interfaces().stream()
                     .map(ProxmoxNetwork::getIface)
                     .collect(Collectors.toSet());
+            List<String> present = bridges.stream().filter(existing::contains).toList();
+            // A removal still pending from an earlier attempt needs the reload too
+            boolean pending = touchedInterfaces(network.changes()).stream().anyMatch(bridges::contains);
+            if (present.isEmpty() && !pending) {
+                return true;
+            }
+            String problem = otherNetworkChanges(remoteServer, network.changes(), bridges);
+            if (problem != null) {
+                responses.add(problem);
+                return false;
+            }
             boolean ok = true;
-            for (String bridge : bridges) {
-                if (!existing.contains(bridge)) {
-                    continue;
-                }
+            for (String bridge : present) {
                 ResponseEntity<ProxmoxActionResponse> response = sendProxmoxRequest(
                         nodeApi(remoteServer, "/network/" + bridge), null, HttpMethod.DELETE, remoteServer);
                 responses.add("Remove bridge " + bridge + ": " + describe(response));
                 ok &= response.getStatusCode().is2xxSuccessful();
+            }
+            problem = otherNetworkChanges(remoteServer, readNetwork(remoteServer).changes(), bridges);
+            if (problem != null) {
+                responses.add(problem);
+                return false;
             }
             return applyNetworkChanges(remoteServer, responses) && ok;
         }
