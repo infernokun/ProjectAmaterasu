@@ -2,7 +2,6 @@ package com.infernokun.amaterasu.models.entities.ctf;
 
 import com.infernokun.amaterasu.models.PointsHistoryEntry;
 import com.infernokun.amaterasu.models.entities.StoredObject;
-import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.enums.RoomUserStatus;
 import jakarta.persistence.*;
@@ -25,10 +24,6 @@ public class RoomUser extends StoredObject {
     private Room room;
     @ManyToOne
     private User user;
-    /** The player's team in this lab; null while they play solo. */
-    @ManyToOne
-    @JoinColumn(name = "lab_team_id")
-    private Team team;
     @Builder.Default
     private Integer points = 0;
     @Enumerated(EnumType.STRING)

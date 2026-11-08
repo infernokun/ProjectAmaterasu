@@ -87,22 +87,26 @@ class RoomStaffIntegrationTest extends IntegrationSupport {
     }
 
     @Test
-    void authorsAssignFacilitatorsWhoMustHaveTheRole() throws Exception {
+    void adminsAssignFacilitatorsWhoMustHaveTheRole() throws Exception {
         User facilitator = user(Role.FACILITATOR, null);
         User member = user(Role.MEMBER, null);
         User creator = user(Role.CREATOR, null);
         Room room = room();
         String author = token(creator);
+        // Creators see who runs a lab but do not hand out that power
+        send(put("/api/room/" + room.getId() + "/facilitators"), Map.of("userIds", List.of(facilitator.getId())), author)
+                .andExpect(status().isForbidden());
+        String admin = admin();
 
         JsonNode candidates = data(call(get("/api/room/facilitator-candidates"), author).andExpect(status().isOk()).andReturn());
         List<String> names = new ArrayList<>();
         candidates.forEach(person -> names.add(person.get("username").asText()));
         assertThat(names).contains(facilitator.getUsername()).doesNotContain(member.getUsername(), creator.getUsername());
 
-        send(put("/api/room/" + room.getId() + "/facilitators"), Map.of("userIds", List.of(member.getId())), author)
+        send(put("/api/room/" + room.getId() + "/facilitators"), Map.of("userIds", List.of(member.getId())), admin)
                 .andExpect(status().isBadRequest());
         JsonNode saved = data(send(put("/api/room/" + room.getId() + "/facilitators"),
-                Map.of("userIds", List.of(facilitator.getId(), facilitator.getId())), author)
+                Map.of("userIds", List.of(facilitator.getId(), facilitator.getId())), admin)
                 .andExpect(status().isOk()).andReturn());
         assertThat(saved).hasSize(1);
         assertThat(saved.get(0).get("username").asText()).isEqualTo(facilitator.getUsername());

@@ -50,10 +50,12 @@ public class UserController extends BaseController {
         if (params.containsKey("username")) {
             String username = params.get("username");
             user = this.userService.findUserByUsername(username);
+            currentUser.requireSelfOrAdmin(user.getId());
             message = String.format("User with username '%s' retrieved successfully.", username);
 
         } else if (params.containsKey("id")) {
             String userId = params.get("id");
+            currentUser.requireSelfOrAdmin(userId);
             user = this.userService.findUserById(userId);
             message = String.format("User with ID '%s' retrieved successfully.", userId);
 
@@ -72,6 +74,7 @@ public class UserController extends BaseController {
 
     @GetMapping("{id}")
     public ResponseEntity<ApiResponse<User>> getUserById(@PathVariable String id) {
+        currentUser.requireSelfOrAdmin(id);
         return ResponseEntity.ok(ApiResponse.<User>builder()
                 .code(HttpStatus.OK.value())
                 .message("Retrieved user!")

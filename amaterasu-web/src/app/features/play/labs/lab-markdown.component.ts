@@ -41,7 +41,7 @@ import { PasswordChipComponent } from './password-chip.component';
 export class LabMarkdownComponent {
   readonly source = input<string | null>('');
   readonly environment = input<EnvironmentView | null>(null);
-  /** The viewer may see how to get in: they joined, run the lab, or it is their team's copy. */
+  /** The viewer may see how to get in: it is the copy they work in. */
   readonly canSeeLogin = input(false);
 
   private readonly tracker = computed(() => trackerOf(this.environment()));
@@ -51,7 +51,7 @@ export class LabMarkdownComponent {
   protected readonly waiting = computed(() => {
     if (!this.environment()) return 'not used in this lab';
     return environmentStatus(this.tracker()) === 'RUNNING' && !this.canSeeLogin()
-      ? 'shown to players who joined' : 'available once the environment is running';
+      ? 'shown to the copy\'s players' : 'available once the environment is running';
   });
   protected readonly values = computed<Record<string, string | null>>(() => {
     const tracker = this.tracker();

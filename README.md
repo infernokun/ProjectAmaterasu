@@ -63,10 +63,12 @@ Failed logins and the registration and refresh rate limits are counted in Redis,
 
 | Role | Can |
 | ---- | --- |
-| `MEMBER` | Join labs, answer questions, run their own team's environment copies |
-| `FACILITATOR` | Member access, plus starting and stopping the shared environments of the labs they facilitate, and awarding points |
-| `CREATOR` | Member access, plus authoring labs, their questions and environments |
-| `ADMIN` | Everything, including users, teams and remote servers |
+| `MEMBER` | Open every published lab, read its scenario, download its files, answer questions, unlock hints, open the console or SSH login of the running copy they work in, see the scoreboards |
+| `FACILITATOR` | Member access, plus the environment lifecycle (start, pause, resume, stop every copy) of the labs an admin assigned them to, their live view, and awarding points there |
+| `CREATOR` | Member access, plus authoring labs, their questions and environments; no users, teams or environment lifecycle |
+| `ADMIN` | Everything: users, teams, labs, environments and their lifecycle, remote servers, facilitator assignments, the audit log |
+
+Every rule is enforced by the API, not only by hidden buttons; `MemberAuthorizationIntegrationTest` calls each admin-only endpoint as a member and expects 403.
 
 Self registration always creates a `MEMBER`. Repeated failed logins are throttled per username and per client address.
 
@@ -83,14 +85,14 @@ A lab is what players open from the Labs tab. Each one has a Markdown scenario, 
 | Environment | Who runs it |
 | ----------- | ----------- |
 | None | Nothing to start; the lab shows "No setup needed" |
-| Shared | One copy for everyone in the lab; its facilitators and admins start and stop it |
-| One per team | Each team starts its own copy |
+| Shared | One copy for everyone; admins and the lab's facilitators start and stop it |
+| One per team | One copy per team, plus one Solo copy that everyone without a team shares; admins and the lab's facilitators start each copy, or every team's at once |
 
 Creators build a lab in Build, Labs with one step-by-step flow, also used to edit it: the scenario (from an outline, with a live preview), the environment (an existing one, or a new one built in place), the questions and their files, teams and scoring, then a preview and Publish. A new lab is a draft that only authors and its facilitators see until it is published; publishing needs at least one question, a flag on every question, and a published environment. Labs created through the API are published unless `published` is false.
 
-Teams live inside a lab. A lab is solo only, teams optional or teams required, with a team size limit; players join solo, join a team in that lab or create one. Answers and points are per person; with *see teammates* players see which teammates solved each question, and with *shared solves* one member's solve counts for the whole team. A team's environment copy belongs to its team in that lab. Teams under Admin, Users and teams are organisation-wide and separate from lab teams.
+Nobody joins a lab: every signed-in user sees every published lab and can answer straight away. Teams are site-wide and optional. Admins create them and put users on them under Admin, Users and teams; a user is on one team or none, and players cannot create, join or leave one. Answers and points are per person; with *see teammates* players see which teammates solved each question, and with *shared solves* one member's solve counts for the whole team. A player works in their team's copy of a per-team environment, or in the Solo copy without a team; until an admin starts it they see "Not running yet".
 
-A scenario can use `{{address}}`, `{{username}}`, `{{subnet}}` and `{{password}}`; they fill in from the running copy, and the password shows as a masked chip. Labs are stored as rooms, so the API paths are `/api/room/...`. On the first start of this version, every existing room became a lab with the environment its questions used (one copy per team) or none, and every published environment that no room used got a lab of its own. On the first start after teams moved into labs, each Admin team that played a lab became a team in that lab with the same players, and its copies of that lab's environment moved to it.
+A scenario can use `{{address}}`, `{{username}}`, `{{subnet}}` and `{{password}}`; they fill in from the running copy, and the password shows as a masked chip. Labs are stored as rooms, so the API paths are `/api/room/...`. On the first start of this version, every existing room became a lab with the environment its questions used (one copy per team) or none, and every published environment that no room used got a lab of its own. On the first start after teams became site-wide again, each team that lived inside a lab became a site team, merged into the site team with the same name if there was one, and took its copies with it; a user who was on several teams kept the one they joined most recently.
 
 ## Environment lifecycle
 
@@ -100,7 +102,7 @@ A scenario can use `{{address}}`, `{{username}}`, `{{subnet}}` and `{{password}}
 | Pause  | `stop`: containers are kept, so progress survives | Graceful shutdown: VMs and disks are kept |
 | Resume | `up -d` on the existing containers | Starts the existing VMs |
 | Stop   | `down -v`: removes containers, volumes and uploaded files | Destroys the clones and removes the lab's bridges |
-| Delete | Stop, then removes the lab from the team | Stop, then removes the lab from the team |
+| Delete (admins) | Stop, then removes the lab from the team | Stop, then removes the lab from the team |
 
 Each deployment is its own Compose project, so published ports and fixed container, volume and network names are dropped to let several teams run the same lab on one host. Each VM lab gets its own `abrN` bridges with no host address, so labs cannot reach each other or the Proxmox host's networks. Students reach VMs through the Proxmox console.
 

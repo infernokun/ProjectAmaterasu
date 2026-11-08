@@ -167,7 +167,7 @@ class AdminBuildAccountIntegrationTest {
     }
 
     @Test
-    void membersOnlySeeTheirOwnTeamsEvents() throws Exception {
+    void onlyAdminsReadTheAuditLog() throws Exception {
         Team red = team();
         Team blue = team();
         User redMember = user(Role.MEMBER, red);
@@ -175,24 +175,17 @@ class AdminBuildAccountIntegrationTest {
         signIn(blueMember);
         String token = signIn(redMember).accessToken();
 
-        JsonNode own = data(call(get("/api/audit"), token).andExpect(status().isOk()).andReturn());
-        assertThat(own.get("content")).isNotEmpty();
-        own.get("content").forEach(event -> assertThat(event.get("teamId").asText()).isEqualTo(red.getId()));
-
-        JsonNode other = data(call(get("/api/audit").param("teamId", blue.getId()), token)
-                .andExpect(status().isOk()).andReturn());
-        assertThat(other.get("content")).isEmpty();
-        assertThat(other.get("totalElements").asInt()).isZero();
+        call(get("/api/audit"), token).andExpect(status().isForbidden());
+        call(get("/api/audit").param("teamId", red.getId()), token).andExpect(status().isForbidden());
+        call(get("/api/audit"), signIn(user(Role.FACILITATOR, null)).accessToken()).andExpect(status().isForbidden());
+        call(get("/api/audit"), signIn(user(Role.CREATOR, null)).accessToken()).andExpect(status().isForbidden());
 
         String admin = admin();
         JsonNode blueForAdmin = data(call(get("/api/audit").param("teamId", blue.getId())
                 .param("action", "SIGN_IN,SIGN_IN_FAILED").param("size", "5"), admin).andExpect(status().isOk()).andReturn());
         assertThat(blueForAdmin.get("content")).isNotEmpty();
+        blueForAdmin.get("content").forEach(event -> assertThat(event.get("teamId").asText()).isEqualTo(blue.getId()));
         assertThat(blueForAdmin.get("size").asInt()).isEqualTo(5);
-
-        User noTeam = user(Role.MEMBER, null);
-        JsonNode none = data(call(get("/api/audit"), signIn(noTeam).accessToken()).andReturn());
-        assertThat(none.get("content")).isEmpty();
         call(get("/api/audit"), null).andExpect(status().isUnauthorized());
     }
 
@@ -201,18 +194,19 @@ class AdminBuildAccountIntegrationTest {
         Team team = team();
         User member = user(Role.MEMBER, team);
         LabTracker stopped = tracker(lab(LabType.DOCKER_COMPOSE), team, LabStatus.STOPPED, null);
-        String token = signIn(member).accessToken();
+        Map<String, String> request = Map.of("labId", stopped.getLabStarted().getId(), "labTrackerId", stopped.getId());
+        send(post("/api/labs/delete-lab-from-team"), request, signIn(member).accessToken()).andExpect(status().isForbidden());
 
-        send(post("/api/labs/delete-lab-from-team"),
-                Map.of("labId", stopped.getLabStarted().getId(), "labTrackerId", stopped.getId()), token)
-                .andExpect(status().isOk());
+        // An admin on no team removes it from the team that has it
+        String admin = admin();
+        send(post("/api/labs/delete-lab-from-team"), request, admin).andExpect(status().isOk());
 
         JsonNode events = data(call(get("/api/audit").param("targetType", "LAB_TRACKER")
-                .param("targetId", stopped.getId()), token).andExpect(status().isOk()).andReturn());
+                .param("targetId", stopped.getId()), admin).andExpect(status().isOk()).andReturn());
         assertThat(events.get("content")).hasSize(1);
         JsonNode event = events.get("content").get(0);
         assertThat(event.get("action").asText()).isEqualTo("LAB_DELETED");
-        assertThat(event.get("actorUsername").asText()).isEqualTo(member.getUsername());
+        assertThat(event.get("actorUsername").asText()).isEqualTo("test_admin");
         assertThat(event.get("teamId").asText()).isEqualTo(team.getId());
         assertThat(java.time.Instant.parse(event.get("at").asText())).isBeforeOrEqualTo(java.time.Instant.now());
     }

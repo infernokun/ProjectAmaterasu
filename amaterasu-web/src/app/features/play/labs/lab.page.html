@@ -7,7 +7,9 @@
         } @else {
           <span class="tag accent">No setup needed</span>
         }
-        <span class="tag">{{ teamLabel() }}</span>
+        @if (o.me.teamName) {
+          <span class="tag" title="Your team">Team {{ o.me.teamName }}</span>
+        }
         <span class="tag">{{ o.challenges.length }} {{ o.challenges.length === 1 ? 'question' : 'questions' }}</span>
         <span class="tag">{{ o.playerCount }} {{ o.playerCount === 1 ? 'player' : 'players' }}</span>
         @if (o.room.surroundTag) {
@@ -20,14 +22,9 @@
       }
     </div>
     <div class="row">
-      @if (o.me.joined) {
-        <div class="card stat"><div class="kpi-label">Your points</div><div class="num stat-val">{{ fmt.points(o.me.points) }}</div></div>
-        <div class="card stat"><div class="kpi-label">Rank</div><div class="stat-val">{{ o.me.rank ? fmt.ordinal(o.me.rank) : '-' }}</div></div>
-        <div class="card stat"><div class="kpi-label">Solved</div><div class="num stat-val">{{ o.me.solved }} / {{ o.challenges.length }}</div></div>
-      } @else {
-        <button type="button" class="btn primary" (click)="join()" [disabled]="store.joining()">
-          @if (store.joining()) {<app-icon name="spinner" [spin]="true" />}Join lab</button>
-      }
+      <div class="card stat"><div class="kpi-label">Your points</div><div class="num stat-val">{{ fmt.points(o.me.points) }}</div></div>
+      <div class="card stat"><div class="kpi-label">Rank</div><div class="stat-val">{{ o.me.rank ? fmt.ordinal(o.me.rank) : '-' }}</div></div>
+      <div class="card stat"><div class="kpi-label">Solved</div><div class="num stat-val">{{ o.me.solved }} / {{ o.challenges.length }}</div></div>
       <a class="btn" [routerLink]="['/labs', o.room.id, 'scoreboard']"><app-icon name="trophy" />Scoreboard</a>
       @if (session.canBuild()) {
         <a class="btn ghost" [routerLink]="['/build/labs', o.room.id]"><app-icon name="edit" />Edit</a>
@@ -35,28 +32,11 @@
     </div>
   </header>
 
-  @if (picking()) {
-    <app-team-picker [labId]="o.room.id" [labName]="o.room.name" [teamMode]="o.room.teamMode" [maxTeamSize]="o.room.maxTeamSize"
-                     [joined]="o.me.joined" [currentTeamId]="o.me.teamId" (done)="picked($event)" (closed)="picking.set(false)" />
-  } @else if (o.me.joined && o.room.teamMode !== 'SOLO_ONLY') {
-    <div class="row between card team-line">
-      <span class="row tight-row"><app-icon name="users" />
-        @if (o.me.teamName) {
-          <span>You play on <strong>{{ o.me.teamName }}</strong>{{ o.room.teamCredit === 'SHARED_SOLVES' ? '. A teammate\'s solve counts for the whole team.' : '. Your teammates\' solves show on each question.' }}</span>
-        } @else {
-          <span>You play solo.</span>
-        }
-      </span>
-      <button type="button" class="btn sm" (click)="picking.set(true)">{{ o.me.teamName ? 'Change team' : 'Join or create a team' }}</button>
-    </div>
-  }
-
-  <app-scenario-card [scenario]="o.room.scenario" [environment]="o.environment" [canSeeLogin]="canSeeLogin()" />
-
   @if (o.environment; as env) {
-    <app-environment-bar [labId]="o.room.id" [environment]="env" [joined]="o.me.joined" [canRun]="o.room.canRun"
-                         (changed)="store.setEnvironment($event)" />
+    <app-environment-bar [labId]="o.room.id" [environment]="env" (changed)="store.setEnvironment($event)" />
   }
+
+  <app-scenario-card [scenario]="o.room.scenario" [environment]="o.environment" [canSeeLogin]="true" />
 
   @if (o.files.length) {
     <section class="card stack tight" aria-labelledby="files-h">
@@ -70,14 +50,10 @@
     </section>
   }
 
-  @if (!o.me.joined) {
-    <div class="banner info"><app-icon name="flag" /><div>You can read the questions here. Join the lab to answer them, unlock hints and score points.</div></div>
-  }
-
   <div class="row between section-head">
     <h2 class="h2">Questions</h2>
     @if (o.environment && envStatus() !== 'RUNNING') {
-      <span class="small muted row env-note"><app-icon name="clock" size="sm" />Start the environment to work on these</span>
+      <span class="small muted row env-note"><app-icon name="clock" size="sm" />{{ o.room.canRun ? 'Start the environment to work on these' : 'The environment runs once an admin starts it' }}</span>
     }
   </div>
 
@@ -132,7 +108,7 @@
       </section>
 
       @if (store.selected(); as challenge) {
-        <app-challenge-detail class="detail" [challenge]="challenge" [joined]="o.me.joined" />
+        <app-challenge-detail class="detail" [challenge]="challenge" />
       }
     </div>
   } @else {

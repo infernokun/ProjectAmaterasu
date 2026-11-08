@@ -148,11 +148,6 @@ class PlayEndpointsIntegrationTest {
         locked = challenge("Later", "AMA{later}", 300, LocalDateTime.now().plusHours(2));
         open.setAttachments(null);
         open = ctfEntityRepository.save(open);
-        // Each joins on a team inside the room named like their Admin team
-        for (User player : List.of(redMember, blueMember)) {
-            postAs("/api/room/" + room.getId() + "/join", token(player), Map.of("newTeamName", player.getTeam().getName()))
-                    .andExpect(status().isOk());
-        }
     }
 
     @Test
@@ -190,8 +185,10 @@ class PlayEndpointsIntegrationTest {
     void overviewHidesLockedChallengesAndHintTextUntilUnlocked() throws Exception {
         String member = token(redMember);
         JsonNode overview = data(getAs("/api/room/" + room.getId() + "/overview", member).andExpect(status().isOk()));
-        assertThat(overview.get("playerCount").asInt()).isEqualTo(2);
-        assertThat(overview.get("me").get("joined").asBoolean()).isTrue();
+        // Nobody joins; a player counts once they answer
+        assertThat(overview.get("playerCount").asInt()).isZero();
+        assertThat(overview.get("me").has("joined")).isFalse();
+        assertThat(overview.get("me").get("teamName").asText()).isEqualTo(red.getName());
 
         JsonNode challenges = overview.get("challenges");
         JsonNode openView = challenges.get(0).get("id").asText().equals(open.getId()) ? challenges.get(0) : challenges.get(1);
@@ -229,15 +226,18 @@ class PlayEndpointsIntegrationTest {
     }
 
     @Test
-    void onlyTheOwningTeamRestartsALabService() throws Exception {
+    void onlyThoseWhoRunALabRestartItsServices() throws Exception {
         Lab lab = labRepository.save(Lab.builder().name(unique("lab")).labType(LabType.DOCKER_COMPOSE).build());
         LabTracker tracker = labTrackerRepository.save(LabTracker.builder()
                 .labStarted(lab).labOwner(red).labStatus(LabStatus.ACTIVE).build());
 
         postAs("/api/lab-tracker/" + tracker.getId() + "/restart/web", token(blueMember), Map.of())
                 .andExpect(status().isForbidden());
-        // The owning team gets through the access check; this lab has no server to restart on
+        // Not even the team the copy is for
         postAs("/api/lab-tracker/" + tracker.getId() + "/restart/web", token(redMember), Map.of())
+                .andExpect(status().isForbidden());
+        // An admin gets through the access check; this lab has no server to restart on
+        postAs("/api/lab-tracker/" + tracker.getId() + "/restart/web", adminToken(), Map.of())
                 .andExpect(status().isBadRequest());
     }
 
@@ -248,10 +248,13 @@ class PlayEndpointsIntegrationTest {
         RemoteServer server = remoteServerRepository.save(RemoteServer.builder().name(unique("dock")).ipAddress("10.0.0.1")
                 .serverType(ServerType.DOCKER_HOST).build());
 
-        JsonNode body = objectMapper.readTree(postAs("/api/labs/start", token(redMember),
+        postAs("/api/labs/start", token(redMember), Map.of("labId", lab.getId(), "remoteServerId", server.getId()))
+                .andExpect(status().isForbidden());
+        // An admin with no team has to say which team the copy is for
+        JsonNode body = objectMapper.readTree(postAs("/api/labs/start", adminToken(),
                         Map.of("labId", lab.getId(), "remoteServerId", server.getId()))
                 .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString());
-        assertThat(body.get("data").get("output").asText()).contains("is not ACTIVE");
+        assertThat(body.get("data").get("output").asText()).contains("Pick a team");
     }
 
     @Test
@@ -261,10 +264,11 @@ class PlayEndpointsIntegrationTest {
                 .labStarted(lab).labOwner(red).labStatus(LabStatus.ACTIVE).build());
         Map<String, String> request = Map.of("labId", lab.getId(), "labTrackerId", tracker.getId());
 
-        String paused = postAs("/api/labs/pause", token(redMember), request).andReturn().getResponse().getContentAsString();
+        postAs("/api/labs/pause", token(redMember), request).andExpect(status().isForbidden());
+        String paused = postAs("/api/labs/pause", adminToken(), request).andReturn().getResponse().getContentAsString();
         assertThat(paused).contains("not deployed on a server").doesNotContain("Exception");
 
-        postAs("/api/labs/stop", token(redMember), request).andExpect(status().isOk());
+        postAs("/api/labs/stop", adminToken(), request).andExpect(status().isOk());
         assertThat(labTrackerRepository.findById(tracker.getId()).orElseThrow().getLabStatus()).isEqualTo(LabStatus.STOPPED);
     }
 }

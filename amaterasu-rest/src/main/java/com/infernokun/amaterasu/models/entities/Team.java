@@ -16,8 +16,6 @@ import java.util.List;
 public class Team extends StoredObject {
     private String name;
     private String description;
-    /** The lab (room) a team plays in; null for an organisation-wide team from Admin. */
-    private String roomId;
     @Builder.Default
     private List<String> teamActiveLabs = new ArrayList<>();
     @Builder.Default

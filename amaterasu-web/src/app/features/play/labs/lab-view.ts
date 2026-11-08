@@ -76,6 +76,15 @@ export function labActions(tracker: LabTracker, state: LabDisplayState): LabCard
   };
 }
 
+/**
+ * What the viewer's role allows of those actions: admins and facilitators run the lifecycle, only
+ * admins take a copy off its team, and everyone else only opens it.
+ */
+export function allowedActions(actions: LabCardActions, canRun: boolean, isAdmin: boolean): LabCardActions {
+  if (canRun) return { ...actions, canRemove: actions.canRemove && isAdmin };
+  return { ...actions, canPause: false, canResume: false, canStartFresh: false, canStop: false, canRemove: false, canRestart: false };
+}
+
 export type LifeStep = 'run' | 'pause' | 'stop';
 
 /** Which lifecycle step the lab is at, for the Running, Paused, Stopped line. */

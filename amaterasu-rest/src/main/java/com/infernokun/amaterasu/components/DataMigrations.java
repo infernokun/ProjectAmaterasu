@@ -7,15 +7,6 @@ import com.infernokun.amaterasu.models.enums.EnvironmentMode;
 import com.infernokun.amaterasu.repositories.ctf.CTFEntityRepository;
 import com.infernokun.amaterasu.repositories.ctf.RoomRepository;
 import com.infernokun.amaterasu.repositories.lab.LabRepository;
-import com.infernokun.amaterasu.repositories.lab.LabTrackerRepository;
-import com.infernokun.amaterasu.repositories.TeamRepository;
-import com.infernokun.amaterasu.repositories.ctf.RoomUserRepository;
-import com.infernokun.amaterasu.models.entities.Team;
-import com.infernokun.amaterasu.models.entities.ctf.RoomUser;
-import com.infernokun.amaterasu.models.entities.lab.LabTracker;
-import com.infernokun.amaterasu.models.enums.LabStatus;
-import com.infernokun.amaterasu.models.enums.TeamCredit;
-import com.infernokun.amaterasu.models.enums.TeamMode;
 import com.infernokun.amaterasu.utils.AmaterasuConstants;
 import com.infernokun.amaterasu.utils.ScenarioText;
 import jakarta.persistence.EntityManager;
@@ -24,11 +15,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -51,20 +46,19 @@ public class DataMigrations implements ApplicationRunner {
     private final CTFEntityRepository ctfEntityRepository;
     private final RoomRepository roomRepository;
     private final LabRepository labRepository;
-    private final RoomUserRepository roomUserRepository;
-    private final TeamRepository teamRepository;
-    private final LabTrackerRepository labTrackerRepository;
+    private final JdbcTemplate jdbc;
     private final PlatformTransactionManager transactionManager;
 
     @Override
     public void run(ApplicationArguments args) {
         TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        // Plain SQL on columns the entities no longer map, so it runs on its own first
+        transaction.executeWithoutResult(status -> siteWideTeams());
         transaction.executeWithoutResult(status -> {
             publishExistingLabs();
             publishExistingRooms();
             orderExistingChallenges();
             mergeRoomsAndLabs();
-            moveTeamsIntoLabs();
         });
     }
 
@@ -201,60 +195,94 @@ public class DataMigrations implements ApplicationRunner {
     }
 
     /**
-     * Teams moved inside labs. For each lab from before (no team mode yet), the Admin teams of the
-     * players who joined it become teams in that lab with the same members, and their copies of the
-     * lab's environment move to those teams. Labs then allow teams, sized for the biggest one.
+     * Teams became site-wide and admin-managed, and nobody joins a lab. Each team that lived inside a
+     * lab becomes a site team, merged into the one with the same name if there is one; its copies go
+     * with it. A user who was on several keeps the one they joined most recently. Copies with no team
+     * and no lab become the solo copy. Runs while room_user still has its lab team column, which it
+     * drops at the end.
      */
-    public void moveTeamsIntoLabs() {
-        for (Room room : roomRepository.findAll()) {
-            if (room.getTeamMode() != null) {
+    public void siteWideTeams() {
+        if (!columnExists("room_user", "lab_team_id") || !columnExists("team", "room_id")) {
+            return;
+        }
+        record TeamRow(String id, String name, String roomId) {
+        }
+        List<TeamRow> teams = jdbc.query("SELECT id, name, room_id FROM team ORDER BY created_at NULLS FIRST, id",
+                (rs, i) -> new TeamRow(rs.getString("id"), rs.getString("name"), rs.getString("room_id")));
+        Map<String, String> byName = new HashMap<>();
+        Map<String, String> names = new HashMap<>();
+        teams.forEach(team -> names.put(team.id(), team.name()));
+        teams.stream().filter(team -> team.roomId() == null)
+                .forEach(team -> byName.putIfAbsent(key(team.name()), team.id()));
+        Map<String, String> target = new LinkedHashMap<>();
+        for (TeamRow team : teams) {
+            if (team.roomId() == null) {
                 continue;
             }
-            Map<String, Team> byGlobal = new LinkedHashMap<>();
-            for (RoomUser seat : roomUserRepository.findByRoomId(room.getId())) {
-                Team global = seat.getUser() != null ? seat.getUser().getTeam() : null;
-                if (seat.getTeam() != null || global == null || global.getRoomId() != null) {
-                    continue;
-                }
-                Team labTeam = byGlobal.computeIfAbsent(global.getId(), id -> teamRepository.findByRoomId(room.getId()).stream()
-                        .filter(team -> team.getName() != null && team.getName().equalsIgnoreCase(global.getName()))
-                        .findFirst()
-                        .orElseGet(() -> teamRepository.save(Team.builder().name(global.getName())
-                                .description(global.getDescription()).roomId(room.getId()).build())));
-                seat.setTeam(labTeam);
-                roomUserRepository.save(seat);
-            }
-            if (room.getEnvironment() != null && room.effectiveMode() == EnvironmentMode.PER_TEAM) {
-                byGlobal.forEach((globalId, labTeam) -> {
-                    Team global = teamRepository.findById(globalId).orElse(null);
-                    if (global == null) {
-                        return;
-                    }
-                    for (LabTracker tracker : labTrackerRepository.findAllByLabStartedAndLabOwnerAndLabStatusNot(
-                            room.getEnvironment(), global, LabStatus.DELETED)) {
-                        if (tracker.isShared()) {
-                            continue;
-                        }
-                        tracker.setLabOwner(labTeam);
-                        labTrackerRepository.save(tracker);
-                        global.getTeamActiveLabs().remove(tracker.getId());
-                        if (!labTeam.getTeamActiveLabs().contains(tracker.getId())) {
-                            labTeam.getTeamActiveLabs().add(tracker.getId());
-                        }
-                        log.info("{}'s copy of {} now belongs to its team in {}", global.getName(),
-                                room.getEnvironment().getName(), room.getName());
-                    }
-                    teamRepository.save(global);
-                    teamRepository.save(labTeam);
-                });
-            }
-            int largest = byGlobal.values().stream()
-                    .mapToInt(team -> (int) roomUserRepository.findByTeamId(team.getId()).size()).max().orElse(0);
-            room.setTeamMode(TeamMode.TEAMS_OPTIONAL);
-            room.setMaxTeamSize(Math.max(4, largest));
-            room.setTeamCredit(TeamCredit.SEE_TEAMMATES);
-            roomRepository.save(room);
-            log.info("{} now has {} team(s) inside it", room.getName(), byGlobal.size());
+            String site = byName.putIfAbsent(key(team.name()), team.id());
+            target.put(team.id(), site != null ? site : team.id());
         }
+
+        record Membership(String userId, String teamId, LocalDateTime at) {
+        }
+        List<Membership> memberships = new ArrayList<>(jdbc.query(
+                "SELECT id, team_id, updated_at, created_at FROM users WHERE team_id IS NOT NULL",
+                (rs, i) -> new Membership(rs.getString("id"), rs.getString("team_id"),
+                        time(rs.getTimestamp("updated_at"), rs.getTimestamp("created_at")))));
+        memberships.addAll(jdbc.query(
+                "SELECT user_id, lab_team_id, updated_at, created_at FROM room_user WHERE lab_team_id IS NOT NULL",
+                (rs, i) -> new Membership(rs.getString("user_id"),
+                        target.getOrDefault(rs.getString("lab_team_id"), rs.getString("lab_team_id")),
+                        time(rs.getTimestamp("updated_at"), rs.getTimestamp("created_at")))));
+        Map<String, List<Membership>> byUser = memberships.stream()
+                .collect(Collectors.groupingBy(Membership::userId, LinkedHashMap::new, Collectors.toList()));
+        byUser.forEach((userId, list) -> {
+            Membership latest = list.stream().max(Comparator.comparing(Membership::at)).orElseThrow();
+            jdbc.update("UPDATE users SET team_id = ? WHERE id = ?", latest.teamId(), userId);
+            Set<String> on = list.stream().map(Membership::teamId).collect(Collectors.toCollection(java.util.TreeSet::new));
+            String username = jdbc.queryForObject("SELECT username FROM users WHERE id = ?", String.class, userId);
+            if (on.size() > 1) {
+                log.info("Teams: {} was on {}; kept {}, the most recent", username,
+                        on.stream().map(names::get).toList(), names.get(latest.teamId()));
+            } else {
+                log.info("Teams: {} is on {}", username, names.get(latest.teamId()));
+            }
+        });
+
+        jdbc.update("UPDATE room_user SET lab_team_id = NULL");
+        target.forEach((labTeam, site) -> {
+            if (labTeam.equals(site)) {
+                log.info("Teams: {} is now a site team", names.get(labTeam));
+                return;
+            }
+            int moved = jdbc.update("UPDATE lab_tracker SET team_id = ? WHERE team_id = ?", site, labTeam);
+            jdbc.update("UPDATE users SET team_id = ? WHERE team_id = ?", site, labTeam);
+            jdbc.update("DELETE FROM team WHERE id = ?", labTeam);
+            log.info("Teams: {} ({}) merged into the site team of that name, with {} copies", names.get(labTeam), labTeam, moved);
+        });
+        int solo = jdbc.update("UPDATE lab_tracker SET solo = TRUE WHERE team_id IS NULL AND room_id IS NULL"
+                + " AND solo IS NULL AND lab_status <> 'DELETED'");
+        if (solo > 0) {
+            log.info("Teams: {} copies without a team or lab became solo copies", solo);
+        }
+        jdbc.execute("ALTER TABLE room_user DROP COLUMN lab_team_id");
+        jdbc.execute("ALTER TABLE team DROP COLUMN room_id");
+        jdbc.execute("ALTER TABLE room DROP COLUMN IF EXISTS team_mode");
+        jdbc.execute("ALTER TABLE room DROP COLUMN IF EXISTS max_team_size");
+    }
+
+    private boolean columnExists(String table, String column) {
+        Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns"
+                + " WHERE LOWER(table_name) = ? AND LOWER(column_name) = ?", Integer.class, table, column);
+        return count != null && count > 0;
+    }
+
+    private static String key(String name) {
+        return name == null ? "" : name.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private static LocalDateTime time(java.sql.Timestamp updated, java.sql.Timestamp created) {
+        java.sql.Timestamp at = updated != null ? updated : created;
+        return at != null ? at.toLocalDateTime() : LocalDateTime.MIN;
     }
 }

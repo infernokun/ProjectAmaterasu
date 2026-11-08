@@ -1,15 +1,14 @@
 package com.infernokun.amaterasu.components;
 
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
+import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.enums.Role;
-import com.infernokun.amaterasu.models.enums.RoomUserStatus;
+import com.infernokun.amaterasu.models.enums.EnvironmentMode;
 import com.infernokun.amaterasu.repositories.ctf.RoomRepository;
-import com.infernokun.amaterasu.repositories.ctf.RoomUserRepository;
 import com.infernokun.amaterasu.services.entity.UserService;
-import com.infernokun.amaterasu.services.entity.ctf.LabTeamService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
@@ -18,14 +17,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 /** The caller of the current request, taken from the verified access token. */
 @Component
 @RequiredArgsConstructor
 public class CurrentUser {
     private final UserService userService;
     private final RoomRepository roomRepository;
-    private final RoomUserRepository roomUserRepository;
-    private final LabTeamService labTeamService;
 
     public String id() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -95,48 +94,55 @@ public class CurrentUser {
     }
 
     /**
-     * Who may see a copy and its login: the owning team, or for a shared copy everyone who joined its
-     * lab and the people who run it. Admins see every copy.
+     * Who may see a copy and its login: those who run it, everyone who can see the lab for a shared
+     * copy, the owning team's members for a team copy, and players without a team for the solo copy.
      */
     public void requireTrackerAccess(LabTracker labTracker) {
-        if (isAdmin()) {
-            return;
-        }
-        if (labTracker.isShared()) {
-            Room room = roomRepository.findById(labTracker.getRoomId()).orElse(null);
-            if (room != null && (canRun(room) || joined(room))) {
-                return;
-            }
+        if (!canAccess(labTracker)) {
             throw new AccessDeniedException("Access denied");
         }
-        requireTeamOwns(labTracker);
     }
 
-    /** Who may start, pause or stop a copy: the owning team, or for a shared copy whoever runs its lab. */
+    public boolean canAccess(LabTracker labTracker) {
+        if (canControl(labTracker)) {
+            return true;
+        }
+        if (labTracker.isShared()) {
+            return roomRepository.findById(labTracker.getRoomId()).map(this::canSee).orElse(false);
+        }
+        Team team = user().getTeam();
+        if (labTracker.isSolo()) {
+            return team == null;
+        }
+        return team != null && labTracker.getLabOwner() != null && team.getId().equals(labTracker.getLabOwner().getId());
+    }
+
+    /** Who may start, pause, resume or stop a copy: admins, and the facilitators of a lab that runs it. */
     public void requireTrackerControl(LabTracker labTracker) {
+        if (!canControl(labTracker)) {
+            throw new AccessDeniedException("Only admins and the lab's facilitators start and stop its environment");
+        }
+    }
+
+    public boolean canControl(LabTracker labTracker) {
         if (isAdmin()) {
-            return;
+            return true;
         }
+        if (!hasRole(Role.FACILITATOR)) {
+            return false;
+        }
+        return roomsRunning(labTracker).stream().anyMatch(this::canRun);
+    }
+
+    /** The lab a shared copy belongs to, or every per-team lab using the copy's environment. */
+    private List<Room> roomsRunning(LabTracker labTracker) {
         if (labTracker.isShared()) {
-            Room room = roomRepository.findById(labTracker.getRoomId()).orElse(null);
-            if (room != null && canRun(room)) {
-                return;
-            }
-            throw new AccessDeniedException("Only the lab's facilitators start and stop its shared environment");
+            return roomRepository.findById(labTracker.getRoomId()).map(List::of).orElse(List.of());
         }
-        requireTeamOwns(labTracker);
-    }
-
-    /** Whether the caller joined the room and is still in it. */
-    public boolean joined(Room room) {
-        return roomUserRepository.findByUserAndRoom(user(), room)
-                .map(roomUser -> roomUser.getRoomUserStatus() == RoomUserStatus.JOINED).orElse(false);
-    }
-
-    /** The copy's team, an Admin team or a team inside a lab, must include the caller. */
-    private void requireTeamOwns(LabTracker labTracker) {
-        if (!labTeamService.isMember(user(), labTracker.getLabOwner())) {
-            throw new AccessDeniedException("Access denied");
-        }
+        String environmentId = labTracker.getLabStarted() != null ? labTracker.getLabStarted().getId() : null;
+        return roomRepository.findAll().stream()
+                .filter(room -> room.effectiveMode() == EnvironmentMode.PER_TEAM && environmentId != null
+                        && environmentId.equals(room.getEnvironmentId()))
+                .toList();
     }
 }

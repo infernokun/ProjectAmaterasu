@@ -14,7 +14,7 @@ import { PlayApiService } from '../data/play-api.service';
 import { RoomOverview, RoomStandings } from '../data/play.models';
 
 interface HomeState {
-  /** Overviews of the rooms the user joined, by room id. */
+  /** Overviews of the labs the user has played, by room id. */
   overviews: Record<string, RoomOverview>;
   standings: RoomStandings | null;
   activity: AuditEvent[];
@@ -40,7 +40,7 @@ export const HomeStore = signalStore(
                session = inject(SessionStore)) => ({
     loadRooms: rxMethod<void>(pipe(
       switchMap(() => {
-        const ids = rooms.joinedRooms().map(room => room.id!).filter(Boolean);
+        const ids = rooms.playedRooms().map(room => room.id!).filter(Boolean);
         return ids.length ? forkJoin(ids.map(id => api.overview(id).pipe(catchError(() => of(null))))) : of([]);
       }),
       tap(results => {
@@ -60,7 +60,8 @@ export const HomeStore = signalStore(
     )),
     loadActivity: rxMethod<void>(pipe(
       switchMap(() => {
-        const teamId = session.teamId();
+        // The audit log is for admins
+        const teamId = session.isAdmin() ? session.teamId() : undefined;
         return teamId
           ? audit.list({ teamId, action: PLAY_ACTIONS, size: 8 }).pipe(map(page => page.content ?? []), catchError(() => of([] as AuditEvent[])))
           : of([] as AuditEvent[]);
@@ -71,7 +72,7 @@ export const HomeStore = signalStore(
   withHooks({
     onInit(store, rooms = inject(RoomsStore), socket = inject(WebsocketService), session = inject(SessionStore)) {
       effect(() => {
-        rooms.joinedRooms();
+        rooms.playedRooms();
         rooms.currentRoom();
         untracked(() => {
           store.loadRooms();
@@ -80,9 +81,10 @@ export const HomeStore = signalStore(
       });
       effect(() => {
         session.teamId();
+        session.isAdmin();
         untracked(() => store.loadActivity());
       });
-      roomActivity(socket.getMessage(), roomId => rooms.joinedRooms().some(room => room.id === roomId))
+      roomActivity(socket.getMessage(), roomId => rooms.playedRooms().some(room => room.id === roomId))
         .pipe(takeUntilDestroyed())
         .subscribe(() => {
           store.loadRooms();

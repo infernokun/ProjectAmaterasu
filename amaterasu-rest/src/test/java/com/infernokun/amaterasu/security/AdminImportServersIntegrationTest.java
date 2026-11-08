@@ -302,7 +302,10 @@ class AdminImportServersIntegrationTest extends IntegrationSupport {
         RemoteServer open = server(ServerType.DOCKER_HOST, false);
         Team team = team();
         Lab lab = lab(LabType.DOCKER_COMPOSE, true);
-        String member = token(user(Role.MEMBER, team));
+        send(post("/api/labs/start"), Map.of("labId", lab.getId(), "remoteServerId", closed.getId()),
+                token(user(Role.MEMBER, team))).andExpect(status().isForbidden());
+        // Only admins start copies; this one is on the team
+        String member = token(user(Role.ADMIN, team));
 
         // From the catalog
         String fresh = output(send(post("/api/labs/start"), Map.of("labId", lab.getId(), "remoteServerId", closed.getId()), member)
@@ -331,7 +334,7 @@ class AdminImportServersIntegrationTest extends IntegrationSupport {
     void labsAlreadyOnTheServerStillPauseAndResume() throws Exception {
         RemoteServer closed = drained();
         Team team = team();
-        String member = token(user(Role.MEMBER, team));
+        String member = token(user(Role.ADMIN, team));
         Lab lab = lab(LabType.DOCKER_COMPOSE, true);
         LabTracker paused = tracker(lab, team, LabStatus.PAUSED, closed);
         LabTracker running = tracker(lab(LabType.DOCKER_COMPOSE, true), team, LabStatus.ACTIVE, closed);

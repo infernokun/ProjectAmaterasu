@@ -1,5 +1,7 @@
 package com.infernokun.amaterasu.controllers.entity.ctf;
 
+import com.infernokun.amaterasu.components.CurrentUser;
+import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntityAnswer;
@@ -38,6 +40,7 @@ public class CTFAnswerController {
     private final RoomService roomService;
     private final CTFEntityService ctfEntityService;
     private final ModelMapper modelMapper;
+    private final CurrentUser currentUser;
 
     @GetMapping("/check")
     public ResponseEntity<ApiResponse<CTFEntityAnswerResponse>> checkChallengeStatus(
@@ -51,12 +54,12 @@ public class CTFAnswerController {
         }
 
         User user = userService.findUserById(userId);
-        Room room = roomService.findByRoomId(roomId);
+        Room room = currentUser.requireCanSee(roomService.findByRoomId(roomId));
         CTFEntity ctfEntity = ctfEntityService.findCTFEntityById(ctfEntityId);
 
         Optional<RoomUser> roomUserOpt = roomUserService.findByUserAndRoom(user, room);
         if (roomUserOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw new ResourceNotFoundException("No answers in " + room.getName() + " yet");
         }
 
         CTFEntityAnswer challengeStatus = ctfAnswerService
@@ -90,12 +93,11 @@ public class CTFAnswerController {
         }
 
         User user = userService.findUserById(userId);
-        Room room = roomService.findByRoomId(roomId);
-        List<CTFEntity> ctfEntities = ctfEntityService.findCTFEntitiesByRoomId(roomId);
+        Room room = currentUser.requireCanSee(roomService.findByRoomId(roomId));
 
         Optional<RoomUser> roomUserOpt = roomUserService.findByUserAndRoom(user, room);
         if (roomUserOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            return buildSuccessResponse("No answers yet", List.of(), HttpStatus.OK);
         }
 
         // Get all challenge answers for this room user

@@ -85,7 +85,14 @@ public class LabTrackerService extends BaseService {
     /** A team's own copy of a lab definition, if it has one that was not removed. */
     public Optional<LabTracker> findTeamCopy(Lab environment, Team team) {
         return labTrackerRepository.findAllByLabStartedAndLabOwnerAndLabStatusNot(environment, team, LabStatus.DELETED).stream()
-                .filter(tracker -> !tracker.isShared())
+                .filter(tracker -> !tracker.isShared() && !tracker.isSolo())
+                .max(java.util.Comparator.comparing(LabTracker::getUpdatedAt, java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())));
+    }
+
+    /** The copy of a per-team environment that players without a team share, if it was not removed. */
+    public Optional<LabTracker> findSoloCopy(Lab environment) {
+        return labTrackerRepository.findByLabStarted(environment).stream()
+                .filter(tracker -> tracker.getLabStatus() != LabStatus.DELETED && tracker.isSolo())
                 .max(java.util.Comparator.comparing(LabTracker::getUpdatedAt, java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())));
     }
 
