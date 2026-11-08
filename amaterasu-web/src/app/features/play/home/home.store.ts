@@ -31,7 +31,8 @@ export const HomeStore = signalStore(
     }),
     me: computed(() => standings()?.players.find(player => player.userId === session.userId())),
     teammates: computed(() => {
-      const teamId = session.teamId();
+      // The viewer's team in the current lab
+      const teamId = standings()?.players.find(player => player.userId === session.userId())?.teamId;
       return teamId ? (standings()?.players ?? []).filter(player => player.teamId === teamId) : [];
     }),
   })),

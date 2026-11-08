@@ -183,22 +183,35 @@ class LabEnvironmentIntegrationTest extends IntegrationSupport {
     }
 
     @Test
-    void eachTeamStartsItsOwnCopy() throws Exception {
+    void eachTeamInTheLabStartsItsOwnCopy() throws Exception {
         Room room = lab(EnvironmentMode.PER_TEAM, vmLab);
-        Team red = team();
-        User redPlayer = user(Role.MEMBER, red);
+        User redPlayer = user(Role.MEMBER, team());
+        User redMate = user(Role.MEMBER, null);
         User bluePlayer = user(Role.MEMBER, team());
-        String noTeam = token(user(Role.MEMBER, null));
+        String solo = token(user(Role.MEMBER, null));
+        send(post("/api/room/" + room.getId() + "/join"), Map.of(), solo).andExpect(status().isOk());
 
-        assertThat(environment(room, noTeam).get("note").asText()).contains("Join a team");
-        send(post("/api/room/" + room.getId() + "/environment/start"), null, noTeam).andExpect(status().isBadRequest());
+        assertThat(environment(room, solo).get("note").asText()).contains("Join or create a team");
+        send(post("/api/room/" + room.getId() + "/environment/start"), null, solo).andExpect(status().isBadRequest());
 
-        JsonNode started = data(send(post("/api/room/" + room.getId() + "/environment/start"), null, token(redPlayer))
-                .andExpect(status().isOk()).andReturn());
+        String redTeam = data(send(post("/api/room/" + room.getId() + "/join"), Map.of("newTeamName", "Red"), token(redPlayer))
+                .andExpect(status().isOk()).andReturn()).get("teamId").asText();
+        send(post("/api/room/" + room.getId() + "/join"), Map.of("teamId", redTeam), token(redMate)).andExpect(status().isOk());
+        send(post("/api/room/" + room.getId() + "/join"), Map.of("newTeamName", "Blue"), token(bluePlayer)).andExpect(status().isOk());
+
+        JsonNode started = data(send(post("/api/room/" + room.getId() + "/environment/start"),
+                Map.of("remoteServerId", pve.getId()), token(redPlayer)).andExpect(status().isOk()).andReturn());
         String trackerId = started.get("environment").get("trackerId").asText();
         LabTracker tracker = labTrackerRepository.findById(trackerId).orElseThrow();
-        assertThat(tracker.getLabOwner().getId()).isEqualTo(red.getId());
+        assertThat(tracker.getLabOwner().getId()).isEqualTo(redTeam);
+        assertThat(tracker.getLabOwner().getRoomId()).isEqualTo(room.getId());
         assertThat(tracker.getRoomId()).isNull();
+
+        // A teammate works in the same copy
+        assertThat(environment(room, token(redMate)).get("trackerId").asText()).isEqualTo(trackerId);
+        call(get("/api/lab-tracker/" + trackerId + "/access"), token(redMate)).andExpect(status().isOk());
+        JsonNode mine = data(call(get("/api/lab-tracker"), token(redMate)).andExpect(status().isOk()).andReturn());
+        assertThat(mine.toString()).contains(trackerId);
 
         JsonNode blue = environment(room, token(bluePlayer));
         assertThat(blue.get("status").asText()).isEqualTo("NOT_RUNNING");

@@ -12,7 +12,7 @@ import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { SkeletonComponent } from '../../../shared/ui/skeleton.component';
 import { MarkdownComponent } from '../../../shared/ui/markdown.component';
-import { AuthorChallenge, EnvironmentMode, LabFileView, Person } from './authoring.service';
+import { AuthorChallenge, EnvironmentMode, LabFileView, Person, TeamCredit, TeamMode } from './authoring.service';
 import { NEW_ID, RoomEditorStore, scheduleLabel } from './room-editor.store';
 
 export const DIFFICULTIES: { value: DifficultyLevel; label: string }[] = [
@@ -63,16 +63,30 @@ export class RoomEditorPage {
   protected readonly scenario = linkedSignal(() => this.store.room()?.scenario ?? '');
   protected readonly envMode = linkedSignal<EnvironmentMode>(() => this.store.room()?.environmentMode ?? 'NONE');
   protected readonly envId = linkedSignal(() => this.store.room()?.environmentId ?? '');
+  protected readonly teamMode = linkedSignal<TeamMode>(() => this.store.room()?.teamMode ?? 'TEAMS_OPTIONAL');
+  protected readonly teamSize = linkedSignal(() => this.store.room()?.maxTeamSize ?? 0);
+  protected readonly teamCredit = linkedSignal<TeamCredit>(() => this.store.room()?.teamCredit ?? 'SEE_TEAMMATES');
   protected readonly roomDirty = computed(() => {
     const room = this.store.room();
     return !!room && (this.roomName().trim() !== room.name || this.roomTag().trim() !== room.surroundTag
       || this.scenario().trim() !== room.scenario.trim() || this.envMode() !== room.environmentMode
-      || (this.envMode() !== 'NONE' && this.envId() !== (room.environmentId ?? '')));
+      || (this.envMode() !== 'NONE' && this.envId() !== (room.environmentId ?? ''))
+      || this.teamMode() !== room.teamMode || this.teamSize() !== (room.maxTeamSize ?? 0) || this.teamCredit() !== room.teamCredit);
   });
+  protected readonly teamModes: { value: TeamMode; label: string }[] = [
+    { value: 'SOLO_ONLY', label: 'Solo only' }, { value: 'TEAMS_OPTIONAL', label: 'Teams optional' }, { value: 'TEAMS_REQUIRED', label: 'Teams required' },
+  ];
+  protected readonly credits: { value: TeamCredit; label: string; help: string }[] = [
+    { value: 'SEE_TEAMMATES', label: 'See teammates', help: 'Everyone answers for themselves and sees which teammates solved each question.' },
+    { value: 'SHARED_SOLVES', label: 'Shared solves', help: "One member's solve counts for the team; the points go to whoever answered." },
+  ];
+  protected readonly creditHelp = computed(() => this.credits.find(credit => credit.value === this.teamCredit())?.help ?? '');
   protected readonly roomProblem = computed(() => {
     if (!this.roomName().trim()) return 'Give the lab a name.';
     if (!this.scenario().trim()) return 'Write the scenario players read first.';
     if (this.envMode() !== 'NONE' && !this.envId()) return 'Pick the environment players work in.';
+    if (this.envMode() === 'PER_TEAM' && this.teamMode() === 'SOLO_ONLY') return 'One copy per team needs teams. Allow teams, or run one shared copy.';
+    if (!(this.teamSize() >= 0 && this.teamSize() <= 50)) return 'Teams can have up to 50 players, or 0 for no limit.';
     return null;
   });
   protected readonly envModes: { value: EnvironmentMode; label: string; help: string }[] = [
@@ -304,6 +318,7 @@ export class RoomEditorPage {
       await this.store.saveRoom({
         name: this.roomName().trim(), surroundTag: this.roomTag().trim(), scenario: this.scenario().trim(),
         environmentMode: mode, ...(mode === 'NONE' ? {} : { environmentId: this.envId() }),
+        teamMode: this.teamMode(), maxTeamSize: this.teamSize(), teamCredit: this.teamCredit(),
       });
       this.toast.success('Lab saved');
     } catch (error) {

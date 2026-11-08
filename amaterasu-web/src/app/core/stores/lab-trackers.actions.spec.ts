@@ -23,7 +23,7 @@ describe('LabTrackersStore actions', () => {
       providers: [
         { provide: AuthService, useValue: auth },
         { provide: LabService, useValue: labService },
-        { provide: LabTrackerService, useValue: { getLabTrackersByTeam: () => of([tracker(LabStatus.ACTIVE)]) } },
+        { provide: LabTrackerService, useValue: { getMyLabTrackers: () => of([tracker(LabStatus.ACTIVE)]), getMyTeamIds: () => of(['t1']) } },
         { provide: WebsocketService, useValue: { getMessage: () => new Subject().asObservable() } },
       ],
     });

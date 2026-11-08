@@ -7,6 +7,10 @@ import com.infernokun.amaterasu.models.entities.lab.Lab;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.enums.EnvironmentMode;
 import com.infernokun.amaterasu.models.enums.LabStatus;
+import com.infernokun.amaterasu.models.enums.TeamCredit;
+import com.infernokun.amaterasu.models.enums.TeamMode;
+import com.infernokun.amaterasu.models.entities.Team;
+import com.infernokun.amaterasu.repositories.TeamRepository;
 import com.infernokun.amaterasu.repositories.ctf.RoomRepository;
 import com.infernokun.amaterasu.repositories.ctf.RoomUserRepository;
 import com.infernokun.amaterasu.repositories.lab.LabRepository;
@@ -24,6 +28,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class RoomService {
     private static final Set<LabStatus> NOT_DEPLOYED = Set.of(LabStatus.STOPPED, LabStatus.DELETED, LabStatus.NONE);
+    public static final int MAX_TEAM_SIZE = 50;
 
     private final RoomRepository roomRepository;
     private final RoomUserRepository roomUserRepository;
@@ -31,6 +36,7 @@ public class RoomService {
     private final LabRepository labRepository;
     private final LabTrackerRepository labTrackerRepository;
     private final LabFileService labFileService;
+    private final TeamRepository teamRepository;
 
     public List<Room> findAllRooms() {
         return roomRepository.findAll();
@@ -67,10 +73,18 @@ public class RoomService {
         if (shared.stream().anyMatch(RoomService::deployed)) {
             throw new ResourceInUseException(room.getName() + "'s shared environment is still deployed. Stop it first.");
         }
+        List<Team> teams = teamRepository.findByRoomId(id);
+        List<LabTracker> teamCopies = teams.stream()
+                .flatMap(team -> labTrackerRepository.findLabTrackersByLabOwner(team).stream()).toList();
+        if (teamCopies.stream().anyMatch(RoomService::deployed)) {
+            throw new ResourceInUseException("A team in " + room.getName() + " still has its copy deployed. Stop it first.");
+        }
         labTrackerRepository.deleteAll(shared);
+        labTrackerRepository.deleteAll(teamCopies);
         labFileService.deleteAll(id);
         ctfEntityService.deleteByRoomId(id);
         roomUserRepository.deleteAll(roomUserRepository.findByRoomId(id));
+        teamRepository.deleteAll(teams);
         roomRepository.delete(room);
         return room;
     }
@@ -126,6 +140,25 @@ public class RoomService {
             throw new ResourceInUseException(room.getName() + "'s shared environment is deployed. Stop it before changing the environment.");
         }
         applyEnvironment(room, mode, environmentId);
+    }
+
+    /** Sets who plays together. One copy per team needs teams. */
+    public void applyTeams(Room room, TeamMode mode, Integer maxTeamSize, TeamCredit credit) {
+        if (mode != null) {
+            room.setTeamMode(mode);
+        }
+        if (maxTeamSize != null) {
+            if (maxTeamSize < 0 || maxTeamSize > MAX_TEAM_SIZE) {
+                throw new IllegalArgumentException("A team can have up to " + MAX_TEAM_SIZE + " players, or 0 for no limit");
+            }
+            room.setMaxTeamSize(maxTeamSize == 0 ? null : maxTeamSize);
+        }
+        if (credit != null) {
+            room.setTeamCredit(credit);
+        }
+        if (room.effectiveMode() == EnvironmentMode.PER_TEAM && room.effectiveTeamMode() == TeamMode.SOLO_ONLY) {
+            throw new IllegalArgumentException("One copy per team needs teams. Allow teams, or run one shared copy.");
+        }
     }
 
     private static boolean deployed(LabTracker tracker) {

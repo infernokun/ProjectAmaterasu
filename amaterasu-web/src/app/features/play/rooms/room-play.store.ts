@@ -43,23 +43,26 @@ export const RoomPlayStore = signalStore(
     submitting: false, wrongFor: null, answerError: null, hintBusy: null, joining: false,
   }),
   withComputed(({ overview, selectedId, category, status }) => {
-    const challenges = computed(() => overview()?.challenges ?? []);
+    // With shared solves a teammate's solve counts for the viewer too
+    const shared = computed(() => overview()?.room.teamCredit === 'SHARED_SOLVES');
+    const done = (challenge: ChallengeView) => challenge.solved || (shared() && (challenge.solvedByTeammates?.length ?? 0) > 0);
+    const challenges = computed(() => (overview()?.challenges ?? []).map(challenge => ({ ...challenge, done: done(challenge) })));
     const categories = computed(() => ['All', ...new Set(challenges().map(challenge => challenge.category))]);
     const visible = computed(() => challenges().filter(challenge =>
       (category() === 'All' || challenge.category === category())
-      && (status() === 'all' || (status() === 'solved' ? challenge.solved : !challenge.solved))));
+      && (status() === 'all' || (status() === 'solved' ? challenge.done : !challenge.done))));
     const groups = computed(() => categories().slice(1)
       .map(name => {
         const inCategory = challenges().filter(challenge => challenge.category === name);
         return {
           name,
           total: inCategory.length,
-          done: inCategory.filter(challenge => challenge.solved).length,
+          done: inCategory.filter(challenge => challenge.done).length,
           items: visible().filter(challenge => challenge.category === name),
         };
       })
       .filter(group => group.items.length > 0));
-    const selected = computed<ChallengeView | undefined>(() =>
+    const selected = computed<(ChallengeView & { done: boolean }) | undefined>(() =>
       challenges().find(challenge => challenge.id === selectedId()) ?? visible()[0] ?? challenges()[0]);
     return {
       challenges,
@@ -67,7 +70,8 @@ export const RoomPlayStore = signalStore(
       groups,
       selected,
       joined: computed(() => !!overview()?.me.joined),
-      solvedCount: computed(() => challenges().filter(challenge => challenge.solved).length),
+      solvedCount: computed(() => challenges().filter(challenge => challenge.done).length),
+      sharedSolves: shared,
     };
   }),
   withMethods((store, api = inject(PlayApiService), session = inject(SessionStore), rooms = inject(RoomsStore)) => {
@@ -163,7 +167,7 @@ export const RoomPlayStore = signalStore(
     };
   }),
   withHooks({
-    onInit(store, socket = inject(WebsocketService), session = inject(SessionStore)) {
+    onInit(store, socket = inject(WebsocketService)) {
       roomActivity(socket.getMessage(), roomId => roomId === store.roomId())
         .pipe(takeUntilDestroyed())
         .subscribe(() => store.reload());
@@ -173,7 +177,7 @@ export const RoomPlayStore = signalStore(
           const overview = store.overview();
           if (!overview?.environment) return;
           store.setEnvironment(withTrackerChange(overview.environment, overview.room.id, new LabTracker(message.labTracker),
-            message.action === 'removed', session.teamId()));
+            message.action === 'removed', overview.me.teamId));
         });
     },
   }),

@@ -4,6 +4,7 @@ import com.infernokun.amaterasu.models.entities.ctf.dto.*;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomOverview.ChallengeState;
 import com.infernokun.amaterasu.models.enums.RoomUserStatus;
+import com.infernokun.amaterasu.models.enums.TeamCredit;
 import com.infernokun.amaterasu.websocket.RoomActivityEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import com.infernokun.amaterasu.models.entities.ctf.*;
@@ -99,6 +100,12 @@ public class FlagService {
         }
         if (state == ChallengeState.EXPIRED) {
             throw new IllegalStateException("This challenge has closed");
+        }
+        if (room.effectiveTeamCredit() == TeamCredit.SHARED_SOLVES) {
+            ctfAnswerService.solvedByTeammate(roomUser, ctfEntity).ifPresent(answer -> {
+                throw new IllegalStateException(answer.getRoomUser().getUser().getUsername()
+                        + " already solved this for your team");
+            });
         }
 
         // Get or create answer record

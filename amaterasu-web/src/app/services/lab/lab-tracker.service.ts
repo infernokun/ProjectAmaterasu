@@ -30,6 +30,19 @@ export class LabTrackerService extends BaseService {
       .subscribe((labTrackers: LabTracker[]) => this.labTrackersSubject.next(labTrackers));
   }
 
+  /** Copies of every team the caller is on: their Admin team and their teams inside labs. */
+  getMyLabTrackers(): Observable<LabTracker[]> {
+    const params = new HttpParams().set('mine', 'true');
+    return this.get<ApiResponse<LabTracker[]>>(this.environmentService.settings?.restUrl + '/lab-tracker', { params })
+      .pipe(map((response: ApiResponse<LabTracker[]>) => response.data.map((labTracker: LabTracker) => new LabTracker(labTracker))));
+  }
+
+  /** Ids of the caller's teams. */
+  getMyTeamIds(): Observable<string[]> {
+    return this.get<ApiResponse<{ id: string }[]>>(this.environmentService.settings?.restUrl + '/team/mine')
+      .pipe(map(response => (response.data ?? []).map(team => team.id)));
+  }
+
   getLabTrackersByTeam(teamId: string): Observable<LabTracker[]> {
     if (!teamId) return of([]);
     const params = new HttpParams().set('teamId', teamId);

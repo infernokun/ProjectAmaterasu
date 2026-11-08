@@ -66,6 +66,25 @@
       </div>
       <span class="help">{{ envHelp() }} Environments are built under Build, Environments.</span>
     </div>
+    <div class="field team-field"><span class="label" id="team-label">Teams</span>
+      <div class="row">
+        <div class="seg" role="group" aria-labelledby="team-label">
+          @for (mode of teamModes; track mode.value) {
+            <button type="button" [class.on]="teamMode() === mode.value" [attr.aria-pressed]="teamMode() === mode.value" (click)="teamMode.set(mode.value)">{{ mode.label }}</button>
+          }
+        </div>
+        @if (teamMode() !== 'SOLO_ONLY') {
+          <label class="row size-pick"><span class="small muted">Most players per team</span>
+            <input class="input num" type="number" min="0" max="50" [value]="teamSize()" (input)="teamSize.set(number($event))" aria-label="Most players per team"></label>
+          <div class="seg" role="group" aria-label="Team credit">
+            @for (credit of credits; track credit.value) {
+              <button type="button" [class.on]="teamCredit() === credit.value" [attr.aria-pressed]="teamCredit() === credit.value" (click)="teamCredit.set(credit.value)">{{ credit.label }}</button>
+            }
+          </div>
+        }
+      </div>
+      <span class="help">{{ teamMode() === 'SOLO_ONLY' ? 'Everyone plays alone.' : creditHelp() + ' 0 players means no limit.' }} Answers and points are always per person.</span>
+    </div>
     <div class="field scenario-field"><span class="label" id="scen-label">Scenario</span>
       <div class="scenario-edit">
         <textarea class="input mono" rows="14" aria-labelledby="scen-label" [value]="scenario()" (input)="scenario.set(value($event))"></textarea>

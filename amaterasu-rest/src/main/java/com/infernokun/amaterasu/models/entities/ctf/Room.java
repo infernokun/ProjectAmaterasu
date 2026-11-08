@@ -6,6 +6,8 @@ import com.infernokun.amaterasu.models.entities.StoredObject;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.lab.Lab;
 import com.infernokun.amaterasu.models.enums.EnvironmentMode;
+import com.infernokun.amaterasu.models.enums.TeamCredit;
+import com.infernokun.amaterasu.models.enums.TeamMode;
 import com.infernokun.amaterasu.utils.AmaterasuConstants;
 import jakarta.persistence.*;
 import lombok.*;
@@ -46,10 +48,29 @@ public class Room extends StoredObject {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private EnvironmentMode environmentMode = EnvironmentMode.NONE;
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private TeamMode teamMode = TeamMode.TEAMS_OPTIONAL;
+    /** Most players on one team; null for no limit. */
+    @Builder.Default
+    private Integer maxTeamSize = 4;
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private TeamCredit teamCredit = TeamCredit.SEE_TEAMMATES;
 
     @JsonProperty("environmentId")
     public String getEnvironmentId() {
         return environment != null ? environment.getId() : null;
+    }
+
+    @JsonIgnore
+    public TeamMode effectiveTeamMode() {
+        return teamMode == null ? TeamMode.TEAMS_OPTIONAL : teamMode;
+    }
+
+    @JsonIgnore
+    public TeamCredit effectiveTeamCredit() {
+        return teamCredit == null ? TeamCredit.SEE_TEAMMATES : teamCredit;
     }
 
     /** NONE when there is nothing to run, whatever the stored mode says. */

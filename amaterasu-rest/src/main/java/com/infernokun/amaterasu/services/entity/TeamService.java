@@ -31,8 +31,9 @@ public class TeamService extends BaseService {
         this.labTrackerRepository = labTrackerRepository;
     }
 
+    /** Organisation-wide teams; teams inside a lab are listed by the lab. */
     public List<Team> findAllTeams() {
-        return teamRepository.findAll();
+        return teamRepository.findByRoomIdIsNull();
     }
 
     public Team findTeamById(String id) {
@@ -99,7 +100,7 @@ public class TeamService extends BaseService {
         if (trimmed.isEmpty()) {
             throw new IllegalArgumentException("Team name required");
         }
-        boolean taken = teamRepository.findAll().stream()
+        boolean taken = teamRepository.findByRoomIdIsNull().stream()
                 .anyMatch(other -> other.getName() != null && other.getName().equalsIgnoreCase(trimmed)
                         && !other.getId().equals(exceptId));
         if (taken) {

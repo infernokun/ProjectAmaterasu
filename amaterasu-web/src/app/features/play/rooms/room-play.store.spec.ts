@@ -12,7 +12,7 @@ import { RoomPlayStore } from './room-play.store';
 function challenge(id: string, category: string, solved = false): ChallengeView {
   return {
     id, title: id, category, difficulty: 'EASY', points: 100, author: null, maxAttempts: 3, solves: 0, state: 'OPEN',
-    releaseDate: null, expirationDate: null, description: 'Do it', attachments: [], hints: [], attempts: 0, solved, solvedAt: null,
+    releaseDate: null, expirationDate: null, description: 'Do it', attachments: [], hints: [], attempts: 0, solved, solvedAt: null, solvedByTeammates: [],
   };
 }
 
@@ -23,8 +23,8 @@ describe('RoomPlayStore', () => {
 
   beforeEach(() => {
     overview = {
-      room: { id: 'r1', name: 'Winter Range', surroundTag: null, creator: null, facilitators: [], scenario: '## Situation', environmentMode: 'NONE', canRun: false },
-      playerCount: 2, teamCount: 1, me: { joined: true, points: 0, rank: 1, solved: 1 },
+      room: { id: 'r1', name: 'Winter Range', surroundTag: null, creator: null, facilitators: [], scenario: '## Situation', environmentMode: 'NONE', canRun: false, teamMode: 'TEAMS_OPTIONAL', maxTeamSize: 4, teamCredit: 'SEE_TEAMMATES' },
+      playerCount: 2, teamCount: 1, me: { joined: true, points: 0, rank: 1, solved: 1, teamId: null, teamName: null },
       challenges: [challenge('sqli', 'Web', true), challenge('xss', 'Web'), challenge('rot', 'Crypto')],
       environment: null, files: [],
     };

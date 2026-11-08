@@ -28,7 +28,11 @@ export const ScoreboardStore = signalStore(
     players: computed(() => standings()?.players ?? []),
     teams: computed(() => standings()?.teams ?? []),
     me: computed(() => standings()?.players.find(player => player.userId === session.userId())),
-    myTeam: computed(() => standings()?.teams.find(team => team.teamId === session.teamId())),
+    /** The viewer's team in this lab, from their own row. */
+    myTeam: computed(() => {
+      const teamId = standings()?.players.find(player => player.userId === session.userId())?.teamId;
+      return teamId ? standings()?.teams.find(team => team.teamId === teamId) : undefined;
+    }),
   })),
   withMethods((store, api = inject(PlayApiService)) => {
     async function reload(): Promise<void> {

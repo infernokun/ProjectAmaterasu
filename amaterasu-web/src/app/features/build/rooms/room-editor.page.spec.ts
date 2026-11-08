@@ -28,7 +28,7 @@ describe('RoomEditorPage', () => {
     ]);
     api.files.and.returnValue(of([]));
     api.room.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null,
-      scenario: '## Situation\nA quiet range.', environmentMode: 'NONE' as const, environmentId: null }));
+      scenario: '## Situation\nA quiet range.', environmentMode: 'NONE' as const, environmentId: null, teamMode: 'TEAMS_OPTIONAL' as const, maxTeamSize: 4, teamCredit: 'SEE_TEAMMATES' as const }));
     api.challenges.and.returnValue(of([challenge('SQLi Login Bypass', { labId: 'lab1' }), challenge('Kerberoast'), challenge('Memory Lane')]));
     api.players.and.returnValue(of(38));
     api.facilitators.and.returnValue(of([{ id: 'u1', username: 'dkim' }]));
@@ -90,7 +90,7 @@ describe('RoomEditorPage', () => {
     fixture.detectChanges();
 
     api.updateRoom.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null,
-      scenario: '## Situation\nA quiet range.', environmentMode: 'SHARED' as const, environmentId: 'lab1' }));
+      scenario: '## Situation\nA quiet range.', environmentMode: 'SHARED' as const, environmentId: 'lab1', teamMode: 'TEAMS_OPTIONAL' as const, maxTeamSize: 4, teamCredit: 'SEE_TEAMMATES' as const }));
     [...el().querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent!.trim() === 'Save lab')!.click();
     await fixture.whenStable();
     expect(api.updateRoom).toHaveBeenCalledWith('r1', jasmine.objectContaining({

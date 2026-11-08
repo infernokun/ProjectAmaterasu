@@ -4,6 +4,7 @@ import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.components.LabActionGuard;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.LabActionResult;
+import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.EnvironmentView;
@@ -14,6 +15,7 @@ import com.infernokun.amaterasu.models.enums.EnvironmentMode;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.enums.LabType;
 import com.infernokun.amaterasu.models.enums.ServerType;
+import com.infernokun.amaterasu.services.entity.ctf.LabTeamService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -35,6 +37,7 @@ public class LabEnvironmentService {
     private final RemoteServerService remoteServerService;
     private final CurrentUser currentUser;
     private final LabActionGuard labActionGuard;
+    private final LabTeamService labTeamService;
 
     /** The copy the viewer works in: the lab's shared one, or their team's. */
     public Optional<LabTracker> copyFor(Room room, User viewer) {
@@ -42,8 +45,8 @@ public class LabEnvironmentService {
         return switch (room.effectiveMode()) {
             case NONE -> Optional.empty();
             case SHARED -> labTrackerService.findSharedCopy(room.getId(), environment);
-            case PER_TEAM -> viewer == null || viewer.getTeam() == null ? Optional.empty()
-                    : labTrackerService.findTeamCopy(environment, viewer.getTeam());
+            case PER_TEAM -> labTeamService.teamOf(room, viewer)
+                    .flatMap(team -> labTrackerService.findTeamCopy(environment, team));
         };
     }
 
@@ -66,9 +69,9 @@ public class LabEnvironmentService {
                 note = "A facilitator starts and stops this environment for everyone.";
             }
         } else {
-            canControl = viewer != null && viewer.getTeam() != null;
+            canControl = labTeamService.teamOf(room, viewer).isPresent();
             if (!canControl) {
-                note = "Join a team to start your team's copy.";
+                note = "Each team runs its own copy. Join or create a team in this lab to start yours.";
             }
         }
         int running = mode == EnvironmentMode.SHARED ? (EnvironmentStatuses.isUp(tracker) ? 1 : 0)
@@ -90,10 +93,11 @@ public class LabEnvironmentService {
         User user = currentUser.user();
         LabTracker tracker = copyFor(room, user).orElse(null);
         boolean shared = room.effectiveMode() == EnvironmentMode.SHARED;
+        Team team = shared ? null : labTeamService.teamOf(room, user).orElse(null);
         if (shared) {
             currentUser.requireCanRun(room);
-        } else if (user.getTeam() == null) {
-            throw new IllegalStateException("Join a team to start your team's copy of " + room.getName());
+        } else if (team == null) {
+            throw new IllegalStateException("Join or create a team in " + room.getName() + " to start your team's copy");
         }
         RemoteServer server = serverFor(tracker, environment, remoteServerId);
         if (server == null) {
@@ -103,7 +107,7 @@ public class LabEnvironmentService {
         if (tracker == null) {
             tracker = labTrackerService.createLabTracker(LabTracker.builder()
                     .labStarted(environment)
-                    .labOwner(shared ? null : user.getTeam())
+                    .labOwner(team)
                     .roomId(shared ? room.getId() : null)
                     .labStatus(LabStatus.NONE)
                     .build());
