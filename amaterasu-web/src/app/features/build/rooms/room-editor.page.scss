@@ -42,3 +42,21 @@ label.btn.disabled { opacity: .6; pointer-events: none; }
 .team-field { margin-top: 16px; }
 .size-pick { gap: 8px; align-items: center; }
 .size-pick .input { width: 80px; }
+.steps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+.step { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+  border-radius: 999px; padding: 6px 14px 6px 6px; font: inherit; font-size: 13.5px; cursor: pointer; }
+.step:disabled { opacity: .5; cursor: default; }
+.step .step-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--surface-2);
+  font-size: 12px; font-weight: 600; }
+.step.done .step-n { background: var(--ok-soft, var(--surface-2)); color: var(--ok, var(--text)); }
+.step.on { border-color: var(--accent); color: var(--text); font-weight: 600; }
+.step.on .step-n { background: var(--accent); color: var(--on-accent, #fff); }
+.checks { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.checks li { display: flex; align-items: center; gap: 8px; color: var(--bad, var(--text)); }
+.checks li.ok { color: var(--text); }
+.checks li.ok app-icon { color: var(--ok, var(--accent)); }
+.preview-lab { background: var(--bg); }
+.preview-name { font-size: 22px; margin: 0; }
+.preview-q { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.wizard-foot { margin-top: 4px; gap: 10px; align-items: center; }
+.wizard-foot .back { transform: rotate(180deg); }

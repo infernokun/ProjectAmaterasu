@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.components;
 
+import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
@@ -73,6 +74,18 @@ public class CurrentUser {
             return true;
         }
         return hasRole(Role.FACILITATOR) && room.getFacilitators() != null && room.getFacilitators().contains(id());
+    }
+
+    /** Drafts are seen only by authors and the people who run the lab. */
+    public boolean canSee(Room room) {
+        return room.isLive() || isAdmin() || hasRole(Role.CREATOR) || canRun(room);
+    }
+
+    public Room requireCanSee(Room room) {
+        if (!canSee(room)) {
+            throw new ResourceNotFoundException("Lab " + room.getId() + " not found");
+        }
+        return room;
     }
 
     public void requireCanRun(Room room) {

@@ -7,19 +7,34 @@
   <section class="card" aria-labelledby="room-h">
     <div class="row between top">
       <div class="stack tight">
-        <h1 class="h1" id="room-h">{{ store.room()!.name }}</h1>
-        <span class="small muted">{{ summary() }}</span>
+        <div class="row">
+          <h1 class="h1" id="room-h">{{ isNew() ? 'New lab' : store.room()!.name }}</h1>
+          @if (!isNew()) {
+            <span class="tag" [class.accent]="store.room()!.published">{{ store.room()!.published ? 'Published' : 'Draft' }}</span>
+          }
+        </div>
+        <span class="small muted">{{ isNew() ? 'Start with the scenario. The lab stays a draft until you publish it.' : summary() }}</span>
       </div>
-      <div class="row">
-        <label class="btn sm"><app-icon name="upload" size="sm" />Import JSON
-          <input type="file" accept=".json,application/json" class="visually-hidden" (change)="importFile($event)">
-        </label>
-        <button type="button" class="btn sm" [disabled]="!store.challenges().length" (click)="exportFile()"><app-icon name="download" size="sm" />Export</button>
-        <a class="btn sm" [routerLink]="['/labs', store.room()!.id]"><app-icon name="eye" size="sm" />View as player</a>
-        <button type="button" class="btn sm danger" (click)="deleteRoom()"><app-icon name="trash" size="sm" />Delete lab</button>
-      </div>
+      @if (!isNew()) {
+        <div class="row">
+          <a class="btn sm" [routerLink]="['/labs', store.room()!.id]"><app-icon name="eye" size="sm" />View as player</a>
+          <button type="button" class="btn sm danger" (click)="deleteRoom()"><app-icon name="trash" size="sm" />Delete lab</button>
+        </div>
+      }
     </div>
-    <div class="form-grid room-form">
+    <nav class="steps" aria-label="Lab steps">
+      @for (item of steps; track item.key; let i = $index) {
+        <button type="button" class="step" [class.on]="step() === item.key" [class.done]="stepDone(item.key)"
+                [attr.aria-current]="step() === item.key ? 'step' : null" [disabled]="isNew() && item.key !== 'scenario'" (click)="go(item.key)">
+          <span class="step-n">{{ i + 1 }}</span>{{ item.label }}</button>
+      }
+    </nav>
+  </section>
+
+  @switch (step()) {
+    @case ('scenario') {
+      <section class="card" aria-label="Scenario">
+        <div class="form-grid room-form">
       <label class="field"><span class="label">Lab name</span>
         <input class="input" [value]="roomName()" (input)="roomName.set(value($event))" maxlength="80">
       </label>
@@ -27,27 +42,18 @@
         <input class="input mono" [value]="roomTag()" (input)="roomTag.set(value($event))" maxlength="40" aria-describedby="tag-help">
         <span class="help" id="tag-help">How flags look in this lab, with x where the answer goes. Players see {{ wrapper().prefix }}...{{ wrapper().suffix }}.</span>
       </label>
-      <div class="field"><span class="label" id="fac-label">Facilitators</span>
-        <div class="row" role="group" aria-labelledby="fac-label">
-          @for (person of store.facilitators(); track person.id) {
-            <span class="tag fac">{{ person.username }}
-              <button type="button" class="tag-x" [attr.aria-label]="'Remove ' + person.username" [disabled]="savingFacilitators()"
-                      (click)="removeFacilitator(person)"><app-icon name="close" size="sm" /></button></span>
-          }
-          <button type="button" class="btn sm ghost" [matMenuTriggerFor]="facMenu" [disabled]="savingFacilitators()"
-                  [title]="store.addable().length ? '' : 'Every account with the Facilitator role is on this lab'">
-            <app-icon name="plus" size="sm" />Add</button>
-          <mat-menu #facMenu="matMenu">
-            @for (person of store.addable(); track person.id) {
-              <button mat-menu-item type="button" (click)="addFacilitator(person)">{{ person.username }}</button>
-            } @empty {
-              <div class="menu-note small muted">No other facilitators. Give someone the Facilitator role under Admin, Users first.</div>
-            }
-          </mat-menu>
         </div>
-        <span class="help">They start and stop its shared environment, run its live view and award points. Admins can run every lab.</span>
+    <div class="field scenario-field"><span class="label" id="scen-label">Scenario</span>
+      <div class="scenario-edit">
+        <textarea class="input mono" rows="14" aria-labelledby="scen-label" [value]="scenario()" (input)="scenario.set(value($event))"></textarea>
+        <div class="card scenario-preview" aria-label="Scenario preview"><app-markdown [source]="scenario()" /></div>
       </div>
+      <span class="help">{{ placeholderHelp }}</span>
     </div>
+      </section>
+    }
+    @case ('environment') {
+      <section class="card stack" aria-label="Environment">
     <div class="field env-field"><span class="label" id="env-label">Environment</span>
       <div class="row">
         <div class="seg" role="group" aria-labelledby="env-label">
@@ -66,32 +72,18 @@
       </div>
       <span class="help">{{ envHelp() }} Environments are built under Build, Environments.</span>
     </div>
-    <div class="field team-field"><span class="label" id="team-label">Teams</span>
-      <div class="row">
-        <div class="seg" role="group" aria-labelledby="team-label">
-          @for (mode of teamModes; track mode.value) {
-            <button type="button" [class.on]="teamMode() === mode.value" [attr.aria-pressed]="teamMode() === mode.value" (click)="teamMode.set(mode.value)">{{ mode.label }}</button>
+        @if (envMode() !== 'NONE') {
+          @if (building()) {
+            <app-lab-builder [embedded]="true" (saved)="environmentBuilt($event)" (cancelled)="building.set(false)" />
+          } @else {
+            <div class="row"><button type="button" class="btn sm" (click)="building.set(true)"><app-icon name="plus" size="sm" />Build a new environment</button>
+              <span class="small muted">From Proxmox VM templates or a docker-compose.yml, without leaving this lab.</span></div>
           }
-        </div>
-        @if (teamMode() !== 'SOLO_ONLY') {
-          <label class="row size-pick"><span class="small muted">Most players per team</span>
-            <input class="input num" type="number" min="0" max="50" [value]="teamSize()" (input)="teamSize.set(number($event))" aria-label="Most players per team"></label>
-          <div class="seg" role="group" aria-label="Team credit">
-            @for (credit of credits; track credit.value) {
-              <button type="button" [class.on]="teamCredit() === credit.value" [attr.aria-pressed]="teamCredit() === credit.value" (click)="teamCredit.set(credit.value)">{{ credit.label }}</button>
-            }
-          </div>
         }
-      </div>
-      <span class="help">{{ teamMode() === 'SOLO_ONLY' ? 'Everyone plays alone.' : creditHelp() + ' 0 players means no limit.' }} Answers and points are always per person.</span>
-    </div>
-    <div class="field scenario-field"><span class="label" id="scen-label">Scenario</span>
-      <div class="scenario-edit">
-        <textarea class="input mono" rows="14" aria-labelledby="scen-label" [value]="scenario()" (input)="scenario.set(value($event))"></textarea>
-        <div class="card scenario-preview" aria-label="Scenario preview"><app-markdown [source]="scenario()" /></div>
-      </div>
-      <span class="help">{{ placeholderHelp }}</span>
-    </div>
+      </section>
+    }
+    @case ('questions') {
+      <section class="card" aria-label="Files">
     <div class="field files-field"><span class="label" id="files-label">Files</span>
       <div class="stack tight" aria-labelledby="files-label">
         @for (file of store.files(); track file.id) {
@@ -111,13 +103,13 @@
         </div>
       </div>
     </div>
-    <div class="row room-save">
-      <button type="button" class="btn primary" [disabled]="!roomDirty() || !!roomProblem() || savingRoom()" [title]="roomProblem() ?? ''" (click)="saveRoom()">Save lab</button>
-      @if (roomDirty()) { <span class="chip s-warn"><span class="dot"></span>Unsaved</span> }
-      @if (roomDirty() && roomProblem()) { <span class="small muted">{{ roomProblem() }}</span> }
-    </div>
-  </section>
-
+      </section>
+      <div class="row">
+        <label class="btn sm"><app-icon name="upload" size="sm" />Import JSON
+          <input type="file" accept=".json,application/json" class="visually-hidden" (change)="importFile($event)">
+        </label>
+        <button type="button" class="btn sm" [disabled]="!store.challenges().length" (click)="exportFile()"><app-icon name="download" size="sm" />Export</button>
+      </div>
   <div class="cols" style="gap:20px">
     <section class="card flush list-card" aria-labelledby="list-h">
       <div class="card-head"><h2 class="h2" id="list-h">Questions</h2>
@@ -334,5 +326,105 @@
         </app-empty-state>
       }
     </section>
+  </div>
+    }
+    @case ('teams') {
+      <section class="card stack" aria-label="Teams and scoring">
+    <div class="field team-field"><span class="label" id="team-label">Teams</span>
+      <div class="row">
+        <div class="seg" role="group" aria-labelledby="team-label">
+          @for (mode of teamModes; track mode.value) {
+            <button type="button" [class.on]="teamMode() === mode.value" [attr.aria-pressed]="teamMode() === mode.value" (click)="teamMode.set(mode.value)">{{ mode.label }}</button>
+          }
+        </div>
+        @if (teamMode() !== 'SOLO_ONLY') {
+          <label class="row size-pick"><span class="small muted">Most players per team</span>
+            <input class="input num" type="number" min="0" max="50" [value]="teamSize()" (input)="teamSize.set(number($event))" aria-label="Most players per team"></label>
+          <div class="seg" role="group" aria-label="Team credit">
+            @for (credit of credits; track credit.value) {
+              <button type="button" [class.on]="teamCredit() === credit.value" [attr.aria-pressed]="teamCredit() === credit.value" (click)="teamCredit.set(credit.value)">{{ credit.label }}</button>
+            }
+          </div>
+        }
+      </div>
+      <span class="help">{{ teamMode() === 'SOLO_ONLY' ? 'Everyone plays alone.' : creditHelp() + ' 0 players means no limit.' }} Answers and points are always per person.</span>
+    </div>
+        <div class="form-grid">
+      <div class="field"><span class="label" id="fac-label">Facilitators</span>
+        <div class="row" role="group" aria-labelledby="fac-label">
+          @for (person of store.facilitators(); track person.id) {
+            <span class="tag fac">{{ person.username }}
+              <button type="button" class="tag-x" [attr.aria-label]="'Remove ' + person.username" [disabled]="savingFacilitators()"
+                      (click)="removeFacilitator(person)"><app-icon name="close" size="sm" /></button></span>
+          }
+          <button type="button" class="btn sm ghost" [matMenuTriggerFor]="facMenu" [disabled]="savingFacilitators()"
+                  [title]="store.addable().length ? '' : 'Every account with the Facilitator role is on this lab'">
+            <app-icon name="plus" size="sm" />Add</button>
+          <mat-menu #facMenu="matMenu">
+            @for (person of store.addable(); track person.id) {
+              <button mat-menu-item type="button" (click)="addFacilitator(person)">{{ person.username }}</button>
+            } @empty {
+              <div class="menu-note small muted">No other facilitators. Give someone the Facilitator role under Admin, Users first.</div>
+            }
+          </mat-menu>
+        </div>
+        <span class="help">They start and stop its shared environment, run its live view and award points. Admins can run every lab.</span>
+      </div>
+        </div>
+      </section>
+    }
+    @case ('publish') {
+      <section class="card stack" aria-labelledby="ready-h">
+        <h2 class="h2" id="ready-h">Ready to publish?</h2>
+        <ul class="checks">
+          @for (check of readiness(); track check.label) {
+            <li [class.ok]="check.ok"><app-icon [name]="check.ok ? 'check' : 'alert'" size="sm" />{{ check.label }}</li>
+          }
+        </ul>
+        <div class="small muted">{{ store.room()!.published ? 'Players see this lab now.' : 'Players do not see this lab until you publish it.' }}</div>
+      </section>
+      <section class="card stack preview-lab" aria-label="Preview">
+        <div class="small muted">Preview: the lab page as players see it</div>
+        <div class="row">
+          @if (store.room()!.environmentMode === 'NONE') { <span class="tag accent">No setup needed</span> }
+          @else { <span class="tag">{{ envName() }} · {{ store.room()!.environmentMode === 'SHARED' ? 'one shared copy' : 'a copy per team' }}</span> }
+          <span class="tag">{{ teamLabel() }}</span>
+          <span class="tag">{{ store.challenges().length }} {{ store.challenges().length === 1 ? 'question' : 'questions' }}</span>
+        </div>
+        <h2 class="h1 preview-name">{{ store.room()!.name }}</h2>
+        <app-scenario-card [scenario]="store.room()!.scenario" [environment]="previewEnvironment()" />
+        @for (group of previewGroups(); track group.name) {
+          <div class="stack tight">
+            <span class="nav-label">{{ group.name }}</span>
+            @for (question of group.items; track question.id) {
+              <div class="row between preview-q"><span>{{ question.question }}@if (!question.visible) { <span class="tag">Hidden</span> }</span><span class="num muted">{{ question.points }} pts</span></div>
+            }
+          </div>
+        }
+      </section>
+    }
+  }
+
+  <div class="row wizard-foot">
+    @if (stepIndex() > 0) {
+      <button type="button" class="btn ghost" (click)="go(steps[stepIndex() - 1].key)"><app-icon name="chevronRight" class="back" />Back</button>
+    }
+    <span class="grow"></span>
+    @if (roomDirty() && roomProblem()) { <span class="small muted">{{ roomProblem() }}</span> }
+    @if (!isNew() && roomDirty()) {
+      <span class="chip s-warn"><span class="dot"></span>Unsaved</span>
+      <button type="button" class="btn" [disabled]="!!roomProblem() || savingRoom()" (click)="saveRoom()">Save</button>
+    }
+    @if (isNew()) {
+      <button type="button" class="btn primary" [disabled]="!!roomProblem() || savingRoom()" (click)="createDraft()">Create draft and continue</button>
+    } @else if (step() === 'publish') {
+      @if (store.room()!.published) {
+        <button type="button" class="btn" [disabled]="savingRoom()" (click)="setPublished(false)">Back to draft</button>
+      } @else {
+        <button type="button" class="btn primary" [disabled]="!canPublish() || savingRoom()" [title]="canPublish() ? '' : 'Finish the checks above first'" (click)="setPublished(true)">Publish lab</button>
+      }
+    } @else {
+      <button type="button" class="btn primary" [disabled]="(roomDirty() && !!roomProblem()) || savingRoom()" (click)="go(steps[stepIndex() + 1].key)">Next: {{ steps[stepIndex() + 1].label }}</button>
+    }
   </div>
 }

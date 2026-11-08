@@ -60,7 +60,7 @@ public class RoomController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<Room>>> getAllRooms(@RequestParam(required = false)
                                                                Map<String, String> params) {
-        List<Room> rooms = this.roomService.findAllRooms();
+        List<Room> rooms = this.roomService.findAllRooms().stream().filter(currentUser::canSee).toList();
         return ResponseEntity.ok(
                 ApiResponse.<List<Room>>builder()
                         .code(HttpStatus.OK.value())
@@ -198,6 +198,7 @@ public class RoomController {
         roomService.applyEnvironment(room, request.environmentMode() == null ? EnvironmentMode.NONE : request.environmentMode(),
                 request.environmentId());
         roomService.applyTeams(room, request.teamMode(), request.maxTeamSize(), request.teamCredit());
+        room.setPublished(!Boolean.FALSE.equals(request.published()));
         room.setCreator(currentUser.user());
         Room savedRoom = this.roomService.saveRoom(room);
         auditService.record("ROOM_CREATED", "ROOM", savedRoom.getId(), savedRoom.getName(), null, null);
@@ -214,7 +215,7 @@ public class RoomController {
                                                                   @PathVariable String roomId) {
         currentUser.requireSelfOrAdmin(userId);
         User user = userService.findUserById(userId);
-        Room room = roomService.findByRoomId(roomId);
+        Room room = currentUser.requireCanSee(roomService.findByRoomId(roomId));
         if (room.effectiveTeamMode() == TeamMode.TEAMS_REQUIRED
                 && roomUserService.findByUserAndRoom(user, room).map(RoomUser::getTeam).isEmpty()) {
             throw new IllegalArgumentException(room.getName() + " is played in teams. Join or create a team on its page.");
@@ -380,6 +381,9 @@ public class RoomController {
                     request.environmentId() != null ? request.environmentId() : existingRoom.getEnvironmentId());
         }
         roomService.applyTeams(existingRoom, request.teamMode(), request.maxTeamSize(), request.teamCredit());
+        if (request.published() != null) {
+            roomService.changePublished(existingRoom, request.published());
+        }
         existingRoom.setUpdatedAt(LocalDateTime.now());
         Room updatedRoom = this.roomService.saveRoom(existingRoom);
         auditService.record("ROOM_UPDATED", "ROOM", id, updatedRoom.getName(), null, null);
