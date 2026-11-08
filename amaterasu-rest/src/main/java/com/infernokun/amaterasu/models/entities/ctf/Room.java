@@ -57,10 +57,18 @@ public class Room extends StoredObject {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private TeamCredit teamCredit = TeamCredit.SEE_TEAMMATES;
+    /** Drafts are seen only by authors and the lab's facilitators. */
+    @Builder.Default
+    private Boolean published = true;
 
     @JsonProperty("environmentId")
     public String getEnvironmentId() {
         return environment != null ? environment.getId() : null;
+    }
+
+    @JsonIgnore
+    public boolean isLive() {
+        return !Boolean.FALSE.equals(published);
     }
 
     @JsonIgnore

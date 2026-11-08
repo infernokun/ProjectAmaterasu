@@ -61,6 +61,7 @@ public class DataMigrations implements ApplicationRunner {
         TransactionTemplate transaction = new TransactionTemplate(transactionManager);
         transaction.executeWithoutResult(status -> {
             publishExistingLabs();
+            publishExistingRooms();
             orderExistingChallenges();
             mergeRoomsAndLabs();
             moveTeamsIntoLabs();
@@ -70,6 +71,15 @@ public class DataMigrations implements ApplicationRunner {
     /** Labs from before drafts existed were already visible to teams, so they stay published. */
     void publishExistingLabs() {
         int updated = entityManager.createQuery("UPDATE Lab l SET l.published = true WHERE l.published IS NULL")
+                .executeUpdate();
+        if (updated > 0) {
+            log.info("Marked {} existing labs as published", updated);
+        }
+    }
+
+    /** Labs (rooms) from before drafts existed were already open to players. */
+    void publishExistingRooms() {
+        int updated = entityManager.createQuery("UPDATE Room r SET r.published = true WHERE r.published IS NULL")
                 .executeUpdate();
         if (updated > 0) {
             log.info("Marked {} existing labs as published", updated);
