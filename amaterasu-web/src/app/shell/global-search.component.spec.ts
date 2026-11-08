@@ -61,7 +61,7 @@ describe('GlobalSearchComponent', () => {
   it('shows results grouped by type with the matching text marked', async () => {
     await type('web');
     const labels = Array.from(document.querySelectorAll('.cdk-overlay-container .group-label')).map(el => el.textContent?.trim());
-    expect(labels).toEqual(['Team labs', 'Challenges']);
+    expect(labels).toEqual(['Team environments', 'Questions']);
     expect(options().length).toBe(2);
     expect(options()[0].querySelector('mark')?.textContent).toBe('Web');
     expect(input().getAttribute('aria-expanded')).toBe('true');
@@ -74,7 +74,7 @@ describe('GlobalSearchComponent', () => {
     fixture.detectChanges();
     expect(options()[1].getAttribute('aria-selected')).toBe('true');
     key('Enter');
-    expect(router.navigate).toHaveBeenCalledWith(['/rooms', 'r1'], { queryParams: { challenge: 'c1' }, fragment: undefined });
+    expect(router.navigate).toHaveBeenCalledWith(['/labs', 'r1'], { queryParams: { challenge: 'c1' }, fragment: undefined });
   });
 
   it('closes with Escape and clears with a second Escape', async () => {

@@ -69,7 +69,7 @@ describe('LivePage room picker', () => {
     auth.signIn({ id: 'f1', username: 'dkim' }, 'FACILITATOR');
     const fixture = create([]);
     await settle(fixture);
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Ask a room\'s author to add you as a facilitator');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Ask a lab\'s author to add you as a facilitator');
     expect(api.live).not.toHaveBeenCalled();
   });
 });

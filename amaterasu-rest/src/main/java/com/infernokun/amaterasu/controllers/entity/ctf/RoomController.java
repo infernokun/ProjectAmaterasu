@@ -9,6 +9,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntityAnswer;
 import com.infernokun.amaterasu.models.entities.ctf.dto.JoinRoomResponse;
 import com.infernokun.amaterasu.models.entities.ctf.dto.RoomJoinableRequest;
+import com.infernokun.amaterasu.models.entities.ctf.dto.RoomRequest;
+import com.infernokun.amaterasu.models.enums.EnvironmentMode;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
@@ -181,18 +183,26 @@ public class RoomController {
         );
     }
 
+    /** Creates a lab. It needs a name and a scenario; the environment is optional. */
     @PostMapping
-    public ResponseEntity<ApiResponse<Room>> createRoom(@RequestBody Room room) {
-        room.setName(roomService.requireUniqueName(room.getName(), null));
-        if (room.getSurroundTag() == null || room.getSurroundTag().isBlank()) {
-            room.setSurroundTag(AmaterasuConstants.DEFAULT_SURROUND_TAG);
+    public ResponseEntity<ApiResponse<Room>> createRoom(@RequestBody RoomRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Send the lab's name and scenario");
         }
+        Room room = new Room();
+        room.setName(roomService.requireUniqueName(request.name(), null));
+        room.setSurroundTag(request.surroundTag() == null || request.surroundTag().isBlank()
+                ? AmaterasuConstants.DEFAULT_SURROUND_TAG : request.surroundTag().trim());
+        room.setScenario(roomService.requireScenario(request.scenario()));
+        roomService.applyEnvironment(room, request.environmentMode() == null ? EnvironmentMode.NONE : request.environmentMode(),
+                request.environmentId());
+        room.setCreator(currentUser.user());
         Room savedRoom = this.roomService.saveRoom(room);
         auditService.record("ROOM_CREATED", "ROOM", savedRoom.getId(), savedRoom.getName(), null, null);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.<Room>builder()
                         .code(HttpStatus.CREATED.value())
-                        .message("Room created successfully.")
+                        .message("Lab created successfully.")
                         .data(savedRoom)
                         .build());
     }
@@ -345,14 +355,23 @@ public class RoomController {
                         .build(), HttpStatus.OK);
     }
 
+    /** Edits a lab. Fields left out stay as they are. */
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Room>> updateRoom(@PathVariable String id, @RequestBody Room room) {
+    public ResponseEntity<ApiResponse<Room>> updateRoom(@PathVariable String id, @RequestBody RoomRequest request) {
         Room existingRoom = this.roomService.findByRoomId(id);
-        if (room.getName() != null) {
-            existingRoom.setName(roomService.requireUniqueName(room.getName(), id));
+        if (request.name() != null) {
+            existingRoom.setName(roomService.requireUniqueName(request.name(), id));
         }
-        if (room.getSurroundTag() != null && !room.getSurroundTag().isBlank()) {
-            existingRoom.setSurroundTag(room.getSurroundTag().trim());
+        if (request.surroundTag() != null && !request.surroundTag().isBlank()) {
+            existingRoom.setSurroundTag(request.surroundTag().trim());
+        }
+        if (request.scenario() != null) {
+            existingRoom.setScenario(roomService.requireScenario(request.scenario()));
+        }
+        if (request.environmentMode() != null || request.environmentId() != null) {
+            roomService.changeEnvironment(existingRoom,
+                    request.environmentMode() != null ? request.environmentMode() : existingRoom.effectiveMode(),
+                    request.environmentId() != null ? request.environmentId() : existingRoom.getEnvironmentId());
         }
         existingRoom.setUpdatedAt(LocalDateTime.now());
         Room updatedRoom = this.roomService.saveRoom(existingRoom);
@@ -360,7 +379,7 @@ public class RoomController {
         return ResponseEntity.ok(
                 ApiResponse.<Room>builder()
                         .code(HttpStatus.OK.value())
-                        .message("Room updated successfully.")
+                        .message("Lab updated successfully.")
                         .data(updatedRoom)
                         .build()
         );
@@ -414,4 +433,4 @@ public class RoomController {
                 return rank + "th";
         }
     }
-}
+}

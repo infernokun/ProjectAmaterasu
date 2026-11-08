@@ -4,7 +4,7 @@
     <h1 class="h1">{{ vmName() }}</h1>
     <div class="small muted row">
       @if (tracker(); as t) {
-        <span>Console for <a class="lab-link" [routerLink]="['/labs', t.id]">{{ t.labStarted?.name }}</a></span>
+        <span>Console for <a class="lab-link" [routerLink]="['/environments', t.id]">{{ t.labStarted?.name }}</a></span>
         <span aria-hidden="true">·</span>
       }
       <span>VMID <span class="mono">{{ vmid() }}</span></span>
@@ -21,7 +21,7 @@
     } @else if (state() !== 'connecting') {
       <button type="button" class="btn primary" (click)="reconnect()"><app-icon name="refresh" />Reconnect</button>
     }
-    <a class="btn ghost" [routerLink]="['/labs', trackerId()]"><app-icon name="flask" />Back to lab</a>
+    <a class="btn ghost" [routerLink]="['/environments', trackerId()]"><app-icon name="flask" />Back to lab</a>
   </div>
 </header>
 
@@ -30,7 +30,7 @@
     <span class="small muted">VMs in this lab</span>
     @for (machine of vms(); track machine.vmid) {
       <a class="pick" [class.on]="'' + machine.vmid === '' + vmid()" [attr.aria-current]="'' + machine.vmid === '' + vmid() ? 'page' : null"
-         [routerLink]="['/labs', trackerId(), 'console', machine.vmid]">
+         [routerLink]="['/environments', trackerId(), 'console', machine.vmid]">
         <span class="pill-dot" [class]="machine.status === 'running' ? 's-active' : 's-off'"></span>{{ machine.name }}
       </a>
     }
@@ -75,7 +75,7 @@
           <span class="small">{{ reason() }}</span>
           <div class="row">
             <button type="button" class="btn sm" (click)="reconnect()"><app-icon name="refresh" size="sm" />Try again</button>
-            <a class="btn sm ghost" [routerLink]="['/labs', trackerId()]">Back to lab</a>
+            <a class="btn sm ghost" [routerLink]="['/environments', trackerId()]">Back to lab</a>
           </div>
         </div>
       }

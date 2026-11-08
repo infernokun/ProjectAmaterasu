@@ -212,7 +212,7 @@ public class LabTrackerController extends BaseController {
         RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
         LabTracker labTracker = labTrackerOptional.orElseThrow(() -> new ResourceNotFoundException("Lab tracker not found"));
-        currentUser.requireTrackerAccess(labTracker);
+        currentUser.requireTrackerControl(labTracker);
         List<RemoteCommandResponse> result = labTrackerService.addVolumeFiles(labTracker, remoteServer, volumeChanges, files);
 
         return ResponseEntity.ok(

@@ -6,7 +6,9 @@ import { errorMessage } from '../../../core/http-error';
 import { RoomsStore } from '../../../core/stores/rooms.store';
 import { RequestState, initialRequestState } from '../../../core/stores/request-status';
 import { fromLocalInput, toDate, toLocalInput } from '../../../core/time';
-import { AuthorChallenge, AuthorFlag, AuthorHint, AuthorRoom, AuthoringService, LabOption, Person } from './authoring.service';
+import {
+  AuthorChallenge, AuthorFlag, AuthorHint, AuthorRoom, AuthoringService, LabFileView, LabOption, Person, RoomChanges,
+} from './authoring.service';
 import { exportChallenges, parseImport } from './challenge-io';
 
 /** A challenge being edited: dates as datetime-local values in the browser's time zone. */
@@ -22,6 +24,8 @@ interface RoomEditorState extends RequestState {
   facilitators: Person[];
   candidates: Person[];
   labs: LabOption[];
+  /** Files players download from the lab. */
+  files: LabFileView[];
   savingOrder: boolean;
   players: number;
   selectedId: string | null;
@@ -38,6 +42,7 @@ export function toDraft(challenge: AuthorChallenge): Draft {
     ...rest,
     flags: challenge.flags.map(f => ({ ...f })),
     hints: challenge.hints.map(h => ({ ...h })),
+    attachments: [...(challenge.attachments ?? [])],
     opens: toLocalInput(releaseDate),
     closes: toLocalInput(expirationDate),
   };
@@ -59,7 +64,7 @@ export function fromDraft(draft: Draft): AuthorChallenge {
 /** Why a draft cannot be saved yet, or null. */
 export function draftProblem(draft: Draft): string | null {
   if (!draft.question.trim()) {
-    return 'Give the challenge a title.';
+    return 'Give the question a title.';
   }
   if (!draft.flags.some(f => f.flag.trim())) {
     return 'Add at least one flag players can submit.';
@@ -67,8 +72,8 @@ export function draftProblem(draft: Draft): string | null {
   if (!(draft.points >= 0)) {
     return 'Points cannot be negative.';
   }
-  if (!(draft.maxAttempts >= 1)) {
-    return 'Allow at least one attempt.';
+  if (draft.maxAttempts !== null && !(draft.maxAttempts >= 1)) {
+    return 'Allow at least one attempt, or leave it empty for unlimited.';
   }
   if (draft.opens && draft.closes && new Date(draft.closes) <= new Date(draft.opens)) {
     return 'It has to close after it opens.';
@@ -79,7 +84,7 @@ export function draftProblem(draft: Draft): string | null {
 /** One room's settings and challenges, with the challenge being edited. */
 export const RoomEditorStore = signalStore(
   withState<RoomEditorState>({
-    room: null, challenges: [], facilitators: [], candidates: [], labs: [], savingOrder: false,
+    room: null, challenges: [], facilitators: [], candidates: [], labs: [], files: [], savingOrder: false,
     players: 0, selectedId: null, draft: null, dirty: false, saving: false, ...initialRequestState,
   }),
   withComputed(({ challenges, draft, facilitators, candidates, labs }) => ({
@@ -122,8 +127,9 @@ export const RoomEditorStore = signalStore(
           firstValueFrom(api.facilitators(roomId)).then(facilitators => patchState(store, { facilitators }), () => undefined);
           firstValueFrom(api.facilitatorCandidates()).then(candidates => patchState(store, { candidates }), () => undefined);
           firstValueFrom(api.labs()).then(labs => patchState(store, { labs }), () => undefined);
+          firstValueFrom(api.files(roomId)).then(files => patchState(store, { files }), () => undefined);
         } catch (error) {
-          patchState(store, { status: 'error', error: errorMessage(error) ?? 'The room could not be loaded.' });
+          patchState(store, { status: 'error', error: errorMessage(error) ?? 'The lab could not be loaded.' });
         }
       },
       select(challengeId: string): void {
@@ -135,7 +141,7 @@ export const RoomEditorStore = signalStore(
           dirty: true,
           draft: {
             roomId: store.room()?.id ?? null, labId: null, question: '', category: store.categories()[0] ?? '', difficultyLevel: DifficultyLevel.EASY,
-            points: 100, maxAttempts: 10, description: '', visible: true, solutionExplanation: '', author,
+            points: 100, maxAttempts: null, description: '', visible: true, solutionExplanation: '', author, attachments: [],
             flags: [{ flag: '', caseSensitive: true, surroundWithTag: true, weight: 1 }], hints: [],
             solveCount: 0, attemptCount: 0, opens: toLocalInput(new Date()), closes: '',
           },
@@ -217,8 +223,30 @@ export const RoomEditorStore = signalStore(
         patchState(store, { challenges });
         select(challenges[0] ?? null);
       },
-      async saveRoom(name: string, surroundTag: string): Promise<AuthorRoom> {
-        const room = await firstValueFrom(api.updateRoom(store.room()!.id, name, surroundTag));
+      /** Uploads lab files; one with a name the lab has replaces it. */
+      async uploadFiles(files: File[]): Promise<LabFileView[]> {
+        const roomId = store.room()!.id;
+        const saved: LabFileView[] = [];
+        for (const file of files) {
+          saved.push(await firstValueFrom(api.uploadFile(roomId, file)));
+        }
+        patchState(store, { files: await firstValueFrom(api.files(roomId)) });
+        return saved;
+      },
+      async deleteFile(file: LabFileView): Promise<void> {
+        await firstValueFrom(api.deleteFile(store.room()!.id, file.id));
+        patchState(store, { files: store.files().filter(f => f.id !== file.id) });
+      },
+      toggleAttachment(name: string): void {
+        const draft = store.draft();
+        if (draft) {
+          const attachments = draft.attachments.includes(name)
+            ? draft.attachments.filter(n => n !== name) : [...draft.attachments, name];
+          patchState(store, { draft: { ...draft, attachments }, dirty: true });
+        }
+      },
+      async saveRoom(changes: RoomChanges): Promise<AuthorRoom> {
+        const room = await firstValueFrom(api.updateRoom(store.room()!.id, changes));
         patchState(store, { room });
         rooms.load();
         return room;

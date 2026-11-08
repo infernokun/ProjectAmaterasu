@@ -119,12 +119,12 @@
                 <tr>
                   <td style="font-weight:500">{{ deployment.teamName }}</td>
                   <td>{{ deployment.labName }}</td>
-                  <td><app-status-badge [state]="deployment.status" /></td>
+                  <td><app-status-badge [tone]="envMeta(deployment).tone" [label]="envMeta(deployment).label" /></td>
                   <td class="mono small dim">{{ deployment.units || (deployed(deployment) ? 'No details yet' : 'Starts here next') }}</td>
                   <td class="dim">{{ since(deployment.updatedAt) }}</td>
                   <td class="r">
                     <div class="row end nowrap">
-                      <a class="btn sm ghost" [routerLink]="['/labs', deployment.id]">Open</a>
+                      <a class="btn sm ghost" [routerLink]="['/environments', deployment.id]">Open</a>
                       <button type="button" class="btn sm" (click)="move(card, deployment)">Move</button>
                     </div>
                   </td>

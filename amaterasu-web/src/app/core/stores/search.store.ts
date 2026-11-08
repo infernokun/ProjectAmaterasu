@@ -39,7 +39,7 @@ export const SearchStore = signalStore(
       let index = 0;
       return GROUPS.map(type => ({
         type,
-        label: groupLabel(type, session.canBuild()),
+        label: groupLabel(type),
         items: hits().filter(hit => hit.type === type).map(hit => ({ hit, index: index++ })),
       })).filter(group => group.items.length > 0);
     });
@@ -53,8 +53,8 @@ export const SearchStore = signalStore(
       stale: computed(() => answered() !== query().trim()),
       /** What the search covers, for the hint under an empty box. */
       scope: computed(() => session.isAdmin()
-        ? 'labs, rooms, challenges, users, teams and servers'
-        : session.canBuild() ? 'every lab, room and challenge' : 'your team labs, the lab catalog, rooms and challenges'),
+        ? 'labs, environments, questions, users, teams and servers'
+        : session.canBuild() ? 'every lab, environment and question' : 'your team environments, labs and questions'),
     };
   }),
   withMethods((store, api = inject(SearchService), wait = inject(SEARCH_DEBOUNCE_MS)) => {
@@ -89,12 +89,12 @@ export const SearchStore = signalStore(
   }),
 );
 
-export function groupLabel(type: SearchHitType, author: boolean): string {
+export function groupLabel(type: SearchHitType): string {
   switch (type) {
-    case 'TEAM_LAB': return 'Team labs';
-    case 'LAB': return author ? 'Labs' : 'Lab catalog';
-    case 'ROOM': return 'Rooms';
-    case 'CHALLENGE': return 'Challenges';
+    case 'TEAM_LAB': return 'Team environments';
+    case 'LAB': return 'Environments';
+    case 'ROOM': return 'Labs';
+    case 'CHALLENGE': return 'Questions';
     case 'USER': return 'Users';
     case 'TEAM': return 'Teams';
     case 'SERVER': return 'Servers';

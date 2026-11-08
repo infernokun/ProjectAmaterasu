@@ -4,19 +4,22 @@ import { SessionStore } from '../../../core/stores/session.store';
 import { ago, clock, dateTime } from '../../../shared/format';
 import { ToastService } from '../../../shared/services/toast.service';
 import { IconComponent } from '../../../shared/ui/icon.component';
+import { MarkdownComponent } from '../../../shared/ui/markdown.component';
 import { ChallengeView, HintView } from '../data/play.models';
+import { LabFileDownload, fileSize } from '../labs/lab-file-download';
+import { LabMarkdownComponent } from '../labs/lab-markdown.component';
 import { RoomPlayStore } from './room-play.store';
 
-/** One challenge: what to do, the flag form with attempts, and hints that cost points. */
+/** One question: what to do, its files, the answer form with attempts, and hints that cost points. */
 @Component({
   selector: 'app-challenge-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, TitleCasePipe],
+  imports: [IconComponent, TitleCasePipe, LabMarkdownComponent, MarkdownComponent],
   templateUrl: './challenge-detail.component.html',
   styles: `
     :host { display: block; }
     .title { font-size: 22px; }
-    .desc { margin: 0; font-size: 15px; line-height: 1.6; max-width: 68ch; white-space: pre-line; }
+    .desc { font-size: 15px; max-width: 76ch; }
     .flag-row { flex-wrap: nowrap; align-items: stretch; }
     .flag-input { font-family: var(--font-mono); }
     .hint { padding: 14px 16px; background: var(--surface-2); }
@@ -33,6 +36,14 @@ export class ChallengeDetailComponent {
 
   readonly challenge = input.required<ChallengeView>();
   readonly joined = input(false);
+
+  private readonly files = inject(LabFileDownload);
+  protected readonly environment = computed(() => this.store.overview()?.environment ?? null);
+  protected readonly canSeeLogin = computed(() => {
+    const overview = this.store.overview();
+    return !!overview && (overview.environment?.mode === 'PER_TEAM' || overview.me.joined || overview.room.canRun);
+  });
+  protected readonly size = fileSize;
 
   protected readonly answer = signal('');
   protected readonly confirmingHint = signal<string | null>(null);
@@ -68,6 +79,11 @@ export class ChallengeDetailComponent {
         this.confirmingHint.set(null);
       });
     });
+  }
+
+  protected download(fileId: string, name: string): void {
+    const labId = this.store.roomId();
+    if (labId) this.files.save(labId, fileId, name);
   }
 
   protected hintGated(hint: HintView): boolean {

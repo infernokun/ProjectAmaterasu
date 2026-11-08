@@ -153,7 +153,7 @@ class NotificationIntegrationTest extends ApiTestSupport {
         assertThat(award).isNotNull();
         assertThat(award.get("title").asText()).isEqualTo("+50 pts in " + room.getName());
         assertThat(award.get("body").asText()).isEqualTo("Writeup bonus · from " + facilitator.getUsername());
-        assertThat(award.get("link").asText()).isEqualTo("/rooms/" + room.getId() + "/scoreboard/" + alice.getUsername());
+        assertThat(award.get("link").asText()).isEqualTo("/labs/" + room.getId() + "/scoreboard/" + alice.getUsername());
         assertThat(list(token(bob))).isEmpty();
     }
 
@@ -168,7 +168,7 @@ class NotificationIntegrationTest extends ApiTestSupport {
         assertThat(forTeammate).hasSize(1);
         assertThat(forTeammate.get(0).get("title").asText()).isEqualTo("Web Exploitation 101 failed to start");
         assertThat(forTeammate.get(0).get("body").asText()).isEqualTo("pull access denied for shop/app");
-        assertThat(forTeammate.get(0).get("link").asText()).isEqualTo("/labs/lt-1");
+        assertThat(forTeammate.get(0).get("link").asText()).isEqualTo("/environments/lt-1");
 
         JsonNode forFacilitator = list(token(facilitator));
         assertThat(forFacilitator.get(0).get("type").asText()).isEqualTo(NotificationRules.LAB_ATTENTION);
@@ -202,7 +202,7 @@ class NotificationIntegrationTest extends ApiTestSupport {
         assertThat(mine).hasSize(1);
         assertThat(mine.get(0).get("title").asText()).isEqualTo("Padding Oracle is open in " + room.getName());
         assertThat(mine.get(0).get("body").asText()).isEqualTo("Crypto · 300 pts");
-        assertThat(mine.get(0).get("link").asText()).isEqualTo("/rooms/" + room.getId() + "?challenge=" + later.getId());
+        assertThat(mine.get(0).get("link").asText()).isEqualTo("/labs/" + room.getId() + "?challenge=" + later.getId());
         assertThat(list(token(bob))).isEmpty();
     }
 

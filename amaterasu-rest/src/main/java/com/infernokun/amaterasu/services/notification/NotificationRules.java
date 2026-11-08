@@ -91,10 +91,10 @@ public class NotificationRules {
         String team = tracker.getLabOwner().getName();
         String status = tracker.getLabStatus() == LabStatus.DEGRADED ? "is degraded" : "has failing parts";
         String body = tracker.getLabStatus() == LabStatus.DEGRADED
-                ? "Some of its services or VMs are not running. Open the lab to see which."
-                : "It is up, but part of it did not come back. Open the lab to see which.";
+                ? "Some of its services or VMs are not running. Open the environment to see which."
+                : "It is up, but part of it did not come back. Open the environment to see which.";
         notifications.send(teamMembers(tracker.getLabOwner().getId()), LAB_DEGRADED, lab + " " + status, body,
-                "/labs/" + tracker.getId(), LAB_QUIET);
+                "/environments/" + tracker.getId(), LAB_QUIET);
         notifications.send(facilitators(), LAB_ATTENTION, team + ": " + lab + " " + status, body, "/run/live", LAB_QUIET);
     }
 
@@ -164,7 +164,7 @@ public class NotificationRules {
                 .setMaxResults(1)
                 .getResultStream()
                 .findFirst();
-        String link = roomId.map(id -> "/rooms/" + id + "/scoreboard/" + event.getTargetLabel()).orElse("/scoreboard");
+        String link = roomId.map(id -> "/labs/" + id + "/scoreboard/" + event.getTargetLabel()).orElse("/scoreboard");
         String from = event.getActorUsername() != null && !"system".equals(event.getActorUsername())
                 ? " · from " + event.getActorUsername() : "";
         notifications.send(List.of(event.getTargetId()), POINTS_AWARDED,
@@ -194,7 +194,7 @@ public class NotificationRules {
         List<String> team = new ArrayList<>(teamMembers(event.getTeamId()));
         // The person who ran the action already saw why
         team.remove(event.getActorId());
-        notifications.send(team, LAB_FAILED, title, body, "/labs/" + event.getTargetId());
+        notifications.send(team, LAB_FAILED, title, body, "/environments/" + event.getTargetId());
 
         String teamName = entityManager.createQuery("SELECT t.name FROM Team t WHERE t.id = :id", String.class)
                 .setParameter("id", event.getTeamId()).getResultStream().findFirst().orElse("A team");
@@ -219,7 +219,7 @@ public class NotificationRules {
         String body = (challenge.getCategory() != null && !challenge.getCategory().isBlank() ? challenge.getCategory() + " · " : "")
                 + (challenge.getPoints() == null ? 0 : challenge.getPoints()) + " pts";
         notifications.send(players, CHALLENGE_RELEASED, challenge.getQuestion() + " is open in " + challenge.getRoom().getName(),
-                body, "/rooms/" + challenge.getRoom().getId() + "?challenge=" + challenge.getId());
+                body, "/labs/" + challenge.getRoom().getId() + "?challenge=" + challenge.getId());
     }
 
     private void announceMany(List<CTFEntity> challenges) {
@@ -228,7 +228,7 @@ public class NotificationRules {
                 + (challenges.size() > 3 ? " and " + (challenges.size() - 3) + " more" : "");
         notifications.send(joinedPlayers(first.getRoom().getId()), CHALLENGE_RELEASED,
                 challenges.size() + " new challenges are open in " + first.getRoom().getName(), names,
-                "/rooms/" + first.getRoom().getId());
+                "/labs/" + first.getRoom().getId());
     }
 
     private List<String> joinedPlayers(String roomId) {

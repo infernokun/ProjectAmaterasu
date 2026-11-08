@@ -11,10 +11,11 @@ import { DIALOG_DEFAULTS } from '../../../shared/ui/dialog';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { SkeletonComponent } from '../../../shared/ui/skeleton.component';
-import { AuthorChallenge, AuthorRoom, AuthoringService } from './authoring.service';
+import { SCENARIO_TEMPLATE } from '../../../shared/markdown';
+import { AuthorChallenge, AuthorRoom, AuthoringService, LabOption } from './authoring.service';
 
 interface NewRoomData {
-  create: (name: string, tag: string) => Promise<unknown>;
+  create: (changes: { name: string; surroundTag: string; scenario: string }) => Promise<unknown>;
 }
 
 @Component({
@@ -24,20 +25,24 @@ interface NewRoomData {
   template: `
     <form class="modal" role="dialog" aria-modal="true" aria-labelledby="nr-h" (submit)="$event.preventDefault(); submit()">
       <div class="row between">
-        <h2 class="h2" id="nr-h">New room</h2>
+        <h2 class="h2" id="nr-h">New lab</h2>
         <button type="button" class="iconbtn" aria-label="Close" (click)="ref.close()"><app-icon name="close" /></button>
       </div>
       @if (error()) { <div class="banner bad" role="alert"><app-icon name="close" /><div>{{ error() }}</div></div> }
-      <label class="field"><span class="label">Room name</span>
+      <label class="field"><span class="label">Lab name</span>
         <input class="input" [value]="name()" (input)="name.set($any($event.target).value)" placeholder="Winter Range 2026" maxlength="80" required>
       </label>
       <label class="field"><span class="label">Flag wrapper</span>
         <input class="input mono" [value]="tag()" (input)="tag.set($any($event.target).value)" maxlength="40">
-        <span class="help">How flags look in this room, with x where the answer goes</span>
+        <span class="help">How flags look in this lab, with x where the answer goes</span>
+      </label>
+      <label class="field"><span class="label">Scenario</span>
+        <textarea class="input mono" rows="10" [value]="scenario()" (input)="scenario.set($any($event.target).value)"></textarea>
+        <span class="help">Markdown. Start from the outline and edit it; you can change it later with the environment and questions.</span>
       </label>
       <div class="row end">
         <button type="button" class="btn ghost" (click)="ref.close()">Cancel</button>
-        <button type="submit" class="btn primary" [disabled]="!name().trim() || saving()">Create room</button>
+        <button type="submit" class="btn primary" [disabled]="!name().trim() || !scenario().trim() || saving()">Create lab</button>
       </div>
     </form>
   `,
@@ -47,20 +52,21 @@ export class NewRoomDialogComponent {
   protected readonly ref = inject<MatDialogRef<NewRoomDialogComponent>>(MatDialogRef);
   protected readonly name = signal('');
   protected readonly tag = signal('CTF{x}');
+  protected readonly scenario = signal(SCENARIO_TEMPLATE);
   protected readonly saving = signal(false);
   protected readonly error = signal('');
 
   protected async submit(): Promise<void> {
-    if (!this.name().trim() || this.saving()) {
+    if (!this.name().trim() || !this.scenario().trim() || this.saving()) {
       return;
     }
     this.saving.set(true);
     this.error.set('');
     try {
-      await this.data.create(this.name().trim(), this.tag().trim());
+      await this.data.create({ name: this.name().trim(), surroundTag: this.tag().trim(), scenario: this.scenario().trim() });
       this.ref.close(true);
     } catch (error) {
-      this.error.set(errorMessage(error) ?? 'The room could not be created.');
+      this.error.set(errorMessage(error) ?? 'The lab could not be created.');
     } finally {
       this.saving.set(false);
     }
@@ -74,10 +80,10 @@ export class NewRoomDialogComponent {
   template: `
     <div class="page-head">
       <div>
-        <h1 class="h1">Rooms and challenges</h1>
-        <p class="sub">Rooms hold the challenges players solve. Open one to edit its challenges, flags and hints.</p>
+        <h1 class="h1">Labs</h1>
+        <p class="sub">A lab is a scenario, its questions and, if it needs one, an environment. Open one to edit it.</p>
       </div>
-      <button type="button" class="btn primary" (click)="newRoom()"><app-icon name="plus" />New room</button>
+      <button type="button" class="btn primary" (click)="newRoom()"><app-icon name="plus" />New lab</button>
     </div>
 
     @if (error()) {
@@ -85,21 +91,22 @@ export class NewRoomDialogComponent {
         <button type="button" class="btn sm" (click)="load()">Try again</button></div>
     }
 
-    <section class="card flush" aria-label="Rooms">
+    <section class="card flush" aria-label="Labs">
       @if (loading()) {
-        <app-skeleton variant="rows" [count]="3" label="Loading rooms" />
+        <app-skeleton variant="rows" [count]="3" label="Loading labs" />
       } @else if (!rooms().length) {
-        <app-empty-state icon="flag" title="No rooms yet" message="Create a room, then add challenges to it or import them from a JSON file.">
-          <button type="button" class="btn primary" (click)="newRoom()"><app-icon name="plus" />New room</button>
+        <app-empty-state icon="flask" title="No labs yet" message="Create a lab, then add questions to it or import them from a JSON file.">
+          <button type="button" class="btn primary" (click)="newRoom()"><app-icon name="plus" />New lab</button>
         </app-empty-state>
       } @else {
         <div class="table-wrap">
           <table class="t">
-            <thead><tr><th>Room</th><th>Flag wrapper</th><th class="r">Challenges</th><th class="r">Points</th><th>Hidden or scheduled</th><th>Updated</th><th class="r">Actions</th></tr></thead>
+            <thead><tr><th>Lab</th><th>Environment</th><th>Flag wrapper</th><th class="r">Questions</th><th class="r">Points</th><th>Hidden or scheduled</th><th>Updated</th><th class="r">Actions</th></tr></thead>
             <tbody>
               @for (room of rooms(); track room.id) {
                 <tr>
                   <td><a class="name" [routerLink]="room.id">{{ room.name }}</a></td>
+                  <td class="small dim">{{ envLabel(room) }}</td>
                   <td class="mono small dim">{{ room.surroundTag }}</td>
                   <td class="r num">{{ stats().get(room.id)?.count ?? 0 }}</td>
                   <td class="r num">{{ (stats().get(room.id)?.points ?? 0).toLocaleString('en-US') }}</td>
@@ -107,7 +114,7 @@ export class NewRoomDialogComponent {
                   <td class="dim small">{{ ago(room.updatedAt) }}</td>
                   <td class="r"><div class="row end nowrap">
                     <a class="btn sm" [routerLink]="room.id"><app-icon name="edit" size="sm" />Edit</a>
-                    <a class="btn sm ghost" [routerLink]="['/rooms', room.id]"><app-icon name="eye" size="sm" />View</a>
+                    <a class="btn sm ghost" [routerLink]="['/labs', room.id]"><app-icon name="eye" size="sm" />View</a>
                     <button type="button" class="btn sm danger" (click)="remove(room)"><app-icon name="trash" size="sm" />Delete</button>
                   </div></td>
                 </tr>
@@ -134,6 +141,7 @@ export class RoomListPage {
   private readonly playRooms = inject(RoomsStore);
 
   protected readonly rooms = signal<AuthorRoom[]>([]);
+  private readonly environments = signal<LabOption[]>([]);
   private readonly challenges = signal<AuthorChallenge[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal('');
@@ -166,23 +174,31 @@ export class RoomListPage {
     this.loading.set(true);
     this.error.set('');
     try {
-      const [rooms, challenges] = await Promise.all([firstValueFrom(this.api.rooms()), firstValueFrom(this.api.allChallenges())]);
+      const [rooms, challenges, environments] = await Promise.all([firstValueFrom(this.api.rooms()),
+        firstValueFrom(this.api.allChallenges()), firstValueFrom(this.api.labs())]);
+      this.environments.set(environments);
       this.rooms.set([...rooms].sort((a, b) => a.name.localeCompare(b.name)));
       this.challenges.set(challenges);
     } catch (error) {
-      this.error.set(errorMessage(error) ?? 'Rooms could not be loaded.');
+      this.error.set(errorMessage(error) ?? 'Labs could not be loaded.');
     } finally {
       this.loading.set(false);
     }
   }
 
+  protected envLabel(room: AuthorRoom): string {
+    if (room.environmentMode === 'NONE') return 'None';
+    const name = this.environments().find(lab => lab.id === room.environmentId)?.name ?? 'An environment';
+    return `${name} · ${room.environmentMode === 'SHARED' ? 'shared' : 'per team'}`;
+  }
+
   protected newRoom(): void {
     const data: NewRoomData = {
-      create: async (name, tag) => {
-        const room = await firstValueFrom(this.api.createRoom(name, tag));
+      create: async changes => {
+        const room = await firstValueFrom(this.api.createRoom({ ...changes, environmentMode: 'NONE' }));
         this.playRooms.load();
         this.toast.success(`${room.name} created`);
-        this.router.navigate(['/build/rooms', room.id]);
+        this.router.navigate(['/build/labs', room.id]);
       },
     };
     this.dialog.open(NewRoomDialogComponent, { ...DIALOG_DEFAULTS, data });
@@ -192,9 +208,9 @@ export class RoomListPage {
     const count = this.stats().get(room.id)?.count ?? 0;
     const answer = await firstValueFrom(this.confirm.open({
       title: `Delete ${room.name}?`,
-      message: `Its ${count} ${count === 1 ? 'challenge' : 'challenges'}, every answer and hint players used, and the list of who joined are deleted. `
-        + 'Points scored in this room are lost.',
-      confirmLabel: 'Delete room',
+      message: `Its ${count} ${count === 1 ? 'question' : 'questions'}, every answer and hint players used, and the list of who joined are deleted. `
+        + 'Points scored in this lab are lost.',
+      confirmLabel: 'Delete lab',
       typeToConfirm: room.name,
     }));
     if (answer !== 'confirm') {

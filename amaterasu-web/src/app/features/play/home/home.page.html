@@ -1,19 +1,17 @@
 <app-page-header [eyebrow]="teamName() ? 'Your team' : 'Welcome'" [title]="teamName() || session.username()" [subtitle]="subtitle()">
   @if (rooms.currentRoom(); as room) {
-    <a class="btn" [routerLink]="['/rooms', room.id]"><app-icon name="flag" />Go to room</a>
+    <a class="btn" [routerLink]="['/labs', room.id]"><app-icon name="flask" />Go to {{ room.name }}</a>
   }
-  @if (session.teamId()) {
-    <a class="btn primary" href="#catalog" (click)="scrollToCatalog($event)"><app-icon name="plus" />Start a lab</a>
-  }
+  <a class="btn primary" routerLink="/labs"><app-icon name="flask" />Browse labs</a>
 </app-page-header>
 
 @if (!session.teamId()) {
-  <div class="banner warn"><app-icon name="users" /><div>You are not on a team yet. An admin adds you to one, then your team's labs show here and you can start them.</div></div>
+  <div class="banner warn"><app-icon name="users" /><div>You are not on a team yet. Labs with no setup and shared environments work without one; for team copies, an admin adds you to a team.</div></div>
 }
 
 <div class="kpis">
   <div class="card">
-    <div class="kpi-label">Labs running</div>
+    <div class="kpi-label">Environments running</div>
     <div class="kpi-val">{{ trackers.runningCount() }}</div>
     <div class="kpi-note">of {{ labCount() }} deployed{{ teamName() ? ' for ' + teamName() : '' }}</div>
   </div>
@@ -24,17 +22,17 @@
       @if (home.me(); as me) {
         {{ me.lastHourChange ? fmt.signed(me.lastHourChange) + ' in the last hour' : 'No change in the last hour' }}
       } @else {
-        {{ rooms.currentRoom() ? 'in ' + rooms.currentRoom()!.name : 'Join a room to score' }}
+        {{ rooms.currentRoom() ? 'in ' + rooms.currentRoom()!.name : 'Join a lab to score' }}
       }
     </div>
   </div>
   <div class="card">
     <div class="kpi-label">Your rank</div>
     <div class="kpi-val">{{ current()?.me?.rank ? fmt.ordinal(current()!.me.rank) : '-' }}</div>
-    <div class="kpi-note">{{ current() ? 'of ' + current()!.playerCount + ' players in the room' : 'No room yet' }}</div>
+    <div class="kpi-note">{{ current() ? 'of ' + current()!.playerCount + ' players in the lab' : 'No lab yet' }}</div>
   </div>
   <div class="card">
-    <div class="kpi-label">Challenges solved</div>
+    <div class="kpi-label">Questions solved</div>
     <div class="kpi-val">{{ current()?.me?.solved ?? 0 }} / {{ current()?.challenges?.length ?? 0 }}</div>
     <div class="bar" style="margin-top: 10px" aria-hidden="true"><span [style.width.%]="solvedPct()"></span></div>
   </div>
@@ -43,7 +41,7 @@
 <div class="cols">
   <section class="col-main" aria-labelledby="labs-h">
     <div class="row between">
-      <h2 class="h2" id="labs-h">Team labs</h2>
+      <h2 class="h2" id="labs-h">Team environments</h2>
       <app-live-note [updatedAt]="trackers.updatedAt()" />
     </div>
 
@@ -56,36 +54,22 @@
         <app-team-lab-card [tracker]="tracker" />
       } @empty {
         <section class="card">
-          <app-empty-state icon="flask" title="No labs deployed yet"
-            [message]="session.teamId() ? 'Start one from Available labs below. Everyone on your team shares it.' : 'Labs start once you are on a team.'" />
+          <app-empty-state icon="flask" title="No team environments yet"
+            [message]="session.teamId() ? 'Start one from a lab\'s page. Everyone on your team shares it.' : 'Team copies start once you are on a team.'">
+            <a class="btn sm" routerLink="/labs">Browse labs</a>
+          </app-empty-state>
         </section>
       }
     }
 
-    <div class="row between catalog-head" id="catalog">
-      <h2 class="h2">Available labs</h2>
-      <span class="small muted">Started on the server with the most headroom. Pick another from the server button.</span>
-    </div>
-    @if (labs.loading() && !labs.labs().length) {
-      <app-skeleton variant="card" [count]="3" label="Loading labs" />
-    } @else {
-      <div class="grid">
-        @for (lab of catalog(); track lab.id) {
-          <app-lab-catalog-card [lab]="lab" />
-        }
-      </div>
-      @if (!catalog().length) {
-        <section class="card"><app-empty-state icon="layers" title="Nothing else to start" message="Your team already has every lab, or none are published yet." /></section>
-      }
-    }
   </section>
 
   <aside class="col-side">
     <section class="card flush" aria-labelledby="rooms-h">
-      <div class="card-head"><h2 class="h2" id="rooms-h">Your rooms</h2><a class="small link" routerLink="/rooms">Browse all</a></div>
+      <div class="card-head"><h2 class="h2" id="rooms-h">Your labs</h2><a class="small link" routerLink="/labs">Browse all</a></div>
       <div class="list">
         @for (room of roomCards(); track room.id) {
-          <a class="list-item room-item" [routerLink]="['/rooms', room.id]">
+          <a class="list-item room-item" [routerLink]="['/labs', room.id]">
             <div class="row between"><strong>{{ room.name }}</strong>
               @if (room.rank) {
                 <span class="tag" [class.accent]="room.rank <= 3">Rank {{ room.rank }}</span>
@@ -95,8 +79,8 @@
             <div class="row between small muted"><span>{{ room.solved }} of {{ room.total }} solved</span><span class="num">{{ fmt.points(room.points) }} pts</span></div>
           </a>
         } @empty {
-          <app-empty-state icon="flag" title="No rooms joined" message="Join a room to see its challenges here.">
-            <a class="btn sm" routerLink="/rooms">Browse rooms</a>
+          <app-empty-state icon="flask" title="No labs joined" message="Join a lab to see your progress here.">
+            <a class="btn sm" routerLink="/labs">Browse labs</a>
           </app-empty-state>
         }
       </div>

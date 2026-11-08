@@ -18,6 +18,8 @@ import { MoveLabData, MoveLabDialogComponent } from './move-lab-dialog';
 import { Deployment, ServerSettings } from './servers.service';
 import { address, osLine, sentence, serverHealth, serverTypeLabel } from './server-health';
 import { ServerCard, ServersStore } from './servers.store';
+import { LabTracker } from '../../../models/lab/lab-tracker.model';
+import { ENVIRONMENT_STATUS_META, environmentStatus } from '../../play/labs/environment-status';
 
 const REFRESH_MS = 60_000;
 
@@ -106,6 +108,11 @@ export class AdminServersPage {
       },
     };
     this.dialog.open(AddServerDialogComponent, { ...DIALOG_DEFAULTS, width: '520px', data });
+  }
+
+  /** The same status the Labs list and lab page show. */
+  protected envMeta(deployment: Deployment) {
+    return ENVIRONMENT_STATUS_META[deployment.environment ?? environmentStatus(new LabTracker({ labStatus: deployment.status }))];
   }
 
   protected deployed(deployment: Deployment): boolean {

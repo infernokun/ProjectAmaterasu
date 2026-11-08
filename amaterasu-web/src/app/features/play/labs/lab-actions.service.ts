@@ -4,7 +4,6 @@ import { LabActionOutcome, LabTrackersStore } from '../../../core/stores/lab-tra
 import { SessionStore } from '../../../core/stores/session.store';
 import { LabStatus } from '../../../enums/lab-status.enum';
 import { LabTracker } from '../../../models/lab/lab-tracker.model';
-import { Lab } from '../../../models/lab/lab.model';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { PlayApiService } from '../data/play-api.service';
@@ -26,10 +25,6 @@ export class LabActionsService {
       this.toast.show(outcome.message, 'bad', 6000);
     }
     return outcome;
-  }
-
-  async start(lab: Lab, serverId: string): Promise<LabActionOutcome> {
-    return this.report(await this.trackers.start(lab.id!, lab.name ?? 'The lab', serverId));
   }
 
   async resume(tracker: LabTracker, serverId?: string): Promise<LabActionOutcome> {

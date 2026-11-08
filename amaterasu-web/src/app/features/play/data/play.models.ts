@@ -12,6 +12,21 @@ export interface HintView {
   usedAt: string | null;
 }
 
+export interface AttachmentView {
+  name: string;
+  fileId: string | null;
+  size: number | null;
+}
+
+/** A file players download from a lab. */
+export interface LabFileView {
+  id: string;
+  name: string;
+  contentType: string | null;
+  size: number;
+  sha256: string | null;
+}
+
 export interface ChallengeView {
   id: string;
   title: string;
@@ -24,20 +39,73 @@ export interface ChallengeView {
   state: ChallengeState;
   releaseDate: string | null;
   expirationDate: string | null;
+  /** Markdown. */
   description: string | null;
-  attachments: string[];
+  /** Files the question names; fileId is set when the lab has the file to download. */
+  attachments: AttachmentView[];
   hints: HintView[];
   attempts: number;
   solved: boolean;
   solvedAt: string | null;
 }
 
+export type EnvironmentMode = 'NONE' | 'SHARED' | 'PER_TEAM';
+
+/** The one status every view shows for a lab's environment. */
+export type EnvironmentStatus = 'NOT_RUNNING' | 'STARTING' | 'RUNNING' | 'PAUSED' | 'FAILED';
+
+/** A lab's environment as the viewer sees it: the shared copy, or their team's. */
+export interface EnvironmentView {
+  labId: string;
+  labName: string;
+  labType: string | null;
+  mode: EnvironmentMode;
+  status: EnvironmentStatus;
+  trackerId: string | null;
+  /** The copy, as a raw lab tracker; null until one exists. */
+  tracker: unknown | null;
+  /** The viewer may start and stop this copy. */
+  canControl: boolean;
+  /** Why the viewer cannot act, when they cannot. */
+  note: string | null;
+  copiesRunning: number;
+}
+
+/** One lab in the Labs list, from GET /api/room/cards. */
+export interface LabCard {
+  id: string;
+  name: string;
+  summary: string;
+  environmentMode: EnvironmentMode;
+  environment: EnvironmentView | null;
+  questionCount: number;
+  playerCount: number;
+  joined: boolean;
+  left: boolean;
+  points: number;
+  solved: number;
+  /** The viewer facilitates this lab, or is an admin. */
+  canRun: boolean;
+}
+
+/** The reply to starting, pausing or stopping a lab's environment. */
+export interface EnvironmentActionResult {
+  successful: boolean;
+  message: string;
+  environment: EnvironmentView | null;
+}
+
 export interface RoomOverview {
-  room: { id: string; name: string; surroundTag: string | null; creator: string | null; facilitators: string[] };
+  room: {
+    id: string; name: string; surroundTag: string | null; creator: string | null; facilitators: string[];
+    scenario: string | null; environmentMode: EnvironmentMode; canRun: boolean;
+  };
   playerCount: number;
   teamCount: number;
   me: { joined: boolean; points: number; rank: number; solved: number };
   challenges: ChallengeView[];
+  environment: EnvironmentView | null;
+  files: LabFileView[];
 }
 
 export interface StandingPoint {
