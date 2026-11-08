@@ -17,6 +17,8 @@ export class LabTracker extends StoredObject {
   bridges?: string[];
   /** The lab a shared copy runs for; unset for a team's copy. */
   roomId?: string | null;
+  /** The copy every user without a team shares, in a lab run one copy per team. */
+  solo?: boolean;
   /** A start, pause or stop in progress on the server. */
   pendingAction?: string | null;
 
@@ -32,6 +34,7 @@ export class LabTracker extends StoredObject {
       this.remoteServer = serverResult.remoteServer;
       this.bridges = serverResult.bridges ?? [];
       this.roomId = serverResult.roomId ?? null;
+      this.solo = !!serverResult.solo;
       this.pendingAction = serverResult.pendingAction ?? null;
     }
   }

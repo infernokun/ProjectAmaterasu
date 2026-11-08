@@ -13,13 +13,13 @@
         <span class="hr-note live"><span class="pill-dot pulse" style="color: var(--ok)"></span>Live</span></p>
     </div>
     <div class="seg" role="group" aria-label="Rank by">
-      <button type="button" [class.on]="!teams()" [attr.aria-pressed]="!teams()" (click)="setView('players')">Players</button>
+      <button type="button" [class.on]="!teams()" [attr.aria-pressed]="!teams()" (click)="setView('players')">People</button>
       <button type="button" [class.on]="teams()" [attr.aria-pressed]="teams()" (click)="setView('teams')">Teams</button>
     </div>
   </header>
 
   @if (!s.players.length) {
-    <section class="card"><app-empty-state icon="trophy" title="Nobody has joined yet" message="Players show here once they join the room." /></section>
+    <section class="card"><app-empty-state icon="trophy" title="Nobody has played yet" message="Players show here once they answer a question or unlock a hint." /></section>
   } @else {
     <div class="kpis">
       @for (p of podium(); track p.id) {

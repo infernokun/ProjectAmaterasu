@@ -331,35 +331,30 @@
     @case ('teams') {
       <section class="card stack" aria-label="Teams and scoring">
     <div class="field team-field"><span class="label" id="team-label">Teams</span>
-      <div class="row">
-        <div class="seg" role="group" aria-labelledby="team-label">
-          @for (mode of teamModes; track mode.value) {
-            <button type="button" [class.on]="teamMode() === mode.value" [attr.aria-pressed]="teamMode() === mode.value" (click)="teamMode.set(mode.value)">{{ mode.label }}</button>
-          }
-        </div>
-        @if (teamMode() !== 'SOLO_ONLY') {
-          <label class="row size-pick"><span class="small muted">Most players per team</span>
-            <input class="input num" type="number" min="0" max="50" [value]="teamSize()" (input)="teamSize.set(number($event))" aria-label="Most players per team"></label>
-          <div class="seg" role="group" aria-label="Team credit">
-            @for (credit of credits; track credit.value) {
-              <button type="button" [class.on]="teamCredit() === credit.value" [attr.aria-pressed]="teamCredit() === credit.value" (click)="teamCredit.set(credit.value)">{{ credit.label }}</button>
-            }
-          </div>
+      <div class="seg" role="group" aria-labelledby="team-label">
+        @for (credit of credits; track credit.value) {
+          <button type="button" [class.on]="teamCredit() === credit.value" [attr.aria-pressed]="teamCredit() === credit.value" (click)="teamCredit.set(credit.value)">{{ credit.label }}</button>
         }
       </div>
-      <span class="help">{{ teamMode() === 'SOLO_ONLY' ? 'Everyone plays alone.' : creditHelp() + ' 0 players means no limit.' }} Answers and points are always per person.</span>
+      <span class="help">{{ creditHelp() }} Teams are set up by admins for the whole site and are optional: players without a team play solo. Answers and points are always per person.</span>
     </div>
         <div class="form-grid">
       <div class="field"><span class="label" id="fac-label">Facilitators</span>
         <div class="row" role="group" aria-labelledby="fac-label">
           @for (person of store.facilitators(); track person.id) {
             <span class="tag fac">{{ person.username }}
-              <button type="button" class="tag-x" [attr.aria-label]="'Remove ' + person.username" [disabled]="savingFacilitators()"
-                      (click)="removeFacilitator(person)"><app-icon name="close" size="sm" /></button></span>
+              @if (session.isAdmin()) {
+                <button type="button" class="tag-x" [attr.aria-label]="'Remove ' + person.username" [disabled]="savingFacilitators()"
+                        (click)="removeFacilitator(person)"><app-icon name="close" size="sm" /></button>
+              }</span>
+          } @empty {
+            @if (!session.isAdmin()) {<span class="small muted">None</span>}
           }
+          @if (session.isAdmin()) {
           <button type="button" class="btn sm ghost" [matMenuTriggerFor]="facMenu" [disabled]="savingFacilitators()"
                   [title]="store.addable().length ? '' : 'Every account with the Facilitator role is on this lab'">
             <app-icon name="plus" size="sm" />Add</button>
+          }
           <mat-menu #facMenu="matMenu">
             @for (person of store.addable(); track person.id) {
               <button mat-menu-item type="button" (click)="addFacilitator(person)">{{ person.username }}</button>
@@ -368,7 +363,7 @@
             }
           </mat-menu>
         </div>
-        <span class="help">They start and stop its shared environment, run its live view and award points. Admins can run every lab.</span>
+        <span class="help">They start and stop its environment copies, run its live view and award points. Admins run every lab and are the only ones who assign facilitators.</span>
       </div>
         </div>
       </section>

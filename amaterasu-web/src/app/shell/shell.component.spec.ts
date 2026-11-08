@@ -24,7 +24,7 @@ describe('ShellComponent', () => {
         provideNoopAnimations(),
         { provide: AuthService, useValue: auth },
         { provide: LabTrackerService, useValue: { getMyLabTrackers: () => of([]), getMyTeamIds: () => of([]) } },
-        { provide: RoomService, useValue: { getAllRooms: () => of({ data: [] }), checkJoinable: () => of({ data: {} }) } },
+        { provide: RoomService, useValue: { getAllRooms: () => of({ data: [] }), getProgress: () => of({ data: [] }) } },
         { provide: WebsocketService, useValue: { getMessage: () => EMPTY } },
         { provide: SearchService, useValue: { search: () => of({ query: '', hits: [] }) } },
         { provide: NotificationsService, useValue: { list: () => of({ content: [], last: true }), unreadCount: () => of(0) } },

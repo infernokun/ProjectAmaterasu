@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.services.entity.ctf;
 
+import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.models.entities.ctf.dto.*;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomOverview.ChallengeState;
@@ -34,6 +35,7 @@ public class FlagService {
     private final RoomService roomService;
     private final ApplicationEventPublisher events;
     private final AuditService auditService;
+    private final CurrentUser currentUser;
 
     public Flag saveFlag(Flag flag) {
         return this.flagRepository.save(flag);
@@ -84,16 +86,15 @@ public class FlagService {
         Room room = roomService.findByRoomId(ctfEntityAnswerRequest.getRoomId());
         CTFEntity ctfEntity = ctfEntityService.findCTFEntityByIdWithFlags(ctfEntityAnswerRequest.getQuestionId());
 
-        // Verify user is in the room
-        RoomUser roomUser = roomUserService.findByUserAndRoom(user, room)
-                .orElseThrow(() -> new IllegalStateException("Join this lab to answer its questions"));
-
+        currentUser.requireCanSee(room);
         if (ctfEntity.getRoom() == null || !room.getId().equals(ctfEntity.getRoom().getId())) {
             throw new IllegalArgumentException("That question is not in this lab");
         }
-        if (roomUser.getRoomUserStatus() != RoomUserStatus.JOINED) {
-            throw new IllegalStateException("Join the lab to answer its questions");
+        if (roomUserService.findByUserAndRoom(user, room).map(seat -> seat.getRoomUserStatus() == RoomUserStatus.KICKED
+                || seat.getRoomUserStatus() == RoomUserStatus.BANNED).orElse(false)) {
+            throw new IllegalStateException("You can no longer answer in this lab");
         }
+        RoomUser roomUser = roomUserService.seatFor(user, room);
         ChallengeState state = RoomPlayService.stateOf(ctfEntity, LocalDateTime.now());
         if (state == ChallengeState.LOCKED) {
             throw new IllegalStateException("This challenge is not open yet");

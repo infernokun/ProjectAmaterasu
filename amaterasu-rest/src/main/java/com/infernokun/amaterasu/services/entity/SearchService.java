@@ -2,7 +2,6 @@ package com.infernokun.amaterasu.services.entity;
 
 import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.models.entities.Team;
-import com.infernokun.amaterasu.services.entity.ctf.LabTeamService;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
@@ -12,7 +11,6 @@ import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.enums.LabType;
 import com.infernokun.amaterasu.models.enums.Role;
-import com.infernokun.amaterasu.models.enums.RoomUserStatus;
 import com.infernokun.amaterasu.models.enums.ServerType;
 import com.infernokun.amaterasu.models.search.SearchResults;
 import com.infernokun.amaterasu.models.search.SearchResults.Hit;
@@ -36,9 +34,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * The top bar search. Everyone finds their team's labs, the lab catalog, rooms and released
- * challenges in rooms they joined. Authors also find every lab, room and challenge; admins also
- * find users, teams and servers.
+ * The top bar search. Everyone finds their team's lab copies, the lab catalog, published labs and
+ * their released challenges. Authors also find every lab, room and challenge; admins also find
+ * users, teams and servers.
  */
 @Service
 @RequiredArgsConstructor
@@ -48,7 +46,6 @@ public class SearchService {
 
     private final EntityManager entityManager;
     private final CurrentUser currentUser;
-    private final LabTeamService labTeamService;
 
     @Transactional(readOnly = true)
     public SearchResults search(String rawQuery, int limit) {
@@ -62,15 +59,10 @@ public class SearchService {
         User caller = currentUser.user();
         boolean admin = currentUser.isAdmin();
         boolean author = admin || currentUser.hasRole(Role.CREATOR);
-        Set<String> joined = joinedRooms(caller.getId());
-
-        List<Hit> hits = new ArrayList<>();
-        for (Team team : labTeamService.teamsOf(caller)) {
-            hits.addAll(teamLabs(team, pattern, query, max));
-        }
+        List<Hit> hits = new ArrayList<>(teamLabs(caller.getTeam(), pattern, query, max));
         hits.addAll(labs(author, pattern, query, max));
-        hits.addAll(rooms(joined, pattern, query, max));
-        hits.addAll(challenges(author, joined, pattern, query, max));
+        hits.addAll(rooms(author, pattern, query, max));
+        hits.addAll(challenges(author, pattern, query, max));
         if (admin) {
             hits.addAll(users(pattern, query, max));
             hits.addAll(teams(pattern, query, max));
@@ -108,28 +100,26 @@ public class SearchService {
                 .toList();
     }
 
-    private List<Hit> rooms(Set<String> joined, String pattern, String query, int max) {
+    private List<Hit> rooms(boolean author, String pattern, String query, int max) {
         List<Room> rooms = list(entityManager.createQuery(
-                "SELECT r FROM Room r WHERE LOWER(r.name) LIKE :q ESCAPE '\\' ORDER BY r.name", Room.class)
+                "SELECT r FROM Room r WHERE LOWER(r.name) LIKE :q ESCAPE '\\'"
+                        + (author ? "" : " AND (r.published IS NULL OR r.published = true)") + " ORDER BY r.name", Room.class)
                 .setParameter("q", pattern), max);
         return ranked(rooms, Room::getName, query, max).stream()
                 .map(room -> new Hit(Type.ROOM, room.getId(), room.getName(),
-                        joined.contains(room.getId()) ? "Joined" : "Not joined", null, null))
+                        room.isLive() ? null : "Draft", null, null))
                 .toList();
     }
 
-    private List<Hit> challenges(boolean author, Set<String> joined, String pattern, String query, int max) {
-        if (!author && joined.isEmpty()) {
-            return List.of();
-        }
+    private List<Hit> challenges(boolean author, String pattern, String query, int max) {
         String jpql = "SELECT c FROM CTFEntity c WHERE c.room IS NOT NULL"
                 + " AND (LOWER(c.question) LIKE :q ESCAPE '\\' OR LOWER(c.category) LIKE :q ESCAPE '\\')"
-                + (author ? "" : " AND c.room.id IN :joined AND (c.visible IS NULL OR c.visible = true)"
+                + (author ? "" : " AND (c.room.published IS NULL OR c.room.published = true) AND (c.visible IS NULL OR c.visible = true)"
                 + " AND (c.isActive IS NULL OR c.isActive = true) AND (c.releaseDate IS NULL OR c.releaseDate <= :now)")
                 + " ORDER BY c.question";
         TypedQuery<CTFEntity> typed = entityManager.createQuery(jpql, CTFEntity.class).setParameter("q", pattern);
         if (!author) {
-            typed.setParameter("joined", joined).setParameter("now", LocalDateTime.now());
+            typed.setParameter("now", LocalDateTime.now());
         }
         LocalDateTime now = LocalDateTime.now();
         return ranked(list(typed, max), CTFEntity::getQuestion, query, max).stream()
@@ -188,15 +178,6 @@ public class SearchService {
                             null, status != null ? status.name() : null);
                 })
                 .toList();
-    }
-
-    private Set<String> joinedRooms(String userId) {
-        return entityManager.createQuery(
-                        "SELECT ru.room.id FROM RoomUser ru WHERE ru.user.id = :user AND ru.roomUserStatus = :joined", String.class)
-                .setParameter("user", userId)
-                .setParameter("joined", RoomUserStatus.JOINED)
-                .getResultStream()
-                .collect(Collectors.toSet());
     }
 
     // Enough candidates to rank by prefix without loading whole tables

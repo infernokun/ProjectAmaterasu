@@ -22,6 +22,7 @@
     @if (showAccess()) {
       <app-lab-access [tracker]="tracker()" [compact]="true" />
     }
+    @if (session.canRun()) {
     <div class="life" aria-label="Lifecycle">
       <span [class]="stepClass('run')"><span class="node"></span>Running</span>
       <span class="life-line"></span>
@@ -29,6 +30,7 @@
       <span class="life-line"></span>
       <span [class]="stepClass('stop')"><span class="node"></span>Stopped, copy destroyed</span>
     </div>
+    }
   </div>
 
   @if (confirming()) {

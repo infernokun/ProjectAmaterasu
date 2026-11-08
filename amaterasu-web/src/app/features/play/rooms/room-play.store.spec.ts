@@ -23,8 +23,8 @@ describe('RoomPlayStore', () => {
 
   beforeEach(() => {
     overview = {
-      room: { id: 'r1', name: 'Winter Range', surroundTag: null, creator: null, facilitators: [], scenario: '## Situation', environmentMode: 'NONE', canRun: false, teamMode: 'TEAMS_OPTIONAL', maxTeamSize: 4, teamCredit: 'SEE_TEAMMATES' },
-      playerCount: 2, teamCount: 1, me: { joined: true, points: 0, rank: 1, solved: 1, teamId: null, teamName: null },
+      room: { id: 'r1', name: 'Winter Range', surroundTag: null, creator: null, facilitators: [], scenario: '## Situation', environmentMode: 'NONE', canRun: false, teamCredit: 'SEE_TEAMMATES' },
+      playerCount: 2, teamCount: 1, me: { points: 0, rank: 1, solved: 1, teamId: null, teamName: null },
       challenges: [challenge('sqli', 'Web', true), challenge('xss', 'Web'), challenge('rot', 'Crypto')],
       environment: null, files: [],
     };
@@ -39,7 +39,7 @@ describe('RoomPlayStore', () => {
         { provide: PlayApiService, useValue: api },
         { provide: AuthService, useValue: auth },
         { provide: WebsocketService, useValue: { getMessage: () => socket.asObservable() } },
-        { provide: RoomsStore, useValue: { setCurrentRoom: jasmine.createSpy('setCurrentRoom'), join: () => of({}) } },
+        { provide: RoomsStore, useValue: { setCurrentRoom: jasmine.createSpy('setCurrentRoom') } },
       ],
     });
   });

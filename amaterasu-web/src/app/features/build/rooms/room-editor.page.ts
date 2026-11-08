@@ -15,7 +15,7 @@ import { MarkdownComponent } from '../../../shared/ui/markdown.component';
 import { LabBuilderPage } from '../labs/lab-builder.page';
 import { EnvironmentView } from '../../play/data/play.models';
 import { ScenarioCardComponent } from '../../play/labs/scenario-card.component';
-import { AuthorChallenge, EnvironmentMode, LabFileView, Person, RoomChanges, TeamCredit, TeamMode } from './authoring.service';
+import { AuthorChallenge, EnvironmentMode, LabFileView, Person, RoomChanges, TeamCredit } from './authoring.service';
 
 type WizardStep = 'scenario' | 'environment' | 'questions' | 'teams' | 'publish';
 import { NEW_ID, RoomEditorStore, scheduleLabel } from './room-editor.store';
@@ -49,7 +49,7 @@ export function wrapperParts(tag: string): { prefix: string; suffix: string; nam
 })
 export class RoomEditorPage {
   protected readonly store = inject(RoomEditorStore);
-  private readonly session = inject(SessionStore);
+  protected readonly session = inject(SessionStore);
   private readonly crumbs = inject(CrumbsService);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
@@ -86,36 +86,29 @@ export class RoomEditorPage {
   protected readonly scenario = linkedSignal(() => this.store.room()?.scenario ?? '');
   protected readonly envMode = linkedSignal<EnvironmentMode>(() => this.store.room()?.environmentMode ?? 'NONE');
   protected readonly envId = linkedSignal(() => this.store.room()?.environmentId ?? '');
-  protected readonly teamMode = linkedSignal<TeamMode>(() => this.store.room()?.teamMode ?? 'TEAMS_OPTIONAL');
-  protected readonly teamSize = linkedSignal(() => this.store.room()?.maxTeamSize ?? 0);
   protected readonly teamCredit = linkedSignal<TeamCredit>(() => this.store.room()?.teamCredit ?? 'SEE_TEAMMATES');
   protected readonly roomDirty = computed(() => {
     const room = this.store.room();
     return !!room && (this.roomName().trim() !== room.name || this.roomTag().trim() !== room.surroundTag
       || this.scenario().trim() !== room.scenario.trim() || this.envMode() !== room.environmentMode
       || (this.envMode() !== 'NONE' && this.envId() !== (room.environmentId ?? ''))
-      || this.teamMode() !== room.teamMode || this.teamSize() !== (room.maxTeamSize ?? 0) || this.teamCredit() !== room.teamCredit);
+      || this.teamCredit() !== room.teamCredit);
   });
-  protected readonly teamModes: { value: TeamMode; label: string }[] = [
-    { value: 'SOLO_ONLY', label: 'Solo only' }, { value: 'TEAMS_OPTIONAL', label: 'Teams optional' }, { value: 'TEAMS_REQUIRED', label: 'Teams required' },
-  ];
   protected readonly credits: { value: TeamCredit; label: string; help: string }[] = [
-    { value: 'SEE_TEAMMATES', label: 'See teammates', help: 'Everyone answers for themselves and sees which teammates solved each question.' },
-    { value: 'SHARED_SOLVES', label: 'Shared solves', help: "One member's solve counts for the team; the points go to whoever answered." },
+    { value: 'SEE_TEAMMATES', label: 'See teammates', help: "Teammates see each other's solves; everyone answers for themselves." },
+    { value: 'SHARED_SOLVES', label: 'Shared solves', help: "A teammate's solve counts for the whole team; the points go to whoever answered." },
   ];
   protected readonly creditHelp = computed(() => this.credits.find(credit => credit.value === this.teamCredit())?.help ?? '');
   protected readonly roomProblem = computed(() => {
     if (!this.roomName().trim()) return 'Give the lab a name.';
     if (!this.scenario().trim()) return 'Write the scenario players read first.';
     if (this.envMode() !== 'NONE' && !this.envId()) return 'Pick the environment players work in.';
-    if (this.envMode() === 'PER_TEAM' && this.teamMode() === 'SOLO_ONLY') return 'One copy per team needs teams. Allow teams, or run one shared copy.';
-    if (!(this.teamSize() >= 0 && this.teamSize() <= 50)) return 'Teams can have up to 50 players, or 0 for no limit.';
     return null;
   });
   protected readonly envModes: { value: EnvironmentMode; label: string; help: string }[] = [
     { value: 'NONE', label: 'No environment', help: 'A plain CTF. Players see No setup needed.' },
-    { value: 'SHARED', label: 'Shared', help: 'One running copy for everyone. Facilitators start and stop it.' },
-    { value: 'PER_TEAM', label: 'One per team', help: 'Each team starts its own copy.' },
+    { value: 'SHARED', label: 'Shared', help: 'One running copy for everyone. Admins and the lab\'s facilitators start and stop it.' },
+    { value: 'PER_TEAM', label: 'One per team', help: 'Each team gets its own copy, and players without a team share a Solo copy. Admins and the lab\'s facilitators start them.' },
   ];
   protected readonly envHelp = computed(() => this.envModes.find(mode => mode.value === this.envMode())?.help ?? '');
   protected readonly placeholderHelp = 'Markdown. {{address}}, {{username}}, {{subnet}} and {{password}} fill in from the running environment; the password shows as a masked chip.';
@@ -127,7 +120,7 @@ export class RoomEditorPage {
     const count = this.store.challenges().length;
     const players = this.store.players();
     return `${count} ${count === 1 ? 'question' : 'questions'} · ${this.store.totalPoints().toLocaleString('en-US')} pts available · `
-      + `${players} ${players === 1 ? 'player' : 'players'} joined`;
+      + `${players} ${players === 1 ? 'player' : 'players'} so far`;
   });
   protected readonly visibility = computed(() => {
     const draft = this.store.draft();
@@ -145,13 +138,8 @@ export class RoomEditorPage {
   });
 
   protected readonly envName = computed(() => this.store.labs().find(lab => lab.id === this.store.room()?.environmentId)?.name ?? 'An environment');
-  protected readonly teamLabel = computed(() => {
-    const room = this.store.room();
-    if (room?.teamMode === 'SOLO_ONLY') return 'Solo';
-    const size = room?.maxTeamSize ? `, up to ${room.maxTeamSize}` : '';
-    return (room?.teamMode === 'TEAMS_REQUIRED' ? 'Teams required' : 'Teams optional') + size
-      + (room?.teamCredit === 'SHARED_SOLVES' ? ', shared solves' : '');
-  });
+  protected readonly teamLabel = computed(() =>
+    this.store.room()?.teamCredit === 'SHARED_SOLVES' ? 'Shared team solves' : 'Teammates see solves');
   protected readonly previewGroups = computed(() => {
     const groups = new Map<string, AuthorChallenge[]>();
     for (const question of this.store.challenges()) {
@@ -380,7 +368,7 @@ export class RoomEditorPage {
     return {
       name: this.roomName().trim(), surroundTag: this.roomTag().trim(), scenario: this.scenario().trim(),
       environmentMode: mode, ...(mode === 'NONE' ? {} : { environmentId: this.envId() }),
-      teamMode: this.teamMode(), maxTeamSize: this.teamSize(), teamCredit: this.teamCredit(),
+      teamCredit: this.teamCredit(),
     };
   }
 

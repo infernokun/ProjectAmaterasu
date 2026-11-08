@@ -18,9 +18,10 @@ describe('RoomEditorPage', () => {
   let fixture: ComponentFixture<RoomEditorPage>;
   let api: jasmine.SpyObj<AuthoringService>;
   const el = () => fixture.nativeElement as HTMLElement;
+  let auth: FakeAuthService;
 
   beforeEach(async () => {
-    const auth = new FakeAuthService();
+    auth = new FakeAuthService();
     auth.signIn({ id: 'c1', username: 'aokafor' }, 'CREATOR');
     api = jasmine.createSpyObj<AuthoringService>('AuthoringService', [
       'room', 'challenges', 'players', 'facilitators', 'facilitatorCandidates', 'setFacilitators', 'reorder', 'labs', 'update', 'files',
@@ -28,7 +29,7 @@ describe('RoomEditorPage', () => {
     ]);
     api.files.and.returnValue(of([]));
     api.room.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null,
-      scenario: '## Situation\nA quiet range.', environmentMode: 'NONE' as const, environmentId: null, teamMode: 'TEAMS_OPTIONAL' as const, maxTeamSize: 4, teamCredit: 'SEE_TEAMMATES' as const, published: true }));
+      scenario: '## Situation\nA quiet range.', environmentMode: 'NONE' as const, environmentId: null, teamCredit: 'SEE_TEAMMATES' as const, published: true }));
     api.challenges.and.returnValue(of([challenge('SQLi Login Bypass', { labId: 'lab1' }), challenge('Kerberoast'), challenge('Memory Lane')]));
     api.players.and.returnValue(of(38));
     api.facilitators.and.returnValue(of([{ id: 'u1', username: 'dkim' }]));
@@ -57,7 +58,14 @@ describe('RoomEditorPage', () => {
     fixture.detectChanges();
   }
 
-  it('lists the room facilitators and removes one', async () => {
+  it('shows a creator the facilitators without letting them change who runs the lab', () => {
+    goTo('teams');
+    expect([...el().querySelectorAll('.tag.fac')].map(t => t.textContent!.trim())).toEqual(['dkim']);
+    expect(el().querySelector('[aria-label="Remove dkim"]')).toBeNull();
+  });
+
+  it('lets an admin remove a facilitator', async () => {
+    auth.signIn({ id: 'a1', username: 'root' }, 'ADMIN');
     goTo('teams');
     const tags = el().querySelectorAll('.tag.fac');
     expect([...tags].map(t => t.textContent!.trim())).toEqual(['dkim']);
@@ -98,7 +106,7 @@ describe('RoomEditorPage', () => {
     fixture.detectChanges();
 
     api.updateRoom.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null,
-      scenario: '## Situation\nA quiet range.', environmentMode: 'SHARED' as const, environmentId: 'lab1', teamMode: 'TEAMS_OPTIONAL' as const, maxTeamSize: 4, teamCredit: 'SEE_TEAMMATES' as const, published: true }));
+      scenario: '## Situation\nA quiet range.', environmentMode: 'SHARED' as const, environmentId: 'lab1', teamCredit: 'SEE_TEAMMATES' as const, published: true }));
     [...el().querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent!.trim() === 'Save')!.click();
     await fixture.whenStable();
     expect(api.updateRoom).toHaveBeenCalledWith('r1', jasmine.objectContaining({
@@ -131,7 +139,7 @@ describe('RoomEditorPage steps', () => {
     ]);
     api.labs.and.returnValue(of([{ id: 'lab1', name: 'Hunt', published: true }]));
     api.createRoom.and.returnValue(of({ id: 'r9', name: 'Night Shift', surroundTag: 'CTF{x}', updatedAt: null, scenario: 'x',
-      environmentMode: 'NONE' as const, environmentId: null, teamMode: 'TEAMS_OPTIONAL' as const, maxTeamSize: 4,
+      environmentMode: 'NONE' as const, environmentId: null,
       teamCredit: 'SEE_TEAMMATES' as const, published: false }));
     TestBed.configureTestingModule({
       imports: [RoomEditorPage],

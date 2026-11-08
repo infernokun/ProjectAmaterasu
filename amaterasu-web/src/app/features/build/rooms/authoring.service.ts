@@ -6,7 +6,6 @@ import { ApiResponse } from '../../../models/api-response.model';
 import { EnvironmentService } from '../../../services/environment.service';
 
 export type EnvironmentMode = 'NONE' | 'SHARED' | 'PER_TEAM';
-export type TeamMode = 'SOLO_ONLY' | 'TEAMS_OPTIONAL' | 'TEAMS_REQUIRED';
 export type TeamCredit = 'SEE_TEAMMATES' | 'SHARED_SOLVES';
 
 /** A lab as authors edit it. It is stored as a room; its environment is a lab definition. */
@@ -18,9 +17,7 @@ export interface AuthorRoom {
   scenario: string;
   environmentMode: EnvironmentMode;
   environmentId: string | null;
-  teamMode: TeamMode;
-  /** Null for no limit. */
-  maxTeamSize: number | null;
+  /** How site-wide teams count in this lab. */
   teamCredit: TeamCredit;
   /** Drafts are only seen by authors and the lab's facilitators. */
   published: boolean;
@@ -33,9 +30,6 @@ export interface RoomChanges {
   scenario?: string;
   environmentMode?: EnvironmentMode;
   environmentId?: string | null;
-  teamMode?: TeamMode;
-  /** 0 for no limit. */
-  maxTeamSize?: number;
   teamCredit?: TeamCredit;
   published?: boolean;
 }
@@ -237,8 +231,6 @@ export function toRoom(raw: any): AuthorRoom {
     id: raw.id, name: raw.name ?? 'Untitled lab', surroundTag: raw.surroundTag ?? 'CTF{x}', updatedAt: raw.updatedAt ?? null,
     scenario: raw.scenario ?? '', environmentMode: raw.environmentId ? raw.environmentMode ?? 'NONE' : 'NONE',
     environmentId: raw.environmentId ?? null,
-    teamMode: raw.teamMode ?? 'TEAMS_OPTIONAL',
-    maxTeamSize: raw.maxTeamSize ?? null,
     teamCredit: raw.teamCredit ?? 'SEE_TEAMMATES',
     published: raw.published !== false,
   };

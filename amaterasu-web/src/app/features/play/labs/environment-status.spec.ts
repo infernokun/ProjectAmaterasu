@@ -45,4 +45,25 @@ describe('withTrackerChange', () => {
     expect(withTrackerChange(perTeam, 'lab1', theirs, false, 'red')).toBe(perTeam);
     expect(withTrackerChange(perTeam, 'lab1', theirs, false, 'blue').trackerId).toBe('t2');
   });
+
+  it('follows the Solo copy for a viewer without a team', () => {
+    const perTeam: EnvironmentView = { ...shared, mode: 'PER_TEAM' };
+    const solo = new LabTracker({ id: 't3', labStatus: LabStatus.ACTIVE, labStarted: { id: 'def1' }, solo: true });
+    expect(withTrackerChange(perTeam, 'lab1', solo, false, 'red')).toBe(perTeam);
+    expect(withTrackerChange(perTeam, 'lab1', solo, false, null).trackerId).toBe('t3');
+  });
+
+  it("updates the matching copy in the list for those who run the lab", () => {
+    const perTeam: EnvironmentView = {
+      ...shared, mode: 'PER_TEAM', canControl: true, copies: [
+        { target: 'team:red', label: 'Red', teamId: 'red', solo: false, members: 2, status: 'NOT_RUNNING', trackerId: null, tracker: null },
+        { target: 'solo', label: 'Solo copy', teamId: null, solo: true, members: 1, status: 'NOT_RUNNING', trackerId: null, tracker: null },
+      ],
+    };
+    const red = new LabTracker({ id: 't4', labStatus: LabStatus.ACTIVE, labStarted: { id: 'def1' }, labOwner: { id: 'red' } });
+    const changed = withTrackerChange(perTeam, 'lab1', red, false, null);
+    expect(changed.copies![0].status).toBe('RUNNING');
+    expect(changed.copies![1].trackerId).toBeNull();
+    expect(changed.trackerId).toBeNull();
+  });
 });

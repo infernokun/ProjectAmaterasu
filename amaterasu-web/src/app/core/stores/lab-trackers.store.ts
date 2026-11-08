@@ -35,7 +35,7 @@ interface LabTrackersState extends RequestState {
   updatedAt: number | null;
   /** Catalog labs being started for the team, by lab id. */
   starting: Record<string, true>;
-  /** The caller's teams: their Admin team and their teams inside labs. */
+  /** The caller's team, if they are on one. */
   teamIds: string[];
 }
 
@@ -56,8 +56,9 @@ function serverTransition(action: string | null | undefined): LabTransition | un
 const RUNNING = new Set<LabStatus | undefined>([LabStatus.ACTIVE, LabStatus.DEGRADED, LabStatus.ACTIVE_FAILED, LabStatus.FAILED_ACTIVE]);
 
 /**
- * The signed-in user's team labs (lab trackers). Loads when the user or team changes and applies
- * live updates from the socket.
+ * The signed-in user's environment copies: their team's, or the Solo copies when they have no team.
+ * Loads when the user or team changes and applies live updates from the socket. Only admins and
+ * facilitators may act on them; the API refuses everyone else.
  */
 export const LabTrackersStore = signalStore(
   { providedIn: 'root' },
@@ -107,14 +108,15 @@ export const LabTrackersStore = signalStore(
         const { [trackerId]: _, ...pending } = store.pending();
         patchState(store, { pending });
       },
-      /** Applies a socket message; ignores trackers that belong to another team. */
+      /** Applies a socket message; ignores copies that are not the caller's: another team's, or shared ones. */
       applySocketMessage(message: LabTrackerSocketMessage): void {
         const tracker = new LabTracker(message.labTracker);
         if (!tracker.id) {
           return;
         }
         const known = store.trackers().some(existing => existing.id === tracker.id);
-        if (!known && !store.teamIds().includes(tracker.labOwner?.id ?? '')) {
+        const mine = tracker.solo ? !store.teamIds().length : store.teamIds().includes(tracker.labOwner?.id ?? '');
+        if (!known && (!mine || tracker.roomId)) {
           return;
         }
         if (message.action === 'removed' || tracker.labStatus === LabStatus.DELETED) {

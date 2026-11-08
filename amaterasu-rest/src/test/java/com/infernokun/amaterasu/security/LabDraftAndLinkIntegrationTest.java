@@ -73,7 +73,9 @@ class LabDraftAndLinkIntegrationTest extends IntegrationSupport {
         Lab draft = lab(LabType.DOCKER_COMPOSE, false);
         var server = server(ServerType.DOCKER_HOST, true);
         Team team = team();
-        for (String token : List.of(token(user(Role.MEMBER, team)), token(user(Role.ADMIN, team)))) {
+        send(post("/api/labs/start"), Map.of("labId", draft.getId(), "remoteServerId", server.getId()),
+                token(user(Role.MEMBER, team))).andExpect(status().isForbidden());
+        for (String token : List.of(token(user(Role.ADMIN, team)))) {
             JsonNode body = objectMapper.readTree(send(post("/api/labs/start"),
                     Map.of("labId", draft.getId(), "remoteServerId", server.getId()), token)
                     .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString());
@@ -156,10 +158,12 @@ class LabDraftAndLinkIntegrationTest extends IntegrationSupport {
     // Challenges that use a lab
 
     @Test
-    void playersSeeReleasedChallengesForALabInRoomsTheyJoined() throws Exception {
+    void playersSeeReleasedChallengesForALabInPublishedLabs() throws Exception {
         Lab lab = lab(LabType.DOCKER_COMPOSE, true);
         Room joined = room();
         Room notJoined = room();
+        notJoined.setPublished(false);
+        roomRepository.save(notJoined);
         User player = user(Role.MEMBER, team());
         RoomUser seat = join(player, joined);
 
@@ -203,7 +207,7 @@ class LabDraftAndLinkIntegrationTest extends IntegrationSupport {
         // Facilitators follow the player rule
         JsonNode staff = data(call(get("/api/ctf-entity/by-lab/" + lab.getId()), token(user(Role.FACILITATOR, null)))
                 .andExpect(status().isOk()).andReturn());
-        assertThat(staff).isEmpty();
+        assertThat(ids(staff)).containsExactly(open.getId());
         call(get("/api/ctf-entity/by-lab/" + lab.getId()), null).andExpect(status().isUnauthorized());
         call(get("/api/ctf-entity/by-lab/missing"), token(player)).andExpect(status().isNotFound());
     }

@@ -41,7 +41,7 @@ describe('ScoreboardPage team points', () => {
         provideRouter([]),
         { provide: AuthService, useValue: auth },
         { provide: PlayApiService, useValue: { standings: () => of(standings) } },
-        { provide: RoomService, useValue: { getAllRooms: () => of({ data: [] }), checkJoinable: () => of({ data: {} }) } },
+        { provide: RoomService, useValue: { getAllRooms: () => of({ data: [] }), getProgress: () => of({ data: [] }) } },
         { provide: WebsocketService, useValue: { getMessage: () => EMPTY } },
       ],
     });

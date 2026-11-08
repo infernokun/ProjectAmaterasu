@@ -52,7 +52,7 @@ export class HomePage {
     return total ? Math.round(((current?.me.solved ?? 0) / total) * 100) : 0;
   });
 
-  protected readonly roomCards = computed(() => this.rooms.joinedRooms().map(room => {
+  protected readonly roomCards = computed(() => this.rooms.playedRooms().map(room => {
     const overview = this.home.overviews()[room.id!];
     const total = overview?.challenges.length ?? 0;
     const solved = overview?.me.solved ?? 0;
