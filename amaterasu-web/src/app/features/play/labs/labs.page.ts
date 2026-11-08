@@ -50,8 +50,9 @@ import { ENVIRONMENT_STATUS_META, environmentStatus, trackerOf, withTrackerChang
               } @else {
                 <span class="tag accent">No setup needed</span>
               }
+              <span class="tag">{{ teamLabel(card) }}</span>
               @if (card.joined) {
-                <span class="tag">Joined</span>
+                <span class="tag">{{ card.teamName ? 'On ' + card.teamName : 'Joined' }}</span>
               }
             </div>
             <h3 class="h3"><a class="name" [routerLink]="['/labs', card.id]">{{ card.name }}</a></h3>
@@ -143,7 +144,7 @@ export class LabsPage {
         const removed = message.action === 'removed';
         this.cards.update(cards => cards.map(card => {
           if (!card.environment) return card;
-          const environment = withTrackerChange(card.environment, card.id, tracker, removed, this.session.teamId());
+          const environment = withTrackerChange(card.environment, card.id, tracker, removed, card.teamId);
           return environment === card.environment ? card : { ...card, environment };
         }));
       });
@@ -160,7 +161,16 @@ export class LabsPage {
     }
   }
 
+  protected teamLabel(card: LabCard): string {
+    return card.teamMode === 'SOLO_ONLY' ? 'Solo' : card.teamMode === 'TEAMS_REQUIRED' ? 'Teams required' : 'Teams optional';
+  }
+
+  /** Solo labs join here; otherwise the lab page asks solo, which team, or a new one. */
   protected async join(card: LabCard): Promise<void> {
+    if (card.teamMode !== 'SOLO_ONLY') {
+      this.router.navigate(['/labs', card.id], { queryParams: { join: 1 } });
+      return;
+    }
     this.busy.set(card.id);
     try {
       await firstValueFrom(this.rooms.join(card.id));

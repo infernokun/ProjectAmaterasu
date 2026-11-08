@@ -39,3 +39,6 @@ label.btn { cursor: pointer; }
 .file-row .mono { overflow-wrap: anywhere; }
 label.btn.disabled { opacity: .6; pointer-events: none; }
 .scenario-field { margin-top: 16px; }
+.team-field { margin-top: 16px; }
+.size-pick { gap: 8px; align-items: center; }
+.size-pick .input { width: 80px; }

@@ -86,7 +86,9 @@ A lab is what players open from the Labs tab. Each one has a Markdown scenario, 
 | Shared | One copy for everyone in the lab; its facilitators and admins start and stop it |
 | One per team | Each team starts its own copy |
 
-A scenario can use `{{address}}`, `{{username}}`, `{{subnet}}` and `{{password}}`; they fill in from the running copy, and the password shows as a masked chip. Labs are stored as rooms, so the API paths are `/api/room/...`. On the first start of this version, every existing room became a lab with the environment its questions used (one copy per team) or none, and every published environment that no room used got a lab of its own.
+Teams live inside a lab. A lab is solo only, teams optional or teams required, with a team size limit; players join solo, join a team in that lab or create one. Answers and points are per person; with *see teammates* players see which teammates solved each question, and with *shared solves* one member's solve counts for the whole team. A team's environment copy belongs to its team in that lab. Teams under Admin, Users and teams are organisation-wide and separate from lab teams.
+
+A scenario can use `{{address}}`, `{{username}}`, `{{subnet}}` and `{{password}}`; they fill in from the running copy, and the password shows as a masked chip. Labs are stored as rooms, so the API paths are `/api/room/...`. On the first start of this version, every existing room became a lab with the environment its questions used (one copy per team) or none, and every published environment that no room used got a lab of its own. On the first start after teams moved into labs, each Admin team that played a lab became a team in that lab with the same players, and its copies of that lab's environment moved to it.
 
 ## Environment lifecycle
 

@@ -32,6 +32,18 @@ public class CTFAnswerService {
                         .build());
     }
 
+    /** A teammate's correct answer to the question, if one of them solved it. */
+    public Optional<CTFEntityAnswer> solvedByTeammate(RoomUser roomUser, CTFEntity ctfEntity) {
+        if (roomUser.getTeam() == null) {
+            return Optional.empty();
+        }
+        return ctfAnswerRepository.findByCtfEntityId(ctfEntity.getId()).stream()
+                .filter(answer -> Boolean.TRUE.equals(answer.getCorrect()) && !answer.getRoomUser().getId().equals(roomUser.getId())
+                        && answer.getRoomUser().getTeam() != null
+                        && answer.getRoomUser().getTeam().getId().equals(roomUser.getTeam().getId()))
+                .findFirst();
+    }
+
     public List<CTFEntityAnswer> findByRoomUserId(RoomUser roomUser) {
         return ctfAnswerRepository.findByRoomUserId(roomUser.getId());
     }

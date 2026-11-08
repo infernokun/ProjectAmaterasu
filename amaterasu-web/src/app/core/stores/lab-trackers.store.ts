@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { EMPTY, Observable, catchError, filter, firstValueFrom, of, pipe, switchMap, tap } from 'rxjs';
+import { EMPTY, Observable, catchError, filter, firstValueFrom, forkJoin, of, pipe, switchMap, tap } from 'rxjs';
 import { LabStatus } from '../../enums/lab-status.enum';
 import { LabTracker } from '../../models/lab/lab-tracker.model';
 import { ApiResponse } from '../../models/api-response.model';
@@ -35,6 +35,8 @@ interface LabTrackersState extends RequestState {
   updatedAt: number | null;
   /** Catalog labs being started for the team, by lab id. */
   starting: Record<string, true>;
+  /** The caller's teams: their Admin team and their teams inside labs. */
+  teamIds: string[];
 }
 
 /** How a lab action ended, with a message to show. */
@@ -59,7 +61,7 @@ const RUNNING = new Set<LabStatus | undefined>([LabStatus.ACTIVE, LabStatus.DEGR
  */
 export const LabTrackersStore = signalStore(
   { providedIn: 'root' },
-  withState<LabTrackersState>({ trackers: [], pending: {}, updatedAt: null, starting: {}, ...initialRequestState }),
+  withState<LabTrackersState>({ trackers: [], pending: {}, updatedAt: null, starting: {}, teamIds: [], ...initialRequestState }),
   withComputed(({ trackers, pending, status }) => ({
     loading: computed(() => status() === 'loading'),
     /** Trackers still on the team; removed ones are left out. */
@@ -83,8 +85,9 @@ export const LabTrackersStore = signalStore(
     };
     const fetch = rxMethod<string | undefined>(pipe(
       tap(() => patchState(store, { status: 'loading', error: null })),
-      switchMap(teamId => (teamId ? trackerService.getLabTrackersByTeam(teamId) : of([])).pipe(
-        tap(trackers => patchState(store, { trackers, status: 'loaded', updatedAt: Date.now() })),
+      switchMap(userId => (userId ? forkJoin([trackerService.getMyLabTrackers(), trackerService.getMyTeamIds()])
+        : of([[], []] as [LabTracker[], string[]])).pipe(
+        tap(([trackers, teamIds]) => patchState(store, { trackers, teamIds, status: 'loaded', updatedAt: Date.now() })),
         catchError(error => {
           patchState(store, { status: 'error', error: errorMessage(error) ?? 'Team environments could not be loaded.' });
           return EMPTY;
@@ -93,7 +96,7 @@ export const LabTrackersStore = signalStore(
     ));
     return {
       load(): void {
-        fetch(session.teamId());
+        fetch(session.userId());
       },
       upsert,
       remove,
@@ -111,8 +114,7 @@ export const LabTrackersStore = signalStore(
           return;
         }
         const known = store.trackers().some(existing => existing.id === tracker.id);
-        const teamId = session.teamId();
-        if (!known && (!teamId || tracker.labOwner?.id !== teamId)) {
+        if (!known && !store.teamIds().includes(tracker.labOwner?.id ?? '')) {
           return;
         }
         if (message.action === 'removed' || tracker.labStatus === LabStatus.DELETED) {
@@ -122,7 +124,7 @@ export const LabTrackersStore = signalStore(
         }
       },
       reset(): void {
-        patchState(store, { trackers: [], pending: {}, updatedAt: null, starting: {}, ...initialRequestState });
+        patchState(store, { trackers: [], pending: {}, updatedAt: null, starting: {}, teamIds: [], ...initialRequestState });
       },
     };
   }),

@@ -19,8 +19,9 @@ describe('LabTrackersStore', () => {
   beforeEach(() => {
     auth = new FakeAuthService();
     socket = new Subject();
-    trackerService = jasmine.createSpyObj<LabTrackerService>('LabTrackerService', ['getLabTrackersByTeam']);
-    trackerService.getLabTrackersByTeam.and.returnValue(of([tracker('a', LabStatus.ACTIVE), tracker('b', LabStatus.PAUSED)]));
+    trackerService = jasmine.createSpyObj<LabTrackerService>('LabTrackerService', ['getMyLabTrackers', 'getMyTeamIds']);
+    trackerService.getMyLabTrackers.and.returnValue(of([tracker('a', LabStatus.ACTIVE), tracker('b', LabStatus.PAUSED)]));
+    trackerService.getMyTeamIds.and.returnValue(of(['t1', 'lab-team']));
     TestBed.configureTestingModule({
       providers: [
         { provide: AuthService, useValue: auth },
@@ -37,9 +38,9 @@ describe('LabTrackersStore', () => {
     return store;
   }
 
-  it("loads the team's labs once signed in", () => {
+  it("loads the copies of every team the user is on once signed in", () => {
     const store = signedInStore();
-    expect(trackerService.getLabTrackersByTeam).toHaveBeenCalledWith('t1');
+    expect(trackerService.getMyLabTrackers).toHaveBeenCalled();
     expect(store.teamLabs().map(t => t.id)).toEqual(['a', 'b']);
     expect(store.runningCount()).toBe(1);
   });
@@ -48,11 +49,13 @@ describe('LabTrackersStore', () => {
     const store = signedInStore();
     socket.next({ type: 'labTracker', action: 'updated', labTracker: { id: 'b', labStatus: 'ACTIVE', labOwner: { id: 't1' } } });
     socket.next({ type: 'labTracker', action: 'updated', labTracker: { id: 'x', labStatus: 'ACTIVE', labOwner: { id: 't2' } } });
+    socket.next({ type: 'labTracker', action: 'updated', labTracker: { id: 'y', labStatus: 'ACTIVE', labOwner: { id: 'lab-team' } } });
     socket.next({ type: 'heartbeat' });
 
     expect(store.byId().get('b')?.labStatus).toBe(LabStatus.ACTIVE);
     expect(store.byId().has('x')).toBeFalse();
-    expect(store.runningCount()).toBe(2);
+    expect(store.byId().has('y')).toBeTrue();
+    expect(store.runningCount()).toBe(3);
   });
 
   it('drops removed and deleted trackers', () => {

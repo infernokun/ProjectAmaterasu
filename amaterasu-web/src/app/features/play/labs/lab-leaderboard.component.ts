@@ -63,6 +63,8 @@ export class LabLeaderboardComponent {
 
   readonly labId = input.required<string>();
   readonly limit = input(10);
+  /** The viewer's team in this lab. */
+  readonly myTeamId = input<string | null>(null);
 
   protected readonly view = signal<View>('people');
   private readonly standings = signal<RoomStandings | null>(null);
@@ -73,7 +75,7 @@ export class LabLeaderboardComponent {
     if (!standings) return [];
     const rows = this.view() === 'teams'
       ? standings.teams.map(team => ({ id: team.teamId, rank: team.rank, name: team.name, points: team.points, solves: team.solves,
-        sub: `${team.members} ${team.members === 1 ? 'member' : 'members'} here`, you: team.teamId === this.session.teamId() }))
+        sub: `${team.members} ${team.members === 1 ? 'member' : 'members'} here`, you: team.teamId === this.myTeamId() }))
       : standings.players.map(player => ({ id: player.userId, rank: player.rank, name: player.username, points: player.points,
         solves: player.solves, sub: player.teamName ?? '', you: player.userId === this.session.userId() }));
     return rows.slice(0, this.limit());

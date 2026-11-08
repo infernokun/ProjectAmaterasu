@@ -2,6 +2,8 @@ package com.infernokun.amaterasu.models.entities.ctf.dto.play;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.infernokun.amaterasu.models.enums.EnvironmentMode;
+import com.infernokun.amaterasu.models.enums.TeamCredit;
+import com.infernokun.amaterasu.models.enums.TeamMode;
 
 import java.time.Instant;
 import java.util.List;
@@ -22,11 +24,12 @@ public record RoomOverview(
 
     /** {@code canRun} is true for the lab's facilitators and admins. */
     public record RoomInfo(String id, String name, String surroundTag, String creator, List<String> facilitators,
-                           String scenario, EnvironmentMode environmentMode, boolean canRun) {
+                           String scenario, EnvironmentMode environmentMode, boolean canRun, TeamMode teamMode,
+                           Integer maxTeamSize, TeamCredit teamCredit) {
     }
 
-    /** The viewer's standing; joined is false when they have not joined the room. */
-    public record Me(boolean joined, int points, int rank, int solved) {
+    /** The viewer's standing and team in this lab; joined is false when they have not joined. */
+    public record Me(boolean joined, int points, int rank, int solved, String teamId, String teamName) {
     }
 
     public enum ChallengeState { OPEN, LOCKED, EXPIRED }
@@ -49,7 +52,9 @@ public record RoomOverview(
             List<HintView> hints,
             int attempts,
             boolean solved,
-            @JsonFormat(shape = JsonFormat.Shape.STRING) Instant solvedAt) {
+            @JsonFormat(shape = JsonFormat.Shape.STRING) Instant solvedAt,
+            /* Teammates who solved it; with SHARED_SOLVES that solves it for the viewer too. */
+            List<String> solvedByTeammates) {
     }
 
     /** A file a question names; {@code fileId} is set when the lab has a file by that name to download. */

@@ -18,6 +18,7 @@ import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
 import com.infernokun.amaterasu.services.entity.lab.LabService;
 import com.infernokun.amaterasu.services.entity.lab.LabTrackerService;
 import com.infernokun.amaterasu.services.entity.lab.RemoteServerService;
+import com.infernokun.amaterasu.services.entity.ctf.LabTeamService;
 import com.infernokun.amaterasu.utils.AESUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -36,16 +37,19 @@ public class LabTrackerController extends BaseController {
     private final LabService labService;
     private final CurrentUser currentUser;
     private final AESUtil aesUtil;
+    private final LabTeamService labTeamService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<LabTracker>>> getAllLabTrackers(@RequestParam(required = false) HashMap<String, String> params) {
-        if (!currentUser.isAdmin()) {
-            // Members only ever see their own team's labs
-            Team team = currentUser.user().getTeam();
+        if (!currentUser.isAdmin() || params.containsKey("mine")) {
+            // Members only ever see their own teams' copies: their Admin team and their teams inside labs
+            List<LabTracker> mine = labTeamService.teamsOf(currentUser.user()).stream()
+                    .flatMap(team -> labTrackerService.findLabTrackerByTeamId(team.getId()).stream())
+                    .toList();
             return ResponseEntity.ok(ApiResponse.<List<LabTracker>>builder()
                     .code(HttpStatus.OK.value())
-                    .message("Lab trackers for your team retrieved successfully.")
-                    .data(team == null ? List.of() : labTrackerService.findLabTrackerByTeamId(team.getId()))
+                    .message("Lab trackers for your teams retrieved successfully.")
+                    .data(mine)
                     .build());
         }
         if (!params.isEmpty()) {

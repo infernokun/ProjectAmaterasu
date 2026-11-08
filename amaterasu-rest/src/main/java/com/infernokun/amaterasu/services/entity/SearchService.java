@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.services.entity;
 
 import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.models.entities.Team;
+import com.infernokun.amaterasu.services.entity.ctf.LabTeamService;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
@@ -47,6 +48,7 @@ public class SearchService {
 
     private final EntityManager entityManager;
     private final CurrentUser currentUser;
+    private final LabTeamService labTeamService;
 
     @Transactional(readOnly = true)
     public SearchResults search(String rawQuery, int limit) {
@@ -63,7 +65,9 @@ public class SearchService {
         Set<String> joined = joinedRooms(caller.getId());
 
         List<Hit> hits = new ArrayList<>();
-        hits.addAll(teamLabs(caller.getTeam(), pattern, query, max));
+        for (Team team : labTeamService.teamsOf(caller)) {
+            hits.addAll(teamLabs(team, pattern, query, max));
+        }
         hits.addAll(labs(author, pattern, query, max));
         hits.addAll(rooms(joined, pattern, query, max));
         hits.addAll(challenges(author, joined, pattern, query, max));

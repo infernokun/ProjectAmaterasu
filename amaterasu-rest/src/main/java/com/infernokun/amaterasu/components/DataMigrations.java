@@ -7,6 +7,15 @@ import com.infernokun.amaterasu.models.enums.EnvironmentMode;
 import com.infernokun.amaterasu.repositories.ctf.CTFEntityRepository;
 import com.infernokun.amaterasu.repositories.ctf.RoomRepository;
 import com.infernokun.amaterasu.repositories.lab.LabRepository;
+import com.infernokun.amaterasu.repositories.lab.LabTrackerRepository;
+import com.infernokun.amaterasu.repositories.TeamRepository;
+import com.infernokun.amaterasu.repositories.ctf.RoomUserRepository;
+import com.infernokun.amaterasu.models.entities.Team;
+import com.infernokun.amaterasu.models.entities.ctf.RoomUser;
+import com.infernokun.amaterasu.models.entities.lab.LabTracker;
+import com.infernokun.amaterasu.models.enums.LabStatus;
+import com.infernokun.amaterasu.models.enums.TeamCredit;
+import com.infernokun.amaterasu.models.enums.TeamMode;
 import com.infernokun.amaterasu.utils.AmaterasuConstants;
 import com.infernokun.amaterasu.utils.ScenarioText;
 import jakarta.persistence.EntityManager;
@@ -42,6 +51,9 @@ public class DataMigrations implements ApplicationRunner {
     private final CTFEntityRepository ctfEntityRepository;
     private final RoomRepository roomRepository;
     private final LabRepository labRepository;
+    private final RoomUserRepository roomUserRepository;
+    private final TeamRepository teamRepository;
+    private final LabTrackerRepository labTrackerRepository;
     private final PlatformTransactionManager transactionManager;
 
     @Override
@@ -51,6 +63,7 @@ public class DataMigrations implements ApplicationRunner {
             publishExistingLabs();
             orderExistingChallenges();
             mergeRoomsAndLabs();
+            moveTeamsIntoLabs();
         });
     }
 
@@ -175,5 +188,63 @@ public class DataMigrations implements ApplicationRunner {
             candidate = base + " (" + n + ")";
         }
         return candidate;
+    }
+
+    /**
+     * Teams moved inside labs. For each lab from before (no team mode yet), the Admin teams of the
+     * players who joined it become teams in that lab with the same members, and their copies of the
+     * lab's environment move to those teams. Labs then allow teams, sized for the biggest one.
+     */
+    public void moveTeamsIntoLabs() {
+        for (Room room : roomRepository.findAll()) {
+            if (room.getTeamMode() != null) {
+                continue;
+            }
+            Map<String, Team> byGlobal = new LinkedHashMap<>();
+            for (RoomUser seat : roomUserRepository.findByRoomId(room.getId())) {
+                Team global = seat.getUser() != null ? seat.getUser().getTeam() : null;
+                if (seat.getTeam() != null || global == null || global.getRoomId() != null) {
+                    continue;
+                }
+                Team labTeam = byGlobal.computeIfAbsent(global.getId(), id -> teamRepository.findByRoomId(room.getId()).stream()
+                        .filter(team -> team.getName() != null && team.getName().equalsIgnoreCase(global.getName()))
+                        .findFirst()
+                        .orElseGet(() -> teamRepository.save(Team.builder().name(global.getName())
+                                .description(global.getDescription()).roomId(room.getId()).build())));
+                seat.setTeam(labTeam);
+                roomUserRepository.save(seat);
+            }
+            if (room.getEnvironment() != null && room.effectiveMode() == EnvironmentMode.PER_TEAM) {
+                byGlobal.forEach((globalId, labTeam) -> {
+                    Team global = teamRepository.findById(globalId).orElse(null);
+                    if (global == null) {
+                        return;
+                    }
+                    for (LabTracker tracker : labTrackerRepository.findAllByLabStartedAndLabOwnerAndLabStatusNot(
+                            room.getEnvironment(), global, LabStatus.DELETED)) {
+                        if (tracker.isShared()) {
+                            continue;
+                        }
+                        tracker.setLabOwner(labTeam);
+                        labTrackerRepository.save(tracker);
+                        global.getTeamActiveLabs().remove(tracker.getId());
+                        if (!labTeam.getTeamActiveLabs().contains(tracker.getId())) {
+                            labTeam.getTeamActiveLabs().add(tracker.getId());
+                        }
+                        log.info("{}'s copy of {} now belongs to its team in {}", global.getName(),
+                                room.getEnvironment().getName(), room.getName());
+                    }
+                    teamRepository.save(global);
+                    teamRepository.save(labTeam);
+                });
+            }
+            int largest = byGlobal.values().stream()
+                    .mapToInt(team -> (int) roomUserRepository.findByTeamId(team.getId()).size()).max().orElse(0);
+            room.setTeamMode(TeamMode.TEAMS_OPTIONAL);
+            room.setMaxTeamSize(Math.max(4, largest));
+            room.setTeamCredit(TeamCredit.SEE_TEAMMATES);
+            roomRepository.save(room);
+            log.info("{} now has {} team(s) inside it", room.getName(), byGlobal.size());
+        }
     }
 }

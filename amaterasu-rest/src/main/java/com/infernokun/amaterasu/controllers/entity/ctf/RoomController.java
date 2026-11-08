@@ -11,6 +11,7 @@ import com.infernokun.amaterasu.models.entities.ctf.dto.JoinRoomResponse;
 import com.infernokun.amaterasu.models.entities.ctf.dto.RoomJoinableRequest;
 import com.infernokun.amaterasu.models.entities.ctf.dto.RoomRequest;
 import com.infernokun.amaterasu.models.enums.EnvironmentMode;
+import com.infernokun.amaterasu.models.enums.TeamMode;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
@@ -196,6 +197,7 @@ public class RoomController {
         room.setScenario(roomService.requireScenario(request.scenario()));
         roomService.applyEnvironment(room, request.environmentMode() == null ? EnvironmentMode.NONE : request.environmentMode(),
                 request.environmentId());
+        roomService.applyTeams(room, request.teamMode(), request.maxTeamSize(), request.teamCredit());
         room.setCreator(currentUser.user());
         Room savedRoom = this.roomService.saveRoom(room);
         auditService.record("ROOM_CREATED", "ROOM", savedRoom.getId(), savedRoom.getName(), null, null);
@@ -213,6 +215,10 @@ public class RoomController {
         currentUser.requireSelfOrAdmin(userId);
         User user = userService.findUserById(userId);
         Room room = roomService.findByRoomId(roomId);
+        if (room.effectiveTeamMode() == TeamMode.TEAMS_REQUIRED
+                && roomUserService.findByUserAndRoom(user, room).map(RoomUser::getTeam).isEmpty()) {
+            throw new IllegalArgumentException(room.getName() + " is played in teams. Join or create a team on its page.");
+        }
 
         if (roomUserService.findByUserAndRoom(user, room).isPresent()) {
             RoomUser roomUser = roomUserService.findByUserAndRoom(user, room).get();
@@ -373,6 +379,7 @@ public class RoomController {
                     request.environmentMode() != null ? request.environmentMode() : existingRoom.effectiveMode(),
                     request.environmentId() != null ? request.environmentId() : existingRoom.getEnvironmentId());
         }
+        roomService.applyTeams(existingRoom, request.teamMode(), request.maxTeamSize(), request.teamCredit());
         existingRoom.setUpdatedAt(LocalDateTime.now());
         Room updatedRoom = this.roomService.saveRoom(existingRoom);
         auditService.record("ROOM_UPDATED", "ROOM", id, updatedRoom.getName(), null, null);

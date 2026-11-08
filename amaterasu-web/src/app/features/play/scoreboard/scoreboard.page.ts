@@ -67,7 +67,7 @@ export class ScoreboardPage {
       return this.store.teams().map(team => ({
         id: team.teamId, rank: team.rank, name: team.name, sub: memberCount(team.teamSize ?? team.members),
         points: team.points, solves: team.solves, hints: team.hintsUsed, last: clock(team.lastSolveAt) || '-',
-        trend: trend(team.lastHourChange), you: team.teamId === this.session.teamId(), link: null,
+        trend: trend(team.lastHourChange), you: team.teamId === this.store.myTeam()?.teamId, link: null,
       }));
     }
     return this.store.players().map(player => ({
@@ -109,7 +109,7 @@ export class ScoreboardPage {
     const source = this.teams()
       ? this.store.teams().map(team => ({ id: team.teamId, name: team.name, history: team.history }))
       : this.store.players().map(player => ({ id: player.userId, name: player.username, history: player.history }));
-    return topSeries(source, this.teams() ? this.session.teamId() : this.session.userId());
+    return topSeries(source, this.teams() ? this.store.myTeam()?.teamId : this.session.userId());
   });
 
   protected readonly chartLabel = computed(() => {
