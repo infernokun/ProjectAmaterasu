@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { filter, firstValueFrom } from 'rxjs';
 import { errorMessage } from '../../../core/http-error';
 import { roomActivity } from '../../../core/room-activity';
@@ -10,6 +10,7 @@ import { SessionStore } from '../../../core/stores/session.store';
 import { LabTracker } from '../../../models/lab/lab-tracker.model';
 import { WebsocketService } from '../../../services/websocket.service';
 import { points } from '../../../shared/format';
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
@@ -17,10 +18,13 @@ import { PageHeaderComponent } from '../../../shared/ui/page-header.component';
 import { SkeletonComponent } from '../../../shared/ui/skeleton.component';
 import { StatusBadgeComponent } from '../../../shared/ui/status-badge.component';
 import { PlayApiService } from '../data/play-api.service';
-import { LabCard } from '../data/play.models';
+import { EnvironmentView, LabCard } from '../data/play.models';
 import { ENVIRONMENT_STATUS_META, environmentStatus, trackerOf, withTrackerChange } from './environment-status';
 
-/** Every lab: its scenario in a line, whether its environment runs, and how far you got. */
+/**
+ * Every lab: its scenario in a line, whether its environment runs, and how far you got. Anyone can open
+ * any lab; admins and facilitators also start and stop shared environments from here.
+ */
 @Component({
   selector: 'app-labs-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -47,12 +51,11 @@ import { ENVIRONMENT_STATUS_META, environmentStatus, trackerOf, withTrackerChang
               @if (card.view.meta; as meta) {
                 <app-status-badge [tone]="meta.tone" [label]="meta.label" />
                 <span class="tag">{{ card.environmentMode === 'SHARED' ? 'Shared environment' : 'Team copies' }}</span>
+                @if (card.environmentMode === 'PER_TEAM' && card.canRun && card.environment!.copiesRunning) {
+                  <span class="tag">{{ card.environment!.copiesRunning }} running</span>
+                }
               } @else {
                 <span class="tag accent">No setup needed</span>
-              }
-              <span class="tag">{{ teamLabel(card) }}</span>
-              @if (card.joined) {
-                <span class="tag">{{ card.teamName ? 'On ' + card.teamName : 'Joined' }}</span>
               }
             </div>
             <h3 class="h3"><a class="name" [routerLink]="['/labs', card.id]">{{ card.name }}</a></h3>
@@ -62,7 +65,7 @@ import { ENVIRONMENT_STATUS_META, environmentStatus, trackerOf, withTrackerChang
             <div class="small muted">
               {{ card.questionCount }} {{ card.questionCount === 1 ? 'question' : 'questions' }} · {{ card.playerCount }} {{ card.playerCount === 1 ? 'player' : 'players' }}
             </div>
-            @if (card.joined) {
+            @if (card.points || card.solved) {
               <div class="bar" aria-hidden="true"><span [style.width.%]="card.view.pct"></span></div>
               <div class="row between small muted">
                 <span>{{ card.solved }} of {{ card.questionCount }} solved</span>
@@ -72,13 +75,20 @@ import { ENVIRONMENT_STATUS_META, environmentStatus, trackerOf, withTrackerChang
             <div class="grow-space"></div>
             <div class="row">
               <a class="btn sm primary" [routerLink]="['/labs', card.id]" (click)="rooms.setCurrentRoom(card.id)"><app-icon name="flask" size="sm" />Open lab</a>
-              @if (card.joined) {
-                <a class="btn sm" [routerLink]="['/labs', card.id, 'scoreboard']"><app-icon name="trophy" size="sm" />Scoreboard</a>
+              <a class="btn sm" [routerLink]="['/labs', card.id, 'scoreboard']"><app-icon name="trophy" size="sm" />Scoreboard</a>
+              @if (card.canRun && card.environment; as env) {
                 <span class="grow"></span>
-                <button type="button" class="btn sm ghost" [disabled]="busy() === card.id" (click)="leave(card)">Leave</button>
-              } @else {
-                <button type="button" class="btn sm" [disabled]="busy() === card.id" (click)="join(card)">
-                  @if (busy() === card.id) {<app-icon name="spinner" size="sm" [spin]="true" />}{{ card.left ? 'Rejoin' : 'Join' }}</button>
+                @if (card.environmentMode === 'SHARED' && env.canControl) {
+                  @if (busy() === card.id) {
+                    <button type="button" class="btn sm" disabled><app-icon name="spinner" size="sm" [spin]="true" />Working</button>
+                  } @else if (card.view.status === 'RUNNING' || card.view.status === 'PAUSED') {
+                    <button type="button" class="btn sm danger" (click)="stopShared(card)"><app-icon name="stop" size="sm" />Stop</button>
+                  } @else if (card.view.status !== 'STARTING') {
+                    <button type="button" class="btn sm" (click)="startShared(card)"><app-icon name="play" size="sm" />{{ card.view.status === 'FAILED' ? 'Start fresh' : 'Start' }}</button>
+                  }
+                } @else if (card.environmentMode === 'PER_TEAM') {
+                  <a class="btn sm ghost" [routerLink]="['/labs', card.id]" title="Start and stop each team's copy">Manage</a>
+                }
               }
             </div>
           </article>
@@ -109,7 +119,7 @@ export class LabsPage {
   protected readonly rooms = inject(RoomsStore);
   private readonly api = inject(PlayApiService);
   private readonly toast = inject(ToastService);
-  private readonly router = inject(Router);
+  private readonly confirm = inject(ConfirmService);
 
   protected readonly cards = signal<LabCard[]>([]);
   protected readonly loading = signal(true);
@@ -125,6 +135,7 @@ export class LabsPage {
       .map(card => ({
         ...card,
         view: {
+          status: card.environment ? environmentStatus(trackerOf(card.environment)) : null,
           meta: card.environment ? ENVIRONMENT_STATUS_META[environmentStatus(trackerOf(card.environment))] : null,
           pct: card.questionCount ? Math.round((card.solved / card.questionCount) * 100) : 0,
         },
@@ -161,39 +172,35 @@ export class LabsPage {
     }
   }
 
-  protected teamLabel(card: LabCard): string {
-    return card.teamMode === 'SOLO_ONLY' ? 'Solo' : card.teamMode === 'TEAMS_REQUIRED' ? 'Teams required' : 'Teams optional';
+  /** Admins' and facilitators' quick Start for a shared lab. */
+  protected async startShared(card: LabCard): Promise<void> {
+    await this.act(card, 'start', `${card.name} is running`, `${card.name} did not start`);
   }
 
-  /** Solo labs join here; otherwise the lab page asks solo, which team, or a new one. */
-  protected async join(card: LabCard): Promise<void> {
-    if (card.teamMode !== 'SOLO_ONLY') {
-      this.router.navigate(['/labs', card.id], { queryParams: { join: 1 } });
-      return;
-    }
+  protected async stopShared(card: LabCard): Promise<void> {
+    const choice = await firstValueFrom(this.confirm.open({
+      title: `Stop ${card.name}?`,
+      message: 'The shared copy is destroyed and everyone working in it loses their progress there. To keep it, pause it from the lab page.',
+      confirmLabel: 'Stop and destroy',
+      typeToConfirm: card.name,
+    }));
+    if (choice === 'confirm') await this.act(card, 'stop', `${card.name} stopped`, `${card.name} did not stop`);
+  }
+
+  private async act(card: LabCard, action: 'start' | 'stop', done: string, failed: string): Promise<void> {
     this.busy.set(card.id);
     try {
-      await firstValueFrom(this.rooms.join(card.id));
-      this.rooms.setCurrentRoom(card.id);
-      this.toast.success(`Joined ${card.name}`);
-      this.router.navigate(['/labs', card.id]);
+      const result = await firstValueFrom(this.api.environmentAction(card.id, action, 'shared'));
+      if (result.environment) this.setEnvironment(card.id, { ...result.environment, copies: [] });
+      this.toast.success(done);
     } catch (error) {
-      this.toast.error(`Could not join ${card.name}`, error);
+      this.toast.error(failed, error);
     } finally {
       this.busy.set('');
     }
   }
 
-  protected async leave(card: LabCard): Promise<void> {
-    this.busy.set(card.id);
-    try {
-      await firstValueFrom(this.rooms.leave(card.id));
-      this.toast.success(`Left ${card.name}. Your points stay if you rejoin.`);
-      await this.load();
-    } catch (error) {
-      this.toast.error(`Could not leave ${card.name}`, error);
-    } finally {
-      this.busy.set('');
-    }
+  private setEnvironment(cardId: string, environment: EnvironmentView): void {
+    this.cards.update(cards => cards.map(card => (card.id === cardId ? { ...card, environment } : card)));
   }
 }

@@ -111,8 +111,8 @@ class LabEnvironmentIntegrationTest extends IntegrationSupport {
         flag.setCtfEntity(question);
         question.setFlags(new ArrayList<>(List.of(flag)));
         ctfEntityRepository.save(question);
+        // Nobody joins: a player opens the lab and answers
         User player = user(Role.MEMBER, null);
-        join(player, room);
         String token = token(player);
 
         JsonNode card = cardFor(room, token);
@@ -126,16 +126,18 @@ class LabEnvironmentIntegrationTest extends IntegrationSupport {
     }
 
     @Test
-    void facilitatorsRunTheSharedCopyAndJoinedPlayersReadItsLogin() throws Exception {
+    void facilitatorsRunTheSharedCopyAndEveryPlayerReadsItsLogin() throws Exception {
         Room room = lab(EnvironmentMode.SHARED, vmLab);
         User player = user(Role.MEMBER, team());
-        join(player, room);
         String playerToken = token(player);
         String facilitatorToken = token(facilitator);
 
         assertThat(environment(room, playerToken).get("status").asText()).isEqualTo("NOT_RUNNING");
         assertThat(environment(room, playerToken).get("canControl").asBoolean()).isFalse();
+        assertThat(environment(room, playerToken).get("note").asText()).isEqualTo("Not running yet: an admin starts this environment.");
+        assertThat(environment(room, playerToken).get("copies").size()).isZero();
         assertThat(environment(room, facilitatorToken).get("canControl").asBoolean()).isTrue();
+        assertThat(environment(room, facilitatorToken).get("copies").get(0).get("target").asText()).isEqualTo("shared");
         send(post("/api/room/" + room.getId() + "/environment/start"), null, playerToken).andExpect(status().isForbidden());
         send(post("/api/room/" + room.getId() + "/environment/start"), null, token(user(Role.FACILITATOR, null)))
                 .andExpect(status().isForbidden());
@@ -162,7 +164,9 @@ class LabEnvironmentIntegrationTest extends IntegrationSupport {
         JsonNode login = data(call(get("/api/lab-tracker/" + trackerId + "/access"), playerToken).andExpect(status().isOk()).andReturn());
         assertThat(login.get("password").asText()).isEqualTo(VM_PASSWORD);
         assertThat(login.get("address").asText()).isEqualTo("10.0.0.77");
-        call(get("/api/lab-tracker/" + trackerId + "/access"), token(user(Role.MEMBER, team()))).andExpect(status().isForbidden());
+        call(get("/api/lab-tracker/" + trackerId + "/access"), token(user(Role.MEMBER, null))).andExpect(status().isOk());
+        // Logs and compose files can hold answers
+        call(get("/api/lab-tracker/logs/" + trackerId + "/" + pve.getId() + "/all"), playerToken).andExpect(status().isForbidden());
 
         send(post("/api/room/" + room.getId() + "/environment/stop"), null, playerToken).andExpect(status().isForbidden());
         JsonNode stopped = data(send(post("/api/room/" + room.getId() + "/environment/stop"), null, facilitatorToken)
@@ -183,40 +187,81 @@ class LabEnvironmentIntegrationTest extends IntegrationSupport {
     }
 
     @Test
-    void eachTeamInTheLabStartsItsOwnCopy() throws Exception {
+    void adminsAndFacilitatorsStartEachTeamsCopyAndTheSoloCopy() throws Exception {
         Room room = lab(EnvironmentMode.PER_TEAM, vmLab);
-        User redPlayer = user(Role.MEMBER, team());
-        User redMate = user(Role.MEMBER, null);
-        User bluePlayer = user(Role.MEMBER, team());
+        Team red = team();
+        Team blue = team();
+        User redPlayer = user(Role.MEMBER, red);
+        User redMate = user(Role.MEMBER, red);
+        User bluePlayer = user(Role.MEMBER, blue);
         String solo = token(user(Role.MEMBER, null));
-        send(post("/api/room/" + room.getId() + "/join"), Map.of(), solo).andExpect(status().isOk());
+        String start = "/api/room/" + room.getId() + "/environment/start";
+        String stop = "/api/room/" + room.getId() + "/environment/stop";
 
-        assertThat(environment(room, solo).get("note").asText()).contains("Join or create a team");
-        send(post("/api/room/" + room.getId() + "/environment/start"), null, solo).andExpect(status().isBadRequest());
+        JsonNode before = environment(room, token(redPlayer));
+        assertThat(before.get("canControl").asBoolean()).isFalse();
+        assertThat(before.get("note").asText()).isEqualTo("Not running yet: an admin starts this environment.");
+        assertThat(before.get("copies").size()).isZero();
+        assertThat(before.get("copyLabel").asText()).isEqualTo(red.getName() + "'s copy");
+        assertThat(environment(room, solo).get("copyLabel").asText()).isEqualTo("Solo copy");
 
-        String redTeam = data(send(post("/api/room/" + room.getId() + "/join"), Map.of("newTeamName", "Red"), token(redPlayer))
-                .andExpect(status().isOk()).andReturn()).get("teamId").asText();
-        send(post("/api/room/" + room.getId() + "/join"), Map.of("teamId", redTeam), token(redMate)).andExpect(status().isOk());
-        send(post("/api/room/" + room.getId() + "/join"), Map.of("newTeamName", "Blue"), token(bluePlayer)).andExpect(status().isOk());
+        // Players never run a copy, not even their own team's
+        send(post(start), Map.of("target", "team:" + red.getId()), token(redPlayer)).andExpect(status().isForbidden());
+        send(post(start), Map.of("target", "solo"), solo).andExpect(status().isForbidden());
+        // Per-team labs need to be told which copy
+        send(post(start), Map.of(), admin()).andExpect(status().isBadRequest());
 
-        JsonNode started = data(send(post("/api/room/" + room.getId() + "/environment/start"),
-                Map.of("remoteServerId", pve.getId()), token(redPlayer)).andExpect(status().isOk()).andReturn());
-        String trackerId = started.get("environment").get("trackerId").asText();
-        LabTracker tracker = labTrackerRepository.findById(trackerId).orElseThrow();
-        assertThat(tracker.getLabOwner().getId()).isEqualTo(redTeam);
-        assertThat(tracker.getLabOwner().getRoomId()).isEqualTo(room.getId());
+        List<String> targets = new ArrayList<>();
+        environment(room, token(facilitator)).get("copies").forEach(copy -> targets.add(copy.get("target").asText()));
+        assertThat(targets).contains("team:" + red.getId(), "team:" + blue.getId());
+        assertThat(targets.getLast()).isEqualTo("solo");
+
+        JsonNode started = data(send(post(start), Map.of("target", "team:" + red.getId(), "remoteServerId", pve.getId()),
+                token(facilitator)).andExpect(status().isOk()).andReturn());
+        String redCopy = copy(started.get("environment"), "team:" + red.getId()).get("trackerId").asText();
+        LabTracker tracker = labTrackerRepository.findById(redCopy).orElseThrow();
+        assertThat(tracker.getLabOwner().getId()).isEqualTo(red.getId());
         assertThat(tracker.getRoomId()).isNull();
+        assertThat(tracker.isSolo()).isFalse();
 
-        // A teammate works in the same copy
-        assertThat(environment(room, token(redMate)).get("trackerId").asText()).isEqualTo(trackerId);
-        call(get("/api/lab-tracker/" + trackerId + "/access"), token(redMate)).andExpect(status().isOk());
-        JsonNode mine = data(call(get("/api/lab-tracker"), token(redMate)).andExpect(status().isOk()).andReturn());
-        assertThat(mine.toString()).contains(trackerId);
+        // A teammate works in the same copy; other teams and solo players do not see it
+        assertThat(environment(room, token(redMate)).get("trackerId").asText()).isEqualTo(redCopy);
+        call(get("/api/lab-tracker/" + redCopy + "/access"), token(redMate)).andExpect(status().isOk());
+        assertThat(data(call(get("/api/lab-tracker"), token(redMate)).andExpect(status().isOk()).andReturn()).toString())
+                .contains(redCopy);
+        JsonNode blueView = environment(room, token(bluePlayer));
+        assertThat(blueView.get("status").asText()).isEqualTo("NOT_RUNNING");
+        assertThat(blueView.get("copiesRunning").asInt()).isEqualTo(1);
+        call(get("/api/lab-tracker/" + redCopy + "/access"), token(bluePlayer)).andExpect(status().isForbidden());
+        call(get("/api/lab-tracker/" + redCopy + "/access"), solo).andExpect(status().isForbidden());
 
-        JsonNode blue = environment(room, token(bluePlayer));
-        assertThat(blue.get("status").asText()).isEqualTo("NOT_RUNNING");
-        assertThat(blue.get("copiesRunning").asInt()).isEqualTo(1);
-        call(get("/api/lab-tracker/" + trackerId + "/access"), token(bluePlayer)).andExpect(status().isForbidden());
+        // Players without a team share the solo copy
+        JsonNode soloStarted = data(send(post(start), Map.of("target", "solo", "remoteServerId", pve.getId()), admin())
+                .andExpect(status().isOk()).andReturn());
+        String soloCopy = copy(soloStarted.get("environment"), "solo").get("trackerId").asText();
+        LabTracker soloTracker = labTrackerRepository.findById(soloCopy).orElseThrow();
+        assertThat(soloTracker.isSolo()).isTrue();
+        assertThat(soloTracker.getLabOwner()).isNull();
+        assertThat(environment(room, solo).get("trackerId").asText()).isEqualTo(soloCopy);
+        assertThat(environment(room, solo).get("status").asText()).isEqualTo("RUNNING");
+        call(get("/api/lab-tracker/" + soloCopy + "/access"), solo).andExpect(status().isOk());
+        call(get("/api/lab-tracker/" + soloCopy + "/access"), token(redPlayer)).andExpect(status().isForbidden());
+
+        send(post(stop), Map.of("target", "solo"), solo).andExpect(status().isForbidden());
+        send(post("/api/labs/stop"), Map.of("labTrackerId", soloCopy), solo).andExpect(status().isForbidden());
+        send(post(stop), Map.of("target", "solo"), token(facilitator)).andExpect(status().isOk());
+        send(post(stop), Map.of("target", "team:" + red.getId()), admin()).andExpect(status().isOk());
+        assertThat(labTrackerRepository.findById(redCopy).orElseThrow().getLabStatus()).isEqualTo(LabStatus.STOPPED);
+        assertThat(labTrackerRepository.findById(soloCopy).orElseThrow().getLabStatus()).isEqualTo(LabStatus.STOPPED);
+    }
+
+    private static JsonNode copy(JsonNode environment, String target) {
+        for (JsonNode copy : environment.get("copies")) {
+            if (target.equals(copy.get("target").asText())) {
+                return copy;
+            }
+        }
+        throw new AssertionError("No copy " + target + " in " + environment);
     }
 
     @Test

@@ -8,10 +8,8 @@ import com.infernokun.amaterasu.websocket.RoomActivityEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntityAnswer;
 import com.infernokun.amaterasu.models.entities.ctf.dto.JoinRoomResponse;
-import com.infernokun.amaterasu.models.entities.ctf.dto.RoomJoinableRequest;
 import com.infernokun.amaterasu.models.entities.ctf.dto.RoomRequest;
 import com.infernokun.amaterasu.models.enums.EnvironmentMode;
-import com.infernokun.amaterasu.models.enums.TeamMode;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
@@ -77,12 +75,12 @@ public class RoomController {
 
         if (params.containsKey("name")) {
             String roomName = params.get("name");
-            room = this.roomService.findByRoomName(roomName);
+            room = currentUser.requireCanSee(this.roomService.findByRoomName(roomName));
             message = String.format("Room with name '%s' retrieved successfully.", roomName);
 
         } else if (params.containsKey("id")) {
             String roomId = params.get("id");
-            room = this.roomService.findByRoomId(roomId);
+            room = currentUser.requireCanSee(this.roomService.findByRoomId(roomId));
             message = String.format("Room with ID '%s' retrieved successfully.", roomId);
         } else {
             throw new IllegalArgumentException("At least one search parameter is required: name, id, creator, or tag");
@@ -99,7 +97,7 @@ public class RoomController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Room>> getRoomById(@PathVariable String id) {
-        Room room = this.roomService.findByRoomId(id);
+        Room room = currentUser.requireCanSee(this.roomService.findByRoomId(id));
         return ResponseEntity.ok(
                 ApiResponse.<Room>builder()
                         .code(HttpStatus.OK.value())
@@ -113,10 +111,10 @@ public class RoomController {
     public ResponseEntity<ApiResponse<RoomUserProfileResponse>> getScoreboardUserInfo(@PathVariable String roomId) {
         User user = userService.findUserById(SecurityContextHolder.getContext().getAuthentication().getName());
 
-        Room room = roomService.findByRoomId(roomId);
+        Room room = currentUser.requireCanSee(roomService.findByRoomId(roomId));
         RoomUser roomUser = roomUserService.findByUserAndRoom(user, room)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "User is not a member of room " + roomId));
+                        "No answers in " + room.getName() + " yet"));
 
         List<CTFEntityAnswer> roomUserAnswers = ctfAnswerService.findByRoomUserId(roomUser);
 
@@ -161,7 +159,7 @@ public class RoomController {
 
     @GetMapping("/scoreboard/{roomId}/users")
     public ResponseEntity<ApiResponse<List<RoomUserResponse>>> getScoreboardUsersInfo(@PathVariable String roomId) {
-        // Get room users for the specific room, ordered by points descending
+        currentUser.requireCanSee(roomService.findByRoomId(roomId));
         List<RoomUser> roomUsers = roomUserService.findByRoomIdOrderByPointsDesc(roomId);
 
         if (roomUsers.isEmpty()) {
@@ -197,7 +195,7 @@ public class RoomController {
         room.setScenario(roomService.requireScenario(request.scenario()));
         roomService.applyEnvironment(room, request.environmentMode() == null ? EnvironmentMode.NONE : request.environmentMode(),
                 request.environmentId());
-        roomService.applyTeams(room, request.teamMode(), request.maxTeamSize(), request.teamCredit());
+        roomService.applyTeamCredit(room, request.teamCredit());
         room.setPublished(!Boolean.FALSE.equals(request.published()));
         room.setCreator(currentUser.user());
         Room savedRoom = this.roomService.saveRoom(room);
@@ -208,101 +206,6 @@ public class RoomController {
                         .message("Lab created successfully.")
                         .data(savedRoom)
                         .build());
-    }
-
-    @PostMapping("/join/{roomId}/{userId}")
-    public ResponseEntity<ApiResponse<JoinRoomResponse>> joinRoom(@PathVariable String userId,
-                                                                  @PathVariable String roomId) {
-        currentUser.requireSelfOrAdmin(userId);
-        User user = userService.findUserById(userId);
-        Room room = currentUser.requireCanSee(roomService.findByRoomId(roomId));
-        if (room.effectiveTeamMode() == TeamMode.TEAMS_REQUIRED
-                && roomUserService.findByUserAndRoom(user, room).map(RoomUser::getTeam).isEmpty()) {
-            throw new IllegalArgumentException(room.getName() + " is played in teams. Join or create a team on its page.");
-        }
-
-        if (roomUserService.findByUserAndRoom(user, room).isPresent()) {
-            RoomUser roomUser = roomUserService.findByUserAndRoom(user, room).get();
-            if (roomUser.getRoomUserStatus() == RoomUserStatus.JOINED) {
-                return buildSuccessResponse("User already joined this room", null, HttpStatus.CONFLICT);
-
-            }
-            roomUser.setUpdatedAt(LocalDateTime.now());
-            roomUser.setRoomUserStatus(RoomUserStatus.JOINED);
-            roomUserService.save(roomUser);
-
-            return buildSuccessResponse("User rejoined this room!",
-                    modelMapper.map(roomUser, JoinRoomResponse.class), HttpStatus.OK);
-        }
-
-        RoomUser roomUser = new RoomUser();
-        roomUser.setUser(user);
-        roomUser.setRoom(room);
-        roomUser.setPoints(0);
-        roomUser.setRoomUserStatus(RoomUserStatus.JOINED);
-        roomUser.setUpdatedAt(LocalDateTime.now());
-
-        roomUserService.save(roomUser);
-
-        return buildSuccessResponse("User " + user.getUsername() + " joined room " + room.getName(),
-                JoinRoomResponse.builder()
-                        .roomId(roomUser.getRoom().getId())
-                        .userId(roomUser.getUser().getId())
-                        .roomUserStatus(roomUser.getRoomUserStatus())
-                        .build(),
-                HttpStatus.OK);
-    }
-
-    @PostMapping("/leave/{roomId}/{userId}")
-    public ResponseEntity<ApiResponse<JoinRoomResponse>> leaveRoom(@PathVariable String userId,
-                                                                  @PathVariable String roomId) {
-        currentUser.requireSelfOrAdmin(userId);
-        User user = userService.findUserById(userId);
-        Room room = roomService.findByRoomId(roomId);
-
-        Optional<RoomUser> roomUserOpt = roomUserService.findByUserAndRoom(user, room);
-
-        if (roomUserOpt.isEmpty()) {
-            return buildSuccessResponse("User is not in this room", null, HttpStatus.BAD_REQUEST);
-        }
-
-        RoomUser roomUser = roomUserOpt.get();
-
-        if (roomUser.getRoomUserStatus() == RoomUserStatus.LEFT) {
-            return buildSuccessResponse("User already left this room", null, HttpStatus.CONFLICT);
-        }
-
-        roomUser.setRoomUserStatus(RoomUserStatus.LEFT);
-        roomUser.setUpdatedAt(LocalDateTime.now());
-        roomUser = roomUserService.save(roomUser);
-
-        return buildSuccessResponse("User left this room!",
-                JoinRoomResponse.builder()
-                        .roomId(roomUser.getRoom().getId())
-                        .userId(roomUser.getUser().getId())
-                        .roomUserStatus(roomUser.getRoomUserStatus())
-                        .build(),
-                HttpStatus.OK);
-    }
-
-    @PostMapping("/check-joinable")
-    public ResponseEntity<ApiResponse<Map<String, JoinRoomResponse>>> checkJoinable(
-            @RequestBody RoomJoinableRequest roomJoinableRequest) {
-
-        currentUser.requireSelfOrAdmin(roomJoinableRequest.getUserId());
-        List<RoomUser> eachRoomForUser = roomUserService.findByUserIdAndRoomIds(roomJoinableRequest.getUserId(),
-                roomJoinableRequest.getRoomIds());
-
-        Map<String, JoinRoomResponse> roomStatus = new HashMap<>();
-
-        eachRoomForUser.forEach(roomUser -> roomStatus.put(roomUser.getRoom().getId(), JoinRoomResponse.builder()
-                        .points(roomUser.getPoints())
-                        .roomId(roomUser.getRoom().getId())
-                        .userId(roomUser.getUser().getId())
-                        .roomUserStatus(roomUser.getRoomUserStatus())
-                .build()));
-
-        return buildSuccessResponse("Checked join status for rooms.", roomStatus, HttpStatus.OK);
     }
 
     @PostMapping("/many")
@@ -334,14 +237,7 @@ public class RoomController {
         }
 
         User user = userService.findUserById(userId);
-
-        Optional<RoomUser> roomUserOpt = roomUserService.findByUserAndRoom(user, room);
-
-        if (roomUserOpt.isEmpty()) {
-            return buildSuccessResponse("User is not in this room", null, HttpStatus.BAD_REQUEST);
-        }
-
-        RoomUser roomUser = roomUserOpt.get();
+        RoomUser roomUser = roomUserService.seatFor(user, room);
 
         int total = roomUser.getPoints() + points;
         roomUser.getPointsHistory().add(new PointsHistoryEntry(LocalDateTime.now(), total, points, reason,
@@ -380,7 +276,7 @@ public class RoomController {
                     request.environmentMode() != null ? request.environmentMode() : existingRoom.effectiveMode(),
                     request.environmentId() != null ? request.environmentId() : existingRoom.getEnvironmentId());
         }
-        roomService.applyTeams(existingRoom, request.teamMode(), request.maxTeamSize(), request.teamCredit());
+        roomService.applyTeamCredit(existingRoom, request.teamCredit());
         if (request.published() != null) {
             roomService.changePublished(existingRoom, request.published());
         }

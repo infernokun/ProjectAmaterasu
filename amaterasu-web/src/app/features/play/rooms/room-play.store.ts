@@ -28,7 +28,6 @@ interface RoomPlayState {
   wrongFor: string | null;
   answerError: string | null;
   hintBusy: string | null;
-  joining: boolean;
 }
 
 export interface SubmitOutcome {
@@ -40,7 +39,7 @@ export interface SubmitOutcome {
 export const RoomPlayStore = signalStore(
   withState<RoomPlayState>({
     roomId: null, overview: null, loading: false, error: null, selectedId: null, category: 'All', status: 'all',
-    submitting: false, wrongFor: null, answerError: null, hintBusy: null, joining: false,
+    submitting: false, wrongFor: null, answerError: null, hintBusy: null,
   }),
   withComputed(({ overview, selectedId, category, status }) => {
     // With shared solves a teammate's solve counts for the viewer too
@@ -69,7 +68,6 @@ export const RoomPlayStore = signalStore(
       categories,
       groups,
       selected,
-      joined: computed(() => !!overview()?.me.joined),
       solvedCount: computed(() => challenges().filter(challenge => challenge.done).length),
       sharedSolves: shared,
     };
@@ -95,7 +93,7 @@ export const RoomPlayStore = signalStore(
         patchState(store, { roomId, overview: null, loading: true, error: null, wrongFor: null, answerError: null });
         await reload();
         patchState(store, { loading: false });
-        if (store.overview()?.me.joined) {
+        if (store.overview()) {
           rooms.setCurrentRoom(roomId);
         }
       },
@@ -147,21 +145,6 @@ export const RoomPlayStore = signalStore(
           return errorMessage(error) ?? 'The hint could not be unlocked.';
         } finally {
           patchState(store, { hintBusy: null });
-        }
-      },
-      async join(): Promise<string | null> {
-        const roomId = store.roomId();
-        if (!roomId) return null;
-        patchState(store, { joining: true });
-        try {
-          await firstValueFrom(rooms.join(roomId));
-          rooms.setCurrentRoom(roomId);
-          await reload();
-          return null;
-        } catch (error) {
-          return errorMessage(error) ?? 'Could not join this room.';
-        } finally {
-          patchState(store, { joining: false });
         }
       },
     };

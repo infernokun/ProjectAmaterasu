@@ -57,6 +57,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         String admin = ADMIN.name();
         String[] authors = {ADMIN.name(), CREATOR.name()};
+        String[] runners = {ADMIN.name(), FACILITATOR.name()};
+        String[] staff = {ADMIN.name(), CREATOR.name(), FACILITATOR.name()};
 
         // Bearer tokens only, no cookies or sessions, so CSRF protection does not apply
         http.csrf(AbstractHttpConfigurer::disable)
@@ -84,13 +86,33 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/room/facilitated").hasAnyRole(admin, FACILITATOR.name())
                         .requestMatchers(HttpMethod.GET, "/api/room/facilitator-candidates", "/api/room/*/facilitators")
                                 .hasAnyRole(authors)
-                        .requestMatchers(HttpMethod.PUT, "/api/room/*/facilitators", "/api/room/*/order").hasAnyRole(authors)
+                        // Who runs a lab hands out lifecycle powers, so only admins pick facilitators
+                        .requestMatchers(HttpMethod.PUT, "/api/room/*/facilitators").hasRole(admin)
+                        .requestMatchers(HttpMethod.PUT, "/api/room/*/order").hasAnyRole(authors)
                         .requestMatchers(HttpMethod.PUT, "/api/labs/*/publish", "/api/labs/*/unpublish").hasAnyRole(authors)
                         // The controller filters it to what the caller may see
                         .requestMatchers(HttpMethod.GET, "/api/ctf-entity/by-lab/*").authenticated()
 
+                        // Environment lifecycle: admins, and facilitators for the labs they run (checked in
+                        // CurrentUser). Removing copies and catalog-wide clean up stay with admins.
+                        .requestMatchers(HttpMethod.POST, "/api/labs/start", "/api/labs/pause", "/api/labs/stop")
+                                .hasAnyRole(runners)
+                        .requestMatchers(HttpMethod.POST, "/api/labs/delete", "/api/labs/delete-lab-from-team").hasRole(admin)
+                        .requestMatchers(HttpMethod.POST, "/api/room/*/environment/**").hasAnyRole(runners)
+                        .requestMatchers(HttpMethod.POST, "/api/lab-tracker/*/restart/*").hasAnyRole(runners)
+                        .requestMatchers("/api/lab-tracker/settings/**", "/api/lab-tracker/logs/**").hasAnyRole(runners)
+
+                        // Teams are run by admins; everyone may ask which team they are on
+                        .requestMatchers(HttpMethod.GET, "/api/team/mine").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/team", "/api/team/**").hasAnyRole(runners)
+
+                        // Servers are for the people who build and run labs
+                        .requestMatchers(HttpMethod.GET, "/api/remote-server", "/api/remote-server/**",
+                                "/api/remote-server-stats", "/api/remote-server-stats/**").hasAnyRole(staff)
+
                         // Administration
                         .requestMatchers("/actuator/**").hasRole(admin)
+                        .requestMatchers(HttpMethod.GET, "/api/audit").hasRole(admin)
                         .requestMatchers(HttpMethod.GET, "/api/user").hasRole(admin)
                         .requestMatchers(HttpMethod.POST, "/api/user", "/api/user/many").hasRole(admin)
                         .requestMatchers(HttpMethod.PUT, "/api/user/**").hasRole(admin)
@@ -127,18 +149,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/ctf-entity", "/api/ctf-entity/batch").hasAnyRole(authors)
                         .requestMatchers(HttpMethod.PUT, "/api/ctf-entity/**").hasAnyRole(authors)
                         .requestMatchers(HttpMethod.DELETE, "/api/ctf-entity/**").hasAnyRole(authors)
-                        // Raw challenges include their flags; players only get the /by and list DTOs
-                        .requestMatchers(HttpMethod.GET, "/api/ctf-entity", "/api/ctf-entity/by").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/ctf-entity/**").hasAnyRole(authors)
+                        // Raw challenge lists are for authors; players get questions from the lab overview
+                        .requestMatchers(HttpMethod.GET, "/api/ctf-entity/**", "/api/ctf-entity").hasAnyRole(authors)
 
-                        // Audit log and the caller's own sessions: any signed in user. The controllers
-                        // scope them: non-admins only see their team's events and only their own sessions.
-                        .requestMatchers(HttpMethod.GET, "/api/audit").authenticated()
+                        // The caller's own sessions
                         .requestMatchers("/api/auth/sessions", "/api/auth/sessions/**").authenticated()
 
                         // Top bar search, notifications and VM consoles: any signed in user. Search results
-                        // are scoped by role, notifications to their recipient, and a console to the team
-                        // that owns the lab (or an admin), in the services and the console relay.
+                        // are scoped by role, notifications to their recipient, and a console to whoever
+                        // works in that copy (or runs it), in the services and the console relay.
                         .requestMatchers(HttpMethod.GET, "/api/search").authenticated()
                         .requestMatchers("/api/notifications", "/api/notifications/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/lab-tracker/*/vms/*/console").authenticated()

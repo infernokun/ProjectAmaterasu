@@ -56,9 +56,9 @@ export class ShellComponent {
 
   protected readonly groups = computed(() => navFor(this.session.roles()));
 
-  // Labs the user joined
+  // Labs the user has scored in
   private readonly counts = computed<Record<NavCountKey, number>>(() => ({
-    labs: this.rooms.joinedRooms().length,
+    labs: this.rooms.playedRooms().length,
   }));
 
   protected countFor(key: NavCountKey | undefined): number | null {

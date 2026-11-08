@@ -48,7 +48,7 @@ type View = 'people' | 'teams';
         </div>
       } @else {
         <app-empty-state [title]="view() === 'teams' ? 'No teams yet' : 'No players yet'"
-          [message]="view() === 'teams' ? 'Teams show here once their members join and score.' : 'Players show here once they join.'" />
+          [message]="view() === 'teams' ? 'Teams show here once their members score. Admins set up teams.' : 'Players show here once they answer a question.'" />
       }
     </section>
   `,
@@ -63,7 +63,7 @@ export class LabLeaderboardComponent {
 
   readonly labId = input.required<string>();
   readonly limit = input(10);
-  /** The viewer's team in this lab. */
+  /** The viewer's site-wide team. */
   readonly myTeamId = input<string | null>(null);
 
   protected readonly view = signal<View>('people');

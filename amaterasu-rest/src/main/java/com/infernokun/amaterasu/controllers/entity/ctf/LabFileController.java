@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.controllers.entity.ctf;
 
+import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.ctf.LabFile;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
@@ -32,10 +33,11 @@ public class LabFileController {
     private final LabFileService labFileService;
     private final RoomService roomService;
     private final AuditService auditService;
+    private final CurrentUser currentUser;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<LabFileView>>> list(@PathVariable String roomId) {
-        roomService.findByRoomId(roomId);
+        currentUser.requireCanSee(roomService.findByRoomId(roomId));
         return buildSuccessResponse("Lab files", labFileService.list(roomId), HttpStatus.OK);
     }
 
@@ -53,6 +55,7 @@ public class LabFileController {
 
     @GetMapping("/{fileId}")
     public ResponseEntity<byte[]> download(@PathVariable String roomId, @PathVariable String fileId) {
+        currentUser.requireCanSee(roomService.findByRoomId(roomId));
         LabFile file = labFileService.download(roomId, fileId);
         String base = file.getName().substring(file.getName().lastIndexOf('/') + 1);
         return ResponseEntity.ok()

@@ -21,10 +21,10 @@ import { RoleFilter, TeamCard, UsersAdminStore } from './users-admin.store';
 type Tab = 'users' | 'teams';
 
 const ROLE_POWERS: Record<string, string> = {
-  [Role.MEMBER]: 'They can join labs and run their team\'s environments.',
-  [Role.FACILITATOR]: 'They can run the live event and award points.',
-  [Role.CREATOR]: 'They can author labs, rooms and challenges.',
-  [Role.ADMIN]: 'They can manage every user, team and server.',
+  [Role.MEMBER]: 'They can play every published lab and use the environments an admin starts for them. Nothing else.',
+  [Role.FACILITATOR]: 'They can start and stop the environments of the labs they are assigned to, run the live event and award points.',
+  [Role.CREATOR]: 'They can build and edit labs and environments. They do not manage users or teams.',
+  [Role.ADMIN]: 'They can manage every user, team, lab, environment and server.',
 };
 
 @Component({
@@ -41,6 +41,7 @@ const ROLE_POWERS: Record<string, string> = {
     .actions { flex-wrap: nowrap; }
     .members .avatar { margin-right: -6px; border: 2px solid var(--surface); }
     .team-card .desc { margin: 0; }
+    .team-note { margin: 0 0 12px; max-width: 760px; }
   `,
   host: { class: 'content' },
 })
@@ -304,8 +305,8 @@ export class AdminUsersPage {
     const { team, members } = card;
     const answer = await firstValueFrom(this.confirm.open({
       title: `Delete ${team.name}?`,
-      message: `${members.length ? `Its ${members.length} ${members.length === 1 ? 'member stays' : 'members stay'} as accounts without a team. ` : ''}`
-        + 'Its stopped labs are removed with it. Points stay with the players.',
+      message: `${members.length ? `Its ${members.length} ${members.length === 1 ? 'member stays' : 'members stay'} as accounts without a team and play solo. ` : ''}`
+        + 'Its stopped environment copies are removed with it. Points stay with the players.',
       confirmLabel: 'Delete team',
       typeToConfirm: team.name,
     }));
@@ -321,7 +322,7 @@ export class AdminUsersPage {
   }
 
   protected deleteNote(card: TeamCard): string {
-    return card.deployed ? 'Stop or remove its labs first' : `Delete ${card.team.name}`;
+    return card.deployed ? 'Stop its environment copies first' : `Delete ${card.team.name}`;
   }
 }
 

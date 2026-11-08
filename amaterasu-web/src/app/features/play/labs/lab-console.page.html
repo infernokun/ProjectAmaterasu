@@ -46,11 +46,13 @@
         <button type="button" class="tab" role="tab" [class.on]="tab() === 'units'" [attr.aria-selected]="tab() === 'units'" (click)="tab.set('units')">
           {{ vm() ? 'VMs' : 'Services' }}<span class="nav-count">{{ unitCount() }}</span>
         </button>
-        @if (!vm()) {
+        @if (!vm() && session.canRun()) {
           <button type="button" class="tab" role="tab" [class.on]="tab() === 'logs'" [attr.aria-selected]="tab() === 'logs'" (click)="tab.set('logs')">Logs</button>
           <button type="button" class="tab" role="tab" [class.on]="tab() === 'files'" [attr.aria-selected]="tab() === 'files'" (click)="tab.set('files')">Files</button>
         }
-        <button type="button" class="tab" role="tab" [class.on]="tab() === 'activity'" [attr.aria-selected]="tab() === 'activity'" (click)="tab.set('activity')">Activity</button>
+        @if (session.isAdmin()) {
+          <button type="button" class="tab" role="tab" [class.on]="tab() === 'activity'" [attr.aria-selected]="tab() === 'activity'" (click)="tab.set('activity')">Activity</button>
+        }
       </div>
 
       @switch (tab()) {
@@ -71,9 +73,11 @@
                           <td class="mono small">{{ list(service.ports) }}</td>
                           <td class="mono small muted">{{ list(service.networks) }}</td>
                           <td class="r"><div class="row end">
-                            <button type="button" class="btn sm ghost" (click)="showLogs(serviceNames()[i])">Logs</button>
-                            <button type="button" class="btn sm" (click)="restart(serviceNames()[i])" [disabled]="!can() || can()!.working || !serverOnline()">
-                              <app-icon name="refresh" size="sm" />Restart</button>
+                            @if (session.canRun()) {
+                              <button type="button" class="btn sm ghost" (click)="showLogs(serviceNames()[i])">Logs</button>
+                              <button type="button" class="btn sm" (click)="restart(serviceNames()[i])" [disabled]="!can() || can()!.working || !serverOnline()">
+                                <app-icon name="refresh" size="sm" />Restart</button>
+                            }
                           </div></td>
                         </tr>
                       }
@@ -151,15 +155,17 @@
     </div>
 
     <aside class="col-rail console-rail">
+      @if (session.canRun()) {
       <section class="card stack" aria-labelledby="life-h">
         <h2 class="h2" id="life-h">Lifecycle</h2>
         <div class="stack tight small">
           <div class="life-row"><span class="muted">Pause</span><span class="dim help-text">{{ pauseHelp() }}</span></div>
           <div class="life-row"><span class="muted">Resume</span><span class="dim help-text">Starts the same copy again</span></div>
           <div class="life-row"><span class="muted">Stop</span><span class="dim help-text">{{ stopHelp() }}</span></div>
-          <div class="life-row"><span class="muted">Remove</span><span class="dim help-text">Stops it and takes it off your team</span></div>
+          <div class="life-row"><span class="muted">Remove</span><span class="dim help-text">Stops it and takes it off its team</span></div>
         </div>
       </section>
+      }
       <section class="card stack" aria-labelledby="about-h">
         <h2 class="h2" id="about-h">About this lab</h2>
         <div class="stack tight small">
@@ -170,7 +176,7 @@
           @if (t.labStarted?.capacity) {
             <div class="row between"><span class="muted">Capacity</span><span>{{ t.labStarted.capacity }} team copies</span></div>
           }
-          <div class="row between"><span class="muted">Team</span><span>{{ t.labOwner?.name ?? '-' }}</span></div>
+          <div class="row between"><span class="muted">Copy for</span><span>{{ t.labOwner?.name ?? (t.solo ? 'Players without a team' : t.roomId ? 'Everyone' : '-') }}</span></div>
           <div class="row between"><span class="muted">Server</span>
             <span>{{ server()?.name ?? '-' }}@if (server()) { · <span [class]="serverOnline() ? 's-active' : 's-bad'">{{ serverOnline() ? 'online' : 'offline' }}</span>}</span></div>
           <div class="row between"><span class="muted">Last change</span><span>{{ ago(t.updatedAt) || '-' }}</span></div>

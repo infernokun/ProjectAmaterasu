@@ -72,12 +72,11 @@ class SearchIntegrationTest extends ApiTestSupport {
         redTracker = labTrackerRepository.save(LabTracker.builder().labStarted(ready).labOwner(red).labStatus(LabStatus.ACTIVE).build());
         blueTracker = labTrackerRepository.save(LabTracker.builder().labStarted(vmLab).labOwner(blue).labStatus(LabStatus.ACTIVE).build());
 
-        Room joined = roomRepository.save(Room.builder().name(tag + " Winter Range").build());
-        Room notJoined = roomRepository.save(Room.builder().name(tag + " Summer Range").build());
-        released = challenge(joined, tag + " Header Hunt", "AMA{secret-flag}", LocalDateTime.now().minusHours(1));
-        later = challenge(joined, tag + " Golden Ticket", "AMA{later}", LocalDateTime.now().plusHours(3));
-        otherRoom = challenge(notJoined, tag + " Padding Oracle", "AMA{other}", LocalDateTime.now().minusHours(1));
-        postAs("/api/room/join/" + joined.getId() + "/" + redMember.getId(), token(redMember), Map.of()).andExpect(status().isOk());
+        Room live = roomRepository.save(Room.builder().name(tag + " Winter Range").build());
+        Room drafted = roomRepository.save(Room.builder().name(tag + " Summer Range").published(false).build());
+        released = challenge(live, tag + " Header Hunt", "AMA{secret-flag}", LocalDateTime.now().minusHours(1));
+        later = challenge(live, tag + " Golden Ticket", "AMA{later}", LocalDateTime.now().plusHours(3));
+        otherRoom = challenge(drafted, tag + " Padding Oracle", "AMA{other}", LocalDateTime.now().minusHours(1));
 
         server = remoteServerRepository.save(RemoteServer.builder().name(tag + "-dock").ipAddress("10.9.9.9")
                 .serverType(ServerType.DOCKER_HOST).build());
@@ -122,13 +121,13 @@ class SearchIntegrationTest extends ApiTestSupport {
     }
 
     @Test
-    void membersFindTheirTeamLabsTheCatalogRoomsAndReleasedChallengesInJoinedRooms() throws Exception {
+    void membersFindTheirTeamLabsTheCatalogPublishedLabsAndTheirReleasedChallenges() throws Exception {
         String raw = getAs("/api/search?q=" + tag + "&limit=20", token(redMember)).andReturn().getResponse().getContentAsString();
         JsonNode hits = search(token(redMember));
 
         assertThat(ids(hits, "TEAM_LAB")).containsExactly(redTracker.getId());
         assertThat(ids(hits, "LAB")).hasSize(2).doesNotContain(draft.getId());
-        assertThat(ids(hits, "ROOM")).hasSize(2);
+        assertThat(ids(hits, "ROOM")).hasSize(1);
         assertThat(ids(hits, "CHALLENGE")).containsExactly(released.getId());
         assertThat(ids(hits, "USER")).isEmpty();
         assertThat(ids(hits, "TEAM")).isEmpty();
@@ -137,10 +136,11 @@ class SearchIntegrationTest extends ApiTestSupport {
     }
 
     @Test
-    void anotherTeamDoesNotSeeThisTeamsLabsOrChallengesOfRoomsItDidNotJoin() throws Exception {
+    void anotherTeamDoesNotSeeThisTeamsLabsOrDraftLabs() throws Exception {
         JsonNode hits = search(token(blueMember));
         assertThat(ids(hits, "TEAM_LAB")).containsExactly(blueTracker.getId());
-        assertThat(ids(hits, "CHALLENGE")).isEmpty();
+        assertThat(ids(hits, "CHALLENGE")).containsExactly(released.getId());
+        assertThat(ids(hits, "ROOM")).hasSize(1);
     }
 
     @Test

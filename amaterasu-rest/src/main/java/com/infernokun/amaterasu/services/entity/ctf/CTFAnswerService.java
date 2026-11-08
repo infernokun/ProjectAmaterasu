@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.services.entity.ctf;
 
+import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntityAnswer;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
 import com.infernokun.amaterasu.models.entities.ctf.RoomUser;
@@ -34,13 +35,14 @@ public class CTFAnswerService {
 
     /** A teammate's correct answer to the question, if one of them solved it. */
     public Optional<CTFEntityAnswer> solvedByTeammate(RoomUser roomUser, CTFEntity ctfEntity) {
-        if (roomUser.getTeam() == null) {
+        Team team = roomUser.getUser() != null ? roomUser.getUser().getTeam() : null;
+        if (team == null) {
             return Optional.empty();
         }
         return ctfAnswerRepository.findByCtfEntityId(ctfEntity.getId()).stream()
                 .filter(answer -> Boolean.TRUE.equals(answer.getCorrect()) && !answer.getRoomUser().getId().equals(roomUser.getId())
-                        && answer.getRoomUser().getTeam() != null
-                        && answer.getRoomUser().getTeam().getId().equals(roomUser.getTeam().getId()))
+                        && answer.getRoomUser().getUser() != null && answer.getRoomUser().getUser().getTeam() != null
+                        && answer.getRoomUser().getUser().getTeam().getId().equals(team.getId()))
                 .findFirst();
     }
 

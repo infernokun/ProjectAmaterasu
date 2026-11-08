@@ -142,11 +142,13 @@
     }
   </section>
 } @else {
+  <p class="small muted team-note">Teams are site-wide and optional. A user is on one team at most; teammates see each other's progress and
+    share their team's copy of per-team environments. Users without a team play solo and share the Solo copy.</p>
   @if (store.loading()) {
     <div class="grid"><app-skeleton variant="card" [count]="3" label="Loading teams" /></div>
   } @else if (!store.teamCards().length) {
     <section class="card">
-      <app-empty-state icon="users" title="No teams yet" message="Teams share labs and show up together on the scoreboard.">
+      <app-empty-state icon="users" title="No teams yet" message="Teams share per-team environments and show up together on the scoreboards. Users without a team play solo.">
         <button type="button" class="btn primary" (click)="newTeam()"><app-icon name="plus" />New team</button>
       </app-empty-state>
     </section>
@@ -172,8 +174,8 @@
               <span class="small muted">No members yet</span>
             }
           </div>
-          <div class="row between small"><span class="muted">Labs running</span><span class="num">{{ card.running }}</span></div>
-          <div class="row between small"><span class="muted">Labs deployed, including paused</span><span class="num">{{ card.deployed }}</span></div>
+          <div class="row between small"><span class="muted">Environments running</span><span class="num">{{ card.running }}</span></div>
+          <div class="row between small"><span class="muted">Environments deployed, including paused</span><span class="num">{{ card.deployed }}</span></div>
           <div class="row" style="margin-top:4px">
             <button type="button" class="btn sm" (click)="editTeam(card.team)">Edit</button>
             <button type="button" class="btn sm" (click)="members(card.team)">Members</button>

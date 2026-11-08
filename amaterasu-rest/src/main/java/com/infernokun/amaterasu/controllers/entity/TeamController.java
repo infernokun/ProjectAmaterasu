@@ -2,7 +2,6 @@ package com.infernokun.amaterasu.controllers.entity;
 
 import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.controllers.BaseController;
-import com.infernokun.amaterasu.services.entity.ctf.LabTeamService;
 import com.infernokun.amaterasu.models.ApiResponse;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.services.entity.AuditService;
@@ -20,7 +19,6 @@ import java.util.List;
 public class TeamController extends BaseController {
     private final TeamService teamService;
     private final AuditService auditService;
-    private final LabTeamService labTeamService;
     private final CurrentUser currentUser;
 
     @GetMapping
@@ -33,10 +31,11 @@ public class TeamController extends BaseController {
                 .build());
     }
 
-    /** The caller's Admin team and their teams inside the labs they joined. */
+    /** The caller's team, if an admin put them on one: an empty list or one team. */
     @GetMapping("/mine")
     public ResponseEntity<ApiResponse<List<Team>>> myTeams() {
-        return createSuccessResponse(labTeamService.teamsOf(currentUser.user()), "Your teams.");
+        Team team = currentUser.user().getTeam();
+        return createSuccessResponse(team == null ? List.of() : List.of(team), "Your team.");
     }
 
     @GetMapping("/{id}")

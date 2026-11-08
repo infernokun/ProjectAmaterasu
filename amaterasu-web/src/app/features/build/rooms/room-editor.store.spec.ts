@@ -24,7 +24,7 @@ describe('RoomEditorStore', () => {
     api.facilitators.and.returnValue(of([{ id: 'u1', username: 'dkim' }]));
     api.facilitatorCandidates.and.returnValue(of([{ id: 'u1', username: 'dkim' }, { id: 'u2', username: 'rhale' }]));
     api.labs.and.returnValue(of([{ id: 'lab1', name: 'Web Exploitation 101', published: true }]));
-    api.room.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null, scenario: '## Situation', environmentMode: 'NONE' as const, environmentId: null, teamMode: 'TEAMS_OPTIONAL' as const, maxTeamSize: 4, teamCredit: 'SEE_TEAMMATES' as const, published: true }));
+    api.room.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null, scenario: '## Situation', environmentMode: 'NONE' as const, environmentId: null, teamCredit: 'SEE_TEAMMATES' as const, published: true }));
     api.challenges.and.returnValue(of([
       challenge('Union Based Dump', { points: 300, hints: [{ id: 'h1', hint: 'Count the columns', cost: 25, unlockAfterAttempts: 0 }] }),
       challenge('Kerberoast', { category: 'Active Directory', points: 300 }),
@@ -117,7 +117,7 @@ describe('RoomEditorStore order, facilitators and labs', () => {
       'room', 'challenges', 'players', 'facilitators', 'facilitatorCandidates', 'setFacilitators', 'reorder', 'labs', 'update', 'files',
     ]);
     api.files.and.returnValue(of([]));
-    api.room.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null, scenario: '## Situation', environmentMode: 'NONE' as const, environmentId: null, teamMode: 'TEAMS_OPTIONAL' as const, maxTeamSize: 4, teamCredit: 'SEE_TEAMMATES' as const, published: true }));
+    api.room.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null, scenario: '## Situation', environmentMode: 'NONE' as const, environmentId: null, teamCredit: 'SEE_TEAMMATES' as const, published: true }));
     api.challenges.and.returnValue(of([challenge('a'), challenge('b'), challenge('c', { labId: 'lab1' })]));
     api.players.and.returnValue(of(0));
     api.facilitators.and.returnValue(of([{ id: 'u1', username: 'dkim' }]));

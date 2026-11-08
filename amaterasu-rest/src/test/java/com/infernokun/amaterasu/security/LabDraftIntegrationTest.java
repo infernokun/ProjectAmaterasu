@@ -37,7 +37,9 @@ class LabDraftIntegrationTest extends IntegrationSupport {
         assertThat(data(call(get("/api/room/cards"), member).andExpect(status().isOk()).andReturn()).toString()).doesNotContain(id);
         assertThat(data(call(get("/api/room"), member).andExpect(status().isOk()).andReturn()).toString()).doesNotContain(id);
         call(get("/api/room/" + id + "/overview"), member).andExpect(status().isNotFound());
-        send(post("/api/room/" + id + "/join"), Map.of(), member).andExpect(status().isNotFound());
+        call(get("/api/room/" + id), member).andExpect(status().isNotFound());
+        call(get("/api/room/" + id + "/standings"), member).andExpect(status().isNotFound());
+        call(get("/api/room/" + id + "/files"), member).andExpect(status().isNotFound());
         call(get("/api/room/" + id + "/overview"), creator).andExpect(status().isOk());
 
         // Not playable yet: no questions, then a question with no flag, then a draft environment
@@ -61,10 +63,13 @@ class LabDraftIntegrationTest extends IntegrationSupport {
         assertThat(data(send(put("/api/room/" + id), Map.of("published", true), creator).andExpect(status().isOk()).andReturn())
                 .get("published").asBoolean()).isTrue();
         assertThat(data(call(get("/api/room/cards"), member).andExpect(status().isOk()).andReturn()).toString()).contains(id);
-        send(post("/api/room/" + id + "/join"), Map.of(), member).andExpect(status().isOk());
+        send(post("/api/answer"), Map.of("roomId", id, "questionId", question.getId(), "flag", "one"), member)
+                .andExpect(status().isOk());
 
         send(put("/api/room/" + id), Map.of("published", false), creator).andExpect(status().isOk());
         call(get("/api/room/" + id + "/overview"), member).andExpect(status().isNotFound());
+        send(post("/api/answer"), Map.of("roomId", id, "questionId", question.getId(), "flag", "one"), member)
+                .andExpect(status().isNotFound());
     }
 
     @Test

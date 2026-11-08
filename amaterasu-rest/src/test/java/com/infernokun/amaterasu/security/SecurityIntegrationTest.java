@@ -322,11 +322,9 @@ class SecurityIntegrationTest {
     }
 
     @Test
-    void usersCannotJoinRoomsAsSomeoneElse() throws Exception {
+    void membersCannotAwardPoints() throws Exception {
         String member = memberToken();
         User other = createUser(Role.MEMBER, null);
-        mvc.perform(post("/api/room/join/some-room/" + other.getId()).header("Authorization", "Bearer " + member))
-                .andExpect(status().isForbidden());
         mvc.perform(post("/api/room/add-points/some-room/" + other.getId()).header("Authorization", "Bearer " + member))
                 .andExpect(status().isForbidden());
     }

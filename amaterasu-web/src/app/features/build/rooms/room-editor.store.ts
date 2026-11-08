@@ -125,7 +125,7 @@ export const RoomEditorStore = signalStore(
             status: 'loaded', files: [], facilitators: [], players: 0,
             room: {
               id: '', name: '', surroundTag: 'CTF{x}', updatedAt: null, scenario: SCENARIO_TEMPLATE, environmentMode: 'NONE',
-              environmentId: null, teamMode: 'TEAMS_OPTIONAL', maxTeamSize: 4, teamCredit: 'SEE_TEAMMATES', published: false,
+              environmentId: null, teamCredit: 'SEE_TEAMMATES', published: false,
             },
           });
           firstValueFrom(api.labs()).then(labs => patchState(store, { labs }), () => undefined);
