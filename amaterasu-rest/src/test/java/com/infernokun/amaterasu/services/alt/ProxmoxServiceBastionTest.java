@@ -208,6 +208,21 @@ class ProxmoxServiceBastionTest {
     }
 
     @Test
+    void aLabsSharedCopyHasNoTeamAndStillDeploys() throws Exception {
+        tracker.setLabOwner(null);
+        tracker.setRoomId("lab-1");
+        expectDeployUntilTheAgent();
+        ok(NODE + "/qemu/105/agent/network-get-interfaces", HttpMethod.GET, bastionInterfaces());
+        ok(NODE + "/qemu/106/agent/network-get-interfaces", HttpMethod.GET, targetInterfaces());
+
+        LabActionResult result = proxmox.deployProxmoxLab(tracker, server);
+
+        node.verify();
+        assertThat(result.isSuccessful()).as(result.getOutput()).isTrue();
+        assertThat(ProxmoxService.ownerLabel(tracker)).isEqualTo("Shared");
+    }
+
+    @Test
     void thePasswordIsSetBeforeTheFirstStartStoredEncryptedAndNeverLogged() throws Exception {
         expectDeployUntilTheAgent();
         ok(NODE + "/qemu/105/agent/network-get-interfaces", HttpMethod.GET, bastionInterfaces());
