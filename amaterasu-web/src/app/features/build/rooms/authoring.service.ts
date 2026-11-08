@@ -22,6 +22,8 @@ export interface AuthorRoom {
   /** Null for no limit. */
   maxTeamSize: number | null;
   teamCredit: TeamCredit;
+  /** Drafts are only seen by authors and the lab's facilitators. */
+  published: boolean;
 }
 
 /** Fields a lab edit can send; left out ones stay as they are. */
@@ -35,6 +37,7 @@ export interface RoomChanges {
   /** 0 for no limit. */
   maxTeamSize?: number;
   teamCredit?: TeamCredit;
+  published?: boolean;
 }
 
 export interface AuthorFlag {
@@ -237,6 +240,7 @@ export function toRoom(raw: any): AuthorRoom {
     teamMode: raw.teamMode ?? 'TEAMS_OPTIONAL',
     maxTeamSize: raw.maxTeamSize ?? null,
     teamCredit: raw.teamCredit ?? 'SEE_TEAMMATES',
+    published: raw.published !== false,
   };
 }
 

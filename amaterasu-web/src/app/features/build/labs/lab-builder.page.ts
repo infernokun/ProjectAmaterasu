@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LabType } from '../../../enums/lab-type.enum';
@@ -13,6 +13,7 @@ import { SkeletonComponent } from '../../../shared/ui/skeleton.component';
 import { address, serverHealth } from '../../admin/servers/server-health';
 import { Server } from '../../admin/servers/servers.service';
 import { BuilderType, LabBuilderStore } from './lab-builder.store';
+import { CatalogLab } from './lab-builder.service';
 
 interface Step {
   label: string;
@@ -26,7 +27,7 @@ interface Step {
   providers: [LabBuilderStore],
   templateUrl: './lab-builder.page.html',
   styleUrl: './lab-builder.page.scss',
-  host: { class: 'content' },
+  host: { '[class.content]': '!embedded()' },
 })
 export class LabBuilderPage {
   protected readonly store = inject(LabBuilderStore);
@@ -38,6 +39,10 @@ export class LabBuilderPage {
 
   /** From the route; absent for a new lab. */
   readonly labId = input<string>();
+  /** Inside the New Lab flow: no breadcrumb or navigation; saving reports the environment instead. */
+  readonly embedded = input(false);
+  readonly saved = output<CatalogLab>();
+  readonly cancelled = output<void>();
 
   protected readonly types = LabType;
   protected readonly address = address;
@@ -140,6 +145,7 @@ export class LabBuilderPage {
     effect(() => {
       const name = this.store.name().trim();
       const editing = !!this.store.original();
+      if (this.embedded()) return;
       untracked(() => this.crumbs.set([
         { label: 'Build' },
         { label: 'Environments', link: '/build/environments' },
@@ -186,7 +192,9 @@ export class LabBuilderPage {
     try {
       const lab = await this.store.save();
       this.toast.success(creating ? `${lab.name} created` : `${lab.name} saved`);
-      if (creating) {
+      if (this.embedded()) {
+        this.saved.emit(lab);
+      } else if (creating) {
         this.router.navigate(['/build/environments', lab.id], { replaceUrl: true });
       }
     } catch (error) {
@@ -209,8 +217,10 @@ export class LabBuilderPage {
     }
     try {
       const lab = await this.store.publish();
-      this.toast.success(`${lab.name} is published. Teams can start it now.`);
-      if (creating) {
+      this.toast.success(`${lab.name} is published. Labs that use it can start it now.`);
+      if (this.embedded()) {
+        this.saved.emit(lab);
+      } else if (creating) {
         this.router.navigate(['/build/environments', lab.id], { replaceUrl: true });
       }
     } catch (error) {
@@ -251,6 +261,10 @@ export class LabBuilderPage {
       if (answer !== 'confirm') {
         return;
       }
+    }
+    if (this.embedded()) {
+      this.cancelled.emit();
+      return;
     }
     this.router.navigate(['/build/environments']);
   }

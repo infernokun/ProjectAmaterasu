@@ -28,7 +28,7 @@ import { ENVIRONMENT_STATUS_META, environmentStatus, trackerOf, withTrackerChang
   template: `
     <app-page-header title="Labs" subtitle="Each lab has a scenario, questions to answer and, for some, an environment to work in.">
       @if (session.canBuild()) {
-        <a class="btn" routerLink="/build/labs"><app-icon name="plus" />Create a lab</a>
+        <a class="btn" routerLink="/build/labs/new"><app-icon name="plus" />Create a lab</a>
       }
     </app-page-header>
 
