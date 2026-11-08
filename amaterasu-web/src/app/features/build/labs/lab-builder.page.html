@@ -1,7 +1,7 @@
 @if (store.status() === 'error') {
   <div class="banner bad" role="alert">
     <app-icon name="alert" /><div class="grow">{{ store.error() }}</div>
-    <a class="btn sm" routerLink="/build/labs">Back to labs</a>
+    <a class="btn sm" routerLink="/build/environments">Back to environments</a>
   </div>
 } @else if (store.status() !== 'loaded') {
   <app-skeleton variant="card" [count]="2" label="Loading the lab" />
@@ -29,7 +29,7 @@
           Save draft
         </button>
         <button type="button" class="btn primary" [disabled]="!!store.publishBlocker() || store.saving()"
-                [title]="store.publishBlocker() ?? 'Teams see it in the catalog and can start it'" (click)="publish()">Publish lab</button>
+                [title]="store.publishBlocker() ?? 'Labs that run it can start it'" (click)="publish()">Publish environment</button>
       }
     </div>
   </div>

@@ -21,7 +21,7 @@ import { RoleFilter, TeamCard, UsersAdminStore } from './users-admin.store';
 type Tab = 'users' | 'teams';
 
 const ROLE_POWERS: Record<string, string> = {
-  [Role.MEMBER]: 'They can join rooms and run their team\'s labs.',
+  [Role.MEMBER]: 'They can join labs and run their team\'s environments.',
   [Role.FACILITATOR]: 'They can run the live event and award points.',
   [Role.CREATOR]: 'They can author labs, rooms and challenges.',
   [Role.ADMIN]: 'They can manage every user, team and server.',

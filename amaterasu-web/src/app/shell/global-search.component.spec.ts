@@ -61,7 +61,7 @@ describe('GlobalSearchComponent', () => {
   it('shows results grouped by type with the matching text marked', async () => {
     await type('web');
     const labels = Array.from(document.querySelectorAll('.cdk-overlay-container .group-label')).map(el => el.textContent?.trim());
-    expect(labels).toEqual(['Team labs', 'Challenges']);
+    expect(labels).toEqual(['Team environments', 'Questions']);
     expect(options().length).toBe(2);
     expect(options()[0].querySelector('mark')?.textContent).toBe('Web');
     expect(input().getAttribute('aria-expanded')).toBe('true');

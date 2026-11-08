@@ -49,4 +49,14 @@ public class LabTracker extends StoredObject {
     @JsonIgnore
     @Column(columnDefinition = "TEXT")
     private String accessPassword;
+    /** The lab (room) a shared copy runs for; null for a team's copy. */
+    private String roomId;
+    /** A start, pause or stop in progress, from LabActionGuard. Never stored. */
+    @Transient
+    private String pendingAction;
+
+    @JsonIgnore
+    public boolean isShared() {
+        return roomId != null;
+    }
 }

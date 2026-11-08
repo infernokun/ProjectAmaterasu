@@ -98,7 +98,7 @@ export class LabConsolePage {
     effect(() => {
       const name = this.tracker()?.labStarted?.name;
       if (name) {
-        untracked(() => this.crumbs.set([{ label: 'Labs', link: '/labs' }, { label: name }]));
+        untracked(() => this.crumbs.set([{ label: 'Labs', link: '/labs' }, { label: name }, { label: 'Environment' }]));
       }
     });
     effect(() => {

@@ -5,6 +5,9 @@ import { LabStatus } from '../../../enums/lab-status.enum';
 import { ServerType } from '../../../enums/server-type.enum';
 import { ApiResponse } from '../../../models/api-response.model';
 import { EnvironmentService } from '../../../services/environment.service';
+import { LabTracker } from '../../../models/lab/lab-tracker.model';
+import { EnvironmentStatus } from '../../play/data/play.models';
+import { environmentStatus } from '../../play/labs/environment-status';
 
 export interface ServerStats {
   status: LabStatus | null;
@@ -51,6 +54,8 @@ export interface Deployment {
   serverId: string | null;
   units: string;
   updatedAt: string | null;
+  /** The status every view shows, from the whole copy. */
+  environment?: EnvironmentStatus;
 }
 
 export interface NewServer {
@@ -211,8 +216,9 @@ function toDeployment(raw: any): Deployment {
     labName: raw.labStarted?.name ?? 'Lab',
     labType: raw.labStarted?.labType ?? null,
     teamId: raw.labOwner?.id ?? null,
-    teamName: raw.labOwner?.name ?? 'No team',
+    teamName: raw.labOwner?.name ?? (raw.roomId ? 'Shared' : 'No team'),
     status: raw.labStatus,
+    environment: environmentStatus(new LabTracker(raw)),
     serverId: raw.remoteServer?.id ?? null,
     units,
     updatedAt: raw.updatedAt ?? null,

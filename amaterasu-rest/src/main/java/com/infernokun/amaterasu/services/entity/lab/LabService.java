@@ -17,6 +17,9 @@ import com.infernokun.amaterasu.models.entities.lab.RemoteServer;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.enums.LabType;
 import com.infernokun.amaterasu.models.enums.ServerType;
+import com.infernokun.amaterasu.models.entities.ctf.Room;
+import com.infernokun.amaterasu.models.enums.EnvironmentMode;
+import com.infernokun.amaterasu.repositories.ctf.RoomRepository;
 import com.infernokun.amaterasu.repositories.lab.LabFileChangeLogRepository;
 import com.infernokun.amaterasu.repositories.lab.LabRepository;
 import com.infernokun.amaterasu.services.alt.LabFileUploadService;
@@ -27,7 +30,9 @@ import com.infernokun.amaterasu.services.entity.AuditService;
 import com.infernokun.amaterasu.services.entity.TeamService;
 import com.infernokun.amaterasu.services.entity.UserService;
 import com.infernokun.amaterasu.services.entity.ctf.CTFEntityService;
+import com.infernokun.amaterasu.websocket.LabTrackerBusyEvent;
 import jakarta.transaction.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -54,6 +59,8 @@ public class LabService extends BaseService {
     private final CurrentUser currentUser;
     private final AuditService auditService;
     private final CTFEntityService ctfEntityService;
+    private final ApplicationEventPublisher events;
+    private final RoomRepository roomRepository;
 
     public LabService(
             LabRepository labRepository, UserService userService,
@@ -61,7 +68,8 @@ public class LabService extends BaseService {
             LabActionService labActionService, LabFileUploadService labFileUploadService,
             LabReadinessService labReadinessService, LabFileChangeLogRepository labFileChangeLogRepository,
             AmaterasuConfig amaterasuConfig, LabActionGuard labActionGuard, CurrentUser currentUser,
-            AuditService auditService, CTFEntityService ctfEntityService) {
+            AuditService auditService, CTFEntityService ctfEntityService, ApplicationEventPublisher events,
+            RoomRepository roomRepository) {
         this.labRepository = labRepository;
         this.userService = userService;
         this.teamService = teamService;
@@ -75,6 +83,8 @@ public class LabService extends BaseService {
         this.currentUser = currentUser;
         this.auditService = auditService;
         this.ctfEntityService = ctfEntityService;
+        this.events = events;
+        this.roomRepository = roomRepository;
     }
 
     static String composeFileSlug(String name) {
@@ -293,13 +303,25 @@ public class LabService extends BaseService {
     @Transactional(dontRollbackOn = ResourceNotFoundException.class)
     public LabActionResult startLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
         String trackerKey = labTrackerId == null || labTrackerId.isBlank() ? null : labTrackerId;
-        if (!labActionGuard.tryAcquire(trackerKey)) {
+        boolean paused = trackerKey != null && labTrackerService.findLabTrackerById(trackerKey)
+                .map(tracker -> tracker.getLabStatus() == LabStatus.PAUSED).orElse(false);
+        if (!labActionGuard.tryAcquire(trackerKey, paused ? LabActionGuard.RESUMING : LabActionGuard.STARTING)) {
             return new LabActionResult(false, null, "Another action is already running for this lab");
         }
+        announceBusy(trackerKey);
         try {
             return audited("LAB_STARTED", "Start", doStartLab(labId, userId, labTrackerId, remoteServer), labTrackerId);
         } finally {
             labActionGuard.release(trackerKey);
+            announceBusy(trackerKey);
+        }
+    }
+
+    /** Tells open views a tracker's action started or ended; LabActionGuard holds which one. */
+    private void announceBusy(String trackerId) {
+        if (trackerId != null) {
+            labTrackerService.findLabTrackerById(trackerId)
+                    .ifPresent(tracker -> events.publishEvent(new LabTrackerBusyEvent(tracker)));
         }
     }
 
@@ -311,16 +333,18 @@ public class LabService extends BaseService {
             return new LabActionResult(false, null, lab.getName() + " is a draft. Its authors need to publish it before teams can start it.");
         }
         User user = this.userService.findUserById(userId);
-        Team userTeam = user.getTeam();
-        if (userTeam == null) {
-            return new LabActionResult(false, null, "User must be on a team to start a lab");
-        }
 
         // A lab started from the catalog has no tracker yet
         Optional<LabTracker> existing = (labTrackerId == null || labTrackerId.isBlank()
                 ? Optional.<LabTracker>empty() : labTrackerService.findLabTrackerById(labTrackerId))
                 .filter(tracker -> tracker.getLabStatus() != LabStatus.DELETED);
-        existing.ifPresent(currentUser::requireTrackerAccess);
+        existing.ifPresent(currentUser::requireTrackerControl);
+        // A shared copy belongs to its lab, not a team
+        boolean shared = existing.map(LabTracker::isShared).orElse(false);
+        Team userTeam = shared ? null : existing.map(LabTracker::getLabOwner).orElse(user.getTeam());
+        if (!shared && userTeam == null) {
+            return new LabActionResult(false, null, "User must be on a team to start a lab");
+        }
         LabTracker labTracker = existing.orElseGet(() -> LabTracker.builder()
                 .labStarted(lab)
                 .labOwner(userTeam)
@@ -377,7 +401,7 @@ public class LabService extends BaseService {
             return labActionResult;
         }
 
-        if (!userTeam.getTeamActiveLabs().contains(resultTracker.getId())) {
+        if (userTeam != null && !userTeam.getTeamActiveLabs().contains(resultTracker.getId())) {
             userTeam.getTeamActiveLabs().add(resultTracker.getId());
             try {
                 teamService.updateTeam(userTeam);
@@ -393,13 +417,15 @@ public class LabService extends BaseService {
     @Transactional
     public LabActionResult pauseLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
         String trackerKey = labTrackerId == null || labTrackerId.isBlank() ? null : labTrackerId;
-        if (!labActionGuard.tryAcquire(trackerKey)) {
+        if (!labActionGuard.tryAcquire(trackerKey, LabActionGuard.PAUSING)) {
             return new LabActionResult(false, null, "Another action is already running for this lab");
         }
+        announceBusy(trackerKey);
         try {
             return audited("LAB_PAUSED", "Pause", doPauseLab(labId, userId, labTrackerId, remoteServer), labTrackerId);
         } finally {
             labActionGuard.release(trackerKey);
+            announceBusy(trackerKey);
         }
     }
 
@@ -421,13 +447,15 @@ public class LabService extends BaseService {
     @Transactional
     public LabActionResult stopLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
         String trackerKey = labTrackerId == null || labTrackerId.isBlank() ? null : labTrackerId;
-        if (!labActionGuard.tryAcquire(trackerKey)) {
+        if (!labActionGuard.tryAcquire(trackerKey, LabActionGuard.STOPPING)) {
             return new LabActionResult(false, null, "Another action is already running for this lab");
         }
+        announceBusy(trackerKey);
         try {
             return audited("LAB_STOPPED", "Stop", doStopLab(labId, userId, labTrackerId, remoteServer), labTrackerId);
         } finally {
             labActionGuard.release(trackerKey);
+            announceBusy(trackerKey);
         }
     }
 
@@ -449,13 +477,15 @@ public class LabService extends BaseService {
     @Transactional
     public LabActionResult deleteLab(String labId, String userId, String labTrackerId, RemoteServer remoteServer) {
         String trackerKey = labTrackerId == null || labTrackerId.isBlank() ? null : labTrackerId;
-        if (!labActionGuard.tryAcquire(trackerKey)) {
+        if (!labActionGuard.tryAcquire(trackerKey, LabActionGuard.REMOVING)) {
             return new LabActionResult(false, null, "Another action is already running for this lab");
         }
+        announceBusy(trackerKey);
         try {
             return audited("LAB_DELETED", "Delete", doDeleteLab(labId, userId, labTrackerId, remoteServer), labTrackerId);
         } finally {
             labActionGuard.release(trackerKey);
+            announceBusy(trackerKey);
         }
     }
 
@@ -649,7 +679,7 @@ public class LabService extends BaseService {
                 .filter(tracker -> tracker.getLabStatus() != LabStatus.DELETED)
                 .orElse(null);
         if (labTracker != null) {
-            currentUser.requireTrackerAccess(labTracker);
+            currentUser.requireTrackerControl(labTracker);
         }
         return labTracker;
     }
@@ -748,6 +778,14 @@ public class LabService extends BaseService {
         }
         labTrackerService.deleteAll(trackers);
         ctfEntityService.unlinkLab(labId);
+        // Labs that ran it keep their scenario and questions, without an environment
+        for (Room room : roomRepository.findAll()) {
+            if (labId.equals(room.getEnvironmentId())) {
+                room.setEnvironment(null);
+                room.setEnvironmentMode(EnvironmentMode.NONE);
+                roomRepository.save(room);
+            }
+        }
         labFileChangeLogRepository.deleteByLabId(labId);
         labRepository.deleteById(labId);
         auditService.record("LAB_REMOVED", "LAB", labId, lab.get().getName(), null, null);

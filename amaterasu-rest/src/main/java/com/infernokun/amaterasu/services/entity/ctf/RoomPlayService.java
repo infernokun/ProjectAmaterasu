@@ -1,5 +1,6 @@
 package com.infernokun.amaterasu.services.entity.ctf;
 
+import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.models.PointsHistoryEntry;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
@@ -9,6 +10,8 @@ import com.infernokun.amaterasu.models.entities.ctf.CTFEntityHintUsage;
 import com.infernokun.amaterasu.models.entities.ctf.Hint;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.ctf.RoomUser;
+import com.infernokun.amaterasu.models.entities.ctf.dto.play.EnvironmentView;
+import com.infernokun.amaterasu.models.entities.ctf.dto.play.LabCard;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.LabChallenge;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomLive;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomOverview;
@@ -17,6 +20,10 @@ import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomStandings;
 import com.infernokun.amaterasu.models.enums.RoomUserStatus;
 import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.repositories.ctf.CTFAnswerRepository;
+import com.infernokun.amaterasu.repositories.ctf.LabFileRepository;
+import com.infernokun.amaterasu.models.entities.ctf.dto.play.LabFileView;
+import com.infernokun.amaterasu.services.entity.lab.LabEnvironmentService;
+import com.infernokun.amaterasu.utils.ScenarioText;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -51,6 +59,9 @@ public class RoomPlayService {
     private final CTFEntityService ctfEntityService;
     private final CTFAnswerRepository answerRepository;
     private final UserRepository userRepository;
+    private final LabEnvironmentService labEnvironmentService;
+    private final CurrentUser currentUser;
+    private final LabFileRepository labFileRepository;
 
     public RoomOverview overview(String roomId, String viewerId) {
         Room room = roomService.findByRoomId(roomId);
@@ -78,12 +89,50 @@ public class RoomPlayService {
             return new RoomOverview.Me(isJoined, value(roomUser.getPoints()), rank, solved);
         }).orElse(new RoomOverview.Me(false, 0, 0, 0));
 
+        List<LabFileView> files = labFileRepository.listByRoom(roomId);
+        Map<String, LabFileView> filesByName = files.stream()
+                .collect(Collectors.toMap(LabFileView::name, Function.identity(), (a, b) -> a));
         List<RoomOverview.Challenge> views = challenges.stream()
                 .map(challenge -> challengeView(challenge, mine.get(challenge.getId()),
-                        solves.getOrDefault(challenge.getId(), 0L), now))
+                        solves.getOrDefault(challenge.getId(), 0L), now, filesByName))
                 .toList();
 
-        return new RoomOverview(roomInfo(room), players.size(), teamCount(players), me, views);
+        User viewerUser = viewer.map(RoomUser::getUser).orElseGet(() -> Optional.ofNullable(viewerId)
+                .flatMap(userRepository::findById).orElse(null));
+        boolean canRun = currentUser.isAuthenticated() && currentUser.canRun(room);
+        return new RoomOverview(roomInfo(room, canRun), players.size(), teamCount(players), me, views,
+                labEnvironmentService.view(room, viewerUser, canRun), files);
+    }
+
+    /** Every lab for the Labs list, with the viewer's environment status and progress. */
+    public List<LabCard> cards(String viewerId) {
+        User viewer = Optional.ofNullable(viewerId).flatMap(userRepository::findById).orElse(null);
+        List<LabCard> cards = new ArrayList<>();
+        for (Room room : roomService.findAllRooms()) {
+            List<CTFEntity> challenges = playable(ctfEntityService.findCTFEntitiesByRoomId(room.getId()));
+            List<RoomUser> players = joined(room.getId());
+            Optional<RoomUser> seat = viewer == null ? Optional.empty() : roomUserService.findByUserAndRoom(viewer, room);
+            boolean joined = seat.map(roomUser -> roomUser.getRoomUserStatus() == RoomUserStatus.JOINED).orElse(false);
+            boolean left = seat.map(roomUser -> roomUser.getRoomUserStatus() == RoomUserStatus.LEFT).orElse(false);
+            Set<String> playableIds = challenges.stream().map(CTFEntity::getId).collect(Collectors.toSet());
+            int solved = seat.map(roomUser -> (int) answerRepository.findByRoomUserId(roomUser.getId()).stream()
+                    .filter(answer -> Boolean.TRUE.equals(answer.getCorrect()) && playableIds.contains(answer.getCtfEntity().getId()))
+                    .count()).orElse(0);
+            boolean canRun = currentUser.isAuthenticated() && currentUser.canRun(room);
+            cards.add(new LabCard(room.getId(), room.getName(), ScenarioText.summary(room.getScenario()),
+                    room.effectiveMode(), labEnvironmentService.view(room, viewer, canRun), challenges.size(),
+                    players.size(), joined, left, seat.map(roomUser -> value(roomUser.getPoints())).orElse(0), solved,
+                    canRun));
+        }
+        cards.sort(Comparator.comparing(LabCard::name, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
+        return cards;
+    }
+
+    /** The lab's environment for the viewer, for refreshing the environment bar alone. */
+    public EnvironmentView environment(String roomId, String viewerId) {
+        Room room = roomService.findByRoomId(roomId);
+        User viewer = Optional.ofNullable(viewerId).flatMap(userRepository::findById).orElse(null);
+        return labEnvironmentService.view(room, viewer, currentUser.isAuthenticated() && currentUser.canRun(room));
     }
 
     public RoomStandings standings(String roomId) {
@@ -209,15 +258,21 @@ public class RoomPlayService {
     }
 
     /**
-     * Challenges that use a lab. Authors and admins see all of them; everyone else only sees released
-     * challenges in rooms they joined.
+     * Questions that use a lab definition. Authors and admins see all of them; everyone else only sees
+     * released questions in labs they joined.
      */
     public List<LabChallenge> forLab(String labId, String viewerId, boolean seeAll) {
         LocalDateTime now = LocalDateTime.now();
         Map<String, Optional<RoomUser>> seats = new HashMap<>();
         Optional<User> viewer = Optional.ofNullable(viewerId).flatMap(userRepository::findById);
         List<LabChallenge> result = new ArrayList<>();
-        for (CTFEntity challenge : ctfEntityService.findByLabId(labId)) {
+        // Questions linked to the environment directly, then those of the labs that run it
+        Map<String, CTFEntity> uses = new LinkedHashMap<>();
+        ctfEntityService.findByLabId(labId).forEach(challenge -> uses.put(challenge.getId(), challenge));
+        roomService.findAllRooms().stream().filter(room -> labId.equals(room.getEnvironmentId()))
+                .flatMap(room -> ctfEntityService.findCTFEntitiesByRoomId(room.getId()).stream())
+                .forEach(challenge -> uses.putIfAbsent(challenge.getId(), challenge));
+        for (CTFEntity challenge : uses.values()) {
             Room room = challenge.getRoom();
             if (room == null) {
                 continue;
@@ -243,7 +298,7 @@ public class RoomPlayService {
     }
 
     private RoomOverview.Challenge challengeView(CTFEntity challenge, CTFEntityAnswer answer, long solves,
-                                                 LocalDateTime now) {
+                                                 LocalDateTime now, Map<String, LabFileView> files) {
         ChallengeState state = stateOf(challenge, now);
         List<RoomOverview.HintView> hints = new ArrayList<>();
         List<Hint> ordered = orEmpty(challenge.getHints()).stream()
@@ -271,7 +326,12 @@ public class RoomPlayService {
                 toInstant(challenge.getReleaseDate()),
                 toInstant(challenge.getExpirationDate()),
                 state == ChallengeState.LOCKED ? null : challenge.getDescription(),
-                state == ChallengeState.LOCKED ? List.of() : orEmpty(challenge.getAttachments()),
+                state == ChallengeState.LOCKED ? List.of() : orEmpty(challenge.getAttachments()).stream()
+                        .map(name -> {
+                            LabFileView file = files.get(name);
+                            return new RoomOverview.Attachment(name, file != null ? file.id() : null,
+                                    file != null ? file.size() : null);
+                        }).toList(),
                 state == ChallengeState.LOCKED ? List.of() : hints,
                 answer != null ? value(answer.getAttempts()) : 0,
                 answer != null && Boolean.TRUE.equals(answer.getCorrect()),
@@ -289,12 +349,13 @@ public class RoomPlayService {
         return ChallengeState.OPEN;
     }
 
-    private RoomOverview.RoomInfo roomInfo(Room room) {
+    private RoomOverview.RoomInfo roomInfo(Room room, boolean canRun) {
         String creator = room.getCreator() != null ? room.getCreator().getUsername() : null;
         List<String> facilitators = orEmpty(room.getFacilitators()).stream()
                 .map(entry -> userRepository.findById(entry).map(User::getUsername).orElse(entry))
                 .toList();
-        return new RoomOverview.RoomInfo(room.getId(), room.getName(), room.getSurroundTag(), creator, facilitators);
+        return new RoomOverview.RoomInfo(room.getId(), room.getName(), room.getSurroundTag(), creator, facilitators,
+                room.getScenario(), room.effectiveMode(), canRun);
     }
 
     private List<RoomUser> joined(String roomId) {

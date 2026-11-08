@@ -20,10 +20,10 @@ import { LabBuilderService } from './lab-builder.service';
   template: `
     <div class="page-head">
       <div>
-        <h1 class="h1">Labs</h1>
-        <p class="sub">Docker Compose and Proxmox VM labs. Teams only see the published ones.</p>
+        <h1 class="h1">Environments</h1>
+        <p class="sub">Docker Compose and Proxmox VM environments that labs run. Only published ones can start.</p>
       </div>
-      <a class="btn primary" routerLink="new"><app-icon name="plus" />New lab</a>
+      <a class="btn primary" routerLink="new"><app-icon name="plus" />New environment</a>
     </div>
 
     @if (labs.error()) {
@@ -31,18 +31,18 @@ import { LabBuilderService } from './lab-builder.service';
         <button type="button" class="btn sm" (click)="labs.load(true)">Try again</button></div>
     }
 
-    <section class="card flush" aria-label="Labs">
+    <section class="card flush" aria-label="Environments">
       @if (labs.status() === 'idle' || (labs.loading() && !labs.labs().length)) {
-        <app-skeleton variant="rows" [count]="4" label="Loading labs" />
+        <app-skeleton variant="rows" [count]="4" label="Loading environments" />
       } @else if (!labs.labs().length) {
-        <app-empty-state icon="layers" title="No labs yet"
-                         message="Build one from a docker-compose.yml or from Proxmox VM templates. Teams start their own copy.">
-          <a class="btn primary" routerLink="new"><app-icon name="plus" />New lab</a>
+        <app-empty-state icon="layers" title="No environments yet"
+                         message="Build one from a docker-compose.yml or from Proxmox VM templates, then pick it in a lab.">
+          <a class="btn primary" routerLink="new"><app-icon name="plus" />New environment</a>
         </app-empty-state>
       } @else {
         <div class="table-wrap">
           <table class="t">
-            <thead><tr><th>Lab</th><th>Type</th><th>Version</th><th class="r">Team copies</th><th>Status</th><th>Updated</th><th class="r">Actions</th></tr></thead>
+            <thead><tr><th>Environment</th><th>Type</th><th>Version</th><th class="r">Team copies</th><th>Status</th><th>Updated</th><th class="r">Actions</th></tr></thead>
             <tbody>
               @for (lab of labs.labs(); track lab.id) {
                 <tr>
@@ -79,7 +79,7 @@ import { LabBuilderService } from './lab-builder.service';
         </div>
       }
     </section>
-    <p class="small muted">New labs are drafts until you publish them. Compose labs can be published once the file passes docker compose config on a Docker host; the check runs every minute.</p>
+    <p class="small muted">New environments are drafts until you publish them. Compose labs can be published once the file passes docker compose config on a Docker host; the check runs every minute.</p>
   `,
   styles: `
     .name { font-weight: 500; color: var(--text); text-decoration: none; }
@@ -112,9 +112,9 @@ export class LabListPage {
   protected async remove(lab: Lab): Promise<void> {
     const answer = await firstValueFrom(this.confirm.open({
       title: `Delete ${lab.name}?`,
-      message: 'It leaves the catalog and teams can no longer start it. Teams that stopped it lose it from their list. '
-        + 'While any team still has it deployed, it cannot be deleted.',
-      confirmLabel: 'Delete lab',
+      message: 'Labs that run it are left without an environment, and stopped copies are removed. '
+        + 'While any copy is still deployed, it cannot be deleted.',
+      confirmLabel: 'Delete environment',
       typeToConfirm: lab.name,
     }));
     if (answer !== 'confirm') {

@@ -2,7 +2,7 @@ import { Role } from '../enums/role.enum';
 import { AREA_ROLES } from '../core/auth/roles';
 import { IconName } from '../shared/ui/icons';
 
-export type NavCountKey = 'labs' | 'rooms';
+export type NavCountKey = 'labs';
 
 export interface NavItem {
   label: string;
@@ -26,7 +26,6 @@ export const NAV: readonly NavGroup[] = [
     items: [
       { label: 'Home', icon: 'home', link: '/home' },
       { label: 'Labs', icon: 'flask', link: '/labs', count: 'labs' },
-      { label: 'Rooms', icon: 'flag', link: '/rooms', count: 'rooms' },
       { label: 'Scoreboard', icon: 'trophy', link: '/scoreboard' },
     ],
   },
@@ -39,8 +38,8 @@ export const NAV: readonly NavGroup[] = [
     label: 'Build',
     roles: AREA_ROLES.build,
     items: [
-      { label: 'Labs', icon: 'layers', link: '/build/labs' },
-      { label: 'Rooms and challenges', icon: 'edit', link: '/build/rooms' },
+      { label: 'Labs', icon: 'edit', link: '/build/labs' },
+      { label: 'Environments', icon: 'layers', link: '/build/environments' },
     ],
   },
   {

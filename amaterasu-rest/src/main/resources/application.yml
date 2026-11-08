@@ -8,5 +8,10 @@ server:
 spring:
   application:
     name: amaterasu-rest
+  servlet:
+    multipart:
+      # Lab files players download; LabFile.MAX_BYTES matches
+      max-file-size: 50MB
+      max-request-size: 55MB
   profiles:
     active: local

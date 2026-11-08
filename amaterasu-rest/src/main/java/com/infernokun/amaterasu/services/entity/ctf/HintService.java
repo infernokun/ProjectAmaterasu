@@ -48,12 +48,12 @@ public class HintService {
 
         // Validate room user exists
         RoomUser roomUser = roomUserService.findByUserAndRoom(user, room)
-                .orElseThrow(() -> new IllegalArgumentException("User is not part of this room"));
+                .orElseThrow(() -> new IllegalArgumentException("Join this lab to unlock hints"));
 
         // Validate hint belongs to the CTF entity
         validateHintBelongsToEntity(hint, ctfEntityId);
         if (ctfEntity.getRoom() == null || !ctfEntity.getRoom().getId().equals(room.getId())) {
-            throw new IllegalArgumentException("Challenge does not belong to this room");
+            throw new IllegalArgumentException("That question is not in this lab");
         }
         if (RoomPlayService.stateOf(ctfEntity, LocalDateTime.now()) != ChallengeState.OPEN) {
             throw new IllegalStateException("Hints are only available while the challenge is open");

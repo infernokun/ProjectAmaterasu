@@ -46,13 +46,11 @@ def get_docker_room():
 
 
 def room_docker():
-    user = get_admin_user()
-
     room_endpoint = url + "/room"
 
     headers = {"Content-Type": "application/json", "Accept": "application/json"}
 
-    data = {"name": "Docker Room", "creator": {"id": user["id"]}}
+    data = {"name": "Docker Room", "scenario": "## Situation\nA set of Docker practice questions."}
 
     res = session.post(room_endpoint, headers=headers, json=data, verify=False)
 

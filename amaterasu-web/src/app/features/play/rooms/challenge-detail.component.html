@@ -13,22 +13,27 @@
     </div>
 
     @if (challenge().state === 'LOCKED') {
-      <div class="banner"><app-icon name="clock" /><div>This challenge opens {{ fmt.dateTime(challenge().releaseDate) }}. It will appear here automatically.</div></div>
+      <div class="banner"><app-icon name="clock" /><div>This question opens {{ fmt.dateTime(challenge().releaseDate) }}. It will appear here automatically.</div></div>
     } @else {
       @if (challenge().description) {
-        <p class="dim desc">{{ challenge().description }}</p>
+        <app-lab-markdown class="desc" [source]="challenge().description" [environment]="environment()" [canSeeLogin]="canSeeLogin()" />
       }
       @if (challenge().attachments.length) {
         <div class="row">
-          @for (file of challenge().attachments; track file) {
-            <span class="tag"><app-icon name="file" size="sm" />{{ file }}</span>
+          @for (file of challenge().attachments; track file.name) {
+            @if (file.fileId) {
+              <button type="button" class="btn sm" (click)="download(file.fileId, file.name)" [title]="'Download ' + file.name">
+                <app-icon name="download" size="sm" />{{ file.name }}<span class="muted small">{{ size(file.size) }}</span></button>
+            } @else {
+              <span class="tag"><app-icon name="file" size="sm" />{{ file.name }}</span>
+            }
           }
         </div>
       }
     }
 
     @if (challenge().state === 'EXPIRED' && !challenge().solved) {
-      <div class="banner"><app-icon name="clock" /><div>This challenge closed {{ fmt.dateTime(challenge().expirationDate) }}. Flags are no longer accepted.</div></div>
+      <div class="banner"><app-icon name="clock" /><div>This question closed {{ fmt.dateTime(challenge().expirationDate) }}. Answers are no longer accepted.</div></div>
     } @else if (challenge().state === 'OPEN' && challenge().expirationDate && !challenge().solved) {
       <div class="small muted"><app-icon name="clock" size="sm" /> Closes {{ fmt.dateTime(challenge().expirationDate) }}</div>
     }
@@ -39,10 +44,10 @@
 
     @if (canAnswer()) {
       <form class="stack" (submit)="submit($event)">
-        <div class="row between"><label class="label" for="flag-in">Flag</label><span class="small muted">{{ attemptsLabel() }}</span></div>
+        <div class="row between"><label class="label" for="flag-in">Answer</label><span class="small muted">{{ attemptsLabel() }}</span></div>
         <div class="row flag-row">
           <input id="flag-in" class="input grow flag-input" [class.err]="wrong()" [value]="answer()" (input)="onAnswer($any($event.target).value)"
-                 placeholder="Paste the flag" autocomplete="off" spellcheck="false" [attr.aria-invalid]="wrong()">
+                 placeholder="Type or paste your answer" autocomplete="off" spellcheck="false" [attr.aria-invalid]="wrong()">
           <button class="btn primary" type="submit" [disabled]="!answer().trim() || store.submitting()">
             @if (store.submitting()) {<app-icon name="spinner" size="sm" [spin]="true" />}Submit</button>
         </div>
@@ -50,21 +55,21 @@
           <div class="bar attempt-bar" aria-hidden="true"><span [style.width.%]="attemptPct()"></span></div>
         }
         @if (wrong()) {
-          <div class="banner bad" role="alert"><app-icon name="close" /><div>That flag is not correct. {{ leftLabel() }}</div></div>
+          <div class="banner bad" role="alert"><app-icon name="close" /><div>That answer is not correct. {{ leftLabel() }}</div></div>
         }
         @if (store.answerError()) {
           <div class="banner bad" role="alert"><app-icon name="alert" /><div>{{ store.answerError() }}</div></div>
         }
-        <span class="help">Flags are checked exactly as typed. Wrong answers count toward the attempt limit.</span>
+        <span class="help">{{ challenge().maxAttempts ? 'Answers are checked as typed. Wrong answers count toward the attempt limit.' : 'Answers are checked as typed. There is no limit on attempts.' }}</span>
       </form>
     }
     @if (outOfAttempts()) {
-      <div class="banner bad"><app-icon name="lock" /><div>No attempts left on this challenge. Ask a facilitator if you think this is a mistake.</div></div>
+      <div class="banner bad"><app-icon name="lock" /><div>No attempts left on this question. Ask a facilitator if you think this is a mistake.</div></div>
     }
 
     @if (challenge().hints.length) {
       <div class="stack">
-        <div class="row between"><h3 class="h3">Hints</h3><span class="small muted">Unlocking costs points from your score in this room</span></div>
+        <div class="row between"><h3 class="h3">Hints</h3><span class="small muted">Unlocking costs points from your score in this lab</span></div>
         @for (hint of challenge().hints; track hint.id) {
           <div class="card hint">
             <div class="row between hint-row">
@@ -73,7 +78,7 @@
                 <div class="grow">
                   <div style="font-weight: 600">Hint {{ hint.number }}</div>
                   @if (hint.unlocked) {
-                    <div class="dim hint-text">{{ hint.text }}</div>
+                    <app-markdown class="dim hint-text" [source]="hint.text" />
                     <div class="small muted hint-text">Unlocked {{ fmt.ago(hint.usedAt) }} · -{{ hint.cost }} pts</div>
                   } @else if (hintGated(hint)) {
                     <div class="small muted hint-text">Available after {{ hint.unlockAfterAttempts }} attempts. You have used {{ challenge().attempts }}.</div>

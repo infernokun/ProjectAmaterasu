@@ -8,19 +8,19 @@ export interface SearchTarget {
   fragment?: string;
 }
 
-/** Authors open labs and hidden or unreleased challenges in Build; everyone else in Play. */
+/** Authors open environments and hidden or unreleased questions in Build; everyone else in Play. */
 export function searchTarget(hit: SearchHit, author: boolean): SearchTarget {
   switch (hit.type) {
     case 'TEAM_LAB':
-      return { commands: ['/labs', hit.id] };
+      return { commands: ['/environments', hit.id] };
     case 'LAB':
-      return author ? { commands: ['/build/labs', hit.id] } : { commands: ['/home'], fragment: 'catalog' };
+      return author ? { commands: ['/build/environments', hit.id] } : { commands: ['/labs'] };
     case 'ROOM':
-      return { commands: ['/rooms', hit.id] };
+      return { commands: ['/labs', hit.id] };
     case 'CHALLENGE':
       return author && hit.status
-        ? { commands: ['/build/rooms', hit.roomId ?? ''] }
-        : { commands: ['/rooms', hit.roomId ?? ''], queryParams: { challenge: hit.id } };
+        ? { commands: ['/build/labs', hit.roomId ?? ''] }
+        : { commands: ['/labs', hit.roomId ?? ''], queryParams: { challenge: hit.id } };
     case 'USER':
       return { commands: ['/admin/users'], queryParams: { q: hit.title } };
     case 'TEAM':

@@ -172,16 +172,16 @@ export function capabilitiesFor(role: Role | undefined, teamName: string | undef
   const labs = teamName
     ? { can: true, text: `Start, pause, resume and stop ${teamName} labs` }
     : { can: false, text: 'Run team labs. An admin needs to put you on a team first.' };
-  const base: Capability[] = [{ can: true, text: 'Join rooms and submit flags' }, labs];
+  const base: Capability[] = [{ can: true, text: 'Join labs and answer their questions' }, labs];
   switch (role) {
     case Role.ADMIN:
       return [...base,
         { can: true, text: 'Run the live event and award points' },
-        { can: true, text: 'Author labs, rooms and challenges' },
+        { can: true, text: 'Author labs, their questions and environments' },
         { can: true, text: 'Manage users, teams and servers' }];
     case Role.CREATOR:
       return [...base,
-        { can: true, text: 'Author labs, rooms and challenges' },
+        { can: true, text: 'Author labs, their questions and environments' },
         { can: false, text: 'Award points or manage users' }];
     case Role.FACILITATOR:
       return [...base,

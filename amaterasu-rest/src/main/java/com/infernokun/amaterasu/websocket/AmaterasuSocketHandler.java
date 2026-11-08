@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.infernokun.amaterasu.components.LabActionGuard;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.enums.Role;
@@ -12,6 +13,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -38,11 +40,17 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
     private final List<WebSocketSession> currentSessions = new CopyOnWriteArrayList<>();
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
+    private final LabActionGuard labActionGuard;
 
     public AmaterasuSocketHandler(ObjectMapper objectMapper, UserRepository userRepository) {
+        this(objectMapper, userRepository, new LabActionGuard());
+    }
+
+    public AmaterasuSocketHandler(ObjectMapper objectMapper, UserRepository userRepository, LabActionGuard labActionGuard) {
         // The app's mapper adds type info for the Redis cache; browsers need plain JSON, with lists as arrays
         this.objectMapper = objectMapper.copy().deactivateDefaultTyping();
         this.userRepository = userRepository;
+        this.labActionGuard = labActionGuard;
     }
 
     @Override
@@ -61,17 +69,30 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
         log.info("WEBSOCKET Connection Closed for ID: {}", session.getId());
     }
 
-    /** Sends a tracker change to admins, facilitators and members of the team that owns the lab. */
+    /**
+     * Sends a tracker change to admins, facilitators and members of the team that owns the lab. A
+     * shared copy goes to everyone signed in.
+     */
     @TransactionalEventListener(fallbackExecution = true)
     public void onLabTrackerChanged(LabTrackerChangedEvent event) {
-        LabTracker labTracker = event.labTracker();
+        sendTracker(event.labTracker(), event.removed());
+    }
+
+    /** A start or stop began or ended; sent at once, not after the action's transaction. */
+    @EventListener
+    public void onLabTrackerBusy(LabTrackerBusyEvent event) {
+        sendTracker(event.labTracker(), false);
+    }
+
+    private void sendTracker(LabTracker labTracker, boolean removed) {
         String teamId = labTracker.getLabOwner() != null ? labTracker.getLabOwner().getId() : null;
+        labTracker.setPendingAction(labActionGuard.actionFor(labTracker.getId()));
 
         String message;
         try {
             ObjectNode node = objectMapper.createObjectNode();
             node.put("type", "labTracker");
-            node.put("action", event.removed() ? "removed" : "updated");
+            node.put("action", removed ? "removed" : "updated");
             node.set("labTracker", objectMapper.valueToTree(labTracker));
             message = objectMapper.writeValueAsString(node);
         } catch (JsonProcessingException | IllegalArgumentException e) {
@@ -81,10 +102,18 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
 
         Map<String, Optional<User>> users = new HashMap<>();
         for (WebSocketSession session : this.currentSessions) {
-            if (session.isOpen() && canSeeTeam(session, teamId, users)) {
+            if (session.isOpen() && (labTracker.isShared() ? signedIn(session, users) : canSeeTeam(session, teamId, users))) {
                 send(session, message);
             }
         }
+    }
+
+    private boolean signedIn(WebSocketSession session, Map<String, Optional<User>> users) {
+        if (!(session.getAttributes().get(USER_ID) instanceof String userId)) {
+            return false;
+        }
+        Optional<User> user = users.computeIfAbsent(userId, userRepository::findById);
+        return user.isPresent() && user.get().isEnabled();
     }
 
     // Looked up on every change so a role, team or disabled flag change applies to open sockets too

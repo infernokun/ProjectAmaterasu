@@ -12,8 +12,8 @@
       </a>
 
       @if (rooms.currentRoom(); as room) {
-        <a class="event" [routerLink]="['/rooms', room.id]" (click)="navigated()">
-          <span class="muted small">Current room</span>
+        <a class="event" [routerLink]="['/labs', room.id]" (click)="navigated()">
+          <span class="muted small">Current lab</span>
           <span class="event-name">{{ room.name }}</span>
         </a>
       }

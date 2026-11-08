@@ -29,3 +29,13 @@ label.btn { cursor: pointer; }
 .drag-placeholder { min-height: 60px; background: var(--surface-2); border: 1px dashed var(--border-2); }
 .cdk-drag-preview { box-sizing: border-box; border-radius: var(--radius); box-shadow: var(--shadow); background: var(--surface); }
 .cdk-drag-animating, .drop-list.cdk-drop-list-dragging .item:not(.cdk-drag-placeholder) { transition: transform 200ms cubic-bezier(0, 0, .2, 1); }
+.env-field { margin-top: 16px; }
+.env-pick { max-width: 340px; flex: 1 1 220px; }
+.scenario-edit { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; align-items: stretch; }
+.scenario-edit textarea { min-height: 280px; resize: vertical; font-size: 13px; }
+.scenario-preview { max-height: 420px; overflow: auto; font-size: 14px; }
+.files-field { margin-top: 16px; }
+.file-row { gap: 8px; align-items: center; flex-wrap: nowrap; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.file-row .mono { overflow-wrap: anywhere; }
+label.btn.disabled { opacity: .6; pointer-events: none; }
+.scenario-field { margin-top: 16px; }
