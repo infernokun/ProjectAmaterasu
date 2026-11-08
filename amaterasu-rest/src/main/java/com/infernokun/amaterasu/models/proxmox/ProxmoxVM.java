@@ -82,6 +82,10 @@ public class ProxmoxVM {
         if (guestAgent && !"running".equals(status)) {
             ready = false;
         }
+        // A stopped bastion's lease may change by the next start, so it is read again then
+        if (isBastion() && !"running".equals(status)) {
+            accessAddress = null;
+        }
         return this;
     }
 
