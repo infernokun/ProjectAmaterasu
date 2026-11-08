@@ -8,6 +8,7 @@ import com.infernokun.amaterasu.models.enums.RoomUserStatus;
 import com.infernokun.amaterasu.repositories.ctf.RoomRepository;
 import com.infernokun.amaterasu.repositories.ctf.RoomUserRepository;
 import com.infernokun.amaterasu.services.entity.UserService;
+import com.infernokun.amaterasu.services.entity.ctf.LabTeamService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
@@ -23,6 +24,7 @@ public class CurrentUser {
     private final UserService userService;
     private final RoomRepository roomRepository;
     private final RoomUserRepository roomUserRepository;
+    private final LabTeamService labTeamService;
 
     public String id() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -118,10 +120,9 @@ public class CurrentUser {
                 .map(roomUser -> roomUser.getRoomUserStatus() == RoomUserStatus.JOINED).orElse(false);
     }
 
+    /** The copy's team, an Admin team or a team inside a lab, must include the caller. */
     private void requireTeamOwns(LabTracker labTracker) {
-        User user = user();
-        if (user.getTeam() == null || labTracker.getLabOwner() == null
-                || !user.getTeam().getId().equals(labTracker.getLabOwner().getId())) {
+        if (!labTeamService.isMember(user(), labTracker.getLabOwner())) {
             throw new AccessDeniedException("Access denied");
         }
     }

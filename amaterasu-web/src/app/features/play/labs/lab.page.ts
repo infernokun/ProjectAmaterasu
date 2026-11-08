@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { TitleCasePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { CrumbsService } from '../../../core/crumbs.service';
+import { LabTrackersStore } from '../../../core/stores/lab-trackers.store';
+import { RoomsStore } from '../../../core/stores/rooms.store';
 import { SessionStore } from '../../../core/stores/session.store';
 import { ordinal, points } from '../../../shared/format';
 import { ToastService } from '../../../shared/services/toast.service';
@@ -11,6 +13,8 @@ import { IconComponent } from '../../../shared/ui/icon.component';
 import { SkeletonComponent } from '../../../shared/ui/skeleton.component';
 import { StatusBadgeComponent } from '../../../shared/ui/status-badge.component';
 import { PlayApiService } from '../data/play-api.service';
+import { LabSeat } from '../data/play.models';
+import { TeamPickerComponent } from './team-picker.component';
 import { ChallengeDetailComponent } from '../rooms/challenge-detail.component';
 import { RoomPlayStore, StatusFilter } from '../rooms/room-play.store';
 import { EnvironmentBarComponent } from './environment-bar.component';
@@ -24,7 +28,7 @@ import { ScenarioCardComponent } from './scenario-card.component';
   selector: 'app-lab-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, TitleCasePipe, IconComponent, EmptyStateComponent, SkeletonComponent, StatusBadgeComponent,
-    ChallengeDetailComponent, EnvironmentBarComponent, ScenarioCardComponent, LabLeaderboardComponent],
+    ChallengeDetailComponent, EnvironmentBarComponent, ScenarioCardComponent, LabLeaderboardComponent, TeamPickerComponent],
   providers: [RoomPlayStore],
   templateUrl: './lab.page.html',
   styleUrl: './lab.page.scss',
@@ -41,6 +45,16 @@ export class LabPage {
   readonly labId = input.required<string>();
   /** The selected question, kept in the address so it can be shared. */
   readonly challenge = input<string>();
+  /** ?join=1 opens the team choice, from the Labs list's Join. */
+  readonly join_ = input<string | undefined>(undefined, { alias: 'join' });
+
+  protected readonly picking = signal(false);
+  private readonly rooms = inject(RoomsStore);
+  private readonly trackers = inject(LabTrackersStore);
+  protected readonly teamLabel = computed(() => {
+    const team = this.overview()?.room.teamMode;
+    return team === 'SOLO_ONLY' ? 'Solo' : team === 'TEAMS_REQUIRED' ? 'Teams required' : 'Teams optional';
+  });
 
   private readonly files = inject(LabFileDownload);
   protected readonly fmt = { ordinal, points };
@@ -79,6 +93,9 @@ export class LabPage {
       const name = this.overview()?.room.name;
       if (name) untracked(() => this.crumbs.set([{ label: 'Labs', link: '/labs' }, { label: name }]));
     });
+    effect(() => {
+      if (this.join_() && this.overview() && !this.overview()!.me.joined) untracked(() => this.join());
+    });
     // /labs/<id> used to open a team's lab copy; send those addresses to the copy's page
     effect(() => {
       if (this.store.error() && !this.overview()) untracked(() => this.tryOldAddress(this.labId()));
@@ -98,6 +115,15 @@ export class LabPage {
     }
   }
 
+  protected async picked(seat: LabSeat): Promise<void> {
+    this.picking.set(false);
+    this.toast.success(seat.teamName ? `You are on ${seat.teamName}` : 'You play solo');
+    this.rooms.load();
+    this.rooms.setCurrentRoom(this.labId());
+    this.trackers.load();
+    await this.store.reload();
+  }
+
   protected download(fileId: string, name: string): void {
     this.files.save(this.labId(), fileId, name);
   }
@@ -111,7 +137,12 @@ export class LabPage {
     }
   }
 
+  /** Solo labs join at once; otherwise the player picks solo, a team or a new one. */
   protected async join(): Promise<void> {
+    if (this.overview()?.room.teamMode !== 'SOLO_ONLY') {
+      this.picking.set(true);
+      return;
+    }
     const error = await this.store.join();
     if (error) {
       this.toast.error(error);

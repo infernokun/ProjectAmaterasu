@@ -7,6 +7,7 @@
         } @else {
           <span class="tag accent">No setup needed</span>
         }
+        <span class="tag">{{ teamLabel() }}</span>
         <span class="tag">{{ o.challenges.length }} {{ o.challenges.length === 1 ? 'question' : 'questions' }}</span>
         <span class="tag">{{ o.playerCount }} {{ o.playerCount === 1 ? 'player' : 'players' }}</span>
         @if (o.room.surroundTag) {
@@ -33,6 +34,22 @@
       }
     </div>
   </header>
+
+  @if (picking()) {
+    <app-team-picker [labId]="o.room.id" [labName]="o.room.name" [teamMode]="o.room.teamMode" [maxTeamSize]="o.room.maxTeamSize"
+                     [joined]="o.me.joined" [currentTeamId]="o.me.teamId" (done)="picked($event)" (closed)="picking.set(false)" />
+  } @else if (o.me.joined && o.room.teamMode !== 'SOLO_ONLY') {
+    <div class="row between card team-line">
+      <span class="row tight-row"><app-icon name="users" />
+        @if (o.me.teamName) {
+          <span>You play on <strong>{{ o.me.teamName }}</strong>{{ o.room.teamCredit === 'SHARED_SOLVES' ? '. A teammate\'s solve counts for the whole team.' : '. Your teammates\' solves show on each question.' }}</span>
+        } @else {
+          <span>You play solo.</span>
+        }
+      </span>
+      <button type="button" class="btn sm" (click)="picking.set(true)">{{ o.me.teamName ? 'Change team' : 'Join or create a team' }}</button>
+    </div>
+  }
 
   <app-scenario-card [scenario]="o.room.scenario" [environment]="o.environment" [canSeeLogin]="canSeeLogin()" />
 
@@ -93,8 +110,8 @@
           <div class="row between group-head"><span class="nav-label">{{ group.name }}</span><span class="small muted">{{ group.done }} of {{ group.total }} solved</span></div>
           @for (item of group.items; track item.id) {
             <button type="button" class="list-btn" [class.on]="store.selected()?.id === item.id" [attr.aria-current]="store.selected()?.id === item.id" (click)="pick(item.id)">
-              <span class="feed-ico item-ico" [class.s-active]="item.solved">
-                @if (item.solved) {
+              <span class="feed-ico item-ico" [class.s-active]="item.done">
+                @if (item.done) {
                   <app-icon name="check" size="sm" />
                 } @else if (item.state === 'LOCKED') {
                   <app-icon name="lock" size="sm" />
@@ -104,7 +121,7 @@
               </span>
               <span class="grow">
                 <span class="item-title">{{ item.title }}</span>
-                <span class="small muted">{{ item.difficulty ? (item.difficulty | titlecase) + ' · ' : '' }}{{ item.solves }} {{ item.solves === 1 ? 'solve' : 'solves' }}{{ item.state === 'LOCKED' ? ' · not open yet' : item.state === 'EXPIRED' ? ' · closed' : '' }}</span>
+                <span class="small muted">{{ item.difficulty ? (item.difficulty | titlecase) + ' · ' : '' }}{{ item.solves }} {{ item.solves === 1 ? 'solve' : 'solves' }}{{ item.state === 'LOCKED' ? ' · not open yet' : item.state === 'EXPIRED' ? ' · closed' : '' }}{{ item.solvedByTeammates.length ? ' · solved by ' + item.solvedByTeammates.join(', ') : '' }}</span>
               </span>
               <span class="num item-points">{{ item.points }}</span>
             </button>
@@ -122,7 +139,7 @@
     <section class="card"><app-empty-state icon="flag" title="No questions yet" message="Questions show here as soon as the lab's authors publish them." /></section>
   }
 
-  <app-lab-leaderboard [labId]="o.room.id" />
+  <app-lab-leaderboard [labId]="o.room.id" [myTeamId]="o.me.teamId" />
 } @else if (store.error()) {
   <section class="card">
     <app-empty-state icon="alert" title="This lab could not be opened" [message]="store.error()!">
