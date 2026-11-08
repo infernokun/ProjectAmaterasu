@@ -571,13 +571,13 @@ public class ProxmoxService extends BaseService {
             for (Integer templateId : templateIds) {
                 ProxmoxVM template = templates.get(templateId);
                 int newVmid = nextVmid(remoteServer);
-                String name = sanitizeName(labTracker.getLabOwner().getName() + "-"
+                String name = sanitizeName(ownerLabel(labTracker) + "-"
                         + labTracker.getLabStarted().getName() + "-" + template.getName());
 
                 ResponseEntity<ProxmoxActionResponse> clone = sendProxmoxRequest(
                         nodeApi(remoteServer, "/qemu/" + templateId + "/clone"),
                         Map.of("newid", newVmid, "name", name,
-                                "description", labTracker.getLabStarted().getName() + " for " + labTracker.getLabOwner().getName()),
+                                "description", labTracker.getLabStarted().getName() + " for " + ownerLabel(labTracker)),
                         HttpMethod.POST, remoteServer);
                 responses.add("Clone " + template.getName() + " -> " + newVmid + ": " + describe(clone));
                 if (!clone.getStatusCode().is2xxSuccessful()) {
@@ -1235,6 +1235,11 @@ public class ProxmoxService extends BaseService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
         return headers;
+    }
+
+    /** Who a copy is for: its team, or "Shared" for a lab's one shared copy. */
+    static String ownerLabel(LabTracker labTracker) {
+        return labTracker.getLabOwner() != null ? labTracker.getLabOwner().getName() : "Shared";
     }
 
     public String sanitizeName(String name) {
