@@ -657,7 +657,7 @@ public class ProxmoxService extends BaseService {
             boolean running = failures == 0 && waitForVMsToReachStatus(labTracker.getVms(), remoteServer, "running");
             refreshVMs(labTracker, remoteServer);
             if (running) {
-                updateGuests(remoteServer, labTracker.getVms());
+                awaitGuests(labTracker, remoteServer, responses);
             }
             return LabActionResult.builder()
                     .labTracker(labTracker)
