@@ -5,6 +5,8 @@ import { LabTrackersStore } from '../../../core/stores/lab-trackers.store';
 import { LabStatus } from '../../../enums/lab-status.enum';
 import { LabType } from '../../../enums/lab-type.enum';
 import { LabTracker } from '../../../models/lab/lab-tracker.model';
+import { AuthService } from '../../../services/auth.service';
+import { FakeAuthService } from '../../../testing/fake-auth';
 import { PlayApiService } from '../data/play-api.service';
 import { LabActionsService } from './lab-actions.service';
 import { TeamLabCardComponent } from './team-lab-card.component';
@@ -13,6 +15,7 @@ describe('TeamLabCardComponent', () => {
   let fixture: ComponentFixture<TeamLabCardComponent>;
   let actions: jasmine.SpyObj<LabActionsService>;
   let state: string;
+  let auth: FakeAuthService;
   const tracker = new LabTracker({
     id: 'lt1', labStatus: LabStatus.ACTIVE, labStarted: { name: 'Web Exploitation 101', labType: LabType.DOCKER_COMPOSE },
     remoteServer: { name: 'dock-01' }, services: [{ name: 'lt1-web-1', state: 'running' }],
@@ -20,6 +23,8 @@ describe('TeamLabCardComponent', () => {
 
   beforeEach(() => {
     state = LabStatus.ACTIVE;
+    auth = new FakeAuthService();
+    auth.signIn({ id: 'u1' }, 'ADMIN');
     actions = jasmine.createSpyObj<LabActionsService>('LabActionsService', ['pause', 'stop', 'resume', 'remove', 'restart']);
     TestBed.configureTestingModule({
       imports: [TeamLabCardComponent],
@@ -28,6 +33,7 @@ describe('TeamLabCardComponent', () => {
         { provide: LabActionsService, useValue: actions },
         { provide: LabTrackersStore, useValue: { displayState: () => () => state } },
         { provide: PlayApiService, useValue: { access: () => of({}) } },
+        { provide: AuthService, useValue: auth },
       ],
     });
     fixture = TestBed.createComponent(TeamLabCardComponent);
@@ -45,6 +51,15 @@ describe('TeamLabCardComponent', () => {
     button('Pause instead')!.click();
     expect(actions.pause).toHaveBeenCalledWith(tracker);
     expect(actions.stop).not.toHaveBeenCalled();
+  });
+
+  it('gives a member no lifecycle actions, only Open', () => {
+    auth.signIn({ id: 'u2' }, 'MEMBER');
+    fixture.componentRef.setInput('tracker', new LabTracker({ ...tracker }));
+    fixture.detectChanges();
+    expect(button('Stop')).toBeUndefined();
+    expect(button('Pause')).toBeUndefined();
+    expect(el().textContent).toContain('Open');
   });
 
   it('shows a request in flight on the card', () => {

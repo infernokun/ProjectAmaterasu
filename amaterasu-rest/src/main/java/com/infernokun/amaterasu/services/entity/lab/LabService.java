@@ -33,6 +33,7 @@ import com.infernokun.amaterasu.services.entity.ctf.CTFEntityService;
 import com.infernokun.amaterasu.websocket.LabTrackerBusyEvent;
 import jakarta.transaction.Transactional;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -339,11 +340,15 @@ public class LabService extends BaseService {
                 ? Optional.<LabTracker>empty() : labTrackerService.findLabTrackerById(labTrackerId))
                 .filter(tracker -> tracker.getLabStatus() != LabStatus.DELETED);
         existing.ifPresent(currentUser::requireTrackerControl);
-        // A shared copy belongs to its lab, not a team
-        boolean shared = existing.map(LabTracker::isShared).orElse(false);
-        Team userTeam = shared ? null : existing.map(LabTracker::getLabOwner).orElse(user.getTeam());
-        if (!shared && userTeam == null) {
-            return new LabActionResult(false, null, "User must be on a team to start a lab");
+        // Only admins start a new copy straight from the catalog
+        if (existing.isEmpty() && !currentUser.isAdmin()) {
+            throw new AccessDeniedException("Only admins start a new copy of " + lab.getName());
+        }
+        // A shared copy belongs to its lab and the solo copy to players without a team, not a team
+        boolean ownerless = existing.map(tracker -> tracker.isShared() || tracker.isSolo()).orElse(false);
+        Team userTeam = ownerless ? null : existing.map(LabTracker::getLabOwner).orElse(user.getTeam());
+        if (!ownerless && userTeam == null) {
+            return new LabActionResult(false, null, "Pick a team to start this copy for");
         }
         LabTracker labTracker = existing.orElseGet(() -> LabTracker.builder()
                 .labStarted(lab)
@@ -524,14 +529,13 @@ public class LabService extends BaseService {
      */
     @Transactional
     public LabTracker deleteLabFromTeam(String labId, String userId, String labTrackerId) {
-        User user = this.userService.findUserById(userId);
-        Team userTeam = user.getTeam();
-        if (userTeam == null || !userTeam.getTeamActiveLabs().contains(labTrackerId)) {
-            throw new ResourceNotFoundException("Lab not found in this team!");
-        }
-
         LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lab tracker not found!"));
+        // Admins remove any team's copy, so the team is the copy's, not the caller's
+        Team userTeam = labTracker.getLabOwner();
+        if (userTeam == null) {
+            throw new ResourceNotFoundException("Lab not found in a team!");
+        }
 
         if (hasDeployment(labTracker) && labTracker.getRemoteServer() != null) {
             LabActionResult result = labActionService.teardownLab(labTracker, labTracker.getRemoteServer());

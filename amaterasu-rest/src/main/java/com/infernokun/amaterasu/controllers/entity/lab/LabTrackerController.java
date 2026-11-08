@@ -18,7 +18,6 @@ import com.infernokun.amaterasu.models.proxmox.ProxmoxVM;
 import com.infernokun.amaterasu.services.entity.lab.LabService;
 import com.infernokun.amaterasu.services.entity.lab.LabTrackerService;
 import com.infernokun.amaterasu.services.entity.lab.RemoteServerService;
-import com.infernokun.amaterasu.services.entity.ctf.LabTeamService;
 import com.infernokun.amaterasu.utils.AESUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -37,18 +36,18 @@ public class LabTrackerController extends BaseController {
     private final LabService labService;
     private final CurrentUser currentUser;
     private final AESUtil aesUtil;
-    private final LabTeamService labTeamService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<LabTracker>>> getAllLabTrackers(@RequestParam(required = false) HashMap<String, String> params) {
         if (!currentUser.isAdmin() || params.containsKey("mine")) {
-            // Members only ever see their own teams' copies: their Admin team and their teams inside labs
-            List<LabTracker> mine = labTeamService.teamsOf(currentUser.user()).stream()
-                    .flatMap(team -> labTrackerService.findLabTrackerByTeamId(team.getId()).stream())
+            // Everyone else only sees the copies they work in: their team's, or the solo copies without a team
+            List<LabTracker> mine = labTrackerService.findAllLabTrackers().stream()
+                    .filter(tracker -> tracker.getLabStatus() != LabStatus.DELETED && !tracker.isShared())
+                    .filter(currentUser::canAccess)
                     .toList();
             return ResponseEntity.ok(ApiResponse.<List<LabTracker>>builder()
                     .code(HttpStatus.OK.value())
-                    .message("Lab trackers for your teams retrieved successfully.")
+                    .message("Your lab copies retrieved successfully.")
                     .data(mine)
                     .build());
         }
@@ -184,7 +183,8 @@ public class LabTrackerController extends BaseController {
         RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
         LabTracker labTracker = labTrackerOptional.orElseThrow(() -> new ResourceNotFoundException("Lab tracker not found"));
-        currentUser.requireTrackerAccess(labTracker);
+        // Compose files and volumes can hold answers, so only those who run the copy see them
+        currentUser.requireTrackerControl(labTracker);
         Map<String, Object> response = labService.getLabConfiguration(labTracker, remoteServer);
 
         return ResponseEntity.ok(
@@ -237,7 +237,8 @@ public class LabTrackerController extends BaseController {
         RemoteServer remoteServer = remoteServerService.findServerById(remoteServerId);
         Optional<LabTracker> labTrackerOptional = labTrackerService.findLabTrackerById(labTrackerId);
         LabTracker labTracker = labTrackerOptional.orElseThrow(() -> new ResourceNotFoundException("Lab tracker not found"));
-        currentUser.requireTrackerAccess(labTracker);
+        // Service logs can print answers too
+        currentUser.requireTrackerControl(labTracker);
         String response = labTrackerService.getLabLogs(labTracker, remoteServer, service);
 
         return ResponseEntity.ok(

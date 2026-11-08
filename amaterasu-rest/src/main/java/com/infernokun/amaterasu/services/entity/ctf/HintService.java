@@ -1,5 +1,7 @@
 package com.infernokun.amaterasu.services.entity.ctf;
 
+import com.infernokun.amaterasu.components.CurrentUser;
+import com.infernokun.amaterasu.models.enums.RoomUserStatus;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomOverview.ChallengeState;
@@ -29,6 +31,7 @@ public class HintService {
     private final CTFAnswerService ctfAnswerService;
     private final ModelMapper modelMapper;
     private final ApplicationEventPublisher events;
+    private final CurrentUser currentUser;
 
     public Hint getHintById(String hintId) {
         return hintRepository.findById(hintId).orElseThrow(()
@@ -46,9 +49,11 @@ public class HintService {
         CTFEntity ctfEntity = ctfEntityService.findCTFEntityById(ctfEntityId);
         Hint hint = getHintById(hintId);
 
-        // Validate room user exists
-        RoomUser roomUser = roomUserService.findByUserAndRoom(user, room)
-                .orElseThrow(() -> new IllegalArgumentException("Join this lab to unlock hints"));
+        currentUser.requireCanSee(room);
+        if (roomUserService.findByUserAndRoom(user, room).map(seat -> seat.getRoomUserStatus() == RoomUserStatus.KICKED
+                || seat.getRoomUserStatus() == RoomUserStatus.BANNED).orElse(false)) {
+            throw new IllegalStateException("You can no longer unlock hints in this lab");
+        }
 
         // Validate hint belongs to the CTF entity
         validateHintBelongsToEntity(hint, ctfEntityId);
@@ -60,6 +65,11 @@ public class HintService {
         }
 
         // Validate user has enough points
+        RoomUser roomUser = roomUserService.findByUserAndRoom(user, room).orElse(null);
+        if (roomUser == null && hint.getCost() != null && hint.getCost() > 0) {
+            throw new IllegalStateException("Not enough points to use this hint");
+        }
+        roomUser = roomUser != null ? roomUser : roomUserService.seatFor(user, room);
         validateUserHasEnoughPoints(roomUser, hint);
 
         // Get or create CTF answer

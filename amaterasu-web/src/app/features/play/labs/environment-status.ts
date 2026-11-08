@@ -34,9 +34,17 @@ export function trackerOf(environment: EnvironmentView | null | undefined): LabT
   return environment?.tracker ? new LabTracker(environment.tracker) : null;
 }
 
+/** Whether a new tracker is the given copy: the lab's shared one, the Solo one, or a team's. */
+function isCopy(target: string, labId: string, tracker: LabTracker): boolean {
+  if (target === 'shared') return tracker.roomId === labId;
+  if (target === 'solo') return !tracker.roomId && !!tracker.solo;
+  return !tracker.roomId && !tracker.solo && target === `team:${tracker.labOwner?.id}`;
+}
+
 /**
- * A live tracker change applied to a lab's environment: the same copy, a new shared copy for this
- * lab, or a new copy for the viewer's team. Returns the same object when the change is not for it.
+ * A live tracker change applied to a lab's environment: the viewer's copy and, for those who run the
+ * lab, its list of copies. The viewer's copy is the shared one, their team's, or the Solo copy when
+ * they have no team. Returns the same object when the change is not for it.
  */
 export function withTrackerChange(
   environment: EnvironmentView,
@@ -45,13 +53,26 @@ export function withTrackerChange(
   removed: boolean,
   teamId: string | null | undefined,
 ): EnvironmentView {
+  if (tracker.labStarted?.id && tracker.labStarted.id !== environment.labId) return environment;
+  const gone = removed || tracker.labStatus === LabStatus.DELETED;
+  let changed = false;
+
+  const copies = (environment.copies ?? []).map(copy => {
+    const same = !!copy.trackerId && copy.trackerId === tracker.id;
+    const fresh = !copy.trackerId && isCopy(copy.target, labId, tracker);
+    if (!same && !fresh) return copy;
+    changed = true;
+    return gone ? { ...copy, trackerId: null, tracker: null, status: 'NOT_RUNNING' as const }
+      : { ...copy, trackerId: tracker.id ?? null, tracker, status: environmentStatus(tracker) };
+  });
+
+  const own = environment.mode === 'SHARED' ? 'shared' : teamId ? `team:${teamId}` : 'solo';
   const same = !!environment.trackerId && environment.trackerId === tracker.id;
-  const fresh = !environment.trackerId && tracker.labStarted?.id === environment.labId
-    && (environment.mode === 'SHARED' ? tracker.roomId === labId
-      : !tracker.roomId && !!teamId && tracker.labOwner?.id === teamId);
-  if (!same && !fresh) return environment;
-  if (removed || tracker.labStatus === LabStatus.DELETED) {
-    return { ...environment, trackerId: null, tracker: null, status: 'NOT_RUNNING' };
+  const fresh = !environment.trackerId && isCopy(own, labId, tracker);
+  let next: EnvironmentView = changed ? { ...environment, copies } : environment;
+  if (same || fresh) {
+    next = gone ? { ...next, trackerId: null, tracker: null, status: 'NOT_RUNNING' }
+      : { ...next, trackerId: tracker.id ?? null, tracker, status: environmentStatus(tracker) };
   }
-  return { ...environment, trackerId: tracker.id ?? null, tracker, status: environmentStatus(tracker) };
+  return next;
 }

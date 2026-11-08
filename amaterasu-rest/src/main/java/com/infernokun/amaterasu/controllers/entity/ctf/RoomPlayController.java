@@ -27,8 +27,8 @@ import java.util.List;
 import static com.infernokun.amaterasu.utils.AmaterasuConstants.buildSuccessResponse;
 
 /**
- * Lab views for players, the scoreboard and facilitators, and running a lab's environment. SecurityConfig
- * limits /live to staff; a facilitator only sees labs they facilitate.
+ * Lab views for players, the scoreboard and facilitators, and running a lab's environment. Only admins
+ * and the lab's facilitators run it or see /live; SecurityConfig also limits /live to staff.
  */
 @RestController
 @RequiredArgsConstructor
@@ -43,7 +43,8 @@ public class RoomPlayController {
     public record EnvironmentActionResult(boolean successful, String message, EnvironmentView environment) {
     }
 
-    public record StartRequest(String remoteServerId) {
+    /** Which copy: "shared", "solo" or "team:" and a team's id. A shared environment needs none. */
+    public record CopyRequest(String target, String remoteServerId) {
     }
 
     @GetMapping("/cards")
@@ -58,28 +59,41 @@ public class RoomPlayController {
 
     @GetMapping("/{roomId}/environment")
     public ResponseEntity<ApiResponse<EnvironmentView>> environment(@PathVariable String roomId) {
+        currentUser.requireCanSee(roomService.findByRoomId(roomId));
         return buildSuccessResponse("Environment", roomPlayService.environment(roomId, currentUser.id()), HttpStatus.OK);
     }
 
-    /** Starts or resumes the shared copy (its facilitators and admins) or the caller's team's copy. */
+    /** Starts or resumes one copy of the lab's environment. Admins and the lab's facilitators only. */
     @PostMapping("/{roomId}/environment/start")
     public ResponseEntity<ApiResponse<EnvironmentActionResult>> start(@PathVariable String roomId,
-                                                                      @RequestBody(required = false) StartRequest request) {
-        Room room = roomService.findByRoomId(roomId);
-        return acted(roomId, labEnvironmentService.start(room, request == null ? null : request.remoteServerId()),
+                                                                      @RequestBody(required = false) CopyRequest request) {
+        Room room = runnable(roomId);
+        return acted(roomId, labEnvironmentService.start(room, target(request), request == null ? null : request.remoteServerId()),
                 "Environment started", "The environment did not start");
     }
 
     @PostMapping("/{roomId}/environment/pause")
-    public ResponseEntity<ApiResponse<EnvironmentActionResult>> pause(@PathVariable String roomId) {
-        return acted(roomId, labEnvironmentService.pause(roomService.findByRoomId(roomId)),
+    public ResponseEntity<ApiResponse<EnvironmentActionResult>> pause(@PathVariable String roomId,
+                                                                      @RequestBody(required = false) CopyRequest request) {
+        return acted(roomId, labEnvironmentService.pause(runnable(roomId), target(request)),
                 "Environment paused", "The environment did not pause");
     }
 
     @PostMapping("/{roomId}/environment/stop")
-    public ResponseEntity<ApiResponse<EnvironmentActionResult>> stop(@PathVariable String roomId) {
-        return acted(roomId, labEnvironmentService.stop(roomService.findByRoomId(roomId)),
+    public ResponseEntity<ApiResponse<EnvironmentActionResult>> stop(@PathVariable String roomId,
+                                                                     @RequestBody(required = false) CopyRequest request) {
+        return acted(roomId, labEnvironmentService.stop(runnable(roomId), target(request)),
                 "Environment stopped", "The environment did not stop");
+    }
+
+    private Room runnable(String roomId) {
+        Room room = roomService.findByRoomId(roomId);
+        currentUser.requireCanRun(room);
+        return room;
+    }
+
+    private static String target(CopyRequest request) {
+        return request == null ? null : request.target();
     }
 
     private ResponseEntity<ApiResponse<EnvironmentActionResult>> acted(String roomId, LabActionResult result,
@@ -93,6 +107,7 @@ public class RoomPlayController {
 
     @GetMapping("/{roomId}/standings")
     public ResponseEntity<ApiResponse<RoomStandings>> standings(@PathVariable String roomId) {
+        currentUser.requireCanSee(roomService.findByRoomId(roomId));
         return buildSuccessResponse("Room standings", roomPlayService.standings(roomId), HttpStatus.OK);
     }
 

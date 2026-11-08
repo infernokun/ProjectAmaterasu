@@ -5,6 +5,7 @@ import { CrumbsService } from '../../../core/crumbs.service';
 import { errorMessage } from '../../../core/http-error';
 import { AuditService } from '../../../core/services/audit.service';
 import { LabTrackersStore } from '../../../core/stores/lab-trackers.store';
+import { SessionStore } from '../../../core/stores/session.store';
 import { LabStatus } from '../../../enums/lab-status.enum';
 import { DockerServiceInfo } from '../../../models/lab/docker-service-info.model';
 import { LabTracker } from '../../../models/lab/lab-tracker.model';
@@ -25,12 +26,15 @@ import { LabActionsService } from './lab-actions.service';
 import { LabFilesComponent } from './lab-files.component';
 import { LabLogsComponent } from './lab-logs.component';
 import {
-  bastionOf, changedAgo, isRunningState, isVm, labActions, labTypeLabel, loginUser, pauseHelp, serviceName, stopWarning, vmLook,
+  allowedActions, bastionOf, changedAgo, isRunningState, isVm, labActions, labTypeLabel, loginUser, pauseHelp, serviceName, stopWarning, vmLook,
 } from './lab-view';
 
 type Tab = 'units' | 'logs' | 'files' | 'activity';
 
-/** One team lab: its services or VMs, logs, files and activity, with the lifecycle actions. */
+/**
+ * One environment copy: its services or VMs and how to get in. Admins and facilitators also get logs,
+ * files and the lifecycle actions; admins the activity.
+ */
 @Component({
   selector: 'app-lab-console-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -47,6 +51,7 @@ export class LabConsolePage {
   private readonly actions = inject(LabActionsService);
   private readonly toast = inject(ToastService);
   private readonly crumbs = inject(CrumbsService);
+  protected readonly session = inject(SessionStore);
 
   readonly trackerId = input.required<string>();
 
@@ -68,7 +73,7 @@ export class LabConsolePage {
   });
   protected readonly can = computed(() => {
     const tracker = this.tracker();
-    return tracker ? labActions(tracker, this.state()) : null;
+    return tracker ? allowedActions(labActions(tracker, this.state()), this.session.canRun(), this.session.isAdmin()) : null;
   });
   protected readonly vm = computed(() => isVm(this.tracker()?.labStarted));
   protected readonly typeLabel = computed(() => labTypeLabel(this.tracker()?.labStarted));
@@ -106,7 +111,7 @@ export class LabConsolePage {
       if (labId) untracked(() => this.loadChallenges(labId));
     });
     effect(() => {
-      if (this.tab() === 'activity') {
+      if (this.tab() === 'activity' && this.session.isAdmin()) {
         untracked(() => this.loadActivity());
       }
     });

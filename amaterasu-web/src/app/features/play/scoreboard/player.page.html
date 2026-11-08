@@ -36,7 +36,7 @@
   </div>
 } @else if (store.standings()) {
   <section class="card">
-    <app-empty-state icon="user" title="Not in this room" [message]="username() + ' has not joined this room.'">
+    <app-empty-state icon="user" title="No progress here" [message]="username() + ' has not played this lab yet.'">
       <a class="btn sm" [routerLink]="['/labs', roomId(), 'scoreboard']">Back to scoreboard</a>
     </app-empty-state>
   </section>

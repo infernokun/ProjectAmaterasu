@@ -10,6 +10,7 @@ import com.infernokun.amaterasu.repositories.NotificationRepository;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
 import com.infernokun.amaterasu.repositories.ctf.CTFEntityRepository;
 import com.infernokun.amaterasu.repositories.ctf.RoomRepository;
+import com.infernokun.amaterasu.services.entity.ctf.RoomUserService;
 import com.infernokun.amaterasu.services.entity.AuditService;
 import com.infernokun.amaterasu.services.notification.NotificationRules;
 import com.infernokun.amaterasu.services.notification.NotificationService;
@@ -41,6 +42,12 @@ class NotificationIntegrationTest extends ApiTestSupport {
     @Autowired private RoomRepository roomRepository;
     @Autowired private NotificationRules rules;
     @Autowired private CTFEntityRepository ctfEntityRepository;
+    @Autowired private RoomUserService roomUserService;
+
+    /** Alice answered something in the lab, so she hears about it. */
+    private void played(User user, Room room) {
+        roomUserService.seatFor(user, room);
+    }
 
     private Team red;
     private User alice;
@@ -139,7 +146,6 @@ class NotificationIntegrationTest extends ApiTestSupport {
         User facilitator = user(Role.FACILITATOR, null);
         Room room = roomRepository.save(Room.builder().name(unique("room"))
                 .facilitators(new ArrayList<>(List.of(facilitator.getId()))).build());
-        postAs("/api/room/join/" + room.getId() + "/" + alice.getId(), token(alice), Map.of()).andExpect(status().isOk());
         postAs("/api/room/add-points/" + room.getId() + "/" + alice.getId(), token(facilitator),
                 Map.of("points", 50, "reason", "Writeup bonus")).andExpect(status().isOk());
 
@@ -191,7 +197,7 @@ class NotificationIntegrationTest extends ApiTestSupport {
     @Test
     void scheduledReleasesNotifyPlayersInTheRoomOnly() throws Exception {
         Room room = roomRepository.save(Room.builder().name(unique("room")).build());
-        postAs("/api/room/join/" + room.getId() + "/" + alice.getId(), token(alice), Map.of()).andExpect(status().isOk());
+        played(alice, room);
         LocalDateTime now = LocalDateTime.now();
         CTFEntity later = challenge(room, "Padding Oracle", now.plusMinutes(30));
         challenge(room, "Open from the start", now);
@@ -209,7 +215,7 @@ class NotificationIntegrationTest extends ApiTestSupport {
     @Test
     void severalReleasesAtOnceBecomeOneNotification() throws Exception {
         Room room = roomRepository.save(Room.builder().name(unique("room")).build());
-        postAs("/api/room/join/" + room.getId() + "/" + alice.getId(), token(alice), Map.of()).andExpect(status().isOk());
+        played(alice, room);
         // Sub-second precision on purpose: some clocks give nanoseconds, and the release must still match
         LocalDateTime release = LocalDateTime.now().plusMinutes(30).withSecond(0).withNano(123_456_789);
         for (String title : List.of("One", "Two", "Three", "Four")) {

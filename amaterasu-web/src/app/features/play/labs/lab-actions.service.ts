@@ -44,7 +44,7 @@ export class LabActionsService {
     const name = tracker.labStarted?.name ?? 'this lab';
     const choice = await firstValueFrom(this.confirm.open({
       title: `Stop ${name}?`,
-      message: `${stopWarning(tracker)} Your team's progress in this copy is lost. To keep it, pause instead.`,
+      message: `${stopWarning(tracker)} Everyone's progress in this copy is lost. To keep it, pause instead.`,
       confirmLabel: 'Stop and destroy',
       alternativeLabel: 'Pause instead',
       typeToConfirm: name,

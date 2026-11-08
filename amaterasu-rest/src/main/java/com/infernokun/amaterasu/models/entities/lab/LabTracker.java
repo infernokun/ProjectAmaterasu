@@ -49,8 +49,10 @@ public class LabTracker extends StoredObject {
     @JsonIgnore
     @Column(columnDefinition = "TEXT")
     private String accessPassword;
-    /** The lab (room) a shared copy runs for; null for a team's copy. */
+    /** The lab (room) a shared copy runs for; null for a team's or the solo copy. */
     private String roomId;
+    /** The one copy of a per-team environment that players without a team share. */
+    private Boolean solo;
     /** A start, pause or stop in progress, from LabActionGuard. Never stored. */
     @Transient
     private String pendingAction;
@@ -58,5 +60,10 @@ public class LabTracker extends StoredObject {
     @JsonIgnore
     public boolean isShared() {
         return roomId != null;
+    }
+
+    @JsonIgnore
+    public boolean isSolo() {
+        return !isShared() && Boolean.TRUE.equals(solo);
     }
 }

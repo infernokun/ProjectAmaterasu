@@ -52,39 +52,26 @@ export interface ChallengeView {
 }
 
 export type EnvironmentMode = 'NONE' | 'SHARED' | 'PER_TEAM';
-export type TeamMode = 'SOLO_ONLY' | 'TEAMS_OPTIONAL' | 'TEAMS_REQUIRED';
 /** SEE_TEAMMATES keeps answers per person; SHARED_SOLVES counts one member's solve for the team. */
 export type TeamCredit = 'SEE_TEAMMATES' | 'SHARED_SOLVES';
-
-/** A team inside a lab, from GET /api/room/{id}/teams. */
-export interface LabTeam {
-  id: string;
-  name: string;
-  members: string[];
-  size: number;
-  full: boolean;
-}
-
-/** Joining solo ({}), on a team ({ teamId }) or on a new team ({ newTeamName }). */
-export interface TeamChoice {
-  teamId?: string;
-  newTeamName?: string;
-}
-
-/** A player's place in a lab after joining or changing team. */
-export interface LabSeat {
-  roomId: string;
-  userId: string;
-  status: string;
-  points: number;
-  teamId: string | null;
-  teamName: string | null;
-}
 
 /** The one status every view shows for a lab's environment. */
 export type EnvironmentStatus = 'NOT_RUNNING' | 'STARTING' | 'RUNNING' | 'PAUSED' | 'FAILED';
 
-/** A lab's environment as the viewer sees it: the shared copy, or their team's. */
+/** One copy of a lab's environment, for the people who run it: the shared one, a team's, or the Solo copy. */
+export interface EnvironmentCopy {
+  /** 'shared', 'solo' or 'team:<teamId>'; what an action sends as its target. */
+  target: string;
+  label: string;
+  teamId: string | null;
+  solo: boolean;
+  members: number;
+  status: EnvironmentStatus;
+  trackerId: string | null;
+  tracker: unknown | null;
+}
+
+/** A lab's environment as the viewer sees it: the shared copy, their team's, or the Solo copy. */
 export interface EnvironmentView {
   labId: string;
   labName: string;
@@ -94,11 +81,15 @@ export interface EnvironmentView {
   trackerId: string | null;
   /** The copy, as a raw lab tracker; null until one exists. */
   tracker: unknown | null;
-  /** The viewer may start and stop this copy. */
+  /** Which copy the viewer works in, such as "Solo copy". */
+  copyLabel?: string | null;
+  /** The viewer runs this lab: an admin, or one of its facilitators. */
   canControl: boolean;
-  /** Why the viewer cannot act, when they cannot. */
+  /** A calm line for players when there is nothing to use yet. */
   note: string | null;
   copiesRunning: number;
+  /** Every copy, for those who run the lab; empty for players and in the Labs list. */
+  copies?: EnvironmentCopy[];
 }
 
 /** One lab in the Labs list, from GET /api/room/cards. */
@@ -110,13 +101,11 @@ export interface LabCard {
   environment: EnvironmentView | null;
   questionCount: number;
   playerCount: number;
-  joined: boolean;
-  left: boolean;
   points: number;
   solved: number;
   /** The viewer facilitates this lab, or is an admin. */
   canRun: boolean;
-  teamMode: TeamMode;
+  /** The viewer's site-wide team, if any. */
   teamId: string | null;
   teamName: string | null;
 }
@@ -131,12 +120,11 @@ export interface EnvironmentActionResult {
 export interface RoomOverview {
   room: {
     id: string; name: string; surroundTag: string | null; creator: string | null; facilitators: string[];
-    scenario: string | null; environmentMode: EnvironmentMode; canRun: boolean;
-    teamMode: TeamMode; maxTeamSize: number | null; teamCredit: TeamCredit;
+    scenario: string | null; environmentMode: EnvironmentMode; canRun: boolean; teamCredit: TeamCredit;
   };
   playerCount: number;
   teamCount: number;
-  me: { joined: boolean; points: number; rank: number; solved: number; teamId: string | null; teamName: string | null };
+  me: { points: number; rank: number; solved: number; teamId: string | null; teamName: string | null };
   challenges: ChallengeView[];
   environment: EnvironmentView | null;
   files: LabFileView[];
@@ -167,7 +155,7 @@ export interface TeamStanding {
   rank: number;
   teamId: string;
   name: string;
-  /** Members who joined this room. */
+  /** Members who played this lab. */
   members: number;
   /** Everyone on the team. */
   teamSize?: number;

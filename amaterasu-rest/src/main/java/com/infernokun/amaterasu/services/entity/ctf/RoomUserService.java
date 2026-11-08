@@ -4,6 +4,7 @@ import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.ctf.RoomUser;
+import com.infernokun.amaterasu.models.enums.RoomUserStatus;
 import com.infernokun.amaterasu.repositories.ctf.RoomUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,16 @@ public class RoomUserService {
 
     public Optional<RoomUser> findByUserAndRoom(User user, Room room) {
         return roomUserRepository.findByUserAndRoom(user, room);
+    }
+
+    /** The player's progress in the lab, made on their first answer or hint; nobody joins a lab. */
+    public RoomUser seatFor(User user, Room room) {
+        return roomUserRepository.findByUserAndRoom(user, room).orElseGet(() -> roomUserRepository.save(RoomUser.builder()
+                .user(user)
+                .room(room)
+                .points(0)
+                .roomUserStatus(RoomUserStatus.JOINED)
+                .build()));
     }
 
     public List<RoomUser> findByUserIdAndRoomIds(String userId, List<String> roomIds) {

@@ -1,95 +1,69 @@
 import { computed, effect, inject, untracked } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { EMPTY, Observable, catchError, map, of, pipe, switchMap, tap } from 'rxjs';
-import { RoomUserStatus } from '../../enums/room-user-status.enum';
+import { EMPTY, catchError, forkJoin, map, of, pipe, switchMap, tap } from 'rxjs';
 import { Room } from '../../models/ctf/room.model';
-import { JoinRoomResponse } from '../../models/dto/join-room-response.model';
 import { RoomService } from '../../services/ctf/room.service';
 import { errorMessage } from '../http-error';
 import { readStorage, writeStorage } from '../storage';
 import { RequestState, initialRequestState } from './request-status';
 import { SessionStore } from './session.store';
 
+export interface RoomProgress {
+  points: number;
+  solved: number;
+}
+
 interface RoomsState extends RequestState {
   rooms: Room[];
-  /** The signed-in user's place in each room, by room id. */
-  membership: Record<string, JoinRoomResponse>;
+  /** The signed-in user's points and solves in each lab, by lab id. */
+  progress: Record<string, RoomProgress>;
   /** The room the sidebar and Scoreboard point at. */
   currentRoomId: string | null;
 }
 
 const currentRoomKey = (userId: string) => `amaterasu.room.${userId}`;
 
-/** Rooms, which of them the user joined, and the current room. */
+/** Labs (rooms), the ones the user has played, and the current one. Every signed-in user can play every lab. */
 export const RoomsStore = signalStore(
   { providedIn: 'root' },
-  withState<RoomsState>({ rooms: [], membership: {}, currentRoomId: null, ...initialRequestState }),
-  withComputed(({ rooms, membership, currentRoomId, status }) => {
-    const joinedRooms = computed(() =>
-      rooms().filter(room => membership()[room.id!]?.roomUserStatus === RoomUserStatus.JOINED));
+  withState<RoomsState>({ rooms: [], progress: {}, currentRoomId: null, ...initialRequestState }),
+  withComputed(({ rooms, progress, currentRoomId, status }) => {
+    const playedRooms = computed(() => rooms().filter(room => {
+      const mine = progress()[room.id!];
+      return !!mine && (mine.points !== 0 || mine.solved > 0);
+    }));
     return {
       loading: computed(() => status() === 'loading'),
-      joinedRooms,
+      playedRooms,
       byId: computed(() => new Map(rooms().map(room => [room.id!, room]))),
-      /** The chosen room if the user is in it, else the first room they joined. */
-      currentRoom: computed<Room | undefined>(() => {
-        const joined = joinedRooms();
-        return joined.find(room => room.id === currentRoomId()) ?? joined[0];
-      }),
-      pointsIn: computed(() => (roomId: string) => membership()[roomId]?.points ?? 0),
+      /** The chosen lab, else the first one the user scored in. */
+      currentRoom: computed<Room | undefined>(() =>
+        rooms().find(room => room.id === currentRoomId()) ?? playedRooms()[0]),
+      pointsIn: computed(() => (roomId: string) => progress()[roomId]?.points ?? 0),
     };
   }),
   withMethods((store, roomService = inject(RoomService), session = inject(SessionStore)) => {
-    const setMembership = (response: JoinRoomResponse | undefined) => {
-      if (response?.roomId) {
-        patchState(store, { membership: { ...store.membership(), [response.roomId]: new JoinRoomResponse(response) } });
-      }
-    };
-    const fetch = rxMethod<string | undefined>(pipe(
+    const fetch = rxMethod<void>(pipe(
       tap(() => patchState(store, { status: 'loading', error: null })),
-      switchMap(userId => roomService.getAllRooms().pipe(
-        map(response => (response.data ?? []).map(room => new Room(room))),
-        switchMap(rooms => {
-          const ids = rooms.map(room => room.id!).filter(Boolean);
-          const membership$: Observable<Record<string, JoinRoomResponse>> = userId && ids.length
-            ? roomService.checkJoinable(userId, ids).pipe(map(response => (response.data ?? {}) as unknown as Record<string, JoinRoomResponse>))
-            : of({});
-          return membership$.pipe(map(membership => ({ rooms, membership })));
-        }),
-        tap(({ rooms, membership }) => patchState(store, { rooms, membership, status: 'loaded' })),
+      switchMap(() => forkJoin({
+        rooms: roomService.getAllRooms().pipe(map(response => (response.data ?? []).map(room => new Room(room)))),
+        progress: roomService.getProgress().pipe(
+          map(response => Object.fromEntries((response.data ?? []).map(card => [card.id, { points: card.points ?? 0, solved: card.solved ?? 0 }]))),
+          catchError(() => of({} as Record<string, RoomProgress>)),
+        ),
+      }).pipe(
+        tap(({ rooms, progress }) => patchState(store, { rooms, progress, status: 'loaded' })),
         catchError(error => {
-          patchState(store, { status: 'error', error: errorMessage(error) ?? 'Rooms could not be loaded.' });
+          patchState(store, { status: 'error', error: errorMessage(error) ?? 'Labs could not be loaded.' });
           return EMPTY;
         }),
       )),
     ));
     return {
       load(): void {
-        fetch(session.userId());
+        fetch();
       },
-      /** Joins a room; the returned observable emits the new membership. */
-      join(roomId: string): Observable<JoinRoomResponse> {
-        const userId = session.userId();
-        if (!userId) {
-          return EMPTY;
-        }
-        return roomService.joinRoom(roomId, userId).pipe(
-          map(response => new JoinRoomResponse(response.data)),
-          tap(response => setMembership(response)),
-        );
-      },
-      leave(roomId: string): Observable<JoinRoomResponse> {
-        const userId = session.userId();
-        if (!userId) {
-          return EMPTY;
-        }
-        return roomService.leaveRoom(roomId, userId).pipe(
-          map(response => new JoinRoomResponse(response.data)),
-          tap(response => setMembership(response)),
-        );
-      },
-      setMembership,
       setCurrentRoom(roomId: string): void {
         patchState(store, { currentRoomId: roomId });
         const userId = session.userId();
@@ -98,7 +72,7 @@ export const RoomsStore = signalStore(
         }
       },
       reset(): void {
-        patchState(store, { rooms: [], membership: {}, currentRoomId: null, ...initialRequestState });
+        patchState(store, { rooms: [], progress: {}, currentRoomId: null, ...initialRequestState });
       },
     };
   }),

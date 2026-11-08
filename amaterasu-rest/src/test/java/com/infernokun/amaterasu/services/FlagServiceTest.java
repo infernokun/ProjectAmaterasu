@@ -1,5 +1,7 @@
 package com.infernokun.amaterasu.services;
 
+import com.infernokun.amaterasu.components.CurrentUser;
+import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import org.springframework.context.ApplicationEventPublisher;
 import com.infernokun.amaterasu.models.enums.RoomUserStatus;
 import com.infernokun.amaterasu.websocket.RoomActivityEvent;
@@ -33,6 +35,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -50,6 +53,7 @@ class FlagServiceTest {
     @Mock private RoomService roomService;
     @Mock private ApplicationEventPublisher events;
     @Mock private AuditService auditService;
+    @Mock private CurrentUser currentUser;
 
     private FlagService flagService;
     private User user;
@@ -60,7 +64,7 @@ class FlagServiceTest {
     @BeforeEach
     void setUp() {
         flagService = new FlagService(ctfEntityService, userService, ctfAnswerService, flagRepository,
-                new ModelMapper(), roomUserService, roomService, events, auditService);
+                new ModelMapper(), roomUserService, roomService, events, auditService, currentUser);
 
         user = new User();
         user.setId("user1");
@@ -85,6 +89,7 @@ class FlagServiceTest {
         lenient().when(roomService.findByRoomId("room1")).thenReturn(room);
         lenient().when(ctfEntityService.findCTFEntityByIdWithFlags("q1")).thenReturn(challenge);
         lenient().when(roomUserService.findByUserAndRoom(user, room)).thenReturn(Optional.of(roomUser));
+        lenient().when(roomUserService.seatFor(user, room)).thenReturn(roomUser);
         lenient().when(roomUserService.save(any(RoomUser.class))).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(ctfAnswerService.saveAnsweredCTFEntity(any(CTFEntityAnswer.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
@@ -185,10 +190,28 @@ class FlagServiceTest {
     }
 
     @Test
-    void rejectsPlayersWhoLeftTheRoom() {
-        roomUser.setRoomUserStatus(RoomUserStatus.LEFT);
+    void answersWithoutJoiningTheLab() {
+        when(roomUserService.findByUserAndRoom(user, room)).thenReturn(Optional.empty());
+        when(ctfAnswerService.findByRoomUserIdAndCtfEntityIdOptional("ru1", "q1")).thenReturn(Optional.empty());
+
+        flagService.addAnsweredCTFEntity("user1", request("flag"), true);
+
+        verify(roomUserService).seatFor(user, room);
+        assertThat(roomUser.getPoints()).isEqualTo(50);
+    }
+
+    @Test
+    void rejectsKickedPlayers() {
+        roomUser.setRoomUserStatus(RoomUserStatus.KICKED);
         assertThatThrownBy(() -> flagService.addAnsweredCTFEntity("user1", request("flag"), true))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("Join the lab");
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("no longer answer");
+    }
+
+    @Test
+    void draftLabsAreNotAnswerable() {
+        doThrow(new ResourceNotFoundException("Lab room1 not found")).when(currentUser).requireCanSee(room);
+        assertThatThrownBy(() -> flagService.addAnsweredCTFEntity("user1", request("flag"), true))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test

@@ -36,14 +36,11 @@ export class ChallengeDetailComponent {
   private readonly session = inject(SessionStore);
 
   readonly challenge = input.required<ChallengeView>();
-  readonly joined = input(false);
 
   private readonly files = inject(LabFileDownload);
   protected readonly environment = computed(() => this.store.overview()?.environment ?? null);
-  protected readonly canSeeLogin = computed(() => {
-    const overview = this.store.overview();
-    return !!overview && (overview.environment?.mode === 'PER_TEAM' || overview.me.joined || overview.room.canRun);
-  });
+  // The API only hands the viewer their own copy, so its login is theirs to see
+  protected readonly canSeeLogin = computed(() => !!this.store.overview());
   protected readonly size = fileSize;
 
   protected readonly answer = signal('');
@@ -58,7 +55,7 @@ export class ChallengeDetailComponent {
   protected readonly teamSolved = computed(() => !this.challenge().solved && this.store.sharedSolves()
     && (this.challenge().solvedByTeammates?.length ?? 0) > 0);
   protected readonly canAnswer = computed(() =>
-    this.joined() && this.challenge().state === 'OPEN' && !this.challenge().solved && !this.teamSolved() && !this.outOfAttempts());
+    this.challenge().state === 'OPEN' && !this.challenge().solved && !this.teamSolved() && !this.outOfAttempts());
   protected readonly attemptsLabel = computed(() => {
     const { attempts, maxAttempts } = this.challenge();
     return maxAttempts ? `${attempts} of ${maxAttempts} attempts used` : `${attempts} ${attempts === 1 ? 'attempt' : 'attempts'} so far`;
@@ -95,7 +92,7 @@ export class ChallengeDetailComponent {
   }
 
   protected hintReady(hint: HintView): boolean {
-    return !hint.unlocked && !this.hintGated(hint) && this.joined() && this.challenge().state === 'OPEN' && !this.challenge().solved;
+    return !hint.unlocked && !this.hintGated(hint) && this.challenge().state === 'OPEN' && !this.challenge().solved;
   }
 
   protected onAnswer(value: string): void {

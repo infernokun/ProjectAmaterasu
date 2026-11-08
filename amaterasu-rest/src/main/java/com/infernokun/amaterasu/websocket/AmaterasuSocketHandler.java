@@ -43,7 +43,7 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
     private final LabActionGuard labActionGuard;
-    /** Whether a user is on a team: an Admin team, or a team inside a lab. */
+    /** Whether a user is on a team. */
     private final BiPredicate<User, Team> member;
 
     public AmaterasuSocketHandler(ObjectMapper objectMapper, UserRepository userRepository) {
@@ -78,7 +78,7 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
 
     /**
      * Sends a tracker change to admins, facilitators and members of the team that owns the lab. A
-     * shared copy goes to everyone signed in.
+     * shared copy goes to everyone signed in, the solo copy to everyone without a team.
      */
     @TransactionalEventListener(fallbackExecution = true)
     public void onLabTrackerChanged(LabTrackerChangedEvent event) {
@@ -109,7 +109,8 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
 
         Map<String, Optional<User>> users = new HashMap<>();
         for (WebSocketSession session : this.currentSessions) {
-            if (session.isOpen() && (labTracker.isShared() ? signedIn(session, users) : canSeeTeam(session, owner, users))) {
+            if (session.isOpen() && (labTracker.isShared() ? signedIn(session, users)
+                    : canSeeTeam(session, owner, labTracker.isSolo(), users))) {
                 send(session, message);
             }
         }
@@ -124,7 +125,7 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
     }
 
     // Looked up on every change so a role, team or disabled flag change applies to open sockets too
-    private boolean canSeeTeam(WebSocketSession session, Team owner, Map<String, Optional<User>> users) {
+    private boolean canSeeTeam(WebSocketSession session, Team owner, boolean solo, Map<String, Optional<User>> users) {
         if (!(session.getAttributes().get(USER_ID) instanceof String userId)) {
             return false;
         }
@@ -134,6 +135,9 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
         }
         if (user.get().getRole() == Role.ADMIN || user.get().getRole() == Role.FACILITATOR) {
             return true;
+        }
+        if (solo) {
+            return user.get().getTeam() == null;
         }
         return owner != null && member.test(user.get(), owner);
     }

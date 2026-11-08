@@ -19,7 +19,7 @@
       @if (home.me(); as me) {
         {{ me.lastHourChange ? fmt.signed(me.lastHourChange) + ' in the last hour' : 'No change in the last hour' }}
       } @else {
-        {{ rooms.currentRoom() ? 'in ' + rooms.currentRoom()!.name : 'Join a lab to score' }}
+        {{ rooms.currentRoom() ? 'in ' + rooms.currentRoom()!.name : 'Answer a question in a lab to score' }}
       }
     </div>
   </div>
@@ -38,7 +38,7 @@
 <div class="cols">
   <section class="col-main" aria-labelledby="labs-h">
     <div class="row between">
-      <h2 class="h2" id="labs-h">Team environments</h2>
+      <h2 class="h2" id="labs-h">{{ teamName() ? 'Team environments' : 'Your environments' }}</h2>
       <app-live-note [updatedAt]="trackers.updatedAt()" />
     </div>
 
@@ -51,8 +51,8 @@
         <app-team-lab-card [tracker]="tracker" />
       } @empty {
         <section class="card">
-          <app-empty-state icon="flask" title="No team environments yet"
-            message="Start one from a lab's page. Everyone on your team in that lab shares it.">
+          <app-empty-state icon="flask" [title]="teamName() ? 'No team environments yet' : 'No environments yet'"
+            [message]="teamName() ? 'Your team\'s copies show here once an admin starts them.' : 'Your copies show here once an admin starts them.'">
             <a class="btn sm" routerLink="/labs">Browse labs</a>
           </app-empty-state>
         </section>
@@ -76,13 +76,14 @@
             <div class="row between small muted"><span>{{ room.solved }} of {{ room.total }} solved</span><span class="num">{{ fmt.points(room.points) }} pts</span></div>
           </a>
         } @empty {
-          <app-empty-state icon="flask" title="No labs joined" message="Join a lab to see your progress here.">
+          <app-empty-state icon="flask" title="No progress yet" message="Open any lab and answer a question to see your progress here.">
             <a class="btn sm" routerLink="/labs">Browse labs</a>
           </app-empty-state>
         }
       </div>
     </section>
 
+    @if (session.isAdmin()) {
     <section class="card flush" aria-labelledby="act-h">
       <div class="card-head"><h2 class="h2" id="act-h">Team activity</h2></div>
       <div class="feed">
@@ -97,6 +98,7 @@
         }
       </div>
     </section>
+    }
 
     @if (home.teammates().length) {
       <section class="card stack" aria-labelledby="team-h">

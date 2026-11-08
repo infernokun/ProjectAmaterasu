@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LabTrackersStore } from '../../../core/stores/lab-trackers.store';
+import { SessionStore } from '../../../core/stores/session.store';
 import { LabTracker } from '../../../models/lab/lab-tracker.model';
 import { labStateMeta } from '../../../shared/lab-status';
 import { IconComponent } from '../../../shared/ui/icon.component';
@@ -9,10 +10,10 @@ import { StatusBadgeComponent } from '../../../shared/ui/status-badge.component'
 import { LabAccessComponent } from './lab-access.component';
 import { LabActionsService } from './lab-actions.service';
 import {
-  LifeStep, bastionOf, changedAgo, failedServices, isRunningState, isVm, labActions, labDetail, labTypeLabel, lifeStep, serviceName, shortId, stopWarning, toneOf,
+  LifeStep, allowedActions, bastionOf, changedAgo, failedServices, isRunningState, isVm, labActions, labDetail, labTypeLabel, lifeStep, serviceName, shortId, stopWarning, toneOf,
 } from './lab-view';
 
-/** One of the team's labs, with its live state and the actions that state allows. */
+/** One of the viewer's copies, with its live state; admins and facilitators also get its actions. */
 @Component({
   selector: 'app-team-lab-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,12 +30,14 @@ import {
 export class TeamLabCardComponent {
   private readonly store = inject(LabTrackersStore);
   private readonly actions = inject(LabActionsService);
+  protected readonly session = inject(SessionStore);
 
   readonly tracker = input.required<LabTracker>();
 
   protected readonly state = computed(() => this.store.displayState()(this.tracker()));
   protected readonly meta = computed(() => labStateMeta(this.state()));
-  protected readonly can = computed(() => labActions(this.tracker(), this.state()));
+  protected readonly can = computed(() =>
+    allowedActions(labActions(this.tracker(), this.state()), this.session.canRun(), this.session.isAdmin()));
   protected readonly vm = computed(() => isVm(this.tracker().labStarted));
   protected readonly typeLabel = computed(() => labTypeLabel(this.tracker().labStarted));
   protected readonly detail = computed(() => labDetail(this.tracker(), this.state()));
