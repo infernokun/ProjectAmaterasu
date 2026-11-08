@@ -37,8 +37,7 @@ class RoomPlayServiceTest {
     private RoomUser player(String name, Team team, LocalDateTime joined, int... totals) {
         User user = new User(name, "x");
         user.setId(name);
-        user.setTeam(team);
-        RoomUser roomUser = RoomUser.builder().user(user).roomUserStatus(RoomUserStatus.JOINED).points(0)
+        RoomUser roomUser = RoomUser.builder().user(user).team(team).roomUserStatus(RoomUserStatus.JOINED).points(0)
                 .pointsHistory(new ArrayList<>()).build();
         roomUser.setId("ru-" + name);
         roomUser.setCreatedAt(joined);
@@ -65,7 +64,6 @@ class RoomPlayServiceTest {
         Room room = Room.builder().name("Winter Range").build();
         room.setId("r1");
         room.setCreatedAt(LocalDateTime.of(2026, 11, 4, 8, 30));
-        when(users.countEnabledByTeam()).thenReturn(List.<Object[]>of(new Object[]{"red", 4L}));
         when(roomService.findByRoomId("r1")).thenReturn(room);
         when(roomUserService.findByRoomIdOrderByPointsDesc("r1")).thenReturn(List.of(late, early, solo));
         when(answers.findByRoomUserRoomId("r1")).thenReturn(List.of());
@@ -80,9 +78,9 @@ class RoomPlayServiceTest {
         assertThat(standings.teams()).hasSize(1);
         assertThat(standings.teams().getFirst().points()).isEqualTo(400);
         assertThat(standings.teams().getFirst().history().getLast().total()).isEqualTo(400);
-        // Two of Red Fox's four members joined this room
+        // Red Fox is a team inside this lab with two players
         assertThat(standings.teams().getFirst().members()).isEqualTo(2);
-        assertThat(standings.teams().getFirst().teamSize()).isEqualTo(4);
+        assertThat(standings.teams().getFirst().teamSize()).isEqualTo(2);
         assertThat(standings.openedAt()).isEqualTo(room.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant());
     }
 }

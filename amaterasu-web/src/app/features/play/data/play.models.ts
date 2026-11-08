@@ -47,9 +47,39 @@ export interface ChallengeView {
   attempts: number;
   solved: boolean;
   solvedAt: string | null;
+  /** Teammates who solved it; with SHARED_SOLVES that solves it for the viewer too. */
+  solvedByTeammates: string[];
 }
 
 export type EnvironmentMode = 'NONE' | 'SHARED' | 'PER_TEAM';
+export type TeamMode = 'SOLO_ONLY' | 'TEAMS_OPTIONAL' | 'TEAMS_REQUIRED';
+/** SEE_TEAMMATES keeps answers per person; SHARED_SOLVES counts one member's solve for the team. */
+export type TeamCredit = 'SEE_TEAMMATES' | 'SHARED_SOLVES';
+
+/** A team inside a lab, from GET /api/room/{id}/teams. */
+export interface LabTeam {
+  id: string;
+  name: string;
+  members: string[];
+  size: number;
+  full: boolean;
+}
+
+/** Joining solo ({}), on a team ({ teamId }) or on a new team ({ newTeamName }). */
+export interface TeamChoice {
+  teamId?: string;
+  newTeamName?: string;
+}
+
+/** A player's place in a lab after joining or changing team. */
+export interface LabSeat {
+  roomId: string;
+  userId: string;
+  status: string;
+  points: number;
+  teamId: string | null;
+  teamName: string | null;
+}
 
 /** The one status every view shows for a lab's environment. */
 export type EnvironmentStatus = 'NOT_RUNNING' | 'STARTING' | 'RUNNING' | 'PAUSED' | 'FAILED';
@@ -86,6 +116,9 @@ export interface LabCard {
   solved: number;
   /** The viewer facilitates this lab, or is an admin. */
   canRun: boolean;
+  teamMode: TeamMode;
+  teamId: string | null;
+  teamName: string | null;
 }
 
 /** The reply to starting, pausing or stopping a lab's environment. */
@@ -99,10 +132,11 @@ export interface RoomOverview {
   room: {
     id: string; name: string; surroundTag: string | null; creator: string | null; facilitators: string[];
     scenario: string | null; environmentMode: EnvironmentMode; canRun: boolean;
+    teamMode: TeamMode; maxTeamSize: number | null; teamCredit: TeamCredit;
   };
   playerCount: number;
   teamCount: number;
-  me: { joined: boolean; points: number; rank: number; solved: number };
+  me: { joined: boolean; points: number; rank: number; solved: number; teamId: string | null; teamName: string | null };
   challenges: ChallengeView[];
   environment: EnvironmentView | null;
   files: LabFileView[];

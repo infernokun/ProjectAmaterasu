@@ -5,9 +5,6 @@
   <a class="btn primary" routerLink="/labs"><app-icon name="flask" />Browse labs</a>
 </app-page-header>
 
-@if (!session.teamId()) {
-  <div class="banner warn"><app-icon name="users" /><div>You are not on a team yet. Labs with no setup and shared environments work without one; for team copies, an admin adds you to a team.</div></div>
-}
 
 <div class="kpis">
   <div class="card">
@@ -55,7 +52,7 @@
       } @empty {
         <section class="card">
           <app-empty-state icon="flask" title="No team environments yet"
-            [message]="session.teamId() ? 'Start one from a lab\'s page. Everyone on your team shares it.' : 'Team copies start once you are on a team.'">
+            message="Start one from a lab's page. Everyone on your team in that lab shares it.">
             <a class="btn sm" routerLink="/labs">Browse labs</a>
           </app-empty-state>
         </section>

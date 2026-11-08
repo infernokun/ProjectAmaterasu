@@ -40,6 +40,11 @@
 
     @if (challenge().solved) {
       <div class="banner ok"><app-icon name="check" /><div><strong>Solved.</strong> You solved this {{ fmt.ago(challenge().solvedAt) }} for {{ challenge().points }} pts.</div></div>
+    } @else if (teamSolved()) {
+      <div class="banner ok"><app-icon name="users" /><div><strong>Solved for your team</strong> by {{ challenge().solvedByTeammates.join(' and ') }}. The points went to them; your team's total includes them.</div></div>
+    }
+    @if (!teamSolved() && challenge().solvedByTeammates.length) {
+      <div class="small muted row teammates"><app-icon name="users" size="sm" />Solved by your teammate{{ challenge().solvedByTeammates.length === 1 ? '' : 's' }} {{ challenge().solvedByTeammates.join(', ') }}</div>
     }
 
     @if (canAnswer()) {

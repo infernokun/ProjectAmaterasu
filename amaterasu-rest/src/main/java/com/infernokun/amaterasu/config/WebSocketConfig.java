@@ -3,6 +3,7 @@ package com.infernokun.amaterasu.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.components.LabActionGuard;
 import com.infernokun.amaterasu.repositories.UserRepository;
+import com.infernokun.amaterasu.services.entity.ctf.LabTeamService;
 import com.infernokun.amaterasu.websocket.AmaterasuSocketHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -19,10 +20,11 @@ public class WebSocketConfig implements WebSocketConfigurer {
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
     private final LabActionGuard labActionGuard;
+    private final LabTeamService labTeamService;
 
     @Bean
     public AmaterasuSocketHandler socketHandler() {
-        return new AmaterasuSocketHandler(objectMapper, userRepository, labActionGuard);
+        return new AmaterasuSocketHandler(objectMapper, userRepository, labActionGuard, labTeamService::isMember);
     }
 
     @Override

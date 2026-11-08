@@ -27,6 +27,7 @@ import { RoomPlayStore } from './room-play.store';
     .hint-icon { margin-top: 1px; color: var(--warn); }
     .hint-text { margin-top: 4px; }
     .attempt-bar > span { background: var(--warn); }
+    .teammates { gap: 6px; align-items: center; }
   `,
 })
 export class ChallengeDetailComponent {
@@ -53,8 +54,11 @@ export class ChallengeDetailComponent {
     const challenge = this.challenge();
     return !challenge.solved && !!challenge.maxAttempts && challenge.attempts >= challenge.maxAttempts;
   });
+  /** A teammate's solve counts for the viewer when the lab shares solves. */
+  protected readonly teamSolved = computed(() => !this.challenge().solved && this.store.sharedSolves()
+    && (this.challenge().solvedByTeammates?.length ?? 0) > 0);
   protected readonly canAnswer = computed(() =>
-    this.joined() && this.challenge().state === 'OPEN' && !this.challenge().solved && !this.outOfAttempts());
+    this.joined() && this.challenge().state === 'OPEN' && !this.challenge().solved && !this.teamSolved() && !this.outOfAttempts());
   protected readonly attemptsLabel = computed(() => {
     const { attempts, maxAttempts } = this.challenge();
     return maxAttempts ? `${attempts} of ${maxAttempts} attempts used` : `${attempts} ${attempts === 1 ? 'attempt' : 'attempts'} so far`;

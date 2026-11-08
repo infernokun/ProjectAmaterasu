@@ -8,7 +8,8 @@ import { RemoteServer } from '../../../models/lab/remote-server.model';
 import { Team } from '../../../models/team.model';
 import { EnvironmentService } from '../../../services/environment.service';
 import {
-  AnswerResult, EnvironmentActionResult, EnvironmentView, LabAccess, LabCard, LabChallenge, LabFiles, RoomLive, RoomOverview, RoomStandings,
+  AnswerResult, EnvironmentActionResult, EnvironmentView, LabAccess, LabCard, LabChallenge, LabFiles, LabSeat, LabTeam, RoomLive,
+  RoomOverview, RoomStandings, TeamChoice,
 } from './play.models';
 
 /** HTTP for the Play and Run screens. */
@@ -42,6 +43,20 @@ export class PlayApiService {
   /** A lab file's bytes; the API needs the bearer token, so it is fetched rather than linked. */
   downloadFile(roomId: string, fileId: string): Observable<Blob> {
     return this.http.get(this.url(`/room/${roomId}/files/${fileId}`), { responseType: 'blob' });
+  }
+
+  labTeams(roomId: string): Observable<LabTeam[]> {
+    return this.data(this.http.get<ApiResponse<LabTeam[]>>(this.url(`/room/${roomId}/teams`))).pipe(map(teams => teams ?? []));
+  }
+
+  /** Joins a lab solo or on a team, as the lab allows. */
+  joinLab(roomId: string, choice: TeamChoice): Observable<LabSeat> {
+    return this.data(this.http.post<ApiResponse<LabSeat>>(this.url(`/room/${roomId}/join`), choice));
+  }
+
+  /** Moves a joined player to another team, a new one, or solo. */
+  changeTeam(roomId: string, choice: TeamChoice): Observable<LabSeat> {
+    return this.data(this.http.post<ApiResponse<LabSeat>>(this.url(`/room/${roomId}/team`), choice));
   }
 
   overview(roomId: string): Observable<RoomOverview> {

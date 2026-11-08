@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.infernokun.amaterasu.components.LabActionGuard;
+import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.enums.Role;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BiPredicate;
 
 @Slf4j
 public class AmaterasuSocketHandler extends TextWebSocketHandler {
@@ -41,16 +43,21 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
     private final LabActionGuard labActionGuard;
+    /** Whether a user is on a team: an Admin team, or a team inside a lab. */
+    private final BiPredicate<User, Team> member;
 
     public AmaterasuSocketHandler(ObjectMapper objectMapper, UserRepository userRepository) {
-        this(objectMapper, userRepository, new LabActionGuard());
+        this(objectMapper, userRepository, new LabActionGuard(),
+                (user, team) -> user.getTeam() != null && user.getTeam().getId().equals(team.getId()));
     }
 
-    public AmaterasuSocketHandler(ObjectMapper objectMapper, UserRepository userRepository, LabActionGuard labActionGuard) {
+    public AmaterasuSocketHandler(ObjectMapper objectMapper, UserRepository userRepository, LabActionGuard labActionGuard,
+                                  BiPredicate<User, Team> member) {
         // The app's mapper adds type info for the Redis cache; browsers need plain JSON, with lists as arrays
         this.objectMapper = objectMapper.copy().deactivateDefaultTyping();
         this.userRepository = userRepository;
         this.labActionGuard = labActionGuard;
+        this.member = member;
     }
 
     @Override
@@ -85,7 +92,7 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
     }
 
     private void sendTracker(LabTracker labTracker, boolean removed) {
-        String teamId = labTracker.getLabOwner() != null ? labTracker.getLabOwner().getId() : null;
+        Team owner = labTracker.getLabOwner();
         labTracker.setPendingAction(labActionGuard.actionFor(labTracker.getId()));
 
         String message;
@@ -102,7 +109,7 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
 
         Map<String, Optional<User>> users = new HashMap<>();
         for (WebSocketSession session : this.currentSessions) {
-            if (session.isOpen() && (labTracker.isShared() ? signedIn(session, users) : canSeeTeam(session, teamId, users))) {
+            if (session.isOpen() && (labTracker.isShared() ? signedIn(session, users) : canSeeTeam(session, owner, users))) {
                 send(session, message);
             }
         }
@@ -117,7 +124,7 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
     }
 
     // Looked up on every change so a role, team or disabled flag change applies to open sockets too
-    private boolean canSeeTeam(WebSocketSession session, String teamId, Map<String, Optional<User>> users) {
+    private boolean canSeeTeam(WebSocketSession session, Team owner, Map<String, Optional<User>> users) {
         if (!(session.getAttributes().get(USER_ID) instanceof String userId)) {
             return false;
         }
@@ -128,7 +135,7 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
         if (user.get().getRole() == Role.ADMIN || user.get().getRole() == Role.FACILITATOR) {
             return true;
         }
-        return teamId != null && user.get().getTeam() != null && teamId.equals(user.get().getTeam().getId());
+        return owner != null && member.test(user.get(), owner);
     }
 
     /** Tells every signed-in client that points or attempts changed in a room, so open views can reload. */

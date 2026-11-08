@@ -23,7 +23,7 @@ describe('ShellComponent', () => {
         provideRouter([]),
         provideNoopAnimations(),
         { provide: AuthService, useValue: auth },
-        { provide: LabTrackerService, useValue: { getLabTrackersByTeam: () => of([]) } },
+        { provide: LabTrackerService, useValue: { getMyLabTrackers: () => of([]), getMyTeamIds: () => of([]) } },
         { provide: RoomService, useValue: { getAllRooms: () => of({ data: [] }), checkJoinable: () => of({ data: {} }) } },
         { provide: WebsocketService, useValue: { getMessage: () => EMPTY } },
         { provide: SearchService, useValue: { search: () => of({ query: '', hits: [] }) } },

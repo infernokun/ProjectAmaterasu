@@ -148,8 +148,9 @@ class PlayEndpointsIntegrationTest {
         locked = challenge("Later", "AMA{later}", 300, LocalDateTime.now().plusHours(2));
         open.setAttachments(null);
         open = ctfEntityRepository.save(open);
+        // Each joins on a team inside the room named like their Admin team
         for (User player : List.of(redMember, blueMember)) {
-            postAs("/api/room/join/" + room.getId() + "/" + player.getId(), token(player), Map.of())
+            postAs("/api/room/" + room.getId() + "/join", token(player), Map.of("newTeamName", player.getTeam().getName()))
                     .andExpect(status().isOk());
         }
     }
@@ -219,7 +220,7 @@ class PlayEndpointsIntegrationTest {
         assertThat(leader.get("points").asInt()).isEqualTo(200);
         assertThat(leader.get("solves").asInt()).isEqualTo(1);
         assertThat(leader.get("wrongAttempts").asInt()).isEqualTo(1);
-        assertThat(standings.get("teams").get(0).get("teamId").asText()).isEqualTo(red.getId());
+        assertThat(standings.get("teams").get(0).get("name").asText()).isEqualTo(red.getName());
         assertThat(standings.get("teams").get(0).get("points").asInt()).isEqualTo(200);
 
         JsonNode overview = data(getAs("/api/room/" + room.getId() + "/overview", member));
