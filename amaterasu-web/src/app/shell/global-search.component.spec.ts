@@ -74,7 +74,7 @@ describe('GlobalSearchComponent', () => {
     fixture.detectChanges();
     expect(options()[1].getAttribute('aria-selected')).toBe('true');
     key('Enter');
-    expect(router.navigate).toHaveBeenCalledWith(['/rooms', 'r1'], { queryParams: { challenge: 'c1' }, fragment: undefined });
+    expect(router.navigate).toHaveBeenCalledWith(['/labs', 'r1'], { queryParams: { challenge: 'c1' }, fragment: undefined });
   });
 
   it('closes with Escape and clears with a second Escape', async () => {
