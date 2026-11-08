@@ -10,6 +10,7 @@ import {
   AuthorChallenge, AuthorFlag, AuthorHint, AuthorRoom, AuthoringService, LabFileView, LabOption, Person, RoomChanges,
 } from './authoring.service';
 import { exportChallenges, parseImport } from './challenge-io';
+import { SCENARIO_TEMPLATE } from '../../../shared/markdown';
 
 /** A challenge being edited: dates as datetime-local values in the browser's time zone. */
 export interface Draft extends Omit<AuthorChallenge, 'releaseDate' | 'expirationDate'> {
@@ -118,6 +119,18 @@ export const RoomEditorStore = signalStore(
     return {
       async init(roomId: string): Promise<void> {
         patchState(store, { status: 'loading', error: null, room: null, challenges: [], draft: null, selectedId: null });
+        if (roomId === NEW_ID) {
+          // Nothing is saved until the scenario step creates the draft
+          patchState(store, {
+            status: 'loaded', files: [], facilitators: [], players: 0,
+            room: {
+              id: '', name: '', surroundTag: 'CTF{x}', updatedAt: null, scenario: SCENARIO_TEMPLATE, environmentMode: 'NONE',
+              environmentId: null, teamMode: 'TEAMS_OPTIONAL', maxTeamSize: 4, teamCredit: 'SEE_TEAMMATES', published: false,
+            },
+          });
+          firstValueFrom(api.labs()).then(labs => patchState(store, { labs }), () => undefined);
+          return;
+        }
         try {
           const room = await firstValueFrom(api.room(roomId));
           patchState(store, { room });
@@ -244,6 +257,15 @@ export const RoomEditorStore = signalStore(
             ? draft.attachments.filter(n => n !== name) : [...draft.attachments, name];
           patchState(store, { draft: { ...draft, attachments }, dirty: true });
         }
+      },
+      /** Creates the lab as a draft from the first step. */
+      async createRoom(changes: RoomChanges): Promise<AuthorRoom> {
+        const room = await firstValueFrom(api.createRoom({ ...changes, published: false }));
+        rooms.load();
+        return room;
+      },
+      async reloadLabs(): Promise<void> {
+        patchState(store, { labs: await firstValueFrom(api.labs()) });
       },
       async saveRoom(changes: RoomChanges): Promise<AuthorRoom> {
         const room = await firstValueFrom(api.updateRoom(store.room()!.id, changes));

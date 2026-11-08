@@ -42,7 +42,7 @@ public class LabTeamController {
     @PostMapping("/join")
     public ResponseEntity<ApiResponse<LabSeat>> join(@PathVariable String roomId,
                                                      @RequestBody(required = false) LabTeamService.JoinRequest request) {
-        Room room = roomService.findByRoomId(roomId);
+        Room room = currentUser.requireCanSee(roomService.findByRoomId(roomId));
         User user = currentUser.user();
         Team before = labTeamService.teamOf(room, user).orElse(null);
         RoomUser seat = labTeamService.join(room, user, request == null ? new LabTeamService.JoinRequest(null, null) : request);

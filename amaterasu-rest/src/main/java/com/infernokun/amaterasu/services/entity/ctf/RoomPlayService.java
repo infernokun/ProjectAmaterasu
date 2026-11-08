@@ -65,6 +65,9 @@ public class RoomPlayService {
 
     public RoomOverview overview(String roomId, String viewerId) {
         Room room = roomService.findByRoomId(roomId);
+        if (currentUser.isAuthenticated()) {
+            currentUser.requireCanSee(room);
+        }
         List<CTFEntity> challenges = playable(ctfEntityService.findCTFEntitiesByRoomId(roomId));
         List<RoomUser> players = joined(roomId);
         List<CTFEntityAnswer> answers = answerRepository.findByRoomUserRoomId(roomId);
@@ -125,6 +128,9 @@ public class RoomPlayService {
         User viewer = Optional.ofNullable(viewerId).flatMap(userRepository::findById).orElse(null);
         List<LabCard> cards = new ArrayList<>();
         for (Room room : roomService.findAllRooms()) {
+            if (!currentUser.canSee(room)) {
+                continue;
+            }
             List<CTFEntity> challenges = playable(ctfEntityService.findCTFEntitiesByRoomId(room.getId()));
             List<RoomUser> players = joined(room.getId());
             Optional<RoomUser> seat = viewer == null ? Optional.empty() : roomUserService.findByUserAndRoom(viewer, room);

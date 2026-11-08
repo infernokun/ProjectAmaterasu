@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.services.entity.ctf;
 
 import com.infernokun.amaterasu.exceptions.ResourceInUseException;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
+import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.lab.Lab;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
@@ -140,6 +141,27 @@ public class RoomService {
             throw new ResourceInUseException(room.getName() + "'s shared environment is deployed. Stop it before changing the environment.");
         }
         applyEnvironment(room, mode, environmentId);
+    }
+
+    /**
+     * Publishes a draft once it is playable: it has questions with flags and, if it runs an environment,
+     * that environment is published. Back to draft is always allowed.
+     */
+    public void changePublished(Room room, boolean published) {
+        if (published && !room.isLive()) {
+            List<CTFEntity> questions = ctfEntityService.findCTFEntitiesByRoomId(room.getId());
+            if (questions.isEmpty()) {
+                throw new IllegalStateException("Add at least one question before publishing " + room.getName());
+            }
+            if (questions.stream().anyMatch(question -> question.getFlags() == null
+                    || question.getFlags().stream().noneMatch(flag -> flag.getFlag() != null && !flag.getFlag().isBlank()))) {
+                throw new IllegalStateException("Every question needs a flag before " + room.getName() + " is published");
+            }
+            if (room.getEnvironment() != null && !Boolean.TRUE.equals(room.getEnvironment().getPublished())) {
+                throw new IllegalStateException(room.getEnvironment().getName() + " is still a draft. Publish the environment first.");
+            }
+        }
+        room.setPublished(published);
     }
 
     /** Sets who plays together. One copy per team needs teams. */

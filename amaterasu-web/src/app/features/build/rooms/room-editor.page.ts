@@ -12,7 +12,12 @@ import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { SkeletonComponent } from '../../../shared/ui/skeleton.component';
 import { MarkdownComponent } from '../../../shared/ui/markdown.component';
-import { AuthorChallenge, EnvironmentMode, LabFileView, Person, TeamCredit, TeamMode } from './authoring.service';
+import { LabBuilderPage } from '../labs/lab-builder.page';
+import { EnvironmentView } from '../../play/data/play.models';
+import { ScenarioCardComponent } from '../../play/labs/scenario-card.component';
+import { AuthorChallenge, EnvironmentMode, LabFileView, Person, RoomChanges, TeamCredit, TeamMode } from './authoring.service';
+
+type WizardStep = 'scenario' | 'environment' | 'questions' | 'teams' | 'publish';
 import { NEW_ID, RoomEditorStore, scheduleLabel } from './room-editor.store';
 
 export const DIFFICULTIES: { value: DifficultyLevel; label: string }[] = [
@@ -36,7 +41,7 @@ export function wrapperParts(tag: string): { prefix: string; suffix: string; nam
   selector: 'app-room-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, CdkDropList, CdkDrag, CdkDragHandle, CdkDragPlaceholder, MatMenuModule, IconComponent,
-    EmptyStateComponent, SkeletonComponent, MarkdownComponent],
+    EmptyStateComponent, SkeletonComponent, MarkdownComponent, LabBuilderPage, ScenarioCardComponent],
   providers: [RoomEditorStore],
   templateUrl: './room-editor.page.html',
   styleUrl: './room-editor.page.scss',
@@ -51,6 +56,24 @@ export class RoomEditorPage {
   private readonly router = inject(Router);
 
   readonly roomId = input.required<string>();
+  /** The wizard step, kept in the address. */
+  readonly stepParam = input<string | undefined>(undefined, { alias: 'step' });
+
+  protected readonly steps: { key: WizardStep; label: string }[] = [
+    { key: 'scenario', label: 'Scenario' },
+    { key: 'environment', label: 'Environment' },
+    { key: 'questions', label: 'Questions' },
+    { key: 'teams', label: 'Teams and scoring' },
+    { key: 'publish', label: 'Preview and publish' },
+  ];
+  protected readonly isNew = computed(() => this.roomId() === NEW_ID);
+  protected readonly step = computed<WizardStep>(() => {
+    const wanted = this.steps.find(item => item.key === this.stepParam())?.key ?? 'scenario';
+    return this.isNew() ? 'scenario' : wanted;
+  });
+  protected readonly stepIndex = computed(() => this.steps.findIndex(item => item.key === this.step()));
+  /** Building a new environment inside the Environment step. */
+  protected readonly building = signal(false);
 
   protected readonly difficulties = DIFFICULTIES;
   protected readonly newId = NEW_ID;
@@ -121,6 +144,47 @@ export class RoomEditorPage {
     return 'Visible now';
   });
 
+  protected readonly envName = computed(() => this.store.labs().find(lab => lab.id === this.store.room()?.environmentId)?.name ?? 'An environment');
+  protected readonly teamLabel = computed(() => {
+    const room = this.store.room();
+    if (room?.teamMode === 'SOLO_ONLY') return 'Solo';
+    const size = room?.maxTeamSize ? `, up to ${room.maxTeamSize}` : '';
+    return (room?.teamMode === 'TEAMS_REQUIRED' ? 'Teams required' : 'Teams optional') + size
+      + (room?.teamCredit === 'SHARED_SOLVES' ? ', shared solves' : '');
+  });
+  protected readonly previewGroups = computed(() => {
+    const groups = new Map<string, AuthorChallenge[]>();
+    for (const question of this.store.challenges()) {
+      const name = question.category || 'General';
+      groups.set(name, [...(groups.get(name) ?? []), question]);
+    }
+    return [...groups].map(([name, items]) => ({ name, items }));
+  });
+  /** What a lab needs before players see it. */
+  protected readonly readiness = computed(() => {
+    const room = this.store.room();
+    const questions = this.store.challenges();
+    const env = this.store.labs().find(lab => lab.id === room?.environmentId);
+    const checks = [
+      { label: 'It has a scenario', ok: !!room?.scenario.trim() },
+      { label: questions.length ? `${questions.length} ${questions.length === 1 ? 'question' : 'questions'}` : 'It has at least one question', ok: questions.length > 0 },
+      { label: 'Every question has a flag', ok: questions.length > 0 && questions.every(question => question.flags.some(flag => flag.flag.trim())) },
+    ];
+    if (room?.environmentMode !== 'NONE') {
+      checks.push({ label: env ? `${env.name} is ${env.published ? 'published' : 'still a draft'}` : 'Its environment exists', ok: !!env?.published });
+    }
+    checks.push({ label: 'All changes are saved', ok: !this.roomDirty() && !this.store.dirty() });
+    return checks;
+  });
+  protected readonly canPublish = computed(() => this.readiness().every(check => check.ok));
+  /** An environment that is not running, so the preview reads like the lab page before a start. */
+  protected readonly previewEnvironment = computed<EnvironmentView | null>(() => {
+    const room = this.store.room();
+    if (!room || room.environmentMode === 'NONE') return null;
+    return { labId: room.environmentId ?? '', labName: this.envName(), labType: null, mode: room.environmentMode, status: 'NOT_RUNNING',
+      trackerId: null, tracker: null, canControl: false, note: null, copiesRunning: 0 };
+  });
+
   constructor() {
     effect(() => {
       const id = this.roomId();
@@ -129,7 +193,7 @@ export class RoomEditorPage {
     effect(() => {
       const name = this.store.room()?.name;
       untracked(() => this.crumbs.set([
-        { label: 'Build' }, { label: 'Labs', link: '/build/labs' }, { label: name ?? 'Lab' },
+        { label: 'Build' }, { label: 'Labs', link: '/build/labs' }, { label: name || (this.isNew() ? 'New lab' : 'Lab') },
       ]));
     });
   }
@@ -311,18 +375,78 @@ export class RoomEditorPage {
     }
   }
 
-  protected async saveRoom(): Promise<void> {
+  private changes(): RoomChanges {
+    const mode = this.envMode();
+    return {
+      name: this.roomName().trim(), surroundTag: this.roomTag().trim(), scenario: this.scenario().trim(),
+      environmentMode: mode, ...(mode === 'NONE' ? {} : { environmentId: this.envId() }),
+      teamMode: this.teamMode(), maxTeamSize: this.teamSize(), teamCredit: this.teamCredit(),
+    };
+  }
+
+  protected async saveRoom(quiet = false): Promise<boolean> {
     this.savingRoom.set(true);
     try {
-      const mode = this.envMode();
-      await this.store.saveRoom({
-        name: this.roomName().trim(), surroundTag: this.roomTag().trim(), scenario: this.scenario().trim(),
-        environmentMode: mode, ...(mode === 'NONE' ? {} : { environmentId: this.envId() }),
-        teamMode: this.teamMode(), maxTeamSize: this.teamSize(), teamCredit: this.teamCredit(),
-      });
-      this.toast.success('Lab saved');
+      await this.store.saveRoom(this.changes());
+      if (!quiet) this.toast.success('Lab saved');
+      return true;
     } catch (error) {
       this.toast.error('The lab could not be saved.', error);
+      return false;
+    } finally {
+      this.savingRoom.set(false);
+    }
+  }
+
+  /** Moves to a step, saving the lab's settings first. */
+  protected async go(step: WizardStep): Promise<void> {
+    if (this.roomDirty() && !this.roomProblem() && !(await this.saveRoom(true))) return;
+    if (this.store.dirty() && !(await this.leaveDraft())) return;
+    this.building.set(false);
+    this.router.navigate([], { queryParams: { step }, replaceUrl: true });
+  }
+
+  protected stepDone(step: WizardStep): boolean {
+    const room = this.store.room();
+    if (!room || this.isNew()) return false;
+    switch (step) {
+      case 'scenario': return !!room.scenario.trim();
+      case 'environment': return room.environmentMode === 'NONE' || !!room.environmentId;
+      case 'questions': return this.store.challenges().length > 0;
+      case 'teams': return true;
+      case 'publish': return room.published;
+    }
+  }
+
+  /** The scenario step of a new lab saves it as a draft and moves on. */
+  protected async createDraft(): Promise<void> {
+    this.savingRoom.set(true);
+    try {
+      const room = await this.store.createRoom(this.changes());
+      this.toast.success(`${room.name} saved as a draft`);
+      this.router.navigate(['/build/labs', room.id], { queryParams: { step: 'environment' }, replaceUrl: true });
+    } catch (error) {
+      this.toast.error('The lab could not be created.', error);
+    } finally {
+      this.savingRoom.set(false);
+    }
+  }
+
+  protected async environmentBuilt(lab: { id?: string; name?: string }): Promise<void> {
+    await this.store.reloadLabs();
+    if (lab.id) this.envId.set(lab.id);
+    this.building.set(false);
+    this.toast.info(`${lab.name ?? 'The environment'} is picked for this lab. Save to keep it.`);
+  }
+
+  protected async setPublished(published: boolean): Promise<void> {
+    const name = this.store.room()?.name ?? 'This lab';
+    this.savingRoom.set(true);
+    try {
+      await this.store.saveRoom({ published });
+      this.toast.success(published ? `${name} is published. Players see it now.` : `${name} is a draft again.`);
+    } catch (error) {
+      this.toast.error(published ? 'The lab could not be published.' : 'The lab could not go back to draft.', error);
     } finally {
       this.savingRoom.set(false);
     }

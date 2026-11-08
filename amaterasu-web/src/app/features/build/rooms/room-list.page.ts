@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { errorMessage } from '../../../core/http-error';
@@ -7,71 +6,10 @@ import { RoomsStore } from '../../../core/stores/rooms.store';
 import { relativeTime } from '../../../core/time';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { ToastService } from '../../../shared/services/toast.service';
-import { DIALOG_DEFAULTS } from '../../../shared/ui/dialog';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { SkeletonComponent } from '../../../shared/ui/skeleton.component';
-import { SCENARIO_TEMPLATE } from '../../../shared/markdown';
 import { AuthorChallenge, AuthorRoom, AuthoringService, LabOption } from './authoring.service';
-
-interface NewRoomData {
-  create: (changes: { name: string; surroundTag: string; scenario: string }) => Promise<unknown>;
-}
-
-@Component({
-  selector: 'app-new-room-dialog',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent],
-  template: `
-    <form class="modal" role="dialog" aria-modal="true" aria-labelledby="nr-h" (submit)="$event.preventDefault(); submit()">
-      <div class="row between">
-        <h2 class="h2" id="nr-h">New lab</h2>
-        <button type="button" class="iconbtn" aria-label="Close" (click)="ref.close()"><app-icon name="close" /></button>
-      </div>
-      @if (error()) { <div class="banner bad" role="alert"><app-icon name="close" /><div>{{ error() }}</div></div> }
-      <label class="field"><span class="label">Lab name</span>
-        <input class="input" [value]="name()" (input)="name.set($any($event.target).value)" placeholder="Winter Range 2026" maxlength="80" required>
-      </label>
-      <label class="field"><span class="label">Flag wrapper</span>
-        <input class="input mono" [value]="tag()" (input)="tag.set($any($event.target).value)" maxlength="40">
-        <span class="help">How flags look in this lab, with x where the answer goes</span>
-      </label>
-      <label class="field"><span class="label">Scenario</span>
-        <textarea class="input mono" rows="10" [value]="scenario()" (input)="scenario.set($any($event.target).value)"></textarea>
-        <span class="help">Markdown. Start from the outline and edit it; you can change it later with the environment and questions.</span>
-      </label>
-      <div class="row end">
-        <button type="button" class="btn ghost" (click)="ref.close()">Cancel</button>
-        <button type="submit" class="btn primary" [disabled]="!name().trim() || !scenario().trim() || saving()">Create lab</button>
-      </div>
-    </form>
-  `,
-})
-export class NewRoomDialogComponent {
-  private readonly data = inject<NewRoomData>(MAT_DIALOG_DATA);
-  protected readonly ref = inject<MatDialogRef<NewRoomDialogComponent>>(MatDialogRef);
-  protected readonly name = signal('');
-  protected readonly tag = signal('CTF{x}');
-  protected readonly scenario = signal(SCENARIO_TEMPLATE);
-  protected readonly saving = signal(false);
-  protected readonly error = signal('');
-
-  protected async submit(): Promise<void> {
-    if (!this.name().trim() || !this.scenario().trim() || this.saving()) {
-      return;
-    }
-    this.saving.set(true);
-    this.error.set('');
-    try {
-      await this.data.create({ name: this.name().trim(), surroundTag: this.tag().trim(), scenario: this.scenario().trim() });
-      this.ref.close(true);
-    } catch (error) {
-      this.error.set(errorMessage(error) ?? 'The lab could not be created.');
-    } finally {
-      this.saving.set(false);
-    }
-  }
-}
 
 @Component({
   selector: 'app-room-list',
@@ -105,7 +43,7 @@ export class NewRoomDialogComponent {
             <tbody>
               @for (room of rooms(); track room.id) {
                 <tr>
-                  <td><a class="name" [routerLink]="room.id">{{ room.name }}</a></td>
+                  <td><a class="name" [routerLink]="room.id">{{ room.name }}</a>@if (!room.published) { <span class="tag">Draft</span> }</td>
                   <td class="small dim">{{ envLabel(room) }}</td>
                   <td class="mono small dim">{{ room.surroundTag }}</td>
                   <td class="r num">{{ stats().get(room.id)?.count ?? 0 }}</td>
@@ -134,7 +72,6 @@ export class NewRoomDialogComponent {
 })
 export class RoomListPage {
   private readonly api = inject(AuthoringService);
-  private readonly dialog = inject(MatDialog);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
@@ -193,15 +130,7 @@ export class RoomListPage {
   }
 
   protected newRoom(): void {
-    const data: NewRoomData = {
-      create: async changes => {
-        const room = await firstValueFrom(this.api.createRoom({ ...changes, environmentMode: 'NONE' }));
-        this.playRooms.load();
-        this.toast.success(`${room.name} created`);
-        this.router.navigate(['/build/labs', room.id]);
-      },
-    };
-    this.dialog.open(NewRoomDialogComponent, { ...DIALOG_DEFAULTS, data });
+    this.router.navigate(['/build/labs', 'new']);
   }
 
   protected async remove(room: AuthorRoom): Promise<void> {
