@@ -23,9 +23,10 @@ describe('RoomPlayStore', () => {
 
   beforeEach(() => {
     overview = {
-      room: { id: 'r1', name: 'Winter Range', surroundTag: null, creator: null, facilitators: [] },
+      room: { id: 'r1', name: 'Winter Range', surroundTag: null, creator: null, facilitators: [], scenario: '## Situation', environmentMode: 'NONE', canRun: false },
       playerCount: 2, teamCount: 1, me: { joined: true, points: 0, rank: 1, solved: 1 },
       challenges: [challenge('sqli', 'Web', true), challenge('xss', 'Web'), challenge('rot', 'Crypto')],
+      environment: null, files: [],
     };
     api = jasmine.createSpyObj<PlayApiService>('PlayApiService', ['overview', 'submitFlag', 'unlockHint']);
     api.overview.and.callFake(() => of(overview));

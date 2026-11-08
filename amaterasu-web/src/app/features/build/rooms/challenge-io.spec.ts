@@ -8,7 +8,7 @@ const challenge: AuthorChallenge = {
   releaseDate: '2026-11-04 09:00:00', expirationDate: null, solutionExplanation: 'UNION SELECT', author: 'aokafor',
   flags: [{ flag: 'un10n_s3lect_all', caseSensitive: true, surroundWithTag: true, weight: 1 }],
   hints: [{ id: 'h1', hint: 'Count the columns', cost: 25, unlockAfterAttempts: 0 }],
-  solveCount: 4, attemptCount: 19,
+  solveCount: 4, attemptCount: 19, attachments: [],
 };
 
 describe('challenge import and export', () => {
@@ -41,7 +41,18 @@ describe('challenge import and export', () => {
   it('explains files it cannot use', () => {
     expect(parseImport('{nope', 'r1').error).toBe('The file is not valid JSON.');
     expect(parseImport('{"a":1}', 'r1').error).toContain('Expected a list');
-    expect(parseImport('[]', 'r1').error).toContain('no challenges');
-    expect(parseImport('[{"points":1}]', 'r1').error).toBe('Challenge 1 has no question.');
+    expect(parseImport('[]', 'r1').error).toContain('no questions');
+    expect(parseImport('[{"points":1}]', 'r1').error).toBe('Question 1 has no title.');
+  });
+
+  it('keeps unlimited attempts and the files a question names', () => {
+    const result = parseImport(JSON.stringify([
+      { question: 'Size of the evidence', flags: [{ flag: '20464', caseSensitive: false }], maxAttempts: null, attachments: ['incident/access.log', ' '] },
+      { question: 'No limit given', flags: [{ flag: 'x' }] },
+      { question: 'Limited', flags: [{ flag: 'y' }], maxAttempts: 3 },
+    ]), 'r1');
+    expect(result.challenges.map(c => c.maxAttempts)).toEqual([null, null, 3]);
+    expect(result.challenges[0].attachments).toEqual(['incident/access.log']);
+    expect(result.challenges[0].flags[0].caseSensitive).toBeFalse();
   });
 });

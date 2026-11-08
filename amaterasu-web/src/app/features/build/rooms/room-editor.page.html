@@ -1,8 +1,8 @@
 @if (store.status() === 'error') {
   <div class="banner bad" role="alert"><app-icon name="alert" /><div class="grow">{{ store.error() }}</div>
-    <a class="btn sm" routerLink="/build/rooms">Back to rooms</a></div>
+    <a class="btn sm" routerLink="/build/labs">Back to labs</a></div>
 } @else if (!store.room()) {
-  <app-skeleton variant="card" [count]="2" label="Loading the room" />
+  <app-skeleton variant="card" [count]="2" label="Loading the lab" />
 } @else {
   <section class="card" aria-labelledby="room-h">
     <div class="row between top">
@@ -15,17 +15,17 @@
           <input type="file" accept=".json,application/json" class="visually-hidden" (change)="importFile($event)">
         </label>
         <button type="button" class="btn sm" [disabled]="!store.challenges().length" (click)="exportFile()"><app-icon name="download" size="sm" />Export</button>
-        <a class="btn sm" [routerLink]="['/rooms', store.room()!.id]"><app-icon name="eye" size="sm" />View as player</a>
-        <button type="button" class="btn sm danger" (click)="deleteRoom()"><app-icon name="trash" size="sm" />Delete room</button>
+        <a class="btn sm" [routerLink]="['/labs', store.room()!.id]"><app-icon name="eye" size="sm" />View as player</a>
+        <button type="button" class="btn sm danger" (click)="deleteRoom()"><app-icon name="trash" size="sm" />Delete lab</button>
       </div>
     </div>
     <div class="form-grid room-form">
-      <label class="field"><span class="label">Room name</span>
+      <label class="field"><span class="label">Lab name</span>
         <input class="input" [value]="roomName()" (input)="roomName.set(value($event))" maxlength="80">
       </label>
       <label class="field"><span class="label">Flag wrapper</span>
         <input class="input mono" [value]="roomTag()" (input)="roomTag.set(value($event))" maxlength="40" aria-describedby="tag-help">
-        <span class="help" id="tag-help">How flags look in this room, with x where the answer goes. Players see {{ wrapper().prefix }}...{{ wrapper().suffix }}.</span>
+        <span class="help" id="tag-help">How flags look in this lab, with x where the answer goes. Players see {{ wrapper().prefix }}...{{ wrapper().suffix }}.</span>
       </label>
       <div class="field"><span class="label" id="fac-label">Facilitators</span>
         <div class="row" role="group" aria-labelledby="fac-label">
@@ -35,7 +35,7 @@
                       (click)="removeFacilitator(person)"><app-icon name="close" size="sm" /></button></span>
           }
           <button type="button" class="btn sm ghost" [matMenuTriggerFor]="facMenu" [disabled]="savingFacilitators()"
-                  [title]="store.addable().length ? '' : 'Every account with the Facilitator role is on this room'">
+                  [title]="store.addable().length ? '' : 'Every account with the Facilitator role is on this lab'">
             <app-icon name="plus" size="sm" />Add</button>
           <mat-menu #facMenu="matMenu">
             @for (person of store.addable(); track person.id) {
@@ -45,21 +45,66 @@
             }
           </mat-menu>
         </div>
-        <span class="help">They run this room's live view and award points here. Admins can run every room.</span>
+        <span class="help">They start and stop its shared environment, run its live view and award points. Admins can run every lab.</span>
+      </div>
+    </div>
+    <div class="field env-field"><span class="label" id="env-label">Environment</span>
+      <div class="row">
+        <div class="seg" role="group" aria-labelledby="env-label">
+          @for (mode of envModes; track mode.value) {
+            <button type="button" [class.on]="envMode() === mode.value" [attr.aria-pressed]="envMode() === mode.value" (click)="envMode.set(mode.value)">{{ mode.label }}</button>
+          }
+        </div>
+        @if (envMode() !== 'NONE') {
+          <select class="input env-pick" aria-label="Environment to run" (change)="envId.set(value($event))">
+            <option value="" [selected]="!envId()">Pick an environment</option>
+            @for (lab of store.labs(); track lab.id) {
+              <option [value]="lab.id" [selected]="lab.id === envId()">{{ lab.name }}{{ lab.published ? '' : ' (draft)' }}</option>
+            }
+          </select>
+        }
+      </div>
+      <span class="help">{{ envHelp() }} Environments are built under Build, Environments.</span>
+    </div>
+    <div class="field scenario-field"><span class="label" id="scen-label">Scenario</span>
+      <div class="scenario-edit">
+        <textarea class="input mono" rows="14" aria-labelledby="scen-label" [value]="scenario()" (input)="scenario.set(value($event))"></textarea>
+        <div class="card scenario-preview" aria-label="Scenario preview"><app-markdown [source]="scenario()" /></div>
+      </div>
+      <span class="help">{{ placeholderHelp }}</span>
+    </div>
+    <div class="field files-field"><span class="label" id="files-label">Files</span>
+      <div class="stack tight" aria-labelledby="files-label">
+        @for (file of store.files(); track file.id) {
+          <div class="row file-row">
+            <app-icon name="file" size="sm" /><span class="mono grow">{{ file.name }}</span>
+            <span class="small muted num">{{ size(file.size) }}</span>
+            <button type="button" class="iconbtn" [attr.aria-label]="'Delete ' + file.name" (click)="deleteFile(file)"><app-icon name="trash" size="sm" /></button>
+          </div>
+        } @empty {
+          <span class="small muted">No files. Upload logs, captures or code players download.</span>
+        }
+        <div class="row">
+          <label class="btn sm" [class.disabled]="uploading()"><app-icon [name]="uploading() ? 'spinner' : 'upload'" size="sm" [spin]="uploading()" />Upload files
+            <input type="file" multiple class="visually-hidden" [disabled]="uploading()" (change)="uploadFiles($event)">
+          </label>
+          <span class="help">Up to 50 MB each. Uploading a name that exists replaces it. Tick a file on a question to show it there.</span>
+        </div>
       </div>
     </div>
     <div class="row room-save">
-      <button type="button" class="btn" [disabled]="!roomDirty() || !roomName().trim() || savingRoom()" (click)="saveRoom()">Save room</button>
+      <button type="button" class="btn primary" [disabled]="!roomDirty() || !!roomProblem() || savingRoom()" [title]="roomProblem() ?? ''" (click)="saveRoom()">Save lab</button>
       @if (roomDirty()) { <span class="chip s-warn"><span class="dot"></span>Unsaved</span> }
+      @if (roomDirty() && roomProblem()) { <span class="small muted">{{ roomProblem() }}</span> }
     </div>
   </section>
 
   <div class="cols" style="gap:20px">
     <section class="card flush list-card" aria-labelledby="list-h">
-      <div class="card-head"><h2 class="h2" id="list-h">Challenges</h2>
+      <div class="card-head"><h2 class="h2" id="list-h">Questions</h2>
         <button type="button" class="btn sm primary" (click)="newChallenge()"><app-icon name="plus" size="sm" />New</button></div>
       @if (store.selectedId() === newId) {
-        <div class="list-btn on"><span class="grow"><span class="title">{{ store.draft()?.question || 'New challenge' }}</span>
+        <div class="list-btn on"><span class="grow"><span class="title">{{ store.draft()?.question || 'New question' }}</span>
           <span class="small muted">Not saved yet</span></span></div>
       }
       <div cdkDropList class="drop-list" [cdkDropListDisabled]="store.savingOrder()" (cdkDropListDropped)="dropped($event)">
@@ -78,7 +123,7 @@
           </div>
         } @empty {
           @if (store.selectedId() !== newId) {
-            <app-empty-state icon="flag" title="No challenges yet" message="Add one, or import a JSON file exported from another room." />
+            <app-empty-state icon="flag" title="No questions yet" message="Add one, or import a JSON file exported from another lab." />
           }
         }
       </div>
@@ -91,7 +136,7 @@
       @if (store.draft(); as draft) {
         <div class="card-head">
           <div class="row">
-            <h2 class="h2" id="ed-h">{{ draft.question || 'New challenge' }}</h2>
+            <h2 class="h2" id="ed-h">{{ draft.question || 'New question' }}</h2>
             @if (store.dirty()) { <span class="chip s-warn"><span class="dot"></span>Unsaved</span> }
           </div>
           <div class="row">
@@ -128,19 +173,8 @@
                 <input class="input num" type="number" min="0" step="25" [value]="draft.points" (input)="store.patch({ points: number($event) })">
               </label>
               <label class="field"><span class="label">Attempts allowed</span>
-                <input class="input num" type="number" min="1" [value]="draft.maxAttempts" (input)="store.patch({ maxAttempts: number($event) })">
-              </label>
-              <label class="field"><span class="label">Uses lab</span>
-                <select class="input" (change)="store.patch({ labId: value($event) || null })">
-                  <option value="" [selected]="!draft.labId">None</option>
-                  @for (lab of store.labs(); track lab.id) {
-                    <option [value]="lab.id" [selected]="lab.id === draft.labId">{{ lab.name }}{{ lab.published ? '' : ' (draft)' }}</option>
-                  }
-                  @if (draft.labId && !hasLab(draft.labId)) {
-                    <option [value]="draft.labId" selected>{{ store.labs().length ? 'A deleted lab' : 'Loading labs' }}</option>
-                  }
-                </select>
-                <span class="help">Players see the challenge on that lab's page</span>
+                <input class="input num" type="number" min="1" placeholder="Unlimited" [value]="draft.maxAttempts ?? ''"
+                       (input)="store.patch({ maxAttempts: attempts($event) })">
               </label>
             </div>
             <div class="field"><span class="label">Difficulty</span>
@@ -157,7 +191,7 @@
               </label>
               <label class="field"><span class="label">Closes</span>
                 <input class="input" type="datetime-local" [value]="draft.closes" (input)="store.patch({ closes: value($event) })">
-                <span class="help">Leave empty to keep it open until the room ends</span>
+                <span class="help">Leave empty to keep it open until the lab ends</span>
               </label>
               <div class="field"><span class="label">Visible to players</span>
                 <div class="row" style="min-height:40px">
@@ -168,8 +202,8 @@
               </div>
             </div>
             <label class="field"><span class="label">Description</span>
-              <textarea class="input" rows="4" [value]="draft.description" (input)="store.patch({ description: value($event) })"></textarea>
-              <span class="help">Shown to players as written, above the flag box.</span>
+              <textarea class="input mono" rows="6" [value]="draft.description" (input)="store.patch({ description: value($event) })"></textarea>
+              <span class="help">Markdown, shown above the answer box. Use fenced code blocks for command output; Preview shows how it reads.</span>
             </label>
 
             <div class="stack">
@@ -217,6 +251,24 @@
               }
             </div>
 
+            <div class="stack">
+              <div class="row between"><h3 class="h3">Files</h3><span class="small muted">Players download the ones you tick from this question</span></div>
+              @if (store.files().length) {
+                <div class="row">
+                  @for (file of store.files(); track file.id) {
+                    <button type="button" class="pick" [class.on]="draft.attachments.includes(file.name)" [attr.aria-pressed]="draft.attachments.includes(file.name)"
+                            (click)="store.toggleAttachment(file.name)">{{ file.name }}</button>
+                  }
+                </div>
+              } @else {
+                <div class="small muted">This lab has no files yet. Upload them under Files, above.</div>
+              }
+              @for (name of missingAttachments(); track name) {
+                <div class="small s-warn">{{ name }} is not uploaded to this lab, so players only see its name.
+                  <button type="button" class="btn sm ghost" (click)="store.toggleAttachment(name)">Remove</button></div>
+              }
+            </div>
+
             <label class="field"><span class="label">Solution notes</span>
               <textarea class="input" rows="2" [value]="draft.solutionExplanation" (input)="store.patch({ solutionExplanation: value($event) })"></textarea>
               <span class="help">Only authors see this. Use it for the walkthrough.</span>
@@ -230,11 +282,19 @@
                 <span class="tag">{{ draft.category || 'No category' }}</span>
                 <span class="tag">{{ difficultyLabel(draft.difficultyLevel) }}</span>
                 <span class="tag accent num">{{ draft.points }} pts</span>
-                @if (store.labName()(draft.labId); as lab) { <span class="tag"><app-icon name="layers" size="sm" />{{ lab }}</span> }
                 @if (draft.author) { <span class="small muted">by {{ draft.author }}</span> }
               </div>
-              <h3 class="h1" style="font-size:22px">{{ draft.question || 'New challenge' }}</h3>
-              <p class="dim desc">{{ draft.description || 'No description yet.' }}</p>
+              <h3 class="h1" style="font-size:22px">{{ draft.question || 'New question' }}</h3>
+              @if (draft.description) {
+                <app-markdown [source]="draft.description" />
+              } @else {
+                <p class="dim desc">No description yet.</p>
+              }
+              @if (draft.attachments.length) {
+                <div class="row">
+                  @for (name of draft.attachments; track name) { <span class="tag"><app-icon name="download" size="sm" />{{ name }}</span> }
+                </div>
+              }
               <div class="row nowrap">
                 <div class="affix grow"><span>{{ wrapper().prefix }}</span>
                   <input disabled placeholder="paste what is inside the braces" aria-label="Flag preview"><span>{{ wrapper().suffix }}</span></div>
@@ -250,8 +310,8 @@
           </div>
         }
       } @else {
-        <app-empty-state icon="edit" title="Nothing selected" message="Pick a challenge on the left or add a new one.">
-          <button type="button" class="btn primary" (click)="newChallenge()"><app-icon name="plus" />New challenge</button>
+        <app-empty-state icon="edit" title="Nothing selected" message="Pick a question on the left or add a new one.">
+          <button type="button" class="btn primary" (click)="newChallenge()"><app-icon name="plus" />New question</button>
         </app-empty-state>
       }
     </section>

@@ -44,6 +44,13 @@ export interface LabActionOutcome {
   tracker?: LabTracker;
 }
 
+const TRANSITIONS = new Set<string>(['STARTING', 'PAUSING', 'RESUMING', 'STOPPING', 'REMOVING']);
+
+/** An action the API reports in progress, possibly started by someone else. */
+function serverTransition(action: string | null | undefined): LabTransition | undefined {
+  return action && TRANSITIONS.has(action) ? action as LabTransition : undefined;
+}
+
 const RUNNING = new Set<LabStatus | undefined>([LabStatus.ACTIVE, LabStatus.DEGRADED, LabStatus.ACTIVE_FAILED, LabStatus.FAILED_ACTIVE]);
 
 /**
@@ -61,7 +68,7 @@ export const LabTrackersStore = signalStore(
     byId: computed(() => new Map(trackers().map(tracker => [tracker.id!, tracker]))),
     /** The state to show for a tracker: a request in flight, else its stored status. */
     displayState: computed(() => (tracker: LabTracker): LabDisplayState =>
-      pending()[tracker.id!] ?? tracker.labStatus ?? LabStatus.NONE),
+      pending()[tracker.id!] ?? serverTransition(tracker.pendingAction) ?? tracker.labStatus ?? LabStatus.NONE),
   })),
   withMethods((store, trackerService = inject(LabTrackerService), session = inject(SessionStore)) => {
     const upsert = (tracker: LabTracker) => {
@@ -79,7 +86,7 @@ export const LabTrackersStore = signalStore(
       switchMap(teamId => (teamId ? trackerService.getLabTrackersByTeam(teamId) : of([])).pipe(
         tap(trackers => patchState(store, { trackers, status: 'loaded', updatedAt: Date.now() })),
         catchError(error => {
-          patchState(store, { status: 'error', error: errorMessage(error) ?? 'Team labs could not be loaded.' });
+          patchState(store, { status: 'error', error: errorMessage(error) ?? 'Team environments could not be loaded.' });
           return EMPTY;
         }),
       )),

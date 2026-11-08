@@ -120,6 +120,23 @@ class FlagServiceTest {
     }
 
     @Test
+    void aWrappedFlagMatchesWithOrWithoutTheWrapper() {
+        room.setSurroundTag("AMA{x}");
+        Flag wrapped = new Flag();
+        wrapped.setFlag("inner");
+        wrapped.setCaseSensitive(true);
+        wrapped.setSurroundWithTag(true);
+        when(flagRepository.getFlagsByCtfEntityId("q1")).thenReturn(List.of(wrapped));
+
+        assertThat(flagService.validateFlag(request("inner"))).isTrue();
+        assertThat(flagService.validateFlag(request("AMA{inner}"))).isTrue();
+        assertThat(flagService.validateFlag(request("CTF{inner}"))).isFalse();
+
+        wrapped.setSurroundWithTag(false);
+        assertThat(flagService.validateFlag(request("AMA{inner}"))).isFalse();
+    }
+
+    @Test
     void awardsPointsOnlyOnFirstCorrectAnswer() {
         when(ctfAnswerService.findByRoomUserIdAndCtfEntityIdOptional("ru1", "q1"))
                 .thenReturn(Optional.empty())
@@ -171,7 +188,7 @@ class FlagServiceTest {
     void rejectsPlayersWhoLeftTheRoom() {
         roomUser.setRoomUserStatus(RoomUserStatus.LEFT);
         assertThatThrownBy(() -> flagService.addAnsweredCTFEntity("user1", request("flag"), true))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("Join the room");
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("Join the lab");
     }
 
     @Test

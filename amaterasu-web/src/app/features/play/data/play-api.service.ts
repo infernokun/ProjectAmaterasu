@@ -7,7 +7,9 @@ import { LabTracker } from '../../../models/lab/lab-tracker.model';
 import { RemoteServer } from '../../../models/lab/remote-server.model';
 import { Team } from '../../../models/team.model';
 import { EnvironmentService } from '../../../services/environment.service';
-import { AnswerResult, LabAccess, LabChallenge, LabFiles, RoomLive, RoomOverview, RoomStandings } from './play.models';
+import {
+  AnswerResult, EnvironmentActionResult, EnvironmentView, LabAccess, LabCard, LabChallenge, LabFiles, RoomLive, RoomOverview, RoomStandings,
+} from './play.models';
 
 /** HTTP for the Play and Run screens. */
 @Injectable({ providedIn: 'root' })
@@ -21,6 +23,25 @@ export class PlayApiService {
 
   private data<T>(request: Observable<ApiResponse<T>>): Observable<T> {
     return request.pipe(map(response => response.data));
+  }
+
+  /** Every lab with the caller's environment status and progress. */
+  cards(): Observable<LabCard[]> {
+    return this.data(this.http.get<ApiResponse<LabCard[]>>(this.url('/room/cards'))).pipe(map(cards => cards ?? []));
+  }
+
+  labEnvironment(roomId: string): Observable<EnvironmentView | null> {
+    return this.data(this.http.get<ApiResponse<EnvironmentView | null>>(this.url(`/room/${roomId}/environment`)));
+  }
+
+  /** Starts, pauses or stops the lab's shared copy, or the caller's team's copy. */
+  environmentAction(roomId: string, action: 'start' | 'pause' | 'stop'): Observable<EnvironmentActionResult> {
+    return this.data(this.http.post<ApiResponse<EnvironmentActionResult>>(this.url(`/room/${roomId}/environment/${action}`), {}));
+  }
+
+  /** A lab file's bytes; the API needs the bearer token, so it is fetched rather than linked. */
+  downloadFile(roomId: string, fileId: string): Observable<Blob> {
+    return this.http.get(this.url(`/room/${roomId}/files/${fileId}`), { responseType: 'blob' });
   }
 
   overview(roomId: string): Observable<RoomOverview> {

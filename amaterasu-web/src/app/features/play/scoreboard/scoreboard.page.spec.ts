@@ -77,6 +77,6 @@ describe('ScoreboardPage team points', () => {
     expect(you.querySelector('.kpi-val')?.textContent?.trim()).toBe('1st');
     expect(you.querySelector('.kpi-note')?.textContent?.trim()).toBe('200 pts ahead of Night Owls');
     expect(el.querySelector('#chart-h')?.textContent).toBe('Team points over time');
-    expect(el.textContent).toContain('Top 3 and your team since the room opened at 09:00');
+    expect(el.textContent).toContain('Top 3 and your team since the lab opened at 09:00');
   });
 });

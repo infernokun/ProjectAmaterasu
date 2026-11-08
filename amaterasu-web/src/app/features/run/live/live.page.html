@@ -3,10 +3,10 @@
 } @else if (!roomId()) {
   <header class="page-head"><div><h1 class="h1">Live event</h1></div></header>
   @if (session.isAdmin()) {
-    <section class="card"><app-empty-state icon="activity" title="No rooms yet" message="The live view follows a room. Create one in Build first." /></section>
+    <section class="card"><app-empty-state icon="activity" title="No labs yet" message="The live view follows a lab. Create one in Build first." /></section>
   } @else {
-    <section class="card"><app-empty-state icon="activity" title="No rooms to run yet"
-      message="You see the rooms you facilitate here. Ask a room's author to add you as a facilitator in the room editor." /></section>
+    <section class="card"><app-empty-state icon="activity" title="No labs to run yet"
+      message="You see the labs you facilitate here. Ask a lab's author to add you as a facilitator in the lab editor." /></section>
   }
 } @else if (store.live(); as live) {
   <header class="page-head">
@@ -19,14 +19,14 @@
     </div>
     <div class="row">
       @if (runRooms().length > 1) {
-        <label class="visually-hidden" for="room-pick">Room</label>
+        <label class="visually-hidden" for="room-pick">Lab</label>
         <select id="room-pick" class="input room-pick" [value]="roomId()" (change)="pickRoom($any($event.target).value)">
           @for (room of runRooms(); track room.id) {
             <option [value]="room.id" [selected]="room.id === roomId()">{{ room.name }}</option>
           }
         </select>
       }
-      <a class="btn" [routerLink]="['/rooms', live.roomId, 'scoreboard']"><app-icon name="trophy" />Scoreboard</a>
+      <a class="btn" [routerLink]="['/labs', live.roomId, 'scoreboard']"><app-icon name="trophy" />Scoreboard</a>
       <button type="button" class="btn primary" (click)="openAward()" [disabled]="!live.players.length"><app-icon name="award" />Award points</button>
     </div>
   </header>
@@ -38,7 +38,7 @@
     <div class="card"><div class="kpi-label">Wrong flags, last 15 min</div><div class="kpi-val">{{ live.wrongRecent }}</div>
       <div class="kpi-note">{{ live.topWrong ? live.topWrong.count + ' on ' + live.topWrong.title : 'None' }}</div></div>
     <div class="card"><div class="kpi-label">Hints unlocked</div><div class="kpi-val">{{ live.hintsUnlocked }}</div>
-      <div class="kpi-note">{{ live.hintPoints ? fmt.signed(-live.hintPoints) + ' pts across the room' : 'No points spent' }}</div></div>
+      <div class="kpi-note">{{ live.hintPoints ? fmt.signed(-live.hintPoints) + ' pts across the lab' : 'No points spent' }}</div></div>
   </div>
 
   <div class="cols">
@@ -53,7 +53,7 @@
                 @if (alert.at) {<span class="small muted">{{ fmt.ago(alert.at) }}</span>}</div>
               <div class="row">
                 @if (alert.trackerId && session.isAdmin()) {
-                  <a class="btn sm" [routerLink]="['/labs', alert.trackerId]">Open lab</a>
+                  <a class="btn sm" [routerLink]="['/environments', alert.trackerId]">Open lab</a>
                 }
                 <button type="button" class="btn sm ghost" (click)="store.dismiss(alert.id)">Dismiss</button>
               </div>
@@ -97,11 +97,11 @@
       </section>
 
       <section class="card flush" aria-labelledby="ch-h">
-        <div class="card-head"><h2 class="h2" id="ch-h">Challenge health</h2><span class="small muted">Sorted by wrong attempts</span></div>
+        <div class="card-head"><h2 class="h2" id="ch-h">Question health</h2><span class="small muted">Sorted by wrong attempts</span></div>
         @if (live.challenges.length) {
           <div class="table-wrap">
             <table class="t">
-              <thead><tr><th>Challenge</th><th class="r">Solves</th><th class="r">Wrong attempts</th><th>Solve rate</th><th class="r">Hints used</th></tr></thead>
+              <thead><tr><th>Question</th><th class="r">Solves</th><th class="r">Wrong attempts</th><th>Solve rate</th><th class="r">Hints used</th></tr></thead>
               <tbody>
                 @for (challenge of live.challenges; track challenge.id) {
                   <tr>
@@ -116,7 +116,7 @@
             </table>
           </div>
         } @else {
-          <app-empty-state icon="flag" title="No challenges in this room" />
+          <app-empty-state icon="flag" title="No questions in this lab" />
         }
       </section>
     </div>

@@ -1,6 +1,7 @@
 package com.infernokun.amaterasu.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.infernokun.amaterasu.components.LabActionGuard;
 import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.websocket.AmaterasuSocketHandler;
 import lombok.RequiredArgsConstructor;
@@ -17,10 +18,11 @@ public class WebSocketConfig implements WebSocketConfigurer {
     private final AllowedOrigins allowedOrigins;
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
+    private final LabActionGuard labActionGuard;
 
     @Bean
     public AmaterasuSocketHandler socketHandler() {
-        return new AmaterasuSocketHandler(objectMapper, userRepository);
+        return new AmaterasuSocketHandler(objectMapper, userRepository, labActionGuard);
     }
 
     @Override

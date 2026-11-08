@@ -5,11 +5,26 @@ import { DifficultyLevel } from '../../../enums/difficulty-level.enum';
 import { ApiResponse } from '../../../models/api-response.model';
 import { EnvironmentService } from '../../../services/environment.service';
 
+export type EnvironmentMode = 'NONE' | 'SHARED' | 'PER_TEAM';
+
+/** A lab as authors edit it. It is stored as a room; its environment is a lab definition. */
 export interface AuthorRoom {
   id: string;
   name: string;
   surroundTag: string;
   updatedAt: string | null;
+  scenario: string;
+  environmentMode: EnvironmentMode;
+  environmentId: string | null;
+}
+
+/** Fields a lab edit can send; left out ones stay as they are. */
+export interface RoomChanges {
+  name?: string;
+  surroundTag?: string;
+  scenario?: string;
+  environmentMode?: EnvironmentMode;
+  environmentId?: string | null;
 }
 
 export interface AuthorFlag {
@@ -33,11 +48,12 @@ export interface Person {
   username: string;
 }
 
-/** A lab a challenge can point players to. */
+/** An environment (lab definition) a lab can run. */
 export interface LabOption {
   id: string;
   name: string;
   published: boolean;
+  labType?: string | null;
 }
 
 export interface AuthorChallenge {
@@ -49,7 +65,9 @@ export interface AuthorChallenge {
   category: string;
   difficultyLevel: DifficultyLevel;
   points: number;
-  maxAttempts: number;
+  /** Null for unlimited attempts. */
+  maxAttempts: number | null;
+  /** Markdown. */
   description: string;
   visible: boolean;
   /** "yyyy-MM-dd HH:mm:ss" in UTC, as the API stores it. */
@@ -61,9 +79,20 @@ export interface AuthorChallenge {
   hints: AuthorHint[];
   solveCount: number;
   attemptCount: number;
+  /** Names of lab files players download for it. */
+  attachments: string[];
 }
 
-/** Authoring endpoints for rooms and their challenges. Raw challenges include flags, so creators only. */
+/** A file players download from a lab, without its bytes. */
+export interface LabFileView {
+  id: string;
+  name: string;
+  contentType: string | null;
+  size: number;
+  sha256: string | null;
+}
+
+/** Authoring endpoints for labs and their questions. Raw questions include flags, so creators only. */
 @Injectable({ providedIn: 'root' })
 export class AuthoringService {
   private readonly http = inject(HttpClient);
@@ -81,12 +110,12 @@ export class AuthoringService {
     return this.http.get<ApiResponse<any>>(this.url(`/room/${roomId}`)).pipe(map(r => toRoom(r.data)));
   }
 
-  createRoom(name: string, surroundTag: string): Observable<AuthorRoom> {
-    return this.http.post<ApiResponse<any>>(this.url('/room'), { name, surroundTag }).pipe(map(r => toRoom(r.data)));
+  createRoom(changes: RoomChanges): Observable<AuthorRoom> {
+    return this.http.post<ApiResponse<any>>(this.url('/room'), changes).pipe(map(r => toRoom(r.data)));
   }
 
-  updateRoom(roomId: string, name: string, surroundTag: string): Observable<AuthorRoom> {
-    return this.http.put<ApiResponse<any>>(this.url(`/room/${roomId}`), { name, surroundTag }).pipe(map(r => toRoom(r.data)));
+  updateRoom(roomId: string, changes: RoomChanges): Observable<AuthorRoom> {
+    return this.http.put<ApiResponse<any>>(this.url(`/room/${roomId}`), changes).pipe(map(r => toRoom(r.data)));
   }
 
   deleteRoom(roomId: string): Observable<unknown> {
@@ -118,7 +147,7 @@ export class AuthoringService {
 
   labs(): Observable<LabOption[]> {
     return this.http.get<ApiResponse<any[]>>(this.url('/labs')).pipe(map(r => (r.data ?? [])
-      .map(lab => ({ id: lab.id, name: lab.name ?? 'Untitled lab', published: lab.published === true }))
+      .map(lab => ({ id: lab.id, name: lab.name ?? 'Untitled environment', published: lab.published === true, labType: lab.labType ?? null }))
       .sort((a, b) => a.name.localeCompare(b.name))));
   }
 
@@ -149,6 +178,22 @@ export class AuthoringService {
     return this.http.delete(this.url(`/ctf-entity/${challengeId}`));
   }
 
+  files(roomId: string): Observable<LabFileView[]> {
+    return this.http.get<ApiResponse<LabFileView[]>>(this.url(`/room/${roomId}/files`)).pipe(map(r => r.data ?? []));
+  }
+
+  /** Uploads a lab file; a name that exists is replaced. */
+  uploadFile(roomId: string, file: File, name?: string): Observable<LabFileView> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    if (name) form.append('name', name);
+    return this.http.post<ApiResponse<LabFileView>>(this.url(`/room/${roomId}/files`), form).pipe(map(r => r.data));
+  }
+
+  deleteFile(roomId: string, fileId: string): Observable<unknown> {
+    return this.http.delete(this.url(`/room/${roomId}/files/${fileId}`));
+  }
+
   /** Adds challenges in one request; each one needs `room: { id }`. */
   importChallenges(challenges: object[]): Observable<number> {
     return this.http.post<ApiResponse<unknown[]>>(this.url('/ctf-entity/batch'), challenges).pipe(map(r => (r.data ?? []).length));
@@ -168,13 +213,18 @@ function writable(challenge: AuthorChallenge) {
     expirationDate: challenge.expirationDate,
     solutionExplanation: challenge.solutionExplanation,
     labId: challenge.labId,
+    attachments: challenge.attachments,
     flags: challenge.flags,
     hints: challenge.hints,
   };
 }
 
 export function toRoom(raw: any): AuthorRoom {
-  return { id: raw.id, name: raw.name ?? 'Untitled room', surroundTag: raw.surroundTag ?? 'CTF{x}', updatedAt: raw.updatedAt ?? null };
+  return {
+    id: raw.id, name: raw.name ?? 'Untitled lab', surroundTag: raw.surroundTag ?? 'CTF{x}', updatedAt: raw.updatedAt ?? null,
+    scenario: raw.scenario ?? '', environmentMode: raw.environmentId ? raw.environmentMode ?? 'NONE' : 'NONE',
+    environmentId: raw.environmentId ?? null,
+  };
 }
 
 export function toChallenge(raw: any): AuthorChallenge {
@@ -186,7 +236,7 @@ export function toChallenge(raw: any): AuthorChallenge {
     category: raw.category ?? '',
     difficultyLevel: raw.difficultyLevel ?? DifficultyLevel.EASY,
     points: raw.points ?? 0,
-    maxAttempts: raw.maxAttempts ?? 10,
+    maxAttempts: raw.maxAttempts ?? null,
     description: raw.description ?? '',
     visible: raw.visible !== false,
     releaseDate: raw.releaseDate ?? null,
@@ -201,5 +251,6 @@ export function toChallenge(raw: any): AuthorChallenge {
       .map((hint: any) => ({ id: hint.id, hint: hint.hint ?? '', cost: hint.cost ?? 0, unlockAfterAttempts: hint.unlockAfterAttempts ?? 0 })),
     solveCount: raw.solveCount ?? 0,
     attemptCount: raw.attemptCount ?? 0,
+    attachments: raw.attachments ?? [],
   };
 }

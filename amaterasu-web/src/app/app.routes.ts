@@ -7,23 +7,38 @@ import { ShellComponent } from './shell/shell.component';
 
 /** Old addresses, kept working for bookmarks and links in the wild. */
 const LEGACY_REDIRECTS: Routes = [
-  { path: 'challenges', redirectTo: '/rooms' },
-  { path: 'room/:room', redirectTo: ({ params }) => inject(Router).createUrlTree(['/rooms', params['room']]) },
-  { path: 'room/:room/scoreboard', redirectTo: ({ params }) => inject(Router).createUrlTree(['/rooms', params['room'], 'scoreboard']) },
+  { path: 'challenges', redirectTo: '/labs' },
+  // Rooms became labs; a lab keeps its room's id
+  { path: 'rooms', redirectTo: '/labs' },
+  { path: 'rooms/:room', redirectTo: ({ params, queryParams }) => inject(Router).createUrlTree(['/labs', params['room']], { queryParams }) },
+  { path: 'rooms/:room/scoreboard', redirectTo: ({ params }) => inject(Router).createUrlTree(['/labs', params['room'], 'scoreboard']) },
+  {
+    path: 'rooms/:room/scoreboard/:username',
+    redirectTo: ({ params }) => inject(Router).createUrlTree(['/labs', params['room'], 'scoreboard', params['username']]),
+  },
+  { path: 'room/:room', redirectTo: ({ params }) => inject(Router).createUrlTree(['/labs', params['room']]) },
+  { path: 'room/:room/scoreboard', redirectTo: ({ params }) => inject(Router).createUrlTree(['/labs', params['room'], 'scoreboard']) },
   {
     path: 'room/:room/scoreboard/:username',
-    redirectTo: ({ params }) => inject(Router).createUrlTree(['/rooms', params['room'], 'scoreboard', params['username']]),
+    redirectTo: ({ params }) => inject(Router).createUrlTree(['/labs', params['room'], 'scoreboard', params['username']]),
+  },
+  // A team's lab copy moved from /labs/<tracker> to /environments/<tracker>; the lab page forwards the bare address
+  {
+    path: 'labs/:tracker/console/:vmid',
+    redirectTo: ({ params }) => inject(Router).createUrlTree(['/environments', params['tracker'], 'console', params['vmid']]),
   },
   {
     path: 'lab/settings/:name',
-    redirectTo: ({ queryParams }) => inject(Router).createUrlTree(queryParams['id'] ? ['/labs', queryParams['id']] : ['/labs']),
+    redirectTo: ({ queryParams }) => inject(Router).createUrlTree(queryParams['id'] ? ['/environments', queryParams['id']] : ['/labs']),
   },
+  { path: 'build/rooms', redirectTo: '/build/labs' },
+  { path: 'build/rooms/:room', redirectTo: ({ params }) => inject(Router).createUrlTree(['/build/labs', params['room']]) },
   { path: 'users', redirectTo: '/admin/users' },
   { path: 'teams', redirectTo: () => inject(Router).createUrlTree(['/admin/users'], { queryParams: { tab: 'teams' } }) },
   { path: 'remote-server', redirectTo: '/admin/servers' },
   { path: 'log', redirectTo: '/admin/audit' },
   { path: 'team-log', redirectTo: '/admin/audit' },
-  { path: 'vm-lab-builder', redirectTo: '/build/labs' },
+  { path: 'vm-lab-builder', redirectTo: '/build/environments' },
   { path: 'code', redirectTo: '/dev/code' },
   { path: 'login', redirectTo: '/welcome' },
 ];

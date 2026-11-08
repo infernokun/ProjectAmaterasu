@@ -28,6 +28,10 @@ public interface LabTrackerRepository extends JpaRepository<LabTracker, String> 
 
     List<LabTracker> findByRemoteServer(RemoteServer remoteServer);
 
+    List<LabTracker> findByRoomId(String roomId);
+
+    List<LabTracker> findAllByLabStartedAndLabOwnerAndLabStatusNot(Lab labStarted, Team labOwner, LabStatus labStatus);
+
     // Bulk update so the cron never bumps the version a running lab action is about to save
     @Modifying
     @Query("update LabTracker t set t.vms = :vms, t.labStatus = :status where t.id = :id and t.labStatus = :expected")

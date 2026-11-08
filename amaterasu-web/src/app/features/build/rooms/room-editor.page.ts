@@ -11,7 +11,8 @@ import { ToastService } from '../../../shared/services/toast.service';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { SkeletonComponent } from '../../../shared/ui/skeleton.component';
-import { AuthorChallenge, Person } from './authoring.service';
+import { MarkdownComponent } from '../../../shared/ui/markdown.component';
+import { AuthorChallenge, EnvironmentMode, LabFileView, Person } from './authoring.service';
 import { NEW_ID, RoomEditorStore, scheduleLabel } from './room-editor.store';
 
 export const DIFFICULTIES: { value: DifficultyLevel; label: string }[] = [
@@ -35,7 +36,7 @@ export function wrapperParts(tag: string): { prefix: string; suffix: string; nam
   selector: 'app-room-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, CdkDropList, CdkDrag, CdkDragHandle, CdkDragPlaceholder, MatMenuModule, IconComponent,
-    EmptyStateComponent, SkeletonComponent],
+    EmptyStateComponent, SkeletonComponent, MarkdownComponent],
   providers: [RoomEditorStore],
   templateUrl: './room-editor.page.html',
   styleUrl: './room-editor.page.scss',
@@ -56,11 +57,31 @@ export class RoomEditorPage {
   protected readonly scheduled = scheduleLabel;
   protected readonly mode = signal<'edit' | 'preview'>('edit');
 
-  // Room settings, edited in place and saved with Save room
+  // Lab settings, edited in place and saved with Save lab
   protected readonly roomName = linkedSignal(() => this.store.room()?.name ?? '');
   protected readonly roomTag = linkedSignal(() => this.store.room()?.surroundTag ?? 'CTF{x}');
-  protected readonly roomDirty = computed(() => !!this.store.room()
-    && (this.roomName().trim() !== this.store.room()!.name || this.roomTag().trim() !== this.store.room()!.surroundTag));
+  protected readonly scenario = linkedSignal(() => this.store.room()?.scenario ?? '');
+  protected readonly envMode = linkedSignal<EnvironmentMode>(() => this.store.room()?.environmentMode ?? 'NONE');
+  protected readonly envId = linkedSignal(() => this.store.room()?.environmentId ?? '');
+  protected readonly roomDirty = computed(() => {
+    const room = this.store.room();
+    return !!room && (this.roomName().trim() !== room.name || this.roomTag().trim() !== room.surroundTag
+      || this.scenario().trim() !== room.scenario.trim() || this.envMode() !== room.environmentMode
+      || (this.envMode() !== 'NONE' && this.envId() !== (room.environmentId ?? '')));
+  });
+  protected readonly roomProblem = computed(() => {
+    if (!this.roomName().trim()) return 'Give the lab a name.';
+    if (!this.scenario().trim()) return 'Write the scenario players read first.';
+    if (this.envMode() !== 'NONE' && !this.envId()) return 'Pick the environment players work in.';
+    return null;
+  });
+  protected readonly envModes: { value: EnvironmentMode; label: string; help: string }[] = [
+    { value: 'NONE', label: 'No environment', help: 'A plain CTF. Players see No setup needed.' },
+    { value: 'SHARED', label: 'Shared', help: 'One running copy for everyone. Facilitators start and stop it.' },
+    { value: 'PER_TEAM', label: 'One per team', help: 'Each team starts its own copy.' },
+  ];
+  protected readonly envHelp = computed(() => this.envModes.find(mode => mode.value === this.envMode())?.help ?? '');
+  protected readonly placeholderHelp = 'Markdown. {{address}}, {{username}}, {{subnet}} and {{password}} fill in from the running environment; the password shows as a masked chip.';
   protected readonly savingRoom = signal(false);
   protected readonly savingFacilitators = signal(false);
 
@@ -68,7 +89,7 @@ export class RoomEditorPage {
   protected readonly summary = computed(() => {
     const count = this.store.challenges().length;
     const players = this.store.players();
-    return `${count} ${count === 1 ? 'challenge' : 'challenges'} · ${this.store.totalPoints().toLocaleString('en-US')} pts available · `
+    return `${count} ${count === 1 ? 'question' : 'questions'} · ${this.store.totalPoints().toLocaleString('en-US')} pts available · `
       + `${players} ${players === 1 ? 'player' : 'players'} joined`;
   });
   protected readonly visibility = computed(() => {
@@ -94,7 +115,7 @@ export class RoomEditorPage {
     effect(() => {
       const name = this.store.room()?.name;
       untracked(() => this.crumbs.set([
-        { label: 'Build' }, { label: 'Rooms and challenges', link: '/build/rooms' }, { label: name ?? 'Room' },
+        { label: 'Build' }, { label: 'Labs', link: '/build/labs' }, { label: name ?? 'Lab' },
       ]));
     });
   }
@@ -105,6 +126,55 @@ export class RoomEditorPage {
 
   protected number(event: Event): number {
     return Number((event.target as HTMLInputElement).value);
+  }
+
+  /** An empty attempts box means unlimited. */
+  protected attempts(event: Event): number | null {
+    const raw = (event.target as HTMLInputElement).value.trim();
+    return raw === '' ? null : Number(raw);
+  }
+
+  protected size(bytes: number): string {
+    return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : bytes >= 1024 ? `${Math.round(bytes / 1024)} KB` : `${bytes} B`;
+  }
+
+  protected readonly uploading = signal(false);
+
+  /** Names the question lists that the lab has no file for. */
+  protected readonly missingAttachments = computed(() => {
+    const names = new Set(this.store.files().map(file => file.name));
+    return (this.store.draft()?.attachments ?? []).filter(name => !names.has(name));
+  });
+
+  protected async uploadFiles(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (!files.length) return;
+    this.uploading.set(true);
+    try {
+      const saved = await this.store.uploadFiles(files);
+      this.toast.success(`Uploaded ${saved.length} ${saved.length === 1 ? 'file' : 'files'}`);
+    } catch (error) {
+      this.toast.error('The upload did not finish.', error);
+    } finally {
+      this.uploading.set(false);
+    }
+  }
+
+  protected async deleteFile(file: LabFileView): Promise<void> {
+    const answer = await firstValueFrom(this.confirm.open({
+      title: `Delete ${file.name}?`,
+      message: 'Players can no longer download it. Questions that list it show only its name.',
+      confirmLabel: 'Delete file',
+    }));
+    if (answer !== 'confirm') return;
+    try {
+      await this.store.deleteFile(file);
+      this.toast.success(`${file.name} deleted`);
+    } catch (error) {
+      this.toast.error(`${file.name} could not be deleted.`, error);
+    }
   }
 
   protected checked(event: Event): boolean {
@@ -122,7 +192,7 @@ export class RoomEditorPage {
     }
     const answer = await firstValueFrom(this.confirm.open({
       title: 'Discard unsaved changes?',
-      message: `Your edits to ${this.store.draft()?.question || 'the new challenge'} are lost.`,
+      message: `Your edits to ${this.store.draft()?.question || 'the new question'} are lost.`,
       confirmLabel: 'Discard changes',
       cancelLabel: 'Keep editing',
     }));
@@ -149,7 +219,7 @@ export class RoomEditorPage {
       await this.store.save();
       this.toast.success('Saved. Players see the change on their next refresh.');
     } catch (error) {
-      this.toast.error(this.store.problem() ?? 'The challenge could not be saved.', error);
+      this.toast.error(this.store.problem() ?? 'The question could not be saved.', error);
     }
   }
 
@@ -164,9 +234,9 @@ export class RoomEditorPage {
     }
     const answer = await firstValueFrom(this.confirm.open({
       title: `Delete ${draft.question}?`,
-      message: `Players lose it from the room, along with their attempts and the hints they unlocked. `
+      message: `Players lose it from the lab, along with their attempts and the hints they unlocked. `
         + 'Points already scored stay on the scoreboard.',
-      confirmLabel: 'Delete challenge',
+      confirmLabel: 'Delete question',
     }));
     if (answer !== 'confirm') {
       return;
@@ -177,10 +247,6 @@ export class RoomEditorPage {
     } catch (error) {
       this.toast.error(`${draft.question} could not be deleted.`, error);
     }
-  }
-
-  protected hasLab(labId: string): boolean {
-    return this.store.labs().some(lab => lab.id === labId);
   }
 
   protected async dropped(event: CdkDragDrop<unknown>): Promise<void> {
@@ -211,12 +277,12 @@ export class RoomEditorPage {
   }
 
   protected async addFacilitator(person: Person): Promise<void> {
-    await this.saveFacilitators([...this.store.facilitators().map(p => p.id), person.id], `${person.username} facilitates this room now`);
+    await this.saveFacilitators([...this.store.facilitators().map(p => p.id), person.id], `${person.username} facilitates this lab now`);
   }
 
   protected async removeFacilitator(person: Person): Promise<void> {
     await this.saveFacilitators(this.store.facilitators().filter(p => p.id !== person.id).map(p => p.id),
-      `${person.username} no longer facilitates this room`);
+      `${person.username} no longer facilitates this lab`);
   }
 
   private async saveFacilitators(ids: string[], done: string): Promise<void> {
@@ -234,10 +300,14 @@ export class RoomEditorPage {
   protected async saveRoom(): Promise<void> {
     this.savingRoom.set(true);
     try {
-      await this.store.saveRoom(this.roomName().trim(), this.roomTag().trim());
-      this.toast.success('Room saved');
+      const mode = this.envMode();
+      await this.store.saveRoom({
+        name: this.roomName().trim(), surroundTag: this.roomTag().trim(), scenario: this.scenario().trim(),
+        environmentMode: mode, ...(mode === 'NONE' ? {} : { environmentId: this.envId() }),
+      });
+      this.toast.success('Lab saved');
     } catch (error) {
-      this.toast.error('The room could not be saved.', error);
+      this.toast.error('The lab could not be saved.', error);
     } finally {
       this.savingRoom.set(false);
     }
@@ -251,9 +321,9 @@ export class RoomEditorPage {
     const count = this.store.challenges().length;
     const answer = await firstValueFrom(this.confirm.open({
       title: `Delete ${room.name}?`,
-      message: `Its ${count} ${count === 1 ? 'challenge' : 'challenges'}, every answer and hint players used, and the list of who joined are deleted. `
-        + 'Points scored in this room are lost.',
-      confirmLabel: 'Delete room',
+      message: `Its ${count} ${count === 1 ? 'question' : 'questions'}, every answer and hint players used, and the list of who joined are deleted. `
+        + 'Points scored in this lab are lost.',
+      confirmLabel: 'Delete lab',
       typeToConfirm: room.name,
     }));
     if (answer !== 'confirm') {
@@ -262,7 +332,7 @@ export class RoomEditorPage {
     try {
       await this.store.deleteRoom();
       this.toast.success(`${room.name} deleted`);
-      this.router.navigate(['/build/rooms']);
+      this.router.navigate(['/build/labs']);
     } catch (error) {
       this.toast.error(`${room.name} could not be deleted.`, error);
     }
@@ -277,7 +347,7 @@ export class RoomEditorPage {
     }
     try {
       const count = await this.store.importFile(await file.text());
-      this.toast.success(`Imported ${count} ${count === 1 ? 'challenge' : 'challenges'} into ${this.store.room()?.name}`);
+      this.toast.success(`Imported ${count} ${count === 1 ? 'question' : 'questions'} into ${this.store.room()?.name}`);
     } catch (error) {
       this.toast.error(error instanceof Error ? error.message : 'The file could not be imported.', error);
     }
@@ -289,7 +359,7 @@ export class RoomEditorPage {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${(room?.name ?? 'room').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-challenges.json`;
+    link.download = `${(room?.name ?? 'lab').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-questions.json`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }

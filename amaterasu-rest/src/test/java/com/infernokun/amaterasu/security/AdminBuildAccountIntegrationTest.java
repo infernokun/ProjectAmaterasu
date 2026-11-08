@@ -371,7 +371,7 @@ class AdminBuildAccountIntegrationTest {
     @Test
     void authorsEditChallengesHintsAndSchedule() throws Exception {
         String creator = signIn(user(Role.CREATOR, null)).accessToken();
-        JsonNode room = data(send(post("/api/room"), Map.of("name", unique("Winter Range ")), creator)
+        JsonNode room = data(send(post("/api/room"), Map.of("name", unique("Winter Range "), "scenario", "## Situation\nPractice"), creator)
                 .andExpect(status().isCreated()).andReturn());
         JsonNode created = createChallenge(room.get("id").asText(), creator);
         assertThat(created.get("releaseDate").asText()).isEqualTo("2026-11-04 09:00:00");
@@ -396,14 +396,14 @@ class AdminBuildAccountIntegrationTest {
                 .containsExactlyInAnyOrder("Count the columns first", "A new hint");
         assertThat(stored.getHints()).anyMatch(h -> h.getId().equals(keptHintId) && h.getCost() == 30);
 
-        send(post("/api/room"), Map.of("name", room.get("name").asText()), creator).andExpect(status().isBadRequest());
+        send(post("/api/room"), Map.of("name", room.get("name").asText(), "scenario", "## Situation\nPractice"), creator).andExpect(status().isBadRequest());
     }
 
     @Test
     void deletingChallengesAndRoomsRemovesAnswersAndMembers() throws Exception {
         String creator = signIn(user(Role.CREATOR, null)).accessToken();
         User player = user(Role.MEMBER, null);
-        JsonNode roomJson = data(send(post("/api/room"), Map.of("name", unique("Doomed ")), creator).andReturn());
+        JsonNode roomJson = data(send(post("/api/room"), Map.of("name", unique("Doomed "), "scenario", "## Situation\nPractice"), creator).andReturn());
         String roomId = roomJson.get("id").asText();
         String first = createChallenge(roomId, creator).get("id").asText();
         String second = createChallenge(roomId, creator).get("id").asText();
@@ -438,7 +438,7 @@ class AdminBuildAccountIntegrationTest {
     void paidHintsCanStillBeRemoved() throws Exception {
         String creator = signIn(user(Role.CREATOR, null)).accessToken();
         User player = user(Role.MEMBER, null);
-        String roomId = data(send(post("/api/room"), Map.of("name", unique("Hints ")), creator).andReturn())
+        String roomId = data(send(post("/api/room"), Map.of("name", unique("Hints "), "scenario", "## Situation\nPractice"), creator).andReturn())
                 .get("id").asText();
         String id = createChallenge(roomId, creator).get("id").asText();
         CTFEntity challenge = ctfEntityRepository.findById(id).orElseThrow();
@@ -459,7 +459,7 @@ class AdminBuildAccountIntegrationTest {
     @Test
     void challengesImportInBulk() throws Exception {
         String creator = signIn(user(Role.CREATOR, null)).accessToken();
-        String roomId = data(send(post("/api/room"), Map.of("name", unique("Import ")), creator).andReturn())
+        String roomId = data(send(post("/api/room"), Map.of("name", unique("Import "), "scenario", "## Situation\nPractice"), creator).andReturn())
                 .get("id").asText();
         List<Map<String, Object>> batch = List.of(
                 Map.of("question", "One", "points", 100, "room", Map.of("id", roomId),

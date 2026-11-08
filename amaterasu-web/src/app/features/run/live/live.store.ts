@@ -133,7 +133,7 @@ export const LiveStore = signalStore(
           const [trackers, teams] = await firstValueFrom(forkJoin([api.allTrackers(), api.teams()]));
           patchState(store, { trackers, teams });
         } catch (error) {
-          patchState(store, { error: errorMessage(error) ?? 'Team labs could not be loaded.' });
+          patchState(store, { error: errorMessage(error) ?? 'Team environments could not be loaded.' });
         }
         await reloadLive();
         patchState(store, { loading: false });

@@ -51,7 +51,7 @@ describe('SearchStore', () => {
     await settle();
     expect(api.search).not.toHaveBeenCalled();
     expect(store.tooShort()).toBeTrue();
-    expect(store.scope()).toBe('your team labs, the lab catalog, rooms and challenges');
+    expect(store.scope()).toBe('your team environments, labs and questions');
   });
 
   it('groups results by type in a fixed order and numbers them for the keyboard', async () => {
@@ -59,18 +59,18 @@ describe('SearchStore', () => {
     store.setQuery(' web ');
     await settle();
     expect(api.search).toHaveBeenCalledOnceWith('web');
-    expect(store.groups().map(group => group.label)).toEqual(['Team labs', 'Lab catalog', 'Rooms', 'Challenges']);
+    expect(store.groups().map(group => group.label)).toEqual(['Team environments', 'Environments', 'Labs', 'Questions']);
     expect(store.flat().map(hit => hit.id)).toEqual(['t1', 'l1', 'r1', 'c1']);
     expect(store.groups()[3].items[0].index).toBe(3);
     expect(store.stale()).toBeFalse();
   });
 
-  it('calls the catalog Labs for authors and widens the scope for admins', async () => {
+  it('widens the scope for authors', async () => {
     const store = storeFor('CREATOR');
     store.setQuery('web');
     await settle();
-    expect(store.groups()[1].label).toBe('Labs');
-    expect(store.scope()).toBe('every lab, room and challenge');
+    expect(store.groups()[1].label).toBe('Environments');
+    expect(store.scope()).toBe('every lab, environment and question');
   });
 
   it('keeps only the answer to the latest query', async () => {

@@ -1,6 +1,7 @@
 package com.infernokun.amaterasu.services.entity;
 
 import com.infernokun.amaterasu.models.PointsHistoryEntry;
+import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
@@ -9,9 +10,11 @@ import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomStandings;
 import com.infernokun.amaterasu.models.enums.RoomUserStatus;
 import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.repositories.ctf.CTFAnswerRepository;
+import com.infernokun.amaterasu.repositories.ctf.LabFileRepository;
 import com.infernokun.amaterasu.services.entity.ctf.CTFEntityService;
 import com.infernokun.amaterasu.services.entity.ctf.RoomPlayService;
 import com.infernokun.amaterasu.services.entity.ctf.RoomService;
+import com.infernokun.amaterasu.services.entity.lab.LabEnvironmentService;
 import com.infernokun.amaterasu.services.entity.ctf.RoomUserService;
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +32,7 @@ class RoomPlayServiceTest {
     private final CTFAnswerRepository answers = mock(CTFAnswerRepository.class);
     private final UserRepository users = mock(UserRepository.class);
     private final RoomPlayService service = new RoomPlayService(roomService, roomUserService, mock(CTFEntityService.class),
-            answers, users);
+            answers, users, mock(LabEnvironmentService.class), mock(CurrentUser.class), mock(LabFileRepository.class));
 
     private RoomUser player(String name, Team team, LocalDateTime joined, int... totals) {
         User user = new User(name, "x");

@@ -41,8 +41,8 @@ export class PlayerPage {
       const name = this.store.standings()?.roomName;
       if (name) {
         untracked(() => this.crumbs.set([
-          { label: name, link: ['/rooms', this.roomId()] },
-          { label: 'Scoreboard', link: ['/rooms', this.roomId(), 'scoreboard'] },
+          { label: name, link: ['/labs', this.roomId()] },
+          { label: 'Scoreboard', link: ['/labs', this.roomId(), 'scoreboard'] },
           { label: this.username() },
         ]));
       }

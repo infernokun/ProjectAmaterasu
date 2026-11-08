@@ -47,7 +47,7 @@ public class LabTrackerLiveController {
         LabTracker labTracker = labTrackerService.findLabTrackerById(labTrackerId)
                 .filter(tracker -> tracker.getLabStatus() != LabStatus.DELETED)
                 .orElseThrow(() -> new ResourceNotFoundException("Lab tracker not found"));
-        currentUser.requireTrackerAccess(labTracker);
+        currentUser.requireTrackerControl(labTracker);
         if (labTracker.getLabStarted().getLabType() != LabType.DOCKER_COMPOSE || labTracker.getRemoteServer() == null) {
             throw new IllegalArgumentException("Only running Docker Compose labs have services to restart");
         }

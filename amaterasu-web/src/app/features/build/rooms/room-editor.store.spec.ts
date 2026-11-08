@@ -9,7 +9,7 @@ import { wrapperParts } from './room-editor.page';
 const challenge = (id: string, patch: Partial<AuthorChallenge> = {}): AuthorChallenge => ({
   id, roomId: 'r1', labId: null, question: id, category: 'Web', difficultyLevel: DifficultyLevel.EASY, points: 100, maxAttempts: 5,
   description: '', visible: true, releaseDate: '2026-11-04 09:00:00', expirationDate: null, solutionExplanation: '', author: null,
-  flags: [{ flag: 'f', caseSensitive: true, surroundWithTag: true, weight: 1 }], hints: [], solveCount: 0, attemptCount: 0, ...patch,
+  flags: [{ flag: 'f', caseSensitive: true, surroundWithTag: true, weight: 1 }], hints: [], solveCount: 0, attemptCount: 0, attachments: [], ...patch,
 });
 
 describe('RoomEditorStore', () => {
@@ -18,12 +18,13 @@ describe('RoomEditorStore', () => {
   beforeEach(() => {
     api = jasmine.createSpyObj<AuthoringService>('AuthoringService', [
       'room', 'challenges', 'players', 'create', 'update', 'delete', 'updateRoom', 'deleteRoom', 'importChallenges',
-      'facilitators', 'facilitatorCandidates', 'setFacilitators', 'reorder', 'labs',
+      'facilitators', 'facilitatorCandidates', 'setFacilitators', 'reorder', 'labs', 'files',
     ]);
+    api.files.and.returnValue(of([]));
     api.facilitators.and.returnValue(of([{ id: 'u1', username: 'dkim' }]));
     api.facilitatorCandidates.and.returnValue(of([{ id: 'u1', username: 'dkim' }, { id: 'u2', username: 'rhale' }]));
     api.labs.and.returnValue(of([{ id: 'lab1', name: 'Web Exploitation 101', published: true }]));
-    api.room.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null }));
+    api.room.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null, scenario: '## Situation', environmentMode: 'NONE' as const, environmentId: null }));
     api.challenges.and.returnValue(of([
       challenge('Union Based Dump', { points: 300, hints: [{ id: 'h1', hint: 'Count the columns', cost: 25, unlockAfterAttempts: 0 }] }),
       challenge('Kerberoast', { category: 'Active Directory', points: 300 }),
@@ -78,7 +79,7 @@ describe('RoomEditorStore', () => {
     const store = await loaded();
     store.newChallenge('aokafor');
     expect(store.selectedId()).toBe(NEW_ID);
-    expect(store.problem()).toBe('Give the challenge a title.');
+    expect(store.problem()).toBe('Give the question a title.');
     store.patch({ question: 'Export Endpoint' });
     expect(store.problem()).toBe('Add at least one flag players can submit.');
     store.patchFlag(0, { flag: 'exp0rt_all' });
@@ -113,9 +114,10 @@ describe('RoomEditorStore order, facilitators and labs', () => {
 
   beforeEach(() => {
     api = jasmine.createSpyObj<AuthoringService>('AuthoringService', [
-      'room', 'challenges', 'players', 'facilitators', 'facilitatorCandidates', 'setFacilitators', 'reorder', 'labs', 'update',
+      'room', 'challenges', 'players', 'facilitators', 'facilitatorCandidates', 'setFacilitators', 'reorder', 'labs', 'update', 'files',
     ]);
-    api.room.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null }));
+    api.files.and.returnValue(of([]));
+    api.room.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null, scenario: '## Situation', environmentMode: 'NONE' as const, environmentId: null }));
     api.challenges.and.returnValue(of([challenge('a'), challenge('b'), challenge('c', { labId: 'lab1' })]));
     api.players.and.returnValue(of(0));
     api.facilitators.and.returnValue(of([{ id: 'u1', username: 'dkim' }]));
