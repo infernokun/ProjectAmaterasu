@@ -15,6 +15,10 @@ export class LabTracker extends StoredObject {
   vms?: ProxmoxVM[];
   remoteServer?: RemoteServer;
   bridges?: string[];
+  /** The lab a shared copy runs for; unset for a team's copy. */
+  roomId?: string | null;
+  /** A start, pause or stop in progress on the server. */
+  pendingAction?: string | null;
 
   constructor(serverResult?: any) {
     if (serverResult) {
@@ -27,6 +31,8 @@ export class LabTracker extends StoredObject {
       this.vms = serverResult.vms ?? [];
       this.remoteServer = serverResult.remoteServer;
       this.bridges = serverResult.bridges ?? [];
+      this.roomId = serverResult.roomId ?? null;
+      this.pendingAction = serverResult.pendingAction ?? null;
     }
   }
 }

@@ -11,7 +11,7 @@ import { RoomEditorPage } from './room-editor.page';
 const challenge = (id: string, patch: Partial<AuthorChallenge> = {}): AuthorChallenge => ({
   id, roomId: 'r1', labId: null, question: id, category: 'Web', difficultyLevel: DifficultyLevel.EASY, points: 100, maxAttempts: 5,
   description: '', visible: true, releaseDate: '2026-11-04 09:00:00', expirationDate: null, solutionExplanation: '', author: null,
-  flags: [{ flag: 'f', caseSensitive: true, surroundWithTag: true, weight: 1 }], hints: [], solveCount: 0, attemptCount: 0, ...patch,
+  flags: [{ flag: 'f', caseSensitive: true, surroundWithTag: true, weight: 1 }], hints: [], solveCount: 0, attemptCount: 0, attachments: [], ...patch,
 });
 
 describe('RoomEditorPage', () => {
@@ -23,9 +23,12 @@ describe('RoomEditorPage', () => {
     const auth = new FakeAuthService();
     auth.signIn({ id: 'c1', username: 'aokafor' }, 'CREATOR');
     api = jasmine.createSpyObj<AuthoringService>('AuthoringService', [
-      'room', 'challenges', 'players', 'facilitators', 'facilitatorCandidates', 'setFacilitators', 'reorder', 'labs', 'update',
+      'room', 'challenges', 'players', 'facilitators', 'facilitatorCandidates', 'setFacilitators', 'reorder', 'labs', 'update', 'files',
+      'updateRoom',
     ]);
-    api.room.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null }));
+    api.files.and.returnValue(of([]));
+    api.room.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null,
+      scenario: '## Situation\nA quiet range.', environmentMode: 'NONE' as const, environmentId: null }));
     api.challenges.and.returnValue(of([challenge('SQLi Login Bypass', { labId: 'lab1' }), challenge('Kerberoast'), challenge('Memory Lane')]));
     api.players.and.returnValue(of(38));
     api.facilitators.and.returnValue(of([{ id: 'u1', username: 'dkim' }]));
@@ -76,12 +79,32 @@ describe('RoomEditorPage', () => {
     expect(titles()).toEqual(['Kerberoast', 'SQLi Login Bypass', 'Memory Lane']);
   });
 
-  it('picks the lab a challenge uses, marking drafts', () => {
-    const select = [...el().querySelectorAll('label.field')]
-      .find(field => field.querySelector('.label')!.textContent!.trim() === 'Uses lab')!.querySelector('select')!;
-    const options = [...select.options].map(o => o.textContent!.trim());
-    expect(options).toEqual(['None', 'Web Exploitation 101', 'AD Forest (draft)']);
-    expect(select.value).toBe('lab1');
-    expect(el().querySelector('.list-btn.on .title')!.textContent).toContain('SQLi Login Bypass');
+  it('picks the environment the lab runs, marking drafts, and saves it with the scenario', async () => {
+    const shared = [...el().querySelectorAll<HTMLButtonElement>('.env-field .seg button')].find(b => b.textContent!.trim() === 'Shared')!;
+    shared.click();
+    fixture.detectChanges();
+    const select = el().querySelector<HTMLSelectElement>('.env-pick')!;
+    expect([...select.options].map(o => o.textContent!.trim())).toEqual(['Pick an environment', 'Web Exploitation 101', 'AD Forest (draft)']);
+    select.value = 'lab1';
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    api.updateRoom.and.returnValue(of({ id: 'r1', name: 'Winter Range 2026', surroundTag: 'AMA{x}', updatedAt: null,
+      scenario: '## Situation\nA quiet range.', environmentMode: 'SHARED' as const, environmentId: 'lab1' }));
+    [...el().querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent!.trim() === 'Save lab')!.click();
+    await fixture.whenStable();
+    expect(api.updateRoom).toHaveBeenCalledWith('r1', jasmine.objectContaining({
+      environmentMode: 'SHARED', environmentId: 'lab1', scenario: '## Situation\nA quiet range.',
+    }));
+  });
+
+  it('treats an empty attempts box as unlimited', () => {
+    const input = [...el().querySelectorAll('label.field')]
+      .find(field => field.querySelector('.label')!.textContent!.trim() === 'Attempts allowed')!.querySelector('input')!;
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(input.placeholder).toBe('Unlimited');
+    expect(el().textContent).not.toContain('Allow at least one attempt');
   });
 });

@@ -73,7 +73,7 @@ export class VmConsolePage {
       if (tracker && lab) {
         untracked(() => this.crumbs.set([
           { label: 'Labs', link: '/labs' },
-          { label: lab, link: ['/labs', tracker.id!] },
+          { label: lab, link: ['/environments', tracker.id!] },
           { label: `${name} console` },
         ]));
       }

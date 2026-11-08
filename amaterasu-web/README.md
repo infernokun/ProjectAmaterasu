@@ -19,9 +19,9 @@ The app is served on `http://localhost:4300/`. Runtime settings such as the API 
 | Folder | What lives there |
 | ------ | ---------------- |
 | `src/app/shell` | Sidebar, top bar and the signed-out landing page |
-| `src/app/features/play` | Home, labs and the lab console, rooms, scoreboard (everyone) |
+| `src/app/features/play` | Home, the Labs list and lab page, environment consoles, scoreboard (everyone) |
 | `src/app/features/run` | Live event (facilitators and admins) |
-| `src/app/features/build` | Lab builder, rooms and challenges (creators and admins) |
+| `src/app/features/build` | Labs with their scenario, questions and files, and the environment builder (creators and admins) |
 | `src/app/features/admin` | Users and teams, servers, audit log (admins) |
 | `src/app/features/account` | Profile, password, sessions, appearance |
 | `src/app/core` | Signal stores shared across features, role definitions, theme, HTTP helpers |

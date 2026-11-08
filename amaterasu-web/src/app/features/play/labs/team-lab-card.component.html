@@ -50,10 +50,10 @@
 
   <div class="card-foot">
     @if (can().canOpen) {
-      <a class="btn sm" [routerLink]="['/labs', tracker().id]"><app-icon name="terminal" size="sm" />Open</a>
+      <a class="btn sm" [routerLink]="['/environments', tracker().id]"><app-icon name="terminal" size="sm" />Open</a>
     }
     @if (consoleVm(); as machine) {
-      <a class="btn sm" [routerLink]="['/labs', tracker().id, 'console', machine.vmid]" [title]="'Console on ' + machine.name">
+      <a class="btn sm" [routerLink]="['/environments', tracker().id, 'console', machine.vmid]" [title]="'Console on ' + machine.name">
         <app-icon name="monitor" size="sm" />Console</a>
     }
     @if (can().canRestart) {

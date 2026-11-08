@@ -1,8 +1,8 @@
 @if (!room()) {
   <header class="page-head"><div><h1 class="h1">Scoreboard</h1></div></header>
   <section class="card">
-    <app-empty-state icon="trophy" title="No room yet" message="Join a room to see its scoreboard here.">
-      <a class="btn sm" routerLink="/rooms">Browse rooms</a>
+    <app-empty-state icon="trophy" title="No lab yet" message="Join a lab to see its scoreboard here.">
+      <a class="btn sm" routerLink="/labs">Browse labs</a>
     </app-empty-state>
   </section>
 } @else if (store.standings(); as s) {
@@ -53,7 +53,7 @@
     <section class="card flush" aria-labelledby="tbl-h">
       <div class="card-head">
         <div><h2 class="h2" id="tbl-h">{{ teams() ? 'All teams' : 'All players' }}</h2>
-          <span class="small muted">{{ teams() ? 'Team points are the sum of member points in this room' : 'Ties go to whoever reached the score first' }}</span></div>
+          <span class="small muted">{{ teams() ? 'Team points are the sum of member points in this lab' : 'Ties go to whoever reached the score first' }}</span></div>
         <label class="search table-search"><app-icon name="search" size="sm" />
           <input type="search" [placeholder]="teams() ? 'Find a team' : 'Find a player or team'" aria-label="Filter the table" [value]="store.query()" (input)="store.setQuery($any($event.target).value)"></label>
       </div>

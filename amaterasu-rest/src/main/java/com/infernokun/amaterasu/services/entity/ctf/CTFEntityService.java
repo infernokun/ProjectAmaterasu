@@ -343,7 +343,8 @@ public class CTFEntityService {
 
     private void updateEntityFields(CTFEntity existingEntity, CTFEntity updatedEntity) {
         Optional.ofNullable(updatedEntity.getQuestion()).ifPresent(existingEntity::setQuestion);
-        Optional.ofNullable(updatedEntity.getMaxAttempts()).ifPresent(existingEntity::setMaxAttempts);
+        // Sent as is, like the expiry: no limit means unlimited attempts
+        existingEntity.setMaxAttempts(updatedEntity.getMaxAttempts());
         Optional.ofNullable(updatedEntity.getDescription()).ifPresent(existingEntity::setDescription);
         Optional.ofNullable(updatedEntity.getCategory()).ifPresent(existingEntity::setCategory);
         Optional.ofNullable(updatedEntity.getDifficultyLevel()).ifPresent(existingEntity::setDifficultyLevel);

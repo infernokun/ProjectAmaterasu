@@ -69,7 +69,7 @@ describe('audit labels', () => {
   it('reads known and unknown actions', () => {
     expect(actionMeta('USER_DISABLED')).toEqual({ label: 'Disabled user', tone: 'bad' });
     expect(actionMeta('SOMETHING_NEW')).toEqual({ label: 'Something new', tone: 'off' });
-    expect(targetTypeLabel('LAB_TRACKER')).toBe('Lab');
+    expect(targetTypeLabel('LAB_TRACKER')).toBe('Environment');
     expect(targetTypeLabel('USER')).toBe('User');
   });
 });

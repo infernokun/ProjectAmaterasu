@@ -8,7 +8,7 @@
         <p class="sub">{{ p.teamName ?? 'No team' }} · {{ fmt.ordinal(p.rank) }} of {{ store.players().length }}</p>
       </div>
     </div>
-    <a class="btn" [routerLink]="['/rooms', roomId(), 'scoreboard']"><app-icon name="trophy" />Back to scoreboard</a>
+    <a class="btn" [routerLink]="['/labs', roomId(), 'scoreboard']"><app-icon name="trophy" />Back to scoreboard</a>
   </header>
 
   <div class="kpis">
@@ -22,7 +22,7 @@
   <div class="cols">
     <section class="card stack col-main" aria-labelledby="pchart-h">
       <div><h2 class="h2" id="pchart-h">Points over time</h2>
-        <div class="small muted">{{ series().length > 1 ? 'Compared with the leader' : 'Every change in this room' }}</div></div>
+        <div class="small muted">{{ series().length > 1 ? 'Compared with the leader' : 'Every change in this lab' }}</div></div>
       <app-points-chart [series]="series()" [label]="'Points over time for ' + p.username" />
     </section>
     <section class="card stack col-side categories" aria-labelledby="cat-h">
@@ -37,7 +37,7 @@
 } @else if (store.standings()) {
   <section class="card">
     <app-empty-state icon="user" title="Not in this room" [message]="username() + ' has not joined this room.'">
-      <a class="btn sm" [routerLink]="['/rooms', roomId(), 'scoreboard']">Back to scoreboard</a>
+      <a class="btn sm" [routerLink]="['/labs', roomId(), 'scoreboard']">Back to scoreboard</a>
     </app-empty-state>
   </section>
 } @else if (store.error()) {

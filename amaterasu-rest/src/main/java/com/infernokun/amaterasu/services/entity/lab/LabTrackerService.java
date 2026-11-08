@@ -74,6 +74,21 @@ public class LabTrackerService extends BaseService {
         return labTrackerRepository.findByLabStarted(lab);
     }
 
+    /** The lab's shared copy, if it has one that was not removed. */
+    public Optional<LabTracker> findSharedCopy(String roomId, Lab environment) {
+        return labTrackerRepository.findByRoomId(roomId).stream()
+                .filter(tracker -> tracker.getLabStatus() != LabStatus.DELETED)
+                .filter(tracker -> tracker.getLabStarted() != null && tracker.getLabStarted().getId().equals(environment.getId()))
+                .max(java.util.Comparator.comparing(LabTracker::getUpdatedAt, java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())));
+    }
+
+    /** A team's own copy of a lab definition, if it has one that was not removed. */
+    public Optional<LabTracker> findTeamCopy(Lab environment, Team team) {
+        return labTrackerRepository.findAllByLabStartedAndLabOwnerAndLabStatusNot(environment, team, LabStatus.DELETED).stream()
+                .filter(tracker -> !tracker.isShared())
+                .max(java.util.Comparator.comparing(LabTracker::getUpdatedAt, java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())));
+    }
+
     public List<LabTracker> findLabTrackerByLabStatus(LabStatus labStatus) {
         return labTrackerRepository.findByLabStatus(labStatus);
     }
@@ -119,6 +134,7 @@ public class LabTrackerService extends BaseService {
                 .vms(vms)
                 .bridges(labTracker.getBridges())
                 .remoteServer(labTracker.getRemoteServer())
+                .roomId(labTracker.getRoomId())
                 .build();
         copy.setId(labTracker.getId());
         copy.setCreatedBy(labTracker.getCreatedBy());

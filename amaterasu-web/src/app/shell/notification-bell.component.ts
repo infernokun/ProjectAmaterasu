@@ -58,7 +58,7 @@ import { notificationLook } from './notification-kinds';
               </button>
             } @empty {
               <app-empty-state icon="bell" title="Nothing new"
-                message="Lab problems, points awarded to you and new challenges in your rooms show up here." />
+                message="Lab problems, points awarded to you and new questions in your labs show up here." />
             }
           }
         </div>

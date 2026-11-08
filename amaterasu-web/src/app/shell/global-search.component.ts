@@ -28,7 +28,7 @@ const LIST_ID = 'global-search-results';
     @if (!narrow()) {
       <label class="search" cdkOverlayOrigin #origin="cdkOverlayOrigin" #anchor>
         <app-icon name="search" size="sm" />
-        <input #box type="search" placeholder="Search labs, rooms, challenges" aria-label="Search" role="combobox"
+        <input #box type="search" placeholder="Search labs, environments, questions" aria-label="Search" role="combobox"
                aria-autocomplete="list" [attr.aria-controls]="listId" [attr.aria-expanded]="open()"
                [attr.aria-activedescendant]="activeId()" autocomplete="off" spellcheck="false"
                [value]="store.query()" (input)="onInput($event)" (focus)="open.set(true)" (click)="open.set(true)"
@@ -55,7 +55,7 @@ const LIST_ID = 'global-search-results';
         <div class="pop sheet" role="dialog" aria-label="Search">
           <label class="search sheet-box">
             <app-icon name="search" size="sm" />
-            <input #sheetBox type="search" placeholder="Search labs, rooms, challenges" aria-label="Search" role="combobox"
+            <input #sheetBox type="search" placeholder="Search labs, environments, questions" aria-label="Search" role="combobox"
                    aria-autocomplete="list" [attr.aria-controls]="listId" aria-expanded="true"
                    [attr.aria-activedescendant]="activeId()" autocomplete="off" spellcheck="false"
                    [value]="store.query()" (input)="onInput($event)" (keydown)="onKey($event)" />

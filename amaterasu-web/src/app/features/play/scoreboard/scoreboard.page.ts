@@ -41,7 +41,7 @@ export class ScoreboardPage {
   private readonly session = inject(SessionStore);
   private readonly crumbs = inject(CrumbsService);
 
-  /** From /rooms/:roomId/scoreboard; /scoreboard uses the current room. */
+  /** From /labs/:roomId/scoreboard; /scoreboard uses the current lab. */
   readonly roomId = input<string>();
 
   protected readonly room = computed(() => this.roomId() ?? this.rooms.currentRoom()?.id ?? null);
@@ -57,7 +57,7 @@ export class ScoreboardPage {
     effect(() => {
       const name = this.store.standings()?.roomName;
       const id = this.room();
-      if (name && id) untracked(() => this.crumbs.set([{ label: name, link: ['/rooms', id] }, { label: 'Scoreboard' }]));
+      if (name && id) untracked(() => this.crumbs.set([{ label: 'Labs', link: '/labs' }, { label: name, link: ['/labs', id] }, { label: 'Scoreboard' }]));
     });
   }
 
@@ -74,7 +74,7 @@ export class ScoreboardPage {
       id: player.userId, rank: player.rank, name: player.username, sub: player.teamName ?? 'No team',
       points: player.points, solves: player.solves, hints: player.hintsUsed, last: clock(player.lastSolveAt) || '-',
       trend: trend(player.lastHourChange), you: player.userId === this.session.userId(),
-      link: roomId ? ['/rooms', roomId, 'scoreboard', player.username] : null,
+      link: roomId ? ['/labs', roomId, 'scoreboard', player.username] : null,
     }));
   });
 
@@ -93,7 +93,7 @@ export class ScoreboardPage {
     const rows = this.allRows();
     const index = rows.findIndex(row => row.you);
     if (index < 0) {
-      return { label: this.teams() ? 'Your team' : 'Your rank', value: '-', note: this.teams() ? 'Your team has no players here yet' : 'Join the room to get a rank' };
+      return { label: this.teams() ? 'Your team' : 'Your rank', value: '-', note: this.teams() ? 'Your team has no players here yet' : 'Join the lab to get a rank' };
     }
     const row = rows[index];
     const label = this.teams() ? row.name : 'Your rank';
@@ -125,9 +125,9 @@ export class ScoreboardPage {
 
   protected readonly since = computed(() => {
     const opened = toDate(this.store.standings()?.openedAt);
-    if (!opened) return 'since the first points in this room';
+    if (!opened) return 'since the first points in this lab';
     const today = new Date().toDateString() === opened.toDateString();
-    return `since the room opened ${today ? 'at ' + clock(opened) : 'on ' + dateTime(opened)}`;
+    return `since the lab opened ${today ? 'at ' + clock(opened) : 'on ' + dateTime(opened)}`;
   });
 
   protected setView(view: ScoreView): void {

@@ -44,7 +44,7 @@ export class LabBuilderPage {
   protected readonly editorTheme = computed(() => (this.theme.theme() === 'light' ? 'vs' : 'vs-dark'));
   protected readonly codeModel = computed<CodeModel>(() => ({ language: 'yaml', uri: 'docker-compose.yml', value: this.store.compose() }));
 
-  protected readonly title = computed(() => this.store.name().trim() || (this.store.labId() ? 'Untitled lab' : 'New lab'));
+  protected readonly title = computed(() => this.store.name().trim() || (this.store.labId() ? 'Untitled environment' : 'New environment'));
   protected readonly serverName = computed(() => this.store.server()?.name ?? 'a server');
 
   protected readonly statusTag = computed(() => {
@@ -142,8 +142,8 @@ export class LabBuilderPage {
       const editing = !!this.store.original();
       untracked(() => this.crumbs.set([
         { label: 'Build' },
-        { label: 'Labs', link: '/build/labs' },
-        { label: editing ? name || 'Untitled lab' : 'New lab' },
+        { label: 'Environments', link: '/build/environments' },
+        { label: editing ? name || 'Untitled environment' : 'New environment' },
       ]));
     });
   }
@@ -187,7 +187,7 @@ export class LabBuilderPage {
       const lab = await this.store.save();
       this.toast.success(creating ? `${lab.name} created` : `${lab.name} saved`);
       if (creating) {
-        this.router.navigate(['/build/labs', lab.id], { replaceUrl: true });
+        this.router.navigate(['/build/environments', lab.id], { replaceUrl: true });
       }
     } catch (error) {
       this.toast.error('The lab could not be saved.', error);
@@ -211,7 +211,7 @@ export class LabBuilderPage {
       const lab = await this.store.publish();
       this.toast.success(`${lab.name} is published. Teams can start it now.`);
       if (creating) {
-        this.router.navigate(['/build/labs', lab.id], { replaceUrl: true });
+        this.router.navigate(['/build/environments', lab.id], { replaceUrl: true });
       }
     } catch (error) {
       this.toast.error('The lab could not be published.', error);
@@ -252,6 +252,6 @@ export class LabBuilderPage {
         return;
       }
     }
-    this.router.navigate(['/build/labs']);
+    this.router.navigate(['/build/environments']);
   }
 }

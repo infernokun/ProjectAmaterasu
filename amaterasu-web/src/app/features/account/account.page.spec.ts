@@ -71,7 +71,7 @@ describe('AccountPage', () => {
   });
 
   it('lists what each role can do', () => {
-    expect(capabilitiesFor(Role.CREATOR, 'Staff').filter(c => c.can).map(c => c.text)).toContain('Author labs, rooms and challenges');
+    expect(capabilitiesFor(Role.CREATOR, 'Staff').filter(c => c.can).map(c => c.text)).toContain('Author labs, their questions and environments');
     expect(capabilitiesFor(Role.MEMBER, undefined)[1].can).toBeFalse();
     expect(capabilitiesFor(Role.ADMIN, 'Staff').every(c => c.can)).toBeTrue();
   });

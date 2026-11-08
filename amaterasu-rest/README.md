@@ -1,6 +1,6 @@
 # amaterasu-rest
 
-The ProjectAmaterasu API. It owns users, teams, labs, lab deployments (trackers) and CTF rooms, and it is the only service that talks to Docker hosts and Proxmox nodes.
+The ProjectAmaterasu API. It owns users, teams, labs (stored as rooms, with their scenario, questions and files), environments (lab definitions), their deployments (trackers), and it is the only service that talks to Docker hosts and Proxmox nodes.
 
 > **Java** 21 · **Spring Boot** 3.5 · **Build** Gradle
 > **Port** `8080`, context path `/amaterasu-rest`, API base `/api`

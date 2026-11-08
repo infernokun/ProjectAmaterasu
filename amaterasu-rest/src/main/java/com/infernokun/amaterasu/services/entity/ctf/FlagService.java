@@ -38,18 +38,41 @@ public class FlagService {
         return this.flagRepository.save(flag);
     }
 
+    /**
+     * A flag matches as written, trimmed, honouring its case setting. A flag marked surroundWithTag
+     * also matches when the player wraps it in the lab's flag wrapper, e.g. CTF{answer} for "answer".
+     */
     public boolean validateFlag(CTFEntityAnswerRequest ctfEntityAnswerRequest) {
         List<Flag> challengeFlags = getFlagsByCtfEntityId(ctfEntityAnswerRequest.getQuestionId());
 
         String submitted = ctfEntityAnswerRequest.getFlag() == null
                 ? "" : ctfEntityAnswerRequest.getFlag().trim();
+        String[] wrapper = challengeFlags.stream().anyMatch(flag -> Boolean.TRUE.equals(flag.getSurroundWithTag()))
+                ? wrapperOf(ctfEntityAnswerRequest.getQuestionId()) : null;
 
         return challengeFlags.stream().anyMatch(flag -> {
             String expected = flag.getFlag() == null ? "" : flag.getFlag().trim();
-            return Boolean.TRUE.equals(flag.getCaseSensitive())
-                    ? expected.equals(submitted)
-                    : expected.equalsIgnoreCase(submitted);
+            if (matches(expected, submitted, flag)) {
+                return true;
+            }
+            return wrapper != null && Boolean.TRUE.equals(flag.getSurroundWithTag())
+                    && matches(wrapper[0] + expected + wrapper[1], submitted, flag);
         });
+    }
+
+    private static boolean matches(String expected, String submitted, Flag flag) {
+        return Boolean.TRUE.equals(flag.getCaseSensitive()) ? expected.equals(submitted) : expected.equalsIgnoreCase(submitted);
+    }
+
+    /** The text before and after the answer in the lab's wrapper: "CTF{x}" gives "CTF{" and "}". */
+    private String[] wrapperOf(String questionId) {
+        CTFEntity challenge = ctfEntityService.findCTFEntityByIdWithFlags(questionId);
+        String tag = challenge != null && challenge.getRoom() != null ? challenge.getRoom().getSurroundTag() : null;
+        if (tag == null || tag.isBlank()) {
+            return null;
+        }
+        java.util.regex.Matcher parts = java.util.regex.Pattern.compile("^(.*?)(?:x|\\?)(\\W*)$").matcher(tag.trim());
+        return parts.matches() ? new String[]{parts.group(1), parts.group(2)} : new String[]{tag.trim() + "{", "}"};
     }
 
     @Transactional
@@ -62,13 +85,13 @@ public class FlagService {
 
         // Verify user is in the room
         RoomUser roomUser = roomUserService.findByUserAndRoom(user, room)
-                .orElseThrow(() -> new IllegalStateException("User is not a member of this room"));
+                .orElseThrow(() -> new IllegalStateException("Join this lab to answer its questions"));
 
         if (ctfEntity.getRoom() == null || !room.getId().equals(ctfEntity.getRoom().getId())) {
-            throw new IllegalArgumentException("Challenge does not belong to this room");
+            throw new IllegalArgumentException("That question is not in this lab");
         }
         if (roomUser.getRoomUserStatus() != RoomUserStatus.JOINED) {
-            throw new IllegalStateException("Join the room to submit flags");
+            throw new IllegalStateException("Join the lab to answer its questions");
         }
         ChallengeState state = RoomPlayService.stateOf(ctfEntity, LocalDateTime.now());
         if (state == ChallengeState.LOCKED) {

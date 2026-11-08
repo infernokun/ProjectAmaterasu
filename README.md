@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/infernokun/ProjectAmaterasu/actions/workflows/ci.yml/badge.svg)](https://github.com/infernokun/ProjectAmaterasu/actions/workflows/ci.yml)
 
-ProjectAmaterasu is a virtual lab orchestration application. It deploys Docker Compose and Proxmox VM labs to remote servers, gives every team its own isolated copy, and runs CTF style rooms with scoring.
+ProjectAmaterasu is a training lab and CTF platform. A lab is a Markdown scenario, questions with scoring and, when it needs one, an environment: Docker Compose or Proxmox VMs deployed to remote servers, as one shared copy or one isolated copy per team.
 
 ## Components
 
@@ -11,7 +11,7 @@ ProjectAmaterasu is a virtual lab orchestration application. It deploys Docker C
 | [`amaterasu-web`](amaterasu-web/README.md) | Angular 22 frontend served by nginx, which also proxies `/api` to the API |
 | [`amaterasu-rest`](amaterasu-rest/README.md) | Spring Boot 3.5 REST API (Java 21). Postgres for storage, Redis for caching |
 | [`amaterasu-proxmox`](amaterasu-proxmox/README.md) | Python helper CLI for Proxmox, and a Proxmox API mock under `mock/` |
-| [`amaterasu-populate`](amaterasu-populate/README.md) | Scripts that seed sample rooms and challenges through the API |
+| [`amaterasu-populate`](amaterasu-populate/README.md) | Scripts that seed sample labs and questions through the API |
 | `amaterasu-dev` | Compose files for local Postgres, pgAdmin, Redis and a Docker-in-Docker SSH host |
 | `amaterasu-sample` | Example lab compose file |
 
@@ -63,9 +63,9 @@ Failed logins and the registration and refresh rate limits are counted in Redis,
 
 | Role | Can |
 | ---- | --- |
-| `MEMBER` | Join rooms, submit flags, run their own team's labs |
-| `FACILITATOR` | Member access, plus awarding points |
-| `CREATOR` | Member access, plus authoring labs, rooms and challenges |
+| `MEMBER` | Join labs, answer questions, run their own team's environment copies |
+| `FACILITATOR` | Member access, plus starting and stopping the shared environments of the labs they facilitate, and awarding points |
+| `CREATOR` | Member access, plus authoring labs, their questions and environments |
 | `ADMIN` | Everything, including users, teams and remote servers |
 
 Self registration always creates a `MEMBER`. Repeated failed logins are throttled per username and per client address.
@@ -76,7 +76,19 @@ Self registration always creates a `MEMBER`. Repeated failed logins are throttle
 | `PUT /api/user/{id}/password` | Admin | Sets a user's password and signs them out |
 | `PUT /api/user/{id}/disabled` | Admin | Disables or re-enables an account; a disabled user is rejected on the next request |
 
-## Lab lifecycle
+## Labs
+
+A lab is what players open from the Labs tab. Each one has a Markdown scenario, its questions (flags, hints, points, files to download) and an environment:
+
+| Environment | Who runs it |
+| ----------- | ----------- |
+| None | Nothing to start; the lab shows "No setup needed" |
+| Shared | One copy for everyone in the lab; its facilitators and admins start and stop it |
+| One per team | Each team starts its own copy |
+
+A scenario can use `{{address}}`, `{{username}}`, `{{subnet}}` and `{{password}}`; they fill in from the running copy, and the password shows as a masked chip. Labs are stored as rooms, so the API paths are `/api/room/...`. On the first start of this version, every existing room became a lab with the environment its questions used (one copy per team) or none, and every published environment that no room used got a lab of its own.
+
+## Environment lifecycle
 
 | Action | Docker Compose lab | Proxmox VM lab |
 | ------ | ------------------ | -------------- |

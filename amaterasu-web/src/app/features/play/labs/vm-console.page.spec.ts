@@ -134,6 +134,6 @@ describe('VmConsolePage', () => {
     const picks = Array.from(fixture.nativeElement.querySelectorAll('.vm-picks a')) as HTMLAnchorElement[];
     expect(picks.map(a => a.textContent?.trim())).toEqual(['kali', 'dc01']);
     expect(picks[0].getAttribute('aria-current')).toBe('page');
-    expect(picks[1].getAttribute('href')).toBe('/labs/lt1/console/102');
+    expect(picks[1].getAttribute('href')).toBe('/environments/lt1/console/102');
   });
 });

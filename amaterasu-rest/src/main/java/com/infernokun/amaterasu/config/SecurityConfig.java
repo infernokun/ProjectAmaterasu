@@ -120,7 +120,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/labs/*").hasAnyRole(authors)
                         .requestMatchers(HttpMethod.GET, "/api/labs/check/**", "/api/labs/settings/**").hasAnyRole(authors)
                         .requestMatchers("/api/proxmox/**").hasAnyRole(authors)
-                        .requestMatchers(HttpMethod.POST, "/api/room", "/api/room/many").hasAnyRole(authors)
+                        .requestMatchers(HttpMethod.POST, "/api/room", "/api/room/many", "/api/room/*/files").hasAnyRole(authors)
                         .requestMatchers(HttpMethod.PUT, "/api/room/**").hasAnyRole(authors)
                         .requestMatchers(HttpMethod.DELETE, "/api/room/**").hasAnyRole(authors)
                         .requestMatchers(HttpMethod.POST, "/api/room/add-points/**").hasAnyRole(admin, FACILITATOR.name())
