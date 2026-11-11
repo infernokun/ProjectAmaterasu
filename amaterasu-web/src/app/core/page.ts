@@ -16,3 +16,10 @@ export interface PageData {
 export function page(route: Route & { data: PageData }): Route {
   return { ...route, title: route.title ?? route.data.title };
 }
+
+/** Navigation `info` for in-page state changes (e.g. a query param) that must not scroll the page to the top. */
+export const KEEP_SCROLL = { keepScroll: true } as const;
+
+export function keepsScroll(info: unknown): boolean {
+  return (info as typeof KEEP_SCROLL | undefined)?.keepScroll === true;
+}
