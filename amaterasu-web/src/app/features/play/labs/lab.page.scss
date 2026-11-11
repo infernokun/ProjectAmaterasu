@@ -31,6 +31,8 @@
 .detail {
   flex: 999 1 520px;
   min-width: 0;
+  // Clears the sticky top bar
+  scroll-margin-top: 80px;
 }
 
 .group-head {
