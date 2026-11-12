@@ -54,7 +54,7 @@
             <span class="cur" aria-current="page">{{ crumb.label }}</span>
           } @else {
             @if (crumb.link) {
-              <a [routerLink]="crumb.link">{{ crumb.label }}</a>
+              <a [routerLink]="crumb.link" [queryParams]="crumb.queryParams">{{ crumb.label }}</a>
             } @else {
               <span>{{ crumb.label }}</span>
             }

@@ -21,6 +21,8 @@ import { StatusBadgeComponent } from '../../../shared/ui/status-badge.component'
 import { ActivityLine, activityLine } from '../data/activity';
 import { LabChallenge } from '../data/play.models';
 import { PlayApiService } from '../data/play-api.service';
+import { RoomPlayStore } from '../rooms/room-play.store';
+import { LabLink, labConsoleLink } from './lab-address';
 import { LabAccessComponent } from './lab-access.component';
 import { LabActionsService } from './lab-actions.service';
 import { LabFilesComponent } from './lab-files.component';
@@ -33,7 +35,8 @@ type Tab = 'units' | 'logs' | 'files' | 'activity';
 
 /**
  * One environment copy: its services or VMs and how to get in. Admins and facilitators also get logs,
- * files and the lifecycle actions; admins the activity.
+ * files and the lifecycle actions; admins the activity. Shown inside its lab as Details, for the copy
+ * in ?copy= or else the viewer's own; a copy no lab runs gets it as a page of its own.
  */
 @Component({
   selector: 'app-lab-console-page',
@@ -52,13 +55,28 @@ export class LabConsolePage {
   private readonly toast = inject(ToastService);
   private readonly crumbs = inject(CrumbsService);
   protected readonly session = inject(SessionStore);
+  /** The lab around this page; null on the standalone page. */
+  private readonly lab = inject(RoomPlayStore, { optional: true });
 
-  readonly trackerId = input.required<string>();
+  /** Set on the standalone page. */
+  readonly trackerId = input<string>();
+  /** Inside a lab: the copy to show, when not the viewer's own. */
+  readonly copy = input<string>();
+
+  protected readonly labId = computed(() => this.lab?.roomId() ?? null);
+  protected readonly id = computed(() => this.trackerId() ?? this.copy() ?? this.lab?.overview()?.environment?.trackerId ?? null);
+  /** Inside a lab whose environment has no copy for the viewer yet. */
+  protected readonly noCopy = computed(() => !!this.lab?.overview() && !this.id());
 
   /** Loaded directly when the tracker is not one of the team's (an admin looking at another team). */
   private readonly fetched = signal<LabTracker | null>(null);
   protected readonly loadError = signal('');
-  protected readonly tracker = computed(() => this.store.byId().get(this.trackerId()) ?? this.fetched());
+  protected readonly tracker = computed(() => {
+    const id = this.id();
+    if (!id) return null;
+    const fetched = this.fetched();
+    return this.store.byId().get(id) ?? (fetched?.id === id ? fetched : null);
+  });
 
   protected readonly tab = signal<Tab>('units');
   protected readonly logService = signal('all');
@@ -97,12 +115,13 @@ export class LabConsolePage {
 
   constructor() {
     effect(() => {
-      const id = this.trackerId();
-      untracked(() => this.load(id));
+      const id = this.id();
+      if (id) untracked(() => this.load(id));
     });
+    // Inside a lab, the lab page sets the breadcrumb
     effect(() => {
       const name = this.tracker()?.labStarted?.name;
-      if (name) {
+      if (name && !this.lab) {
         untracked(() => this.crumbs.set([{ label: 'Labs', link: '/labs' }, { label: name }, { label: 'Environment' }]));
       }
     });
@@ -118,7 +137,8 @@ export class LabConsolePage {
   }
 
   private async load(id: string): Promise<void> {
-    if (this.store.byId().has(id)) {
+    this.loadError.set('');
+    if (this.store.byId().has(id) || this.fetched()?.id === id) {
       return;
     }
     try {
@@ -144,11 +164,17 @@ export class LabConsolePage {
 
   private async loadActivity(): Promise<void> {
     try {
-      const page = await firstValueFrom(this.audit.list({ targetType: 'LAB_TRACKER', targetId: this.trackerId(), size: 50 }));
+      const page = await firstValueFrom(this.audit.list({ targetType: 'LAB_TRACKER', targetId: this.id() ?? undefined, size: 50 }));
       this.activity.set((page.content ?? []).map(activityLine));
     } catch {
       this.activity.set([]);
     }
+  }
+
+  protected consoleLink(vmid: number | string | undefined): LabLink {
+    const id = this.id()!;
+    const labId = this.labId();
+    return labId ? labConsoleLink(labId, vmid, id) : { commands: ['/environments', id, 'console', vmid], queryParams: {} };
   }
 
   protected serviceTone(service: DockerServiceInfo): StatusTone {

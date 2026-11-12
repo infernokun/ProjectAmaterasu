@@ -1,9 +1,11 @@
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { MatSidenavContent } from '@angular/material/sidenav';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { EMPTY, of } from 'rxjs';
+import { CrumbsService } from '../core/crumbs.service';
 import { KEEP_SCROLL } from '../core/page';
 import { NotificationsService } from '../core/services/notifications.service';
 import { SearchService } from '../core/services/search.service';
@@ -13,6 +15,9 @@ import { LabTrackerService } from '../services/lab/lab-tracker.service';
 import { WebsocketService } from '../services/websocket.service';
 import { FakeAuthService } from '../testing/fake-auth';
 import { ShellComponent } from './shell.component';
+
+@Component({ template: '' })
+class Blank {}
 
 describe('ShellComponent', () => {
   let auth: FakeAuthService;
@@ -87,5 +92,44 @@ describe('ShellComponent', () => {
 
     await router.navigate([], { queryParams: { challenge: 'q3' } });
     expect(scrollTo).toHaveBeenCalledOnceWith({ top: 0 });
+  });
+
+  describe('inside a lab', () => {
+    beforeEach(() => {
+      TestBed.configureTestingModule({
+        providers: [provideRouter([
+          { path: 'labs/:labId', component: Blank, children: [{ path: 'details', component: Blank }, { path: 'console/:vmid', component: Blank }] },
+          { path: 'build/labs/:roomId', component: Blank },
+        ])],
+      });
+    });
+
+    const labsItems = (el: HTMLElement) => [...el.querySelectorAll<HTMLAnchorElement>('.nav-item')]
+      .filter(a => a.textContent!.trim().startsWith('Labs'));
+
+    for (const url of ['/labs/r1', '/labs/r1/details?copy=t1', '/labs/r1/console/101']) {
+      it(`keeps Labs highlighted on ${url}`, async () => {
+        const el = render('ADMIN');
+        await TestBed.inject(Router).navigateByUrl(url);
+        await fixture.whenStable();
+        fixture.detectChanges();
+        const [play, build] = labsItems(el);
+        expect(play.getAttribute('href')).toBe('/labs');
+        expect(play.classList).toContain('on');
+        expect(play.getAttribute('aria-current')).toBe('page');
+        expect(build.classList).not.toContain('on');
+      });
+    }
+
+    it('links every breadcrumb but the current one, with its query', async () => {
+      const el = render('MEMBER');
+      await TestBed.inject(Router).navigateByUrl('/labs/r1/console/101');
+      TestBed.inject(CrumbsService).set([{ label: 'Labs', link: '/labs' }, { label: 'On Call', link: ['/labs', 'r1'] },
+        { label: 'Details', link: ['/labs', 'r1', 'details'], queryParams: { copy: 't1' } }, { label: 'Console' }]);
+      fixture.detectChanges();
+      const links = [...el.querySelectorAll<HTMLAnchorElement>('.crumbs a')];
+      expect(links.map(a => a.getAttribute('href'))).toEqual(['/labs', '/labs/r1', '/labs/r1/details?copy=t1']);
+      expect(el.querySelector('.crumbs [aria-current="page"]')!.textContent).toBe('Console');
+    });
   });
 });
