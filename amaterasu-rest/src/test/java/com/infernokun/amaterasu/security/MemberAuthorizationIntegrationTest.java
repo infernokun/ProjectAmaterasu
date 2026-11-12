@@ -157,7 +157,32 @@ class MemberAuthorizationIntegrationTest extends IntegrationSupport {
                 call("PUT", "/api/ctf-entity/" + question.getId(), Map.of("question", "x")),
                 call("DELETE", "/api/ctf-entity/" + question.getId()),
                 call("POST", "/api/ctf-entity/use-hint?hintId=x&roomId=" + r + "&userId=" + other.getId()
-                        + "&ctfEntityId=" + question.getId())));
+                        + "&ctfEntityId=" + question.getId()),
+                // A lab's teams
+                call("GET", "/api/room/" + r + "/teams"),
+                call("GET", "/api/room/" + r + "/teams/candidates"),
+                call("PUT", "/api/room/" + r + "/teams/mode", Map.of("teamMode", "LAB")),
+                call("POST", "/api/room/" + r + "/teams", Map.of("name", unique("t"))),
+                call("PUT", "/api/room/" + r + "/teams/" + team.getId(), Map.of("name", unique("t"))),
+                call("DELETE", "/api/room/" + r + "/teams/" + team.getId()),
+                call("POST", "/api/room/" + r + "/teams/" + team.getId() + "/members", Map.of("userIds", List.of(member.getId()))),
+                call("DELETE", "/api/room/" + r + "/teams/" + team.getId() + "/members/" + member.getId()),
+                call("POST", "/api/room/" + r + "/teams/copy-site"),
+                // Managing a lab
+                call("GET", "/api/room/" + r + "/manage/overview"),
+                call("GET", "/api/room/" + r + "/manage/submissions"),
+                call("GET", "/api/room/" + r + "/manage/submissions?userId=" + member.getId() + "&result=near"),
+                call("GET", "/api/room/" + r + "/manage/players"),
+                call("GET", "/api/room/" + r + "/manage/players/" + member.getId()),
+                call("GET", "/api/room/" + r + "/manage/questions"),
+                call("GET", "/api/room/" + r + "/manage/activity"),
+                call("POST", "/api/room/" + r + "/manage/credit", Map.of("userId", member.getId(), "questionId", question.getId(),
+                        "reason", "me")),
+                call("POST", "/api/room/" + r + "/manage/accept-answer", Map.of("questionId", question.getId(), "answer", "x",
+                        "creditExisting", true, "reason", "me")),
+                call("POST", "/api/room/" + r + "/manage/award", Map.of("userId", member.getId(), "points", 100, "reason", "me")),
+                call("POST", "/api/room/" + r + "/manage/award", Map.of("teamId", team.getId(), "points", 100, "reason", "me")),
+                call("POST", "/api/room/" + r + "/manage/reset", Map.of("userId", member.getId(), "reason", "me", "confirm", true))));
     }
 
     @TestFactory
@@ -206,7 +231,12 @@ class MemberAuthorizationIntegrationTest extends IntegrationSupport {
                 call("POST", "/api/lab-tracker/" + copy.getId() + "/restart/web"),
                 call("GET", "/api/lab-tracker/logs/" + copy.getId() + "/" + server.getId() + "/all"),
                 call("GET", "/api/room/" + r + "/live"),
-                call("POST", "/api/room/add-points/" + r + "/" + other.getId(), Map.of("points", 5, "reason", "x")));
+                call("POST", "/api/room/add-points/" + r + "/" + other.getId(), Map.of("points", 5, "reason", "x")),
+                call("GET", "/api/room/" + r + "/teams"),
+                call("PUT", "/api/room/" + r + "/teams/mode", Map.of("teamMode", "LAB")),
+                call("POST", "/api/room/" + r + "/teams/copy-site"),
+                call("GET", "/api/room/" + r + "/manage/overview"),
+                call("POST", "/api/room/" + r + "/manage/award", Map.of("userId", other.getId(), "points", 5, "reason", "x")));
         return calls.stream().map(call -> DynamicTest.dynamicTest(call.toString(), () -> refused(call, token)));
     }
 

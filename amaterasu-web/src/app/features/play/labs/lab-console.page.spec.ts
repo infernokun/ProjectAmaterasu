@@ -7,6 +7,7 @@ import { LabStatus } from '../../../enums/lab-status.enum';
 import { LabType } from '../../../enums/lab-type.enum';
 import { LabTracker } from '../../../models/lab/lab-tracker.model';
 import { PlayApiService } from '../data/play-api.service';
+import { RoomPlayStore } from '../rooms/room-play.store';
 import { LabConsolePage } from './lab-console.page';
 
 describe('LabConsolePage VMs', () => {
@@ -22,7 +23,8 @@ describe('LabConsolePage VMs', () => {
     remoteServer: { name: 'pve-a' }, bridges: ['abr0'], vms,
   });
 
-  function render(current: LabTracker) {
+  /** Inside a lab when `own` is given: the viewer's own copy there. */
+  function render(current: LabTracker, own?: string | null) {
     TestBed.configureTestingModule({
       imports: [LabConsolePage],
       providers: [
@@ -30,10 +32,11 @@ describe('LabConsolePage VMs', () => {
         { provide: LabTrackersStore, useValue: { byId: () => new Map([['lt1', current]]), displayState: () => () => state } },
         { provide: PlayApiService, useValue: { tracker: () => of(current), challengesForLab: () => of([]), access: () => of({}) } },
         { provide: AuditService, useValue: { list: () => of({ content: [] }) } },
+        ...(own !== undefined ? [{ provide: RoomPlayStore, useValue: { roomId: () => 'r1', overview: () => ({ environment: { trackerId: own } }) } }] : []),
       ],
     });
     fixture = TestBed.createComponent(LabConsolePage);
-    fixture.componentRef.setInput('trackerId', 'lt1');
+    if (own === undefined) fixture.componentRef.setInput('trackerId', 'lt1');
     fixture.detectChanges();
   }
 
@@ -72,5 +75,27 @@ describe('LabConsolePage VMs', () => {
     expect(el().textContent).toContain('cannot reach other teams or the Proxmox node');
     expect(el().textContent).not.toContain('one way in');
     expect(el().textContent).not.toContain('SSH access');
+  });
+
+  describe('inside a lab', () => {
+    it('shows the viewer\'s own copy with consoles under the lab and no All labs link', () => {
+      render(tracker([bastion('10.0.0.42', true)]), 'lt1');
+      expect(el().textContent).toContain('Pivot');
+      const open = Array.from(el().querySelectorAll<HTMLAnchorElement>('a.btn')).find(a => a.textContent?.includes('Open console'))!;
+      expect(open.getAttribute('href')).toBe('/labs/r1/console/105?copy=lt1');
+      expect(el().textContent).not.toContain('All labs');
+    });
+
+    it('shows the copy in ?copy= over the viewer\'s own', () => {
+      render(tracker([bastion('10.0.0.42', true)]), 'mine');
+      fixture.componentRef.setInput('copy', 'lt1');
+      fixture.detectChanges();
+      expect(el().textContent).toContain('Pivot');
+    });
+
+    it('says there is no copy yet when the viewer has none', () => {
+      render(tracker([]), null);
+      expect(el().textContent).toContain('No copy to show yet');
+    });
   });
 });

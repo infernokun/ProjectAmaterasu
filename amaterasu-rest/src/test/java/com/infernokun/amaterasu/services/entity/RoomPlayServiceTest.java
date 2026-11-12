@@ -2,6 +2,11 @@ package com.infernokun.amaterasu.services.entity;
 
 import com.infernokun.amaterasu.models.PointsHistoryEntry;
 import com.infernokun.amaterasu.components.CurrentUser;
+import com.infernokun.amaterasu.components.TeamResolver;
+import com.infernokun.amaterasu.repositories.TeamRepository;
+import com.infernokun.amaterasu.repositories.ctf.LabTeamMemberRepository;
+import com.infernokun.amaterasu.repositories.ctf.RoomRepository;
+import com.infernokun.amaterasu.repositories.ctf.TeamPointsAwardRepository;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
@@ -32,7 +37,9 @@ class RoomPlayServiceTest {
     private final CTFAnswerRepository answers = mock(CTFAnswerRepository.class);
     private final UserRepository users = mock(UserRepository.class);
     private final RoomPlayService service = new RoomPlayService(roomService, roomUserService, mock(CTFEntityService.class),
-            answers, users, mock(LabEnvironmentService.class), mock(CurrentUser.class), mock(LabFileRepository.class));
+            answers, users, mock(LabEnvironmentService.class), mock(CurrentUser.class), mock(LabFileRepository.class),
+            new TeamResolver(users, mock(TeamRepository.class), mock(LabTeamMemberRepository.class), mock(RoomRepository.class)),
+            mock(TeamPointsAwardRepository.class));
 
     private RoomUser player(String name, Team team, LocalDateTime joined, int... totals) {
         User user = new User(name, "x");

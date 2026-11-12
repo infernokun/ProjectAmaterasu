@@ -9,6 +9,11 @@ import com.infernokun.amaterasu.models.entities.lab.LabTracker;
 import com.infernokun.amaterasu.models.enums.EnvironmentMode;
 import com.infernokun.amaterasu.models.enums.LabStatus;
 import com.infernokun.amaterasu.models.enums.TeamCredit;
+import com.infernokun.amaterasu.models.enums.TeamMode;
+import com.infernokun.amaterasu.models.entities.Team;
+import com.infernokun.amaterasu.repositories.TeamRepository;
+import com.infernokun.amaterasu.repositories.ctf.LabTeamMemberRepository;
+import com.infernokun.amaterasu.repositories.ctf.TeamPointsAwardRepository;
 import com.infernokun.amaterasu.repositories.ctf.RoomRepository;
 import com.infernokun.amaterasu.repositories.ctf.RoomUserRepository;
 import com.infernokun.amaterasu.repositories.lab.LabRepository;
@@ -33,6 +38,9 @@ public class RoomService {
     private final LabRepository labRepository;
     private final LabTrackerRepository labTrackerRepository;
     private final LabFileService labFileService;
+    private final TeamRepository teamRepository;
+    private final LabTeamMemberRepository labTeamMemberRepository;
+    private final TeamPointsAwardRepository teamPointsAwardRepository;
 
     public List<Room> findAllRooms() {
         return roomRepository.findAll();
@@ -59,9 +67,9 @@ public class RoomService {
     }
 
     /**
-     * Deletes a lab with its questions and the answers given. Refused while its shared environment is
-     * deployed; a stopped shared copy goes with it. Team and solo copies belong to the environment, so
-     * they stay.
+     * Deletes a lab with its questions, the answers given and its own teams. Refused while its shared
+     * environment or a lab team's copy is deployed; stopped ones go with it. Site team and solo copies
+     * belong to the environment, so they stay.
      */
     @Transactional
     public Room deleteRoom(String id) {
@@ -70,7 +78,17 @@ public class RoomService {
         if (shared.stream().anyMatch(RoomService::deployed)) {
             throw new ResourceInUseException(room.getName() + "'s shared environment is still deployed. Stop it first.");
         }
+        List<Team> labTeams = teamRepository.findByLabIdOrderByNameAsc(id);
+        List<LabTracker> teamCopies = labTeams.stream()
+                .flatMap(team -> labTrackerRepository.findLabTrackersByLabOwner(team).stream()).toList();
+        if (teamCopies.stream().anyMatch(RoomService::deployed)) {
+            throw new ResourceInUseException("A team of " + room.getName() + " still has its environment deployed. Stop it first.");
+        }
         labTrackerRepository.deleteAll(shared);
+        labTrackerRepository.deleteAll(teamCopies);
+        labTeamMemberRepository.deleteAll(labTeamMemberRepository.findByRoomId(id));
+        teamRepository.deleteAll(labTeams);
+        teamPointsAwardRepository.deleteAll(teamPointsAwardRepository.findByRoomId(id));
         labFileService.deleteAll(id);
         ctfEntityService.deleteByRoomId(id);
         roomUserRepository.deleteAll(roomUserRepository.findByRoomId(id));
@@ -159,7 +177,27 @@ public class RoomService {
         }
     }
 
-    private static boolean deployed(LabTracker tracker) {
+    /**
+     * Changes whose teams count in the lab. Leaving LAB is refused while one of the lab's teams has its
+     * copy deployed, since nobody could reach it.
+     */
+    public void changeTeamMode(Room room, TeamMode mode) {
+        if (mode == null || mode == room.effectiveTeamMode()) {
+            return;
+        }
+        if (room.effectiveTeamMode() == TeamMode.LAB) {
+            boolean deployed = teamRepository.findByLabIdOrderByNameAsc(room.getId()).stream()
+                    .flatMap(team -> labTrackerRepository.findLabTrackersByLabOwner(team).stream())
+                    .anyMatch(RoomService::deployed);
+            if (deployed) {
+                throw new ResourceInUseException("Stop the lab teams' environments before " + room.getName()
+                        + " stops using its own teams");
+            }
+        }
+        room.setTeamMode(mode);
+    }
+
+    static boolean deployed(LabTracker tracker) {
         return tracker.getLabStatus() != null && !NOT_DEPLOYED.contains(tracker.getLabStatus());
     }
 }

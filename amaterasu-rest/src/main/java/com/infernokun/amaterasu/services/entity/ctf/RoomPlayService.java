@@ -1,6 +1,9 @@
 package com.infernokun.amaterasu.services.entity.ctf;
 
 import com.infernokun.amaterasu.components.CurrentUser;
+import com.infernokun.amaterasu.components.TeamResolver;
+import com.infernokun.amaterasu.models.entities.ctf.TeamPointsAward;
+import com.infernokun.amaterasu.repositories.ctf.TeamPointsAwardRepository;
 import com.infernokun.amaterasu.models.PointsHistoryEntry;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
@@ -62,6 +65,8 @@ public class RoomPlayService {
     private final LabEnvironmentService labEnvironmentService;
     private final CurrentUser currentUser;
     private final LabFileRepository labFileRepository;
+    private final TeamResolver teamResolver;
+    private final TeamPointsAwardRepository teamAwards;
 
     public RoomOverview overview(String roomId, String viewerId) {
         Room room = roomService.findByRoomId(roomId);
@@ -83,7 +88,8 @@ public class RoomPlayService {
                         .collect(Collectors.toMap(answer -> answer.getCtfEntity().getId(), Function.identity(), (a, b) -> a)))
                 .orElse(Map.of());
 
-        Team myTeam = viewerUser != null ? viewerUser.getTeam() : null;
+        Team myTeam = teamResolver.teamOf(room, viewerUser);
+        Map<String, Team> teams = teamResolver.teamsByUser(room);
         RoomOverview.Me me = viewer.map(roomUser -> {
             List<RoomUser> ranked = rank(players);
             int rank = ranked.indexOf(ranked.stream()
@@ -102,7 +108,7 @@ public class RoomPlayService {
             answers.stream()
                     .filter(answer -> Boolean.TRUE.equals(answer.getCorrect())
                             && !answer.getRoomUser().getUser().getId().equals(myUserId)
-                            && myTeamId.equals(teamId(answer.getRoomUser())))
+                            && myTeamId.equals(teamId(answer.getRoomUser(), teams)))
                     .forEach(answer -> teammates.computeIfAbsent(answer.getCtfEntity().getId(), key -> new ArrayList<>())
                             .add(answer.getRoomUser().getUser().getUsername()));
         }
@@ -117,7 +123,7 @@ public class RoomPlayService {
                 .toList();
 
         boolean canRun = currentUser.isAuthenticated() && currentUser.canRun(room);
-        return new RoomOverview(roomInfo(room, canRun), players.size(), teamCount(players), me, views,
+        return new RoomOverview(roomInfo(room, canRun), players.size(), teamCount(players, teams), me, views,
                 labEnvironmentService.view(room, viewerUser, canRun), files);
     }
 
@@ -137,7 +143,7 @@ public class RoomPlayService {
                     .filter(answer -> Boolean.TRUE.equals(answer.getCorrect()) && playableIds.contains(answer.getCtfEntity().getId()))
                     .count()).orElse(0);
             boolean canRun = currentUser.isAuthenticated() && currentUser.canRun(room);
-            Team team = viewer != null ? viewer.getTeam() : null;
+            Team team = teamResolver.teamOf(room, viewer);
             cards.add(new LabCard(room.getId(), room.getName(), ScenarioText.summary(room.getScenario()),
                     room.effectiveMode(), labEnvironmentService.view(room, viewer, canRun, false), challenges.size(),
                     players.size(), seat.map(roomUser -> value(roomUser.getPoints())).orElse(0), solved,
@@ -160,13 +166,14 @@ public class RoomPlayService {
         Map<String, List<CTFEntityAnswer>> answersByPlayer = answerRepository.findByRoomUserRoomId(roomId).stream()
                 .collect(Collectors.groupingBy(answer -> answer.getRoomUser().getId()));
         Instant hourAgo = toInstant(LocalDateTime.now().minusHours(1));
+        Map<String, Team> teamsByUser = teamResolver.teamsByUser(room);
 
         List<RoomStandings.Player> players = new ArrayList<>();
         for (int i = 0; i < ranked.size(); i++) {
             RoomUser roomUser = ranked.get(i);
             List<CTFEntityAnswer> answers = answersByPlayer.getOrDefault(roomUser.getId(), List.of());
             List<RoomStandings.Point> history = history(roomUser);
-            Team team = roomUser.getUser().getTeam();
+            Team team = teamsByUser.get(roomUser.getUser().getId());
             Map<String, Integer> byCategory = new TreeMap<>();
             answers.stream().filter(answer -> Boolean.TRUE.equals(answer.getCorrect()))
                     .forEach(answer -> byCategory.merge(categoryOf(answer.getCtfEntity()), 1, Integer::sum));
@@ -189,7 +196,7 @@ public class RoomPlayService {
 
         return new RoomStandings(room.getId(), room.getName(),
                 room.getCreatedAt() != null ? toInstant(room.getCreatedAt()) : null, players,
-                teams(players, teamSizes()));
+                teams(players, teamSizes(room), teamAwards(room), hourAgo));
     }
 
     public RoomLive live(String roomId) {
@@ -198,6 +205,7 @@ public class RoomPlayService {
         List<CTFEntity> challenges = playable(ctfEntityService.findCTFEntitiesByRoomId(roomId));
         List<CTFEntityAnswer> answers = answerRepository.findByRoomUserRoomId(roomId);
         LocalDateTime since = LocalDateTime.now().minus(RECENT);
+        Map<String, Team> teams = teamResolver.teamsByUser(room);
 
         int solvesRecent = 0;
         int solvesTotal = 0;
@@ -209,7 +217,7 @@ public class RoomPlayService {
 
         for (CTFEntityAnswer answer : answers) {
             User user = answer.getRoomUser().getUser();
-            String team = teamName(answer.getRoomUser());
+            String team = teamName(answer.getRoomUser(), teams);
             CTFEntity challenge = answer.getCtfEntity();
             if (Boolean.TRUE.equals(answer.getCorrect())) {
                 solvesTotal++;
@@ -239,10 +247,14 @@ public class RoomPlayService {
             for (PointsHistoryEntry entry : orEmpty(player.getPointsHistory())) {
                 if (entry.getAwardedBy() != null) {
                     feed.add(new RoomLive.FeedItem(RoomLive.FeedKind.AWARD, toInstant(entry.getTimestamp()),
-                            entry.getAwardedBy(), teamName(player), "awarded " + player.getUser().getUsername(),
+                            entry.getAwardedBy(), teamName(player, teams), awardText(entry, player),
                             entry.getReason(), value(entry.getPointsChange())));
                 }
             }
+        }
+        for (TeamPointsAward award : teamAwards(room)) {
+            feed.add(new RoomLive.FeedItem(RoomLive.FeedKind.AWARD, toInstant(award.getAwardedAt()), award.getAwardedBy(),
+                    award.getTeamName(), "awarded the team " + award.getTeamName(), award.getReason(), value(award.getPoints())));
         }
         feed.sort(Comparator.comparing(RoomLive.FeedItem::at, Comparator.nullsLast(Comparator.reverseOrder())));
 
@@ -268,10 +280,10 @@ public class RoomPlayService {
                 .thenComparing(RoomLive.ChallengeHealth::title, Comparator.nullsLast(Comparator.naturalOrder()))).toList();
 
         List<RoomLive.PlayerRef> refs = players.stream().map(player -> new RoomLive.PlayerRef(
-                player.getUser().getId(), player.getUser().getUsername(), teamName(player),
+                player.getUser().getId(), player.getUser().getUsername(), teamName(player, teams),
                 value(player.getPoints()))).toList();
 
-        return new RoomLive(room.getId(), room.getName(), players.size(), teamCount(players), solvesRecent,
+        return new RoomLive(room.getId(), room.getName(), players.size(), teamCount(players, teams), solvesRecent,
                 solvesTotal, wrongRecent, topWrong, hintsUnlocked, hintPoints,
                 feed.size() > FEED_LIMIT ? feed.subList(0, FEED_LIMIT) : feed, health, refs);
     }
@@ -374,7 +386,7 @@ public class RoomPlayService {
                 .map(entry -> userRepository.findById(entry).map(User::getUsername).orElse(entry))
                 .toList();
         return new RoomOverview.RoomInfo(room.getId(), room.getName(), room.getSurroundTag(), creator, facilitators,
-                room.getScenario(), room.effectiveMode(), canRun, room.effectiveTeamCredit());
+                room.getScenario(), room.effectiveMode(), canRun, room.effectiveTeamCredit(), room.effectiveTeamMode());
     }
 
     /** Everyone who answered a question or unlocked a hint in the lab. */
@@ -436,30 +448,65 @@ public class RoomPlayService {
         return total;
     }
 
-    /** Members of each team, whether or not they played this lab. */
-    private Map<String, Integer> teamSizes() {
+    /** Members of each team in the lab, whether or not they played it. */
+    private Map<String, Integer> teamSizes(Room room) {
         Map<String, Integer> sizes = new HashMap<>();
-        userRepository.findAll().stream().filter(user -> user.getTeam() != null)
-                .forEach(user -> sizes.merge(user.getTeam().getId(), 1, Integer::sum));
+        teamResolver.memberCounts(room).forEach((team, count) -> {
+            if (!TeamResolver.SOLO.equals(team)) {
+                sizes.put(team, count.intValue());
+            }
+        });
         return sizes;
     }
 
-    private static List<RoomStandings.TeamRow> teams(List<RoomStandings.Player> players, Map<String, Integer> sizes) {
-        Map<String, List<RoomStandings.Player>> byTeam = new LinkedHashMap<>();
-        players.stream().filter(player -> player.teamId() != null)
-                .forEach(player -> byTeam.computeIfAbsent(player.teamId(), key -> new ArrayList<>()).add(player));
+    /** Points given to teams as a whole, for the teams that play in the lab now. */
+    private List<TeamPointsAward> teamAwards(Room room) {
+        Set<String> playing = teamResolver.teamsIn(room).stream().map(Team::getId).collect(Collectors.toSet());
+        return teamAwards.findByRoomIdOrderByAwardedAtAsc(room.getId()).stream()
+                .filter(award -> playing.contains(award.getTeamId())).toList();
+    }
 
-        List<RoomStandings.TeamRow> rows = byTeam.values().stream().map(members -> {
-            RoomStandings.Player first = members.getFirst();
-            return new RoomStandings.TeamRow(0, first.teamId(), first.teamName(), members.size(),
-                    Math.max(members.size(), sizes.getOrDefault(first.teamId(), 0)),
-                    members.stream().mapToInt(RoomStandings.Player::points).sum(),
+    private static String awardText(PointsHistoryEntry entry, RoomUser player) {
+        String kind = entry.getKind();
+        if ("CREDIT".equals(kind)) {
+            return "gave " + player.getUser().getUsername() + " credit";
+        }
+        if ("RESET".equals(kind)) {
+            return "reset " + player.getUser().getUsername() + "'s progress";
+        }
+        return "awarded " + player.getUser().getUsername();
+    }
+
+    static List<RoomStandings.TeamRow> teams(List<RoomStandings.Player> players, Map<String, Integer> sizes,
+                                             List<TeamPointsAward> awards, Instant hourAgo) {
+        Map<String, List<RoomStandings.Player>> byTeam = new LinkedHashMap<>();
+        Map<String, String> names = new HashMap<>();
+        players.stream().filter(player -> player.teamId() != null).forEach(player -> {
+            byTeam.computeIfAbsent(player.teamId(), key -> new ArrayList<>()).add(player);
+            names.putIfAbsent(player.teamId(), player.teamName());
+        });
+        Map<String, List<TeamPointsAward>> awardsByTeam = new LinkedHashMap<>();
+        for (TeamPointsAward award : awards) {
+            awardsByTeam.computeIfAbsent(award.getTeamId(), key -> new ArrayList<>()).add(award);
+            byTeam.computeIfAbsent(award.getTeamId(), key -> new ArrayList<>());
+            names.putIfAbsent(award.getTeamId(), award.getTeamName());
+        }
+
+        List<RoomStandings.TeamRow> rows = byTeam.entrySet().stream().map(entry -> {
+            List<RoomStandings.Player> members = entry.getValue();
+            List<TeamPointsAward> extra = awardsByTeam.getOrDefault(entry.getKey(), List.of());
+            int bonus = extra.stream().mapToInt(award -> value(award.getPoints())).sum();
+            int bonusLastHour = extra.stream().filter(award -> award.getAwardedAt() != null
+                    && toInstant(award.getAwardedAt()).isAfter(hourAgo)).mapToInt(award -> value(award.getPoints())).sum();
+            return new RoomStandings.TeamRow(0, entry.getKey(), names.get(entry.getKey()), members.size(),
+                    Math.max(members.size(), sizes.getOrDefault(entry.getKey(), 0)),
+                    members.stream().mapToInt(RoomStandings.Player::points).sum() + bonus,
                     members.stream().mapToInt(RoomStandings.Player::solves).sum(),
                     members.stream().mapToInt(RoomStandings.Player::hintsUsed).sum(),
                     members.stream().map(RoomStandings.Player::lastSolveAt).filter(Objects::nonNull)
                             .max(Comparator.naturalOrder()).orElse(null),
-                    members.stream().mapToInt(RoomStandings.Player::lastHourChange).sum(),
-                    teamHistory(members));
+                    members.stream().mapToInt(RoomStandings.Player::lastHourChange).sum() + bonusLastHour,
+                    teamHistory(members, extra));
         }).sorted(Comparator.comparingInt(RoomStandings.TeamRow::points).reversed()
                 .thenComparing(row -> row.history().isEmpty() ? null : row.history().getLast().at(),
                         Comparator.nullsLast(Comparator.naturalOrder()))).toList();
@@ -473,14 +520,19 @@ public class RoomPlayService {
         return ranked;
     }
 
-    /** The team's total after every change by any member. */
-    private static List<RoomStandings.Point> teamHistory(List<RoomStandings.Player> members) {
+    /** The team's total after every change by any member, and every award to the team as a whole. */
+    private static List<RoomStandings.Point> teamHistory(List<RoomStandings.Player> members, List<TeamPointsAward> awards) {
         record Change(Instant at, String member, int total) { }
         List<Change> changes = new ArrayList<>();
         for (RoomStandings.Player member : members) {
             for (RoomStandings.Point point : member.history()) {
                 changes.add(new Change(point.at(), member.userId(), point.total()));
             }
+        }
+        int running = 0;
+        for (TeamPointsAward award : awards) {
+            running += value(award.getPoints());
+            changes.add(new Change(toInstant(award.getAwardedAt()), "team-award", running));
         }
         changes.sort(Comparator.comparing(Change::at, Comparator.nullsFirst(Comparator.naturalOrder())));
         Map<String, Integer> current = new HashMap<>();
@@ -503,17 +555,17 @@ public class RoomPlayService {
         return Math.max(0, recent - (solvedRecently ? 1 : 0));
     }
 
-    private static int teamCount(List<RoomUser> players) {
-        return (int) players.stream().map(RoomPlayService::teamId).filter(Objects::nonNull).distinct().count();
+    private static int teamCount(List<RoomUser> players, Map<String, Team> teams) {
+        return (int) players.stream().map(player -> teamId(player, teams)).filter(Objects::nonNull).distinct().count();
     }
 
-    private static String teamId(RoomUser player) {
-        Team team = player.getUser() != null ? player.getUser().getTeam() : null;
+    private static String teamId(RoomUser player, Map<String, Team> teams) {
+        Team team = player.getUser() != null ? teams.get(player.getUser().getId()) : null;
         return team != null ? team.getId() : null;
     }
 
-    private static String teamName(RoomUser player) {
-        Team team = player.getUser() != null ? player.getUser().getTeam() : null;
+    private static String teamName(RoomUser player, Map<String, Team> teams) {
+        Team team = player.getUser() != null ? teams.get(player.getUser().getId()) : null;
         return team != null ? team.getName() : null;
     }
 

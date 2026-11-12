@@ -56,6 +56,12 @@ describe('LiveStore', () => {
     expect(store.labsRunning()).toBe(2);
   });
 
+  it('shows a lab\'s own teams, which are not site teams, in the matrix', async () => {
+    api.allTrackers.and.returnValue(of([tracker('1', 'red', 'web', 'ACTIVE'), tracker('4', 'owls', 'web', 'PAUSED')]));
+    const store = await loaded();
+    expect(store.matrix().rows.map(row => row.team)).toEqual(['OWLS', 'RED']);
+  });
+
   it('applies tracker changes for every team from the socket', async () => {
     const store = await loaded();
     socket.next({ type: 'labTracker', action: 'updated', labTracker: { id: '2', labStatus: 'ACTIVE', labOwner: { id: 'blue' }, labStarted: { id: 'web', name: 'web' } } });

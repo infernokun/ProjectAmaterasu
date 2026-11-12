@@ -19,29 +19,18 @@ import { AuthorChallenge, EnvironmentMode, LabFileView, Person, RoomChanges, Tea
 
 type WizardStep = 'scenario' | 'environment' | 'questions' | 'teams' | 'publish';
 import { NEW_ID, RoomEditorStore, scheduleLabel } from './room-editor.store';
+import { DIFFICULTIES, wrapperParts } from './difficulties';
+import { ChallengeFormComponent } from './challenge-form.component';
+import { ScenarioFieldComponent } from './scenario-field.component';
 
-export const DIFFICULTIES: { value: DifficultyLevel; label: string }[] = [
-  { value: DifficultyLevel.BEGINNER, label: 'Beginner' },
-  { value: DifficultyLevel.EASY, label: 'Easy' },
-  { value: DifficultyLevel.MEDIUM, label: 'Medium' },
-  { value: DifficultyLevel.HARD, label: 'Hard' },
-  { value: DifficultyLevel.EXPERT, label: 'Expert' },
-  { value: DifficultyLevel.IMPOSSIBLE, label: 'Impossible' },
-];
-
-/** "CTF{x}" to its prefix and suffix around the placeholder. */
-export function wrapperParts(tag: string): { prefix: string; suffix: string; name: string } {
-  const match = /^(.*?)(?:x|\?)(\W*)$/.exec(tag);
-  const prefix = match ? match[1] : `${tag}{`;
-  const suffix = match ? match[2] : '}';
-  return { prefix, suffix, name: prefix.replace(/\W+$/, '') || tag };
-}
+export { DIFFICULTIES, wrapperParts } from './difficulties';
 
 @Component({
   selector: 'app-room-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, CdkDropList, CdkDrag, CdkDragHandle, CdkDragPlaceholder, MatMenuModule, IconComponent,
-    EmptyStateComponent, SkeletonComponent, MarkdownComponent, LabBuilderPage, ScenarioCardComponent],
+    EmptyStateComponent, SkeletonComponent, MarkdownComponent, LabBuilderPage, ScenarioCardComponent, ChallengeFormComponent,
+    ScenarioFieldComponent],
   providers: [RoomEditorStore],
   templateUrl: './room-editor.page.html',
   styleUrl: './room-editor.page.scss',
@@ -58,6 +47,8 @@ export class RoomEditorPage {
   readonly roomId = input.required<string>();
   /** The wizard step, kept in the address. */
   readonly stepParam = input<string | undefined>(undefined, { alias: 'step' });
+  /** 'lab' when opened from the lab page, which saving goes back to. */
+  readonly from = input<string>();
 
   protected readonly steps: { key: WizardStep; label: string }[] = [
     { key: 'scenario', label: 'Scenario' },
@@ -67,6 +58,7 @@ export class RoomEditorPage {
     { key: 'publish', label: 'Preview and publish' },
   ];
   protected readonly isNew = computed(() => this.roomId() === NEW_ID);
+  protected readonly fromLab = computed(() => this.from() === 'lab' && !this.isNew());
   protected readonly step = computed<WizardStep>(() => {
     const wanted = this.steps.find(item => item.key === this.stepParam())?.key ?? 'scenario';
     return this.isNew() ? 'scenario' : wanted;
@@ -75,7 +67,6 @@ export class RoomEditorPage {
   /** Building a new environment inside the Environment step. */
   protected readonly building = signal(false);
 
-  protected readonly difficulties = DIFFICULTIES;
   protected readonly newId = NEW_ID;
   protected readonly scheduled = scheduleLabel;
   protected readonly mode = signal<'edit' | 'preview'>('edit');
@@ -111,7 +102,6 @@ export class RoomEditorPage {
     { value: 'PER_TEAM', label: 'One per team', help: 'Each team gets its own copy, and players without a team share a Solo copy. Admins and the lab\'s facilitators start them.' },
   ];
   protected readonly envHelp = computed(() => this.envModes.find(mode => mode.value === this.envMode())?.help ?? '');
-  protected readonly placeholderHelp = 'Markdown. {{address}}, {{username}}, {{subnet}} and {{password}} fill in from the running environment; the password shows as a masked chip.';
   protected readonly savingRoom = signal(false);
   protected readonly savingFacilitators = signal(false);
 
@@ -121,20 +111,6 @@ export class RoomEditorPage {
     const players = this.store.players();
     return `${count} ${count === 1 ? 'question' : 'questions'} · ${this.store.totalPoints().toLocaleString('en-US')} pts available · `
       + `${players} ${players === 1 ? 'player' : 'players'} so far`;
-  });
-  protected readonly visibility = computed(() => {
-    const draft = this.store.draft();
-    if (!draft) {
-      return '';
-    }
-    if (!draft.visible) {
-      return 'Hidden. Only authors can see it.';
-    }
-    const opens = draft.opens ? new Date(draft.opens) : null;
-    if (opens && opens.getTime() > Date.now()) {
-      return `Visible from ${opens.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`;
-    }
-    return 'Visible now';
   });
 
   protected readonly envName = computed(() => this.store.labs().find(lab => lab.id === this.store.room()?.environmentId)?.name ?? 'An environment');
@@ -180,24 +156,14 @@ export class RoomEditorPage {
     });
     effect(() => {
       const name = this.store.room()?.name;
-      untracked(() => this.crumbs.set([
-        { label: 'Build' }, { label: 'Labs', link: '/build/labs' }, { label: name || (this.isNew() ? 'New lab' : 'Lab') },
-      ]));
+      untracked(() => this.crumbs.set(this.fromLab()
+        ? [{ label: 'Labs', link: '/labs' }, { label: name || 'Lab', link: ['/labs', this.roomId()] }, { label: 'Full editor' }]
+        : [{ label: 'Build' }, { label: 'Labs', link: '/build/labs' }, { label: name || (this.isNew() ? 'New lab' : 'Lab') }]));
     });
   }
 
   protected value(event: Event): string {
     return (event.target as HTMLInputElement).value;
-  }
-
-  protected number(event: Event): number {
-    return Number((event.target as HTMLInputElement).value);
-  }
-
-  /** An empty attempts box means unlimited. */
-  protected attempts(event: Event): number | null {
-    const raw = (event.target as HTMLInputElement).value.trim();
-    return raw === '' ? null : Number(raw);
   }
 
   protected size(bytes: number): string {
@@ -206,11 +172,6 @@ export class RoomEditorPage {
 
   protected readonly uploading = signal(false);
 
-  /** Names the question lists that the lab has no file for. */
-  protected readonly missingAttachments = computed(() => {
-    const names = new Set(this.store.files().map(file => file.name));
-    return (this.store.draft()?.attachments ?? []).filter(name => !names.has(name));
-  });
 
   protected async uploadFiles(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
@@ -241,10 +202,6 @@ export class RoomEditorPage {
     } catch (error) {
       this.toast.error(`${file.name} could not be deleted.`, error);
     }
-  }
-
-  protected checked(event: Event): boolean {
-    return (event.target as HTMLInputElement).checked;
   }
 
   protected difficultyLabel(level: DifficultyLevel): string {
@@ -282,8 +239,9 @@ export class RoomEditorPage {
 
   protected async save(): Promise<void> {
     try {
-      await this.store.save();
+      const saved = await this.store.save();
       this.toast.success('Saved. Players see the change on their next refresh.');
+      if (this.fromLab()) this.backToLab(saved.id);
     } catch (error) {
       this.toast.error(this.store.problem() ?? 'The question could not be saved.', error);
     }
@@ -377,6 +335,7 @@ export class RoomEditorPage {
     try {
       await this.store.saveRoom(this.changes());
       if (!quiet) this.toast.success('Lab saved');
+      if (!quiet && this.fromLab()) this.backToLab();
       return true;
     } catch (error) {
       this.toast.error('The lab could not be saved.', error);
@@ -391,7 +350,12 @@ export class RoomEditorPage {
     if (this.roomDirty() && !this.roomProblem() && !(await this.saveRoom(true))) return;
     if (this.store.dirty() && !(await this.leaveDraft())) return;
     this.building.set(false);
-    this.router.navigate([], { queryParams: { step }, replaceUrl: true });
+    this.router.navigate([], { queryParams: { step }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
+
+  /** Opened from the lab page: back to it, on the question just saved. */
+  private backToLab(challenge?: string): void {
+    this.router.navigate(['/labs', this.roomId()], { queryParams: challenge ? { challenge } : {} });
   }
 
   protected stepDone(step: WizardStep): boolean {

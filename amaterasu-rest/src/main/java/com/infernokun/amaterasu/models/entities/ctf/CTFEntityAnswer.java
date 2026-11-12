@@ -72,6 +72,10 @@ public class CTFEntityAnswer extends StoredObject {
     @Column(name = "solve_time_seconds")
     private Long solveTimeSeconds;
 
+    /** Username of the admin or facilitator who marked it solved; null when the player found the flag. */
+    @Column(name = "credited_by")
+    private String creditedBy;
+
     @PrePersist
     protected void onCreate() {
         if (this.getCreatedAt() == null) {
