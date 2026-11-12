@@ -33,19 +33,30 @@ public class TeamService extends BaseService {
 
     /** Site-wide teams, by name. */
     public List<Team> findAllTeams() {
-        return teamRepository.findAllByOrderByNameAsc();
+        return teamRepository.findByLabIdIsNullOrderByNameAsc();
     }
 
     public Team findTeamById(String id) {
         return this.teamRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Team not found!"));
     }
 
+    /** A site team; a lab's own teams are run from the lab. */
+    public Team findSiteTeam(String id) {
+        Team team = findTeamById(id);
+        if (team.isLabTeam()) {
+            throw new IllegalArgumentException(team.getName() + " is a lab's own team. Change it from that lab's Teams page.");
+        }
+        return team;
+    }
+
     public Team createTeam(Team team) {
+        team.setLabId(null);
         team.setName(requireUniqueName(team.getName(), null));
         return teamRepository.save(team);
     }
 
     public List<Team> createManyTeams(List<Team> teams) {
+        teams.forEach(team -> team.setLabId(null));
         return teamRepository.saveAll(teams);
     }
 
@@ -54,7 +65,7 @@ public class TeamService extends BaseService {
      * team's stopped labs go with it.
      */
     public Team deleteTeam(String id) {
-        Team team = findTeamById(id);
+        Team team = findSiteTeam(id);
         List<LabTracker> trackers = labTrackerRepository.findLabTrackersByLabOwner(team);
         long deployed = trackers.stream().filter(TeamService::isDeployed).count();
         if (deployed > 0) {
@@ -78,7 +89,7 @@ public class TeamService extends BaseService {
 
     /** Renames a team or changes its description, leaving its labs alone. */
     public Team editTeam(String id, String name, String description) {
-        Team team = findTeamById(id);
+        Team team = findSiteTeam(id);
         if (name != null) {
             team.setName(requireUniqueName(name, id));
         }
@@ -100,7 +111,7 @@ public class TeamService extends BaseService {
         if (trimmed.isEmpty()) {
             throw new IllegalArgumentException("Team name required");
         }
-        boolean taken = teamRepository.findAll().stream()
+        boolean taken = teamRepository.findByLabIdIsNullOrderByNameAsc().stream()
                 .anyMatch(other -> other.getName() != null && other.getName().equalsIgnoreCase(trimmed)
                         && !other.getId().equals(exceptId));
         if (taken) {

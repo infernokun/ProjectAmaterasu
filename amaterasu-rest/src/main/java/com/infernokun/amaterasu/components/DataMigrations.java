@@ -4,6 +4,7 @@ import com.infernokun.amaterasu.models.entities.ctf.CTFEntity;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.lab.Lab;
 import com.infernokun.amaterasu.models.enums.EnvironmentMode;
+import com.infernokun.amaterasu.models.enums.TeamMode;
 import com.infernokun.amaterasu.repositories.ctf.CTFEntityRepository;
 import com.infernokun.amaterasu.repositories.ctf.RoomRepository;
 import com.infernokun.amaterasu.repositories.lab.LabRepository;
@@ -57,6 +58,7 @@ public class DataMigrations implements ApplicationRunner {
         transaction.executeWithoutResult(status -> {
             publishExistingLabs();
             publishExistingRooms();
+            siteTeamsForExistingLabs();
             orderExistingChallenges();
             mergeRoomsAndLabs();
         });
@@ -77,6 +79,16 @@ public class DataMigrations implements ApplicationRunner {
                 .executeUpdate();
         if (updated > 0) {
             log.info("Marked {} existing labs as published", updated);
+        }
+    }
+
+    /** Labs from before per-lab teams keep using the site teams. */
+    public void siteTeamsForExistingLabs() {
+        int updated = entityManager.createQuery("UPDATE Room r SET r.teamMode = :site WHERE r.teamMode IS NULL")
+                .setParameter("site", TeamMode.SITE)
+                .executeUpdate();
+        if (updated > 0) {
+            log.info("Existing labs keep the site teams: {} set to team mode SITE", updated);
         }
     }
 

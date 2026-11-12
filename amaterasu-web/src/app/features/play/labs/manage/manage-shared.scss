@@ -1,0 +1,123 @@
+// Shared by the lab management tabs. Each tab is its own size container, so a narrow side pane gets
+// the card layout whatever the window width.
+:host {
+  display: block;
+  container-type: inline-size;
+}
+
+.filters {
+  gap: 8px;
+}
+
+.filters .input {
+  width: auto;
+  min-width: 140px;
+  flex: 1 1 140px;
+}
+
+.near td:first-child,
+.near-card {
+  box-shadow: inset 3px 0 0 var(--warn);
+}
+
+.reasons {
+  gap: 4px;
+}
+
+.answer {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12.5px;
+  word-break: break-all;
+}
+
+.acts {
+  white-space: nowrap;
+}
+
+.t td.acts .row {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+.pager {
+  padding: var(--pad-row) var(--pad-card);
+  border-top: 1px solid var(--border);
+}
+
+// Tables become one card per row in a narrow pane
+@container (max-width: 560px) {
+  table.resp,
+  table.resp tbody,
+  table.resp tr,
+  table.resp td {
+    display: block;
+    width: 100%;
+  }
+
+  table.resp thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  table.resp tr {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  table.resp tr:last-child {
+    border-bottom: 0;
+  }
+
+  table.resp td {
+    border: 0;
+    padding: 2px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    text-align: right;
+  }
+
+  table.resp td::before {
+    content: attr(data-label);
+    color: var(--text-3);
+    font-size: 12px;
+    text-align: left;
+    flex: none;
+  }
+
+  table.resp td.lead {
+    display: block;
+    text-align: left;
+    padding-bottom: 4px;
+  }
+
+  table.resp td.lead::before,
+  table.resp td.acts::before {
+    content: none;
+  }
+
+  table.resp td.acts {
+    padding-top: 6px;
+  }
+
+  table.resp td.acts .row {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  table.resp.near-rows tr.near {
+    box-shadow: inset 3px 0 0 var(--warn);
+  }
+
+  table.resp tr.near td:first-child {
+    box-shadow: none;
+  }
+
+  .filters .input {
+    flex-basis: 100%;
+  }
+}

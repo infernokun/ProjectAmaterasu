@@ -1,6 +1,8 @@
 package com.infernokun.amaterasu.services.entity.ctf;
 
 import com.infernokun.amaterasu.components.CurrentUser;
+import com.infernokun.amaterasu.components.TeamResolver;
+import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.ctf.dto.*;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.dto.play.RoomOverview.ChallengeState;
@@ -36,6 +38,7 @@ public class FlagService {
     private final ApplicationEventPublisher events;
     private final AuditService auditService;
     private final CurrentUser currentUser;
+    private final TeamResolver teamResolver;
 
     public Flag saveFlag(Flag flag) {
         return this.flagRepository.save(flag);
@@ -70,12 +73,27 @@ public class FlagService {
     /** The text before and after the answer in the lab's wrapper: "CTF{x}" gives "CTF{" and "}". */
     private String[] wrapperOf(String questionId) {
         CTFEntity challenge = ctfEntityService.findCTFEntityByIdWithFlags(questionId);
-        String tag = challenge != null && challenge.getRoom() != null ? challenge.getRoom().getSurroundTag() : null;
+        return wrapperParts(challenge != null && challenge.getRoom() != null ? challenge.getRoom().getSurroundTag() : null);
+    }
+
+    /** A lab's flag format split around the answer: "CTF{x}" gives "CTF{" and "}"; null when it has none. */
+    public static String[] wrapperParts(String tag) {
         if (tag == null || tag.isBlank()) {
             return null;
         }
         java.util.regex.Matcher parts = java.util.regex.Pattern.compile("^(.*?)(?:x|\\?)(\\W*)$").matcher(tag.trim());
         return parts.matches() ? new String[]{parts.group(1), parts.group(2)} : new String[]{tag.trim() + "{", "}"};
+    }
+
+    /** Whether a submitted answer matches one flag, as answering checks it. */
+    public static boolean accepts(Flag flag, String submitted, String surroundTag) {
+        String answer = submitted == null ? "" : submitted.trim();
+        String expected = flag.getFlag() == null ? "" : flag.getFlag().trim();
+        if (matches(expected, answer, flag)) {
+            return true;
+        }
+        String[] wrapper = Boolean.TRUE.equals(flag.getSurroundWithTag()) ? wrapperParts(surroundTag) : null;
+        return wrapper != null && matches(wrapper[0] + expected + wrapper[1], answer, flag);
     }
 
     @Transactional
@@ -127,7 +145,11 @@ public class FlagService {
             throw new IllegalStateException("Maximum attempts reached");
         }
 
-        // Update answer record
+        // Update answer record; who and when come from the server, as does whether it was right
+        ctfEntityAnswerRequest.setUserId(user.getId());
+        ctfEntityAnswerRequest.setSubmissionTime(LocalDateTime.now());
+        ctfEntityAnswerRequest.setCorrect(correct);
+        ctfEntityAnswerRequest.setCreditedBy(null);
         ctfEntityAnswer.getAnswers().add(ctfEntityAnswerRequest);
         ctfEntityAnswer.getAttemptTimes().add(LocalDateTime.now());
         ctfEntityAnswer.setAttempts(ctfEntityAnswer.getAttempts() + 1);
@@ -143,7 +165,8 @@ public class FlagService {
             roomUser.updatePoints(newPoints, "answered correctly");
             ctfEntityAnswer.setScore(ctfEntity.getPoints());
             roomUser = roomUserService.save(roomUser);
-            auditService.record("FLAG_SOLVED", "CHALLENGE", ctfEntity.getId(), ctfEntity.getQuestion(), user.getTeam() != null ? user.getTeam().getId() : null, ctfEntity.getPoints() + " pts in " + room.getName());
+            Team team = teamResolver.teamOf(room, user);
+            auditService.record("FLAG_SOLVED", "CHALLENGE", ctfEntity.getId(), ctfEntity.getQuestion(), team != null ? team.getId() : null, ctfEntity.getPoints() + " pts in " + room.getName());
         }
 
         // Never downgrade a solved challenge

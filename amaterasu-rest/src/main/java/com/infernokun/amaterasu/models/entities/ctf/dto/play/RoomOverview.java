@@ -3,6 +3,7 @@ package com.infernokun.amaterasu.models.entities.ctf.dto.play;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.infernokun.amaterasu.models.enums.EnvironmentMode;
 import com.infernokun.amaterasu.models.enums.TeamCredit;
+import com.infernokun.amaterasu.models.enums.TeamMode;
 
 import java.time.Instant;
 import java.util.List;
@@ -23,7 +24,8 @@ public record RoomOverview(
 
     /** {@code canRun} is true for the lab's facilitators and admins. */
     public record RoomInfo(String id, String name, String surroundTag, String creator, List<String> facilitators,
-                           String scenario, EnvironmentMode environmentMode, boolean canRun, TeamCredit teamCredit) {
+                           String scenario, EnvironmentMode environmentMode, boolean canRun, TeamCredit teamCredit,
+                           TeamMode teamMode) {
     }
 
     /** The viewer's standing in this lab and their team, if they are on one. Rank is 0 before they score. */

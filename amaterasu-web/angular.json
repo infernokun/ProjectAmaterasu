@@ -26,6 +26,12 @@
                         "inlineStyleLanguage": "scss",
                         "assets": [
                             "src/favicon.ico",
+                            "src/favicon.svg",
+                            {
+                                "glob": "*.png",
+                                "input": "src/icons",
+                                "output": "icons"
+                            },
                             "src/theme-init.js",
                             "src/assets",
                             {
@@ -121,6 +127,12 @@
                         "inlineStyleLanguage": "scss",
                         "assets": [
                             "src/favicon.ico",
+                            "src/favicon.svg",
+                            {
+                                "glob": "*.png",
+                                "input": "src/icons",
+                                "output": "icons"
+                            },
                             "src/theme-init.js",
                             "src/assets"
                         ],

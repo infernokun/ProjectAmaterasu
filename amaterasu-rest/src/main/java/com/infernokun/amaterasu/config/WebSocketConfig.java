@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infernokun.amaterasu.components.LabActionGuard;
+import com.infernokun.amaterasu.components.TeamResolver;
 import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.websocket.AmaterasuSocketHandler;
 import lombok.RequiredArgsConstructor;
@@ -19,11 +20,11 @@ public class WebSocketConfig implements WebSocketConfigurer {
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
     private final LabActionGuard labActionGuard;
+    private final TeamResolver teamResolver;
 
     @Bean
     public AmaterasuSocketHandler socketHandler() {
-        return new AmaterasuSocketHandler(objectMapper, userRepository, labActionGuard,
-                (user, team) -> user.getTeam() != null && user.getTeam().getId().equals(team.getId()));
+        return new AmaterasuSocketHandler(objectMapper, userRepository, labActionGuard, teamResolver::worksIn);
     }
 
     @Override

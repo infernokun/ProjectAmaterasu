@@ -93,7 +93,8 @@ class SiteTeamsIntegrationTest extends IntegrationSupport {
         Room room = lab(TeamCredit.SEE_TEAMMATES);
         send(post("/api/room/" + room.getId() + "/join"), Map.of("newTeamName", "Mine"), anaToken).andExpect(status().isNotFound());
         send(post("/api/room/join/" + room.getId() + "/" + ana.getId()), null, anaToken).andExpect(status().isNotFound());
-        call(get("/api/room/" + room.getId() + "/teams"), anaToken).andExpect(status().isNotFound());
+        // A lab's teams are now its own setting, for the people who run it
+        call(get("/api/room/" + room.getId() + "/teams"), anaToken).andExpect(status().isForbidden());
     }
 
     @Test
