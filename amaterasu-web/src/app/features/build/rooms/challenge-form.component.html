@@ -1,0 +1,128 @@
+@if (store.draft(); as draft) {
+<div class="card-body stack loose">
+  @if (store.dirty() && store.problem()) {
+    <div class="banner warn"><app-icon name="alert" /><div>{{ store.problem() }}</div></div>
+  }
+  <div class="form-grid">
+    <label class="field wide"><span class="label">Title</span>
+      <input class="input" [value]="draft.question" (input)="store.patch({ question: value($event) })" maxlength="200">
+    </label>
+    <label class="field"><span class="label">Category</span>
+      <input class="input" list="categories" [value]="draft.category" (input)="store.patch({ category: value($event) })"
+             placeholder="Web" maxlength="60">
+      <datalist id="categories">
+        @for (category of store.categories(); track category) { <option [value]="category"></option> }
+      </datalist>
+    </label>
+    <label class="field"><span class="label">Points</span>
+      <input class="input num" type="number" min="0" step="25" [value]="draft.points" (input)="store.patch({ points: number($event) })">
+    </label>
+    <label class="field"><span class="label">Attempts allowed</span>
+      <input class="input num" type="number" min="1" placeholder="Unlimited" [value]="draft.maxAttempts ?? ''"
+             (input)="store.patch({ maxAttempts: attempts($event) })">
+    </label>
+  </div>
+  <div class="field"><span class="label">Difficulty</span>
+    <div class="seg" role="group" aria-label="Difficulty">
+      @for (level of difficulties; track level.value) {
+        <button type="button" [class.on]="draft.difficultyLevel === level.value"
+                (click)="store.patch({ difficultyLevel: level.value })">{{ level.label }}</button>
+      }
+    </div>
+  </div>
+@if (!quick()) {
+  <div class="form-grid">
+    <label class="field"><span class="label">Opens</span>
+      <input class="input" type="datetime-local" [value]="draft.opens" (input)="store.patch({ opens: value($event) })">
+    </label>
+    <label class="field"><span class="label">Closes</span>
+      <input class="input" type="datetime-local" [value]="draft.closes" (input)="store.patch({ closes: value($event) })">
+      <span class="help">Leave empty to keep it open until the lab ends</span>
+    </label>
+    <div class="field"><span class="label">Visible to players</span>
+      <div class="row toggle-row">
+        <button type="button" class="toggle" [class.on]="draft.visible" [attr.aria-pressed]="draft.visible"
+                aria-label="Visible to players" (click)="store.patch({ visible: !draft.visible })"><span></span></button>
+        <span class="small dim">{{ visibility() }}</span>
+      </div>
+    </div>
+  </div>
+}
+  <label class="field"><span class="label">Description</span>
+    <textarea class="input mono" rows="6" [value]="draft.description" (input)="store.patch({ description: value($event) })"></textarea>
+    <span class="help">Markdown, shown above the answer box. Use fenced code blocks for command output; Preview shows how it reads.</span>
+  </label>
+
+  <div class="stack">
+    <div class="row between"><h3 class="h3">Flags</h3>
+      <button type="button" class="btn sm ghost" (click)="store.addFlag()"><app-icon name="plus" size="sm" />Add flag</button></div>
+    @if (draft.flags.length) {
+      <div class="fl-row small muted"><span>Accepted value</span><span>Case sensitive</span><span>Wrap in {{ wrapper().name }}</span><span>Weight</span><span></span></div>
+    }
+    @for (flag of draft.flags; track $index; let i = $index) {
+      <div class="fl-row">
+        <div class="affix">
+          @if (flag.surroundWithTag) { <span>{{ wrapper().prefix }}</span> }
+          <input [value]="flag.flag" (input)="store.patchFlag(i, { flag: value($event) })" aria-label="Flag value" spellcheck="false">
+          @if (flag.surroundWithTag) { <span>{{ wrapper().suffix }}</span> }
+        </div>
+        <label class="check"><input type="checkbox" [checked]="flag.caseSensitive" (change)="store.patchFlag(i, { caseSensitive: checked($event) })">
+          <span class="visually-hidden">Case sensitive</span></label>
+        <label class="check"><input type="checkbox" [checked]="flag.surroundWithTag" (change)="store.patchFlag(i, { surroundWithTag: checked($event) })">
+          <span class="visually-hidden">Wrap</span></label>
+        <input class="input num" type="number" min="0" step="0.1" [value]="flag.weight" (input)="store.patchFlag(i, { weight: number($event) })" aria-label="Weight">
+        <button type="button" class="iconbtn" aria-label="Remove flag" (click)="store.removeFlag(i)"><app-icon name="close" size="sm" /></button>
+      </div>
+    } @empty {
+      <div class="small muted">No flags. Players cannot solve it until it has one.</div>
+    }
+    <span class="help">Authors see flags here. Players and facilitators never receive them from the API.</span>
+  </div>
+
+  <div class="stack">
+    <div class="row between"><h3 class="h3">Hints</h3>
+      <button type="button" class="btn sm ghost" (click)="store.addHint()"><app-icon name="plus" size="sm" />Add hint</button></div>
+    @if (draft.hints.length) {
+      <div class="ed-row small muted"><span>Text</span><span>Cost</span><span>After attempts</span><span></span></div>
+    }
+    @for (hint of draft.hints; track $index; let i = $index) {
+      <div class="ed-row">
+        <input class="input" [value]="hint.hint" (input)="store.patchHint(i, { hint: value($event) })" aria-label="Hint text">
+        <input class="input num" type="number" min="0" [value]="hint.cost" (input)="store.patchHint(i, { cost: number($event) })" aria-label="Hint cost">
+        <input class="input num" type="number" min="0" [value]="hint.unlockAfterAttempts || ''" placeholder="any time"
+               (input)="store.patchHint(i, { unlockAfterAttempts: number($event) })" aria-label="Unlock after attempts">
+        <button type="button" class="iconbtn" aria-label="Remove hint" (click)="store.removeHint(i)"><app-icon name="close" size="sm" /></button>
+      </div>
+    } @empty {
+      <div class="small muted">No hints. Players will only see the description.</div>
+    }
+  </div>
+
+@if (!quick()) {
+  <div class="stack">
+    <div class="row between"><h3 class="h3">Files</h3><span class="small muted">Players download the ones you tick from this question</span></div>
+    @if (store.files().length) {
+      <div class="row">
+        @for (file of store.files(); track file.id) {
+          <button type="button" class="pick" [class.on]="draft.attachments.includes(file.name)" [attr.aria-pressed]="draft.attachments.includes(file.name)"
+                  (click)="store.toggleAttachment(file.name)">{{ file.name }}</button>
+        }
+      </div>
+    } @else {
+      <div class="small muted">This lab has no files yet. Upload them under Files, above.</div>
+    }
+    @for (name of missingAttachments(); track name) {
+      <div class="small s-warn">{{ name }} is not uploaded to this lab, so players only see its name.
+        <button type="button" class="btn sm ghost" (click)="store.toggleAttachment(name)">Remove</button></div>
+    }
+  </div>
+}
+
+@if (!quick()) {
+  <label class="field"><span class="label">Solution notes</span>
+    <textarea class="input" rows="2" [value]="draft.solutionExplanation" (input)="store.patch({ solutionExplanation: value($event) })"></textarea>
+    <span class="help">Only authors see this. Use it for the walkthrough.</span>
+  </label>
+}
+</div>
+}

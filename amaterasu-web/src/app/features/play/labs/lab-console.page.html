@@ -108,7 +108,8 @@
                     <div class="meter-row"><span class="muted">CPU</span><div class="bar info"><span [style.width.%]="cpuPct(machine)"></span></div><span class="num dim">{{ cpuPct(machine) }}% of {{ machine.cpus }} vCPU</span></div>
                     <div class="meter-row"><span class="muted">Memory</span><div class="bar info"><span [style.width.%]="memPct(machine)"></span></div><span class="num dim">{{ gib(machine.mem) }}</span></div>
                     @if (machine.status === 'running') {
-                      <a class="btn sm primary block" [routerLink]="['/environments', t.id, 'console', machine.vmid]"><app-icon name="monitor" size="sm" />Open console</a>
+                      @let link = consoleLink(machine.vmid);
+                      <a class="btn sm primary block" [routerLink]="link.commands" [queryParams]="link.queryParams"><app-icon name="monitor" size="sm" />Open console</a>
                     } @else {
                       <button type="button" class="btn sm primary block" disabled [title]="machine.name + ' is ' + (machine.status ?? 'not running')"><app-icon name="monitor" size="sm" />Open console</button>
                     }
@@ -201,9 +202,16 @@
           </div>
         }
       </section>
-      <a class="btn ghost" routerLink="/labs"><app-icon name="flask" />All labs</a>
+      @if (!labId()) {
+        <a class="btn ghost" routerLink="/labs"><app-icon name="flask" />All labs</a>
+      }
     </aside>
   </div>
+} @else if (noCopy()) {
+  <section class="card">
+    <app-empty-state icon="layers" title="No copy to show yet"
+      [message]="session.canRun() ? 'Start a copy from the environment bar; its services or VMs show here.' : 'Your copy shows here once an admin starts the environment.'" />
+  </section>
 } @else if (loadError()) {
   <section class="card">
     <app-empty-state icon="alert" title="This environment could not be opened" [message]="loadError()">
