@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, effect, inject, input, untracked } from '@angular/core';
 import { TitleCasePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { CrumbsService } from '../../../core/crumbs.service';
+import { KEEP_SCROLL } from '../../../core/page';
 import { SessionStore } from '../../../core/stores/session.store';
 import { ordinal, points } from '../../../shared/format';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
@@ -35,6 +36,8 @@ export class LabPage {
   private readonly crumbs = inject(CrumbsService);
   private readonly router = inject(Router);
   private readonly api = inject(PlayApiService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
 
   readonly labId = input.required<string>();
   /** The selected question, kept in the address so it can be shared. */
@@ -98,10 +101,17 @@ export class LabPage {
 
   protected pick(id: string): void {
     this.store.select(id);
-    this.router.navigate([], { queryParams: { challenge: id }, replaceUrl: true });
-    // On narrow screens the detail sits under the list
-    if (window.matchMedia?.('(max-width: 959.98px)').matches) {
-      setTimeout(() => document.getElementById('ch-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-    }
+    this.router.navigate([], { queryParams: { challenge: id }, replaceUrl: true, info: KEEP_SCROLL });
+    afterNextRender(() => this.revealDetail(), { injector: this.injector });
+  }
+
+  /** Brings the detail into view only when it sits under the list, and only as far as needed. */
+  private revealDetail(): void {
+    const list = this.host.nativeElement.querySelector('.challenge-list');
+    const detail = this.host.nativeElement.querySelector('app-challenge-detail');
+    if (!list || !detail) return;
+    if (detail.getBoundingClientRect().top < list.getBoundingClientRect().bottom) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    detail.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
   }
 }

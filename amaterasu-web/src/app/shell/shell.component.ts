@@ -4,7 +4,7 @@ import { BreakpointObserver } from '@angular/cdk/layout';
 import { ActivatedRouteSnapshot, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatSidenav, MatSidenavContainer, MatSidenavContent } from '@angular/material/sidenav';
 import { filter, map } from 'rxjs';
-import { PageData } from '../core/page';
+import { PageData, keepsScroll } from '../core/page';
 import { Crumb, CrumbsService } from '../core/crumbs.service';
 import { LabTrackersStore } from '../core/stores/lab-trackers.store';
 import { RoomsStore } from '../core/stores/rooms.store';
@@ -46,7 +46,9 @@ export class ShellComponent {
     // The page scrolls inside the sidenav content, not the window
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd), takeUntilDestroyed())
-      .subscribe(() => this.content()?.scrollTo({ top: 0 }));
+      .subscribe(() => {
+        if (!keepsScroll(this.router.currentNavigation()?.extras.info)) this.content()?.scrollTo({ top: 0 });
+      });
   }
 
   protected readonly narrow = toSignal(inject(BreakpointObserver).observe(NARROW).pipe(map(state => state.matches)), {
