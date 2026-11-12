@@ -1,11 +1,12 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NavigationStart, Router } from '@angular/router';
+import { NavigationStart, Params, Router } from '@angular/router';
 import { filter } from 'rxjs';
 
 export interface Crumb {
   label: string;
   link?: string | unknown[];
+  queryParams?: Params;
 }
 
 /**

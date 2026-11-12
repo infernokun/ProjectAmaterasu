@@ -9,6 +9,8 @@ import { StatusTone } from '../../../shared/lab-status';
 import { IconComponent } from '../../../shared/ui/icon.component';
 import { StatusBadgeComponent } from '../../../shared/ui/status-badge.component';
 import { PlayApiService } from '../data/play-api.service';
+import { RoomPlayStore } from '../rooms/room-play.store';
+import { LabLink, labConsoleLink, labDetailsLink } from './lab-address';
 import { ConsoleService } from './console.service';
 import { ConsoleState, disconnectReason, unavailableReason } from './console-state';
 import { LabAccessComponent } from './lab-access.component';
@@ -22,7 +24,10 @@ const STATE_LOOK: Record<ConsoleState, { tone: StatusTone; label: string }> = {
   unavailable: { tone: 'bad', label: 'Not available' },
 };
 
-/** A browser console on one VM of a team's Proxmox lab, relayed through the API. */
+/**
+ * A browser console on one VM of a team's Proxmox lab, relayed through the API. Inside a lab it is for
+ * the copy in ?copy= or else the viewer's own; a copy no lab runs gets it as a page of its own.
+ */
 @Component({
   selector: 'app-vm-console-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -37,13 +42,34 @@ export class VmConsolePage {
   private readonly consoles = inject(ConsoleService);
   private readonly loadRfb = inject(RFB_LOADER);
   private readonly crumbs = inject(CrumbsService);
+  /** The lab around this page; null on the standalone page. */
+  private readonly lab = inject(RoomPlayStore, { optional: true });
 
-  readonly trackerId = input.required<string>();
+  /** Set on the standalone page. */
+  readonly trackerId = input<string>();
+  /** Inside a lab: the copy, when not the viewer's own. */
+  readonly copy = input<string>();
   readonly vmid = input.required<string>();
+
+  protected readonly labId = computed(() => this.lab?.roomId() ?? null);
+  /** Null inside a lab until it loads, or while the viewer has no copy. */
+  protected readonly id = computed(() => this.trackerId() ?? this.copy() ?? this.lab?.overview()?.environment?.trackerId ?? null);
+  private readonly labLoaded = computed(() => !this.lab || !!this.lab.overview());
 
   private readonly fetched = signal<LabTracker | null>(null);
   protected readonly loadError = signal('');
-  protected readonly tracker = computed(() => this.trackers.byId().get(this.trackerId()) ?? this.fetched());
+  protected readonly tracker = computed(() => {
+    const id = this.id();
+    if (!id) return null;
+    const fetched = this.fetched();
+    return this.trackers.byId().get(id) ?? (fetched?.id === id ? fetched : null);
+  });
+  /** Back to the copy's services and VMs. */
+  protected readonly detailsLink = computed<LabLink>(() => {
+    const labId = this.labId();
+    const id = this.id() ?? '';
+    return labId ? labDetailsLink(labId, this.copy() ?? null) : { commands: ['/environments', id], queryParams: {} };
+  });
   protected readonly vms = computed(() => this.tracker()?.vms ?? []);
   protected readonly vm = computed(() => this.vms().find(machine => String(machine.vmid) === String(this.vmid())));
   protected readonly vmName = computed(() => this.vm()?.name ?? `VM ${this.vmid()}`);
@@ -62,15 +88,18 @@ export class VmConsolePage {
 
   constructor() {
     effect(() => {
-      const trackerId = this.trackerId();
+      const trackerId = this.id();
       const vmid = this.vmid();
-      untracked(() => this.connect(trackerId, vmid));
+      if (!this.labLoaded()) return;
+      untracked(() => (trackerId ? this.connect(trackerId, vmid)
+        : this.unavailable('Your copy of this environment is not running. Start it from the environment bar first.')));
     });
+    // Inside a lab, the lab page sets the breadcrumb
     effect(() => {
       const tracker = this.tracker();
       const name = this.vmName();
       const lab = tracker?.labStarted?.name;
-      if (tracker && lab) {
+      if (tracker && lab && !this.lab) {
         untracked(() => this.crumbs.set([
           { label: 'Labs', link: '/labs' },
           { label: lab, link: ['/environments', tracker.id!] },
@@ -85,7 +114,14 @@ export class VmConsolePage {
   }
 
   protected reconnect(): void {
-    this.connect(this.trackerId(), this.vmid());
+    const id = this.id();
+    if (id) this.connect(id, this.vmid());
+  }
+
+  protected vmLink(vmid: number | string | undefined): LabLink {
+    const labId = this.labId();
+    return labId ? labConsoleLink(labId, vmid, this.copy() ?? null)
+      : { commands: ['/environments', this.id() ?? '', 'console', vmid], queryParams: {} };
   }
 
   protected disconnect(): void {

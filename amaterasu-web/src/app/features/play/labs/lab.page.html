@@ -1,121 +1,172 @@
 @if (overview(); as o) {
-  <header class="page-head">
-    <div class="stack tight">
-      <div class="row">
-        @if (o.environment) {
-          <app-status-badge [tone]="envMeta().tone" [label]="envMeta().label" />
-        } @else {
-          <span class="tag accent">No setup needed</span>
-        }
-        @if (o.me.teamName) {
-          <span class="tag" title="Your team">Team {{ o.me.teamName }}</span>
-        }
-        <span class="tag">{{ o.challenges.length }} {{ o.challenges.length === 1 ? 'question' : 'questions' }}</span>
-        <span class="tag">{{ o.playerCount }} {{ o.playerCount === 1 ? 'player' : 'players' }}</span>
-        @if (o.room.surroundTag) {
-          <span class="tag mono">Flags look like {{ o.room.surroundTag }}</span>
-        }
-      </div>
-      <h1 class="h1 lab-title">{{ o.room.name }}</h1>
-      @if (byline()) {
-        <p class="sub">{{ byline() }}</p>
-      }
-    </div>
-    <div class="row">
-      <div class="card stat"><div class="kpi-label">Your points</div><div class="num stat-val">{{ fmt.points(o.me.points) }}</div></div>
-      <div class="card stat"><div class="kpi-label">Rank</div><div class="stat-val">{{ o.me.rank ? fmt.ordinal(o.me.rank) : '-' }}</div></div>
-      <div class="card stat"><div class="kpi-label">Solved</div><div class="num stat-val">{{ o.me.solved }} / {{ o.challenges.length }}</div></div>
-      <a class="btn" [routerLink]="['/labs', o.room.id, 'scoreboard']"><app-icon name="trophy" />Scoreboard</a>
-      @if (session.canBuild()) {
-        <a class="btn ghost" [routerLink]="['/build/labs', o.room.id]"><app-icon name="edit" />Edit</a>
-      }
-    </div>
-  </header>
-
-  @if (o.environment; as env) {
-    <app-environment-bar [labId]="o.room.id" [environment]="env" (changed)="store.setEnvironment($event)" />
-  }
-
-  <app-scenario-card [scenario]="o.room.scenario" [environment]="o.environment" [canSeeLogin]="true" />
-
-  @if (o.files.length) {
-    <section class="card stack tight" aria-labelledby="files-h">
-      <h2 class="h2" id="files-h">Files</h2>
-      <div class="row">
-        @for (file of o.files; track file.id) {
-          <button type="button" class="btn sm" (click)="download(file.id, file.name)" [title]="'Download ' + file.name">
-            <app-icon name="download" size="sm" />{{ file.name }}<span class="muted small">{{ size(file.size) }}</span></button>
-        }
-      </div>
-    </section>
-  }
-
-  <div class="row between section-head">
-    <h2 class="h2">Questions</h2>
-    @if (o.environment && envStatus() !== 'RUNNING') {
-      <span class="small muted row env-note"><app-icon name="clock" size="sm" />{{ o.room.canRun ? 'Start the environment to work on these' : 'The environment runs once an admin starts it' }}</span>
-    }
-  </div>
-
-  @if (o.challenges.length) {
-    <div class="row between filters">
-      @if (store.categories().length <= 8) {
-        <div class="row" role="group" aria-label="Category">
-          @for (category of store.categories(); track category) {
-            <button type="button" class="pick" [class.on]="store.category() === category" [attr.aria-pressed]="store.category() === category" (click)="store.setCategory(category)">{{ category }}</button>
+  @if (!whole()) {
+    <header class="page-head">
+      <div class="stack tight">
+        <div class="row">
+          @if (o.environment) {
+            <app-status-badge [tone]="envMeta().tone" [label]="envMeta().label" />
+          } @else {
+            <span class="tag accent">No setup needed</span>
+          }
+          @if (o.me.teamName) {
+            <span class="tag" title="Your team">Team {{ o.me.teamName }}</span>
+          }
+          <span class="tag">{{ o.challenges.length }} {{ o.challenges.length === 1 ? 'question' : 'questions' }}</span>
+          <span class="tag">{{ o.playerCount }} {{ o.playerCount === 1 ? 'player' : 'players' }}</span>
+          @if (o.room.surroundTag) {
+            <span class="tag mono">Flags look like {{ o.room.surroundTag }}</span>
           }
         </div>
-      } @else {
-        <label class="field category-pick"><span class="visually-hidden">Category</span>
-          <select class="input" [value]="store.category()" (change)="store.setCategory($any($event.target).value)">
-            @for (category of store.categories(); track category) {
-              <option [value]="category" [selected]="store.category() === category">{{ category === 'All' ? 'All categories' : category }}</option>
-            }
-          </select></label>
-      }
-      <div class="seg" role="group" aria-label="Status">
-        @for (status of statuses; track status.value) {
-          <button type="button" [class.on]="store.status() === status.value" [attr.aria-pressed]="store.status() === status.value" (click)="store.setStatus(status.value)">{{ status.label }}</button>
+        <h1 class="h1 lab-title" id="lab-h" tabindex="-1">{{ o.room.name }}</h1>
+        @if (byline()) {
+          <p class="sub">{{ byline() }}</p>
         }
       </div>
-    </div>
+      <div class="row">
+        <div class="card stat"><div class="kpi-label">Your points</div><div class="num stat-val">{{ fmt.points(o.me.points) }}</div></div>
+        <div class="card stat"><div class="kpi-label">Rank</div><div class="stat-val">{{ o.me.rank ? fmt.ordinal(o.me.rank) : '-' }}</div></div>
+        <div class="card stat"><div class="kpi-label">Solved</div><div class="num stat-val">{{ o.me.solved }} / {{ o.challenges.length }}</div></div>
+        <a class="btn" [routerLink]="['/labs', o.room.id, 'scoreboard']"><app-icon name="trophy" />Scoreboard</a>
+      </div>
+    </header>
 
-    <div class="cols lab-cols">
-      <section class="card flush challenge-list" aria-label="Questions">
-        @for (group of store.groups(); track group.name) {
-          <div class="row between group-head"><span class="nav-label">{{ group.name }}</span><span class="small muted">{{ group.done }} of {{ group.total }} solved</span></div>
-          @for (item of group.items; track item.id) {
-            <button type="button" class="list-btn" [class.on]="store.selected()?.id === item.id" [attr.aria-current]="store.selected()?.id === item.id" (click)="pick(item.id)">
-              <span class="feed-ico item-ico" [class.s-active]="item.done">
-                @if (item.done) {
-                  <app-icon name="check" size="sm" />
-                } @else if (item.state === 'LOCKED') {
-                  <app-icon name="lock" size="sm" />
-                } @else {
-                  <span class="pill-dot open-dot"></span>
-                }
-              </span>
-              <span class="grow">
-                <span class="item-title">{{ item.title }}</span>
-                <span class="small muted">{{ item.difficulty ? (item.difficulty | titlecase) + ' · ' : '' }}{{ item.solves }} {{ item.solves === 1 ? 'solve' : 'solves' }}{{ item.state === 'LOCKED' ? ' · not open yet' : item.state === 'EXPIRED' ? ' · closed' : '' }}{{ item.solvedByTeammates.length ? ' · solved by ' + item.solvedByTeammates.join(', ') : '' }}</span>
-              </span>
-              <span class="num item-points">{{ item.points }}</span>
-            </button>
-          }
-        } @empty {
-          <div class="empty">No questions match this filter.</div>
+    @if (views().length > 1) {
+      <nav class="tabs views" aria-label="Lab views">
+        @for (view of views(); track view.key) {
+          <a class="tab" [class.on]="(sub()?.key ?? '') === view.key" [attr.aria-current]="(sub()?.key ?? '') === view.key ? 'page' : null"
+             [routerLink]="view.commands" [queryParams]="view.queryParams" [info]="split() ? keepScroll : undefined">
+            <app-icon [name]="view.icon" size="sm" />{{ view.label }}</a>
         }
-      </section>
-
-      @if (store.selected(); as challenge) {
-        <app-challenge-detail class="detail" [challenge]="challenge" />
-      }
-    </div>
-  } @else {
-    <section class="card"><app-empty-state icon="flag" title="No questions yet" message="Questions show here as soon as the lab's authors publish them." /></section>
+      </nav>
+    }
   }
 
-  <app-lab-leaderboard [labId]="o.room.id" [myTeamId]="o.me.teamId" />
+  <div class="workspace" [class.whole]="whole()" [class.has-sub]="!!sub()">
+    @if (!whole()) {
+      <div class="lab-pane stack loose">
+        @if (o.environment; as env) {
+          <app-environment-bar [labId]="o.room.id" [environment]="env" (changed)="store.setEnvironment($event)" />
+        }
+
+        <app-scenario-card [scenario]="o.room.scenario" [environment]="o.environment" [canSeeLogin]="true" />
+
+        @if (o.files.length) {
+          <section class="card stack tight" aria-labelledby="files-h">
+            <h2 class="h2" id="files-h">Files</h2>
+            <div class="row">
+              @for (file of o.files; track file.id) {
+                <button type="button" class="btn sm" (click)="download(file.id, file.name)" [title]="'Download ' + file.name">
+                  <app-icon name="download" size="sm" />{{ file.name }}<span class="muted small">{{ size(file.size) }}</span></button>
+              }
+            </div>
+          </section>
+        }
+
+        <div class="row between section-head">
+          <h2 class="h2">Questions</h2>
+          @if (o.environment && envStatus() !== 'RUNNING') {
+            <span class="small muted row env-note"><app-icon name="clock" size="sm" />{{ o.room.canRun ? 'Start the environment to work on these' : 'The environment runs once an admin starts it' }}</span>
+          }
+        </div>
+
+        @if (o.challenges.length) {
+          <div class="row between filters">
+            @if (store.categories().length <= 8) {
+              <div class="row" role="group" aria-label="Category">
+                @for (category of store.categories(); track category) {
+                  <button type="button" class="pick" [class.on]="store.category() === category" [attr.aria-pressed]="store.category() === category" (click)="store.setCategory(category)">{{ category }}</button>
+                }
+              </div>
+            } @else {
+              <label class="field category-pick"><span class="visually-hidden">Category</span>
+                <select class="input" [value]="store.category()" (change)="store.setCategory($any($event.target).value)">
+                  @for (category of store.categories(); track category) {
+                    <option [value]="category" [selected]="store.category() === category">{{ category === 'All' ? 'All categories' : category }}</option>
+                  }
+                </select></label>
+            }
+            <div class="seg" role="group" aria-label="Status">
+              @for (status of statuses; track status.value) {
+                <button type="button" [class.on]="store.status() === status.value" [attr.aria-pressed]="store.status() === status.value" (click)="store.setStatus(status.value)">{{ status.label }}</button>
+              }
+            </div>
+          </div>
+
+          <div class="cols lab-cols">
+            <section class="card flush challenge-list" aria-label="Questions">
+              @for (group of store.groups(); track group.name) {
+                <div class="row between group-head"><span class="nav-label">{{ group.name }}</span><span class="small muted">{{ group.done }} of {{ group.total }} solved</span></div>
+                @for (item of group.items; track item.id) {
+                  @let current = !sub() && store.selected()?.id === item.id;
+                  <button type="button" class="list-btn" [class.on]="current" [attr.aria-current]="current" (click)="pick(item.id)">
+                    <span class="feed-ico item-ico" [class.s-active]="item.done">
+                      @if (item.done) {
+                        <app-icon name="check" size="sm" />
+                      } @else if (item.state === 'LOCKED') {
+                        <app-icon name="lock" size="sm" />
+                      } @else {
+                        <span class="pill-dot open-dot"></span>
+                      }
+                    </span>
+                    <span class="grow">
+                      <span class="item-title">{{ item.title }}</span>
+                      <span class="small muted">{{ item.difficulty ? (item.difficulty | titlecase) + ' · ' : '' }}{{ item.solves }} {{ item.solves === 1 ? 'solve' : 'solves' }}{{ item.state === 'LOCKED' ? ' · not open yet' : item.state === 'EXPIRED' ? ' · closed' : '' }}{{ item.solvedByTeammates.length ? ' · solved by ' + item.solvedByTeammates.join(', ') : '' }}</span>
+                    </span>
+                    <span class="num item-points">{{ item.points }}</span>
+                  </button>
+                }
+              } @empty {
+                <div class="empty">No questions match this filter.</div>
+              }
+            </section>
+
+            @if (!split()) {
+              @if (store.selected(); as challenge) {
+                <app-challenge-detail class="detail" [challenge]="challenge" />
+              }
+            }
+          </div>
+        } @else {
+          <section class="card"><app-empty-state icon="flag" title="No questions yet" message="Questions show here as soon as the lab's authors publish them." /></section>
+        }
+
+        <app-lab-leaderboard [labId]="o.room.id" [myTeamId]="o.me.teamId" />
+      </div>
+    }
+
+    <!-- One outlet in one place, so a sub-page (a live console) survives a resize or a pop out -->
+    <section class="side-pane" [class.idle]="!sub() && !split()" tabindex="-1"
+             [attr.aria-labelledby]="sub() ? 'lab-pane-h' : null" [attr.aria-label]="sub() ? null : 'Selected question'">
+      @if (sub(); as page) {
+        <div class="row pane-head">
+          @if (back(); as b) {
+            <a class="btn sm ghost back" [routerLink]="b.commands" [queryParams]="b.queryParams" [info]="split() ? keepScroll : undefined"
+               [attr.aria-label]="'Back to ' + o.room.name"><app-icon name="chevronLeft" size="sm" />{{ whole() ? o.room.name : 'Questions' }}</a>
+          }
+          <h2 class="h3 pane-title" id="lab-pane-h" tabindex="-1">{{ page.title }}</h2>
+          @if (split()) {
+            @if (full()) {
+              <button type="button" class="btn sm ghost" (click)="popOut(false)" title="Show it beside the questions again">
+                <app-icon name="chevronLeft" size="sm" />Beside the questions</button>
+            } @else {
+              <button type="button" class="btn sm ghost" (click)="popOut(true)" title="Give it the whole page">
+                <app-icon name="expand" size="sm" />Pop out</button>
+            }
+          }
+        </div>
+      }
+      <router-outlet />
+      @if (!sub() && split()) {
+        @if (store.selected(); as challenge) {
+          <app-challenge-detail class="detail" [challenge]="challenge" />
+        } @else {
+          <section class="card">
+            <app-empty-state icon="flag" title="Pick a question" message="Its description, files and answer box open here. Details, Console and the other views above open here too." />
+          </section>
+        }
+      }
+    </section>
+  </div>
 } @else if (store.error()) {
   <section class="card">
     <app-empty-state icon="alert" title="This lab could not be opened" [message]="store.error()!">

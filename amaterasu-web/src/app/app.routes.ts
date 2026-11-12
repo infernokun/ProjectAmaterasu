@@ -22,11 +22,7 @@ const LEGACY_REDIRECTS: Routes = [
     path: 'room/:room/scoreboard/:username',
     redirectTo: ({ params }) => inject(Router).createUrlTree(['/labs', params['room'], 'scoreboard', params['username']]),
   },
-  // A team's lab copy moved from /labs/<tracker> to /environments/<tracker>; the lab page forwards the bare address
-  {
-    path: 'labs/:tracker/console/:vmid',
-    redirectTo: ({ params }) => inject(Router).createUrlTree(['/environments', params['tracker'], 'console', params['vmid']]),
-  },
+  // /labs/<copy> and /labs/<copy>/console/<vmid> were a team's copy; the lab page forwards those
   {
     path: 'lab/settings/:name',
     redirectTo: ({ queryParams }) => inject(Router).createUrlTree(queryParams['id'] ? ['/environments', queryParams['id']] : ['/labs']),
