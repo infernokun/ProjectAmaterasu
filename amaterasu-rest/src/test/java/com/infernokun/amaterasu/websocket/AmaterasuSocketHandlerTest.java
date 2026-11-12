@@ -105,6 +105,22 @@ class AmaterasuSocketHandlerTest {
     }
 
     @Test
+    void teamCopiesGoToWhoeverTheLabsTeamsSayWorksInThem() throws Exception {
+        // The app passes TeamResolver::worksIn; here a lab team that does not match anyone's site team
+        handler = new AmaterasuSocketHandler(objectMapper, userRepository, new com.infernokun.amaterasu.components.LabActionGuard(),
+                (user, copy) -> user.getId().equals("member-blue") && copy.getLabOwner() == red);
+        user("member-red", Role.MEMBER, red, false);
+        user("member-blue", Role.MEMBER, blue, false);
+        WebSocketSession redSession = connect("member-red");
+        WebSocketSession blueSession = connect("member-blue");
+
+        handler.onLabTrackerChanged(LabTrackerChangedEvent.updated(tracker(red)));
+
+        assertThat(sentTo(blueSession).get("labTracker").get("id").asText()).isEqualTo("lt1");
+        verify(redSession, never()).sendMessage(any());
+    }
+
+    @Test
     void sendsNotificationsOnlyToTheirRecipient() throws Exception {
         user("member-red", Role.MEMBER, red, false);
         user("member-blue", Role.MEMBER, blue, false);

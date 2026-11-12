@@ -1,7 +1,6 @@
 package com.infernokun.amaterasu.components;
 
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
-import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.ctf.Room;
 import com.infernokun.amaterasu.models.entities.lab.LabTracker;
@@ -25,6 +24,7 @@ import java.util.List;
 public class CurrentUser {
     private final UserService userService;
     private final RoomRepository roomRepository;
+    private final TeamResolver teamResolver;
 
     public String id() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -95,7 +95,7 @@ public class CurrentUser {
 
     /**
      * Who may see a copy and its login: those who run it, everyone who can see the lab for a shared
-     * copy, the owning team's members for a team copy, and players without a team for the solo copy.
+     * copy, and for a team or solo copy whoever a per-team lab running it resolves to that copy.
      */
     public void requireTrackerAccess(LabTracker labTracker) {
         if (!canAccess(labTracker)) {
@@ -110,11 +110,7 @@ public class CurrentUser {
         if (labTracker.isShared()) {
             return roomRepository.findById(labTracker.getRoomId()).map(this::canSee).orElse(false);
         }
-        Team team = user().getTeam();
-        if (labTracker.isSolo()) {
-            return team == null;
-        }
-        return team != null && labTracker.getLabOwner() != null && team.getId().equals(labTracker.getLabOwner().getId());
+        return teamResolver.worksIn(user(), labTracker);
     }
 
     /** Who may start, pause, resume or stop a copy: admins, and the facilitators of a lab that runs it. */

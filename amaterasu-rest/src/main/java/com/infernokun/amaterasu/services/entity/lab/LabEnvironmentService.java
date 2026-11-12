@@ -2,6 +2,7 @@ package com.infernokun.amaterasu.services.entity.lab;
 
 import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.components.LabActionGuard;
+import com.infernokun.amaterasu.components.TeamResolver;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.LabActionResult;
 import com.infernokun.amaterasu.models.entities.Team;
@@ -28,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Runs a lab's environment from the lab page. Admins and the lab's facilitators start and stop every
@@ -52,6 +52,7 @@ public class LabEnvironmentService {
     private final LabActionGuard labActionGuard;
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
+    private final TeamResolver teamResolver;
 
     /** One copy of a lab's environment: the shared one, a team's, or the solo copy. */
     record Copy(String target, Team team, boolean solo, Optional<LabTracker> tracker) {
@@ -63,9 +64,10 @@ public class LabEnvironmentService {
         return switch (room.effectiveMode()) {
             case NONE -> Optional.empty();
             case SHARED -> labTrackerService.findSharedCopy(room.getId(), environment);
-            case PER_TEAM -> viewer != null && viewer.getTeam() != null
-                    ? labTrackerService.findTeamCopy(environment, viewer.getTeam())
-                    : labTrackerService.findSoloCopy(environment);
+            case PER_TEAM -> {
+                Team team = teamResolver.teamOf(room, viewer);
+                yield team != null ? labTrackerService.findTeamCopy(environment, team) : labTrackerService.findSoloCopy(environment);
+            }
         };
     }
 
@@ -91,7 +93,7 @@ public class LabEnvironmentService {
         } else if (!canRun && (status == EnvironmentStatus.NOT_RUNNING || status == EnvironmentStatus.FAILED)) {
             note = NOT_RUNNING;
         }
-        Team team = viewer != null ? viewer.getTeam() : null;
+        Team team = teamResolver.teamOf(room, viewer);
         String copyLabel = mode == EnvironmentMode.SHARED ? "Shared copy"
                 : team != null ? team.getName() + "'s copy" : "Solo copy";
         int running = mode == EnvironmentMode.SHARED ? (EnvironmentStatuses.isUp(tracker) ? 1 : 0)
@@ -104,7 +106,7 @@ public class LabEnvironmentService {
                 running, copies);
     }
 
-    /** Every copy of the lab's environment: the shared one, or one per team then the solo copy. */
+    /** Every copy of the lab's environment: the shared one, or one per team in the lab then the solo copy. */
     public List<EnvironmentCopy> copies(Room room) {
         Lab environment = room.getEnvironment();
         if (room.effectiveMode() == EnvironmentMode.SHARED) {
@@ -114,16 +116,14 @@ public class LabEnvironmentService {
         if (room.effectiveMode() != EnvironmentMode.PER_TEAM) {
             return List.of();
         }
-        Map<String, Long> members = userRepository.findAll().stream()
-                .collect(Collectors.groupingBy(user -> user.getTeam() != null ? user.getTeam().getId() : SOLO,
-                        Collectors.counting()));
+        Map<String, Long> members = teamResolver.memberCounts(room);
         List<EnvironmentCopy> views = new ArrayList<>();
-        for (Team team : teamRepository.findAllByOrderByNameAsc()) {
+        for (Team team : teamResolver.teamsIn(room)) {
             Copy copy = new Copy(TEAM + team.getId(), team, false, labTrackerService.findTeamCopy(environment, team));
             views.add(view(copy, team.getName(), members.getOrDefault(team.getId(), 0L)));
         }
         Copy solo = new Copy(SOLO, null, true, labTrackerService.findSoloCopy(environment));
-        views.add(view(solo, "Solo copy", members.getOrDefault(SOLO, 0L)));
+        views.add(view(solo, "Solo copy", members.getOrDefault(TeamResolver.SOLO, 0L)));
         return views;
     }
 
@@ -198,6 +198,9 @@ public class LabEnvironmentService {
             String teamId = key.substring(TEAM.length());
             Team team = teamRepository.findById(teamId)
                     .orElseThrow(() -> new ResourceNotFoundException("Team " + teamId + " not found"));
+            if (!teamResolver.playsIn(room, team)) {
+                throw new IllegalArgumentException(team.getName() + " is not a team in " + room.getName());
+            }
             return new Copy(key, team, false, labTrackerService.findTeamCopy(environment, team));
         }
         throw new IllegalArgumentException("Unknown copy " + key);

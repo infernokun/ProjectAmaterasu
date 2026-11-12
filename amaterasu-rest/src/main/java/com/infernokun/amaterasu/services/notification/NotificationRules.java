@@ -240,11 +240,19 @@ public class NotificationRules {
                 .getResultList();
     }
 
+    /** A site team's accounts, or a lab team's members. */
     List<String> teamMembers(String teamId) {
-        return entityManager.createQuery("SELECT u.id FROM User u WHERE u.team.id = :team"
+        List<String> site = entityManager.createQuery("SELECT u.id FROM User u WHERE u.team.id = :team"
                         + " AND (u.disabled IS NULL OR u.disabled = false)", String.class)
                 .setParameter("team", teamId)
                 .getResultList();
+        List<String> lab = entityManager.createQuery("SELECT m.user.id FROM LabTeamMember m WHERE m.team.id = :team"
+                        + " AND (m.user.disabled IS NULL OR m.user.disabled = false)", String.class)
+                .setParameter("team", teamId)
+                .getResultList();
+        List<String> all = new ArrayList<>(site);
+        lab.stream().filter(id -> !all.contains(id)).forEach(all::add);
+        return all;
     }
 
     /** Facilitators, plus anyone named as a facilitator of a room. */
