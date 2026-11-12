@@ -7,6 +7,7 @@ import { LabStatus } from '../../../enums/lab-status.enum';
 import { LabType } from '../../../enums/lab-type.enum';
 import { LabTracker } from '../../../models/lab/lab-tracker.model';
 import { PlayApiService } from '../data/play-api.service';
+import { RoomPlayStore } from '../rooms/room-play.store';
 import { ConsoleService } from './console.service';
 import { RFB_LOADER, RfbOptions } from './novnc';
 import { VmConsolePage } from './vm-console.page';
@@ -42,7 +43,8 @@ describe('VmConsolePage', () => {
     remoteServer: { name: 'pve-a' }, vms: [{ vmid: 101, name: 'kali', status }, { vmid: 102, name: 'dc01', status: 'running' }],
   });
 
-  function render(current: LabTracker, vmid = '101') {
+  /** Inside a lab when `lab` is set: its id and the viewer's own copy. */
+  function render(current: LabTracker, vmid = '101', lab?: { own: string | null; copy?: string }) {
     socket = new FakeSocket();
     FakeRfb.last = null;
     consoles = jasmine.createSpyObj<ConsoleService>('ConsoleService', ['open', 'connect']);
@@ -56,10 +58,15 @@ describe('VmConsolePage', () => {
         { provide: PlayApiService, useValue: { tracker: () => of(current) } },
         { provide: ConsoleService, useValue: consoles },
         { provide: RFB_LOADER, useValue: () => Promise.resolve(FakeRfb) },
+        ...(lab ? [{ provide: RoomPlayStore, useValue: { roomId: () => 'r1', overview: () => ({ environment: { trackerId: lab.own } }) } }] : []),
       ],
     });
     fixture = TestBed.createComponent(VmConsolePage);
-    fixture.componentRef.setInput('trackerId', 'lt1');
+    if (lab) {
+      if (lab.copy) fixture.componentRef.setInput('copy', lab.copy);
+    } else {
+      fixture.componentRef.setInput('trackerId', 'lt1');
+    }
     fixture.componentRef.setInput('vmid', vmid);
     fixture.detectChanges();
   }
@@ -135,5 +142,33 @@ describe('VmConsolePage', () => {
     expect(picks.map(a => a.textContent?.trim())).toEqual(['kali', 'dc01']);
     expect(picks[0].getAttribute('aria-current')).toBe('page');
     expect(picks[1].getAttribute('href')).toBe('/environments/lt1/console/102');
+  });
+
+  describe('inside a lab', () => {
+    it('opens the viewer\'s own copy and keeps its links under the lab', async () => {
+      render(tracker(), '101', { own: 'lt1' });
+      await settle();
+      expect(consoles.open).toHaveBeenCalledWith('lt1', '101');
+      const picks = Array.from(fixture.nativeElement.querySelectorAll('.vm-picks a')) as HTMLAnchorElement[];
+      expect(picks[1].getAttribute('href')).toBe('/labs/r1/console/102');
+      const details = (Array.from(fixture.nativeElement.querySelectorAll('.page-head a.btn')) as HTMLAnchorElement[])
+        .find(a => a.textContent?.includes('Details'))!;
+      expect(details.getAttribute('href')).toBe('/labs/r1/details');
+    });
+
+    it('opens the copy in ?copy= and keeps it in the links', async () => {
+      render(tracker(), '101', { own: 'other', copy: 'lt1' });
+      await settle();
+      expect(consoles.open).toHaveBeenCalledWith('lt1', '101');
+      const picks = Array.from(fixture.nativeElement.querySelectorAll('.vm-picks a')) as HTMLAnchorElement[];
+      expect(picks[1].getAttribute('href')).toBe('/labs/r1/console/102?copy=lt1');
+    });
+
+    it('says so when the viewer has no copy yet', async () => {
+      render(tracker(), '101', { own: null });
+      await settle();
+      expect(consoles.open).not.toHaveBeenCalled();
+      expect(text()).toContain('Your copy of this environment is not running.');
+    });
   });
 });

@@ -1,3 +1,87 @@
+// Two panes use the whole width; one column keeps the usual page width
+:host.split {
+  max-width: none;
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-section);
+  min-width: 0;
+}
+
+:host.split .workspace:not(.whole) {
+  display: grid;
+  grid-template-columns: clamp(360px, 40%, 640px) minmax(0, 1fr);
+  align-items: start;
+}
+
+.lab-pane {
+  min-width: 0;
+}
+
+.side-pane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  outline: none;
+}
+
+.side-pane.idle {
+  display: none;
+}
+
+// Beside the questions the pane stays in view under the sticky top bar and scrolls on its own
+:host.split .workspace:not(.whole) .side-pane {
+  position: sticky;
+  top: 79px;
+  max-height: calc(100dvh - 95px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 2px;
+  margin: -2px;
+}
+
+.pane-head {
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.pane-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  outline: none;
+}
+
+.back {
+  flex: none;
+}
+
+.views {
+  margin-top: -6px;
+}
+
+.views .tab {
+  text-decoration: none;
+}
+
+// Sub-pages that also stand alone bring the page padding; inside the lab they sit in the pane
+:host ::ng-deep .side-pane > .content {
+  padding: 0;
+  max-width: none;
+  width: auto;
+}
+
+:host ::ng-deep .side-pane .page-head .h1 {
+  font-size: 21px;
+}
+
+#lab-h {
+  outline: none;
+}
+
 .lab-title {
   margin-top: 6px;
 }

@@ -114,6 +114,36 @@ describe('RoomEditorPage', () => {
     }));
   });
 
+  it('opened from the lab, goes back to it instead of offering View as player, and after saving', async () => {
+    fixture.componentRef.setInput('from', 'lab');
+    fixture.detectChanges();
+    const links = [...el().querySelectorAll<HTMLAnchorElement>('a.btn')];
+    const back = links.find(a => a.textContent!.includes('Back to Winter Range 2026'))!;
+    expect(back.getAttribute('href')).toBe('/labs/r1');
+    expect(links.some(a => a.textContent!.includes('View as player'))).toBeFalse();
+
+    const router = TestBed.inject(Router);
+    const navigate = spyOn(router, 'navigate').and.resolveTo(true);
+    const name = el().querySelector<HTMLInputElement>('.room-form input')!;
+    name.value = 'Winter Range 2027';
+    name.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    api.updateRoom.and.returnValue(of({ id: 'r1', name: 'Winter Range 2027', surroundTag: 'AMA{x}', updatedAt: null,
+      scenario: '## Situation\nA quiet range.', environmentMode: 'NONE' as const, environmentId: null, teamCredit: 'SEE_TEAMMATES' as const, published: true }));
+    [...el().querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent!.trim() === 'Save')!.click();
+    await fixture.whenStable();
+    expect(navigate).toHaveBeenCalledWith(['/labs', 'r1'], { queryParams: {} });
+  });
+
+  it('keeps where it was opened from when moving between steps', async () => {
+    fixture.componentRef.setInput('from', 'lab');
+    fixture.detectChanges();
+    const navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
+    [...el().querySelectorAll<HTMLButtonElement>('.steps .step')].find(b => b.textContent!.includes('Questions'))!.click();
+    await fixture.whenStable();
+    expect(navigate).toHaveBeenCalledWith([], { queryParams: { step: 'questions' }, queryParamsHandling: 'merge', replaceUrl: true });
+  });
+
   it('treats an empty attempts box as unlimited', () => {
     goTo('questions');
     const input = [...el().querySelectorAll('label.field')]

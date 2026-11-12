@@ -13,6 +13,7 @@ import { PlayApiService } from '../data/play-api.service';
 import { EnvironmentActionResult, EnvironmentCopy, EnvironmentStatus, EnvironmentView } from '../data/play.models';
 import { ENVIRONMENT_STATUS_META, environmentStatus, trackerOf } from './environment-status';
 import { LabAccessComponent } from './lab-access.component';
+import { LabLink, consoleVm, labConsoleLink, labDetailsLink } from './lab-address';
 import { bastionOf, isVm, loginUser, stopWarning } from './lab-view';
 
 type Action = 'start' | 'pause' | 'stop';
@@ -42,10 +43,10 @@ export const NOT_RUNNING_NOTE = 'Not running yet: an admin starts this environme
         </div>
         <div class="row actions">
           @if (status() === 'RUNNING' && consoleLink(); as link) {
-            <a class="btn primary" [routerLink]="link"><app-icon name="terminal" />Open console</a>
+            <a class="btn primary" [routerLink]="link.commands" [queryParams]="link.queryParams"><app-icon name="terminal" />Open console</a>
           }
           @if (detailsLink(); as link) {
-            <a class="btn ghost" [routerLink]="link" title="Services, VMs and how to get in">Details</a>
+            <a class="btn ghost" [routerLink]="link.commands" [queryParams]="link.queryParams" title="Services, VMs and how to get in">Details</a>
           }
         </div>
       </div>
@@ -102,7 +103,8 @@ export const NOT_RUNNING_NOTE = 'Not running yet: an admin starts this environme
                     <button type="button" class="btn sm danger" (click)="stop(copy)"><app-icon name="stop" size="sm" />Stop</button>
                   }
                   @if (copy.trackerId && copyStatus(copy) !== 'NOT_RUNNING') {
-                    <a class="btn sm ghost" [routerLink]="['/environments', copy.trackerId]">Details</a>
+                    <a class="btn sm ghost" [routerLink]="['/labs', labId(), 'details']" [queryParams]="{ copy: copy.trackerId }"
+                       [attr.aria-label]="'Details of ' + copy.label">Details</a>
                   }
                 }
               </div>
@@ -167,19 +169,17 @@ export class EnvironmentBarComponent {
 
   protected readonly hasLogin = computed(() => !!bastionOf(this.tracker()) || !!loginUser(this.tracker()));
 
-  protected readonly consoleLink = computed<unknown[] | null>(() => {
+  /** A VM lab opens its console; a container lab its services. */
+  protected readonly consoleLink = computed<LabLink | null>(() => {
     const tracker = this.tracker();
     if (!tracker?.id) return null;
-    if (!isVm(tracker.labStarted)) return ['/environments', tracker.id];
-    const running = (tracker.vms ?? []).filter(vm => vm.status === 'running');
-    const vm = running.find(machine => machine.role === 'bastion') ?? running[0];
-    return vm ? ['/environments', tracker.id, 'console', vm.vmid] : null;
+    if (!isVm(tracker.labStarted)) return labDetailsLink(this.labId());
+    const vm = consoleVm(tracker);
+    return vm ? labConsoleLink(this.labId(), vm.vmid) : null;
   });
 
-  protected readonly detailsLink = computed<unknown[] | null>(() => {
-    const tracker = this.tracker();
-    return tracker?.id && this.status() === 'RUNNING' ? ['/environments', tracker.id] : null;
-  });
+  protected readonly detailsLink = computed<LabLink | null>(() =>
+    this.tracker()?.id && this.status() === 'RUNNING' ? labDetailsLink(this.labId()) : null);
 
   protected copyStatus(copy: EnvironmentCopy): EnvironmentStatus {
     const tracker = copy.tracker ? new LabTracker(copy.tracker) : null;
