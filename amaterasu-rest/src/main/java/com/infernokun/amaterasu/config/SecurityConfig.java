@@ -89,6 +89,9 @@ public class SecurityConfig {
                         // Who runs a lab hands out lifecycle powers, so only admins pick facilitators
                         .requestMatchers(HttpMethod.PUT, "/api/room/*/facilitators").hasRole(admin)
                         .requestMatchers(HttpMethod.PUT, "/api/room/*/order").hasAnyRole(authors)
+                        // A lab's teams and its management: admins and the lab's facilitators (CurrentUser.canRun)
+                        .requestMatchers("/api/room/*/teams", "/api/room/*/teams/**", "/api/room/*/manage/**")
+                                .hasAnyRole(runners)
                         .requestMatchers(HttpMethod.PUT, "/api/labs/*/publish", "/api/labs/*/unpublish").hasAnyRole(authors)
                         // The controller filters it to what the caller may see
                         .requestMatchers(HttpMethod.GET, "/api/ctf-entity/by-lab/*").authenticated()

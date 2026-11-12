@@ -2,10 +2,7 @@ package com.infernokun.amaterasu.controllers.entity.ctf;
 
 import com.infernokun.amaterasu.components.CurrentUser;
 import com.infernokun.amaterasu.models.ApiResponse;
-import com.infernokun.amaterasu.models.PointsHistoryEntry;
 import com.infernokun.amaterasu.models.entities.ctf.dto.AwardPointsRequest;
-import com.infernokun.amaterasu.websocket.RoomActivityEvent;
-import org.springframework.context.ApplicationEventPublisher;
 import com.infernokun.amaterasu.models.entities.ctf.CTFEntityAnswer;
 import com.infernokun.amaterasu.models.entities.ctf.dto.JoinRoomResponse;
 import com.infernokun.amaterasu.models.entities.ctf.dto.RoomRequest;
@@ -21,7 +18,9 @@ import com.infernokun.amaterasu.services.entity.AuditService;
 import com.infernokun.amaterasu.services.entity.UserService;
 import com.infernokun.amaterasu.utils.AmaterasuConstants;
 import com.infernokun.amaterasu.services.entity.ctf.CTFAnswerService;
+import com.infernokun.amaterasu.services.entity.ctf.RoomPointsService;
 import com.infernokun.amaterasu.services.entity.ctf.RoomService;
+import com.infernokun.amaterasu.models.enums.TeamMode;
 import com.infernokun.amaterasu.services.entity.ctf.RoomUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,11 +48,8 @@ public class RoomController {
     private final ModelMapper modelMapper;
     private final CTFAnswerService ctfAnswerService;
     private final CurrentUser currentUser;
-    private final ApplicationEventPublisher events;
     private final AuditService auditService;
-
-    static final int MAX_AWARD = 10_000;
-    static final int MAX_REASON = 200;
+    private final RoomPointsService roomPointsService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Room>>> getAllRooms(@RequestParam(required = false)
@@ -196,6 +192,7 @@ public class RoomController {
         roomService.applyEnvironment(room, request.environmentMode() == null ? EnvironmentMode.NONE : request.environmentMode(),
                 request.environmentId());
         roomService.applyTeamCredit(room, request.teamCredit());
+        room.setTeamMode(request.teamMode() == null ? TeamMode.SITE : request.teamMode());
         room.setPublished(!Boolean.FALSE.equals(request.published()));
         room.setCreator(currentUser.user());
         Room savedRoom = this.roomService.saveRoom(room);
@@ -226,27 +223,11 @@ public class RoomController {
                                                                    @RequestBody AwardPointsRequest request) {
         Room room = roomService.findByRoomId(roomId);
         currentUser.requireCanRun(room);
-        int points = request == null || request.points() == null ? 0 : request.points();
-        String reason = request == null || request.reason() == null ? "" : request.reason().trim();
-        if (points == 0 || Math.abs(points) > MAX_AWARD) {
-            throw new IllegalArgumentException("Points must be a whole number from -" + MAX_AWARD + " to " + MAX_AWARD
-                    + ", and not 0");
-        }
-        if (reason.isEmpty() || reason.length() > MAX_REASON) {
-            throw new IllegalArgumentException("Give a reason of up to " + MAX_REASON + " characters");
-        }
+        int points = RoomPointsService.requireAward(request == null ? null : request.points());
+        String reason = RoomPointsService.requireReason(request == null ? null : request.reason());
 
         User user = userService.findUserById(userId);
-        RoomUser roomUser = roomUserService.seatFor(user, room);
-
-        int total = roomUser.getPoints() + points;
-        roomUser.getPointsHistory().add(new PointsHistoryEntry(LocalDateTime.now(), total, points, reason,
-                currentUser.user().getUsername()));
-        roomUser.setPoints(total);
-        roomUser.setUpdatedAt(LocalDateTime.now());
-        roomUser = roomUserService.save(roomUser);
-        events.publishEvent(new RoomActivityEvent(roomId));
-        auditService.record("POINTS_AWARDED", "USER", user.getId(), user.getUsername(), user.getTeam() != null ? user.getTeam().getId() : null, points + " pts in " + room.getName() + ": " + reason);
+        RoomUser roomUser = roomPointsService.award(room, user, points, reason);
 
         return buildSuccessResponse(String.format("User %s has %d points in room %s",
                 roomUser.getUser().getUsername(), roomUser.getPoints(), roomUser.getRoom().getName()),
@@ -277,6 +258,9 @@ public class RoomController {
                     request.environmentId() != null ? request.environmentId() : existingRoom.getEnvironmentId());
         }
         roomService.applyTeamCredit(existingRoom, request.teamCredit());
+        if (request.teamMode() != null) {
+            roomService.changeTeamMode(existingRoom, request.teamMode());
+        }
         if (request.published() != null) {
             roomService.changePublished(existingRoom, request.published());
         }

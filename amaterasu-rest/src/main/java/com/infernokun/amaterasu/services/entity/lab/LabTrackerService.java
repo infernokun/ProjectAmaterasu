@@ -142,6 +142,7 @@ public class LabTrackerService extends BaseService {
                 .bridges(labTracker.getBridges())
                 .remoteServer(labTracker.getRemoteServer())
                 .roomId(labTracker.getRoomId())
+                .solo(labTracker.getSolo())
                 .build();
         copy.setId(labTracker.getId());
         copy.setCreatedBy(labTracker.getCreatedBy());

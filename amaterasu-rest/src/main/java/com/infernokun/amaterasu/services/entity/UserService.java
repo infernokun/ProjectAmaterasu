@@ -4,6 +4,7 @@ import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import com.infernokun.amaterasu.models.entities.Team;
 import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.repositories.TeamRepository;
+import com.infernokun.amaterasu.repositories.ctf.LabTeamMemberRepository;
 import com.infernokun.amaterasu.repositories.UserRepository;
 import com.infernokun.amaterasu.services.BaseService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ import java.util.Optional;
 public class UserService extends BaseService implements UserDetailsService {
     private final UserRepository userRepository;
     private final TeamRepository teamRepository;
+    private final LabTeamMemberRepository labTeamMemberRepository;
     private final PasswordEncoder passwordEncoder;
 
     public boolean existsByUsername(String username) {
@@ -65,6 +67,7 @@ public class UserService extends BaseService implements UserDetailsService {
 
     public User deleteUser(String id) {
         User deletedUser = findUserById(id);
+        labTeamMemberRepository.deleteAll(labTeamMemberRepository.findByUserId(deletedUser.getId()));
         userRepository.deleteById(deletedUser.getId());
         return deletedUser;
     }
@@ -83,7 +86,7 @@ public class UserService extends BaseService implements UserDetailsService {
     public User updateUserTeam(String userId, String teamId) {
         User user = findUserById(userId);
 
-        Team team = teamId == null ? null : teamRepository.findById(teamId)
+        Team team = teamId == null ? null : teamRepository.findById(teamId).filter(found -> !found.isLabTeam())
                 .orElseThrow(() -> new ResourceNotFoundException("Team ID not found"));
 
         user.setTeam(team);
@@ -96,7 +99,7 @@ public class UserService extends BaseService implements UserDetailsService {
         if (userIds == null || userIds.isEmpty()) {
             throw new IllegalArgumentException("Pick at least one user to move");
         }
-        Team team = teamId == null ? null : teamRepository.findById(teamId)
+        Team team = teamId == null ? null : teamRepository.findById(teamId).filter(found -> !found.isLabTeam())
                 .orElseThrow(() -> new ResourceNotFoundException("Team ID not found"));
         List<User> users = new ArrayList<>(new LinkedHashSet<>(userIds)).stream().map(this::findUserById).toList();
         users.forEach(user -> user.setTeam(team));

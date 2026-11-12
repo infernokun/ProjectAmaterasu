@@ -1,6 +1,7 @@
 package com.infernokun.amaterasu.services;
 
 import com.infernokun.amaterasu.components.CurrentUser;
+import com.infernokun.amaterasu.components.TeamResolver;
 import com.infernokun.amaterasu.exceptions.ResourceNotFoundException;
 import org.springframework.context.ApplicationEventPublisher;
 import com.infernokun.amaterasu.models.enums.RoomUserStatus;
@@ -54,6 +55,7 @@ class FlagServiceTest {
     @Mock private ApplicationEventPublisher events;
     @Mock private AuditService auditService;
     @Mock private CurrentUser currentUser;
+    @Mock private TeamResolver teamResolver;
 
     private FlagService flagService;
     private User user;
@@ -64,7 +66,7 @@ class FlagServiceTest {
     @BeforeEach
     void setUp() {
         flagService = new FlagService(ctfEntityService, userService, ctfAnswerService, flagRepository,
-                new ModelMapper(), roomUserService, roomService, events, auditService, currentUser);
+                new ModelMapper(), roomUserService, roomService, events, auditService, currentUser, teamResolver);
 
         user = new User();
         user.setId("user1");

@@ -7,6 +7,7 @@ import com.infernokun.amaterasu.models.entities.User;
 import com.infernokun.amaterasu.models.entities.lab.Lab;
 import com.infernokun.amaterasu.models.enums.EnvironmentMode;
 import com.infernokun.amaterasu.models.enums.TeamCredit;
+import com.infernokun.amaterasu.models.enums.TeamMode;
 import com.infernokun.amaterasu.utils.AmaterasuConstants;
 import jakarta.persistence.*;
 import lombok.*;
@@ -51,6 +52,11 @@ public class Room extends StoredObject {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private TeamCredit teamCredit = TeamCredit.SEE_TEAMMATES;
+    /** Whose teams count here. Not team_mode: an older migration drops a column of that name. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "lab_team_mode")
+    @Builder.Default
+    private TeamMode teamMode = TeamMode.SITE;
     /** Drafts are seen only by authors and the lab's facilitators. */
     @Builder.Default
     private Boolean published = true;
@@ -68,6 +74,11 @@ public class Room extends StoredObject {
     @JsonIgnore
     public TeamCredit effectiveTeamCredit() {
         return teamCredit == null ? TeamCredit.SEE_TEAMMATES : teamCredit;
+    }
+
+    @JsonIgnore
+    public TeamMode effectiveTeamMode() {
+        return teamMode == null ? TeamMode.SITE : teamMode;
     }
 
     /** NONE when there is nothing to run, whatever the stored mode says. */

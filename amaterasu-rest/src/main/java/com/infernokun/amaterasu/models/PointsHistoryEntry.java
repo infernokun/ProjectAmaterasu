@@ -24,8 +24,15 @@ public class PointsHistoryEntry {
     private String reason;
     /** Username of the facilitator or admin who awarded the change; empty for solves and hints. */
     private String awardedBy;
+    /** AWARD, CREDIT or RESET for changes staff made; null for solves, hints and older awards. */
+    private String kind;
 
     public PointsHistoryEntry(LocalDateTime timestamp, Integer totalPoints, Integer pointsChange, String reason) {
-        this(timestamp, totalPoints, pointsChange, reason, null);
+        this(timestamp, totalPoints, pointsChange, reason, null, null);
+    }
+
+    public PointsHistoryEntry(LocalDateTime timestamp, Integer totalPoints, Integer pointsChange, String reason,
+                              String awardedBy) {
+        this(timestamp, totalPoints, pointsChange, reason, awardedBy, null);
     }
 }

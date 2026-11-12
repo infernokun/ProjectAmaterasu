@@ -43,21 +43,29 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
     private final LabActionGuard labActionGuard;
-    /** Whether a user is on a team. */
-    private final BiPredicate<User, Team> member;
+    /** Whether a user works in a team or solo copy; the app resolves it through each lab's teams. */
+    private final BiPredicate<User, LabTracker> worksIn;
 
     public AmaterasuSocketHandler(ObjectMapper objectMapper, UserRepository userRepository) {
-        this(objectMapper, userRepository, new LabActionGuard(),
-                (user, team) -> user.getTeam() != null && user.getTeam().getId().equals(team.getId()));
+        this(objectMapper, userRepository, new LabActionGuard(), AmaterasuSocketHandler::onSiteTeam);
     }
 
     public AmaterasuSocketHandler(ObjectMapper objectMapper, UserRepository userRepository, LabActionGuard labActionGuard,
-                                  BiPredicate<User, Team> member) {
+                                  BiPredicate<User, LabTracker> worksIn) {
         // The app's mapper adds type info for the Redis cache; browsers need plain JSON, with lists as arrays
         this.objectMapper = objectMapper.copy().deactivateDefaultTyping();
         this.userRepository = userRepository;
         this.labActionGuard = labActionGuard;
-        this.member = member;
+        this.worksIn = worksIn;
+    }
+
+    /** A copy belongs to its owner's site team; the solo copy to everyone without one. */
+    static boolean onSiteTeam(User user, LabTracker tracker) {
+        Team owner = tracker.getLabOwner();
+        if (tracker.isSolo()) {
+            return user.getTeam() == null;
+        }
+        return owner != null && user.getTeam() != null && user.getTeam().getId().equals(owner.getId());
     }
 
     @Override
@@ -92,7 +100,6 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
     }
 
     private void sendTracker(LabTracker labTracker, boolean removed) {
-        Team owner = labTracker.getLabOwner();
         labTracker.setPendingAction(labActionGuard.actionFor(labTracker.getId()));
 
         String message;
@@ -110,7 +117,7 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
         Map<String, Optional<User>> users = new HashMap<>();
         for (WebSocketSession session : this.currentSessions) {
             if (session.isOpen() && (labTracker.isShared() ? signedIn(session, users)
-                    : canSeeTeam(session, owner, labTracker.isSolo(), users))) {
+                    : canSeeCopy(session, labTracker, users))) {
                 send(session, message);
             }
         }
@@ -125,7 +132,7 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
     }
 
     // Looked up on every change so a role, team or disabled flag change applies to open sockets too
-    private boolean canSeeTeam(WebSocketSession session, Team owner, boolean solo, Map<String, Optional<User>> users) {
+    private boolean canSeeCopy(WebSocketSession session, LabTracker labTracker, Map<String, Optional<User>> users) {
         if (!(session.getAttributes().get(USER_ID) instanceof String userId)) {
             return false;
         }
@@ -136,10 +143,7 @@ public class AmaterasuSocketHandler extends TextWebSocketHandler {
         if (user.get().getRole() == Role.ADMIN || user.get().getRole() == Role.FACILITATOR) {
             return true;
         }
-        if (solo) {
-            return user.get().getTeam() == null;
-        }
-        return owner != null && member.test(user.get(), owner);
+        return worksIn.test(user.get(), labTracker);
     }
 
     /** Tells every signed-in client that points or attempts changed in a room, so open views can reload. */
