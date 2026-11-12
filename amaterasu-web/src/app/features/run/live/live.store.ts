@@ -98,12 +98,19 @@ export const LiveStore = signalStore(
       });
       const columns = [...labs.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ id, name }));
       const byKey = new Map(trackers().map(tracker => [`${tracker.labOwner?.id}:${tracker.labStarted?.id}`, tracker]));
-      const teamIds = new Set(trackers().map(tracker => tracker.labOwner?.id));
-      const rows = teams()
-        .filter(team => teamIds.has(team.id))
-        .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+      // Owners come from the copies, so a lab's own teams show alongside the site teams
+      const owners = new Map<string, string>();
+      trackers().forEach(tracker => {
+        if (tracker.labOwner?.id) owners.set(tracker.labOwner.id, tracker.labOwner.name ?? 'Team');
+      });
+      teams().forEach(team => {
+        if (team.id && owners.has(team.id) && team.name) owners.set(team.id, team.name);
+      });
+      const rows = [...owners.entries()]
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name))
         .map(team => ({
-          team: team.name ?? 'Team',
+          team: team.name,
           cells: columns.map(column => {
             const tracker = byKey.get(`${team.id}:${column.id}`);
             if (!tracker?.labStatus) return { label: 'None', tone: '' };
