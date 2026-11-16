@@ -28,11 +28,10 @@ export class EnvironmentService {
     return new Promise((resolve, reject) => {
       this.http.get<EnvironmentSettings>(this.configUrl).subscribe((response: EnvironmentSettings) => {
         this.configSettings = response;
-        console.log('getting env settings: ', this.configSettings);
         resolve(true);
       });
     }).catch((err: any) => {
-      console.log('Error reading configuration file: ', err);
+      console.error('Could not load the environment settings', err);
     });
   }
 }

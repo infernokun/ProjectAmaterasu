@@ -67,9 +67,6 @@ export class WebsocketService implements OnDestroy {
     });
     this.socketSubscription = this.socket$.subscribe({
       next: (message) => {
-        if (this.environmentService.settings?.production === false) {
-          console.log('Got socket message', message);
-        }
         if (!(message && message.type === 'heartbeat')) {
           this.clientFacingSubject$.next(message);
         }
