@@ -70,27 +70,21 @@ jobs:
           python-version: "3.14"
       - name: Lockfiles match requirements.in
         run: |
-          for r in amaterasu-proxmox/requirements amaterasu-populate/requirements requirements-dev; do
+          for r in amaterasu-proxmox/requirements amaterasu-proxmox/mock/requirements amaterasu-populate/requirements requirements-dev; do
             uv pip compile --quiet --universal --generate-hashes --python-version 3.14 $r.in -o $r.txt
           done
           git diff --exit-code -- '*requirements*.txt'
       - name: Install
         run: |
           uv venv
-          uv pip install --require-hashes -r requirements-dev.txt -r amaterasu-proxmox/requirements.txt -r amaterasu-populate/requirements.txt
+          uv pip install --require-hashes -r requirements-dev.txt -r amaterasu-proxmox/requirements.txt -r amaterasu-proxmox/mock/requirements.txt -r amaterasu-populate/requirements.txt
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
       - name: Lint
         run: ruff check .
       - name: Smoke test
         run: python amaterasu-proxmox/main.py
-      - name: Proxmox mock answers
-        run: |
-          python amaterasu-proxmox/mock/server.py &
-          for i in $(seq 1 20); do
-            curl -skf -H 'Authorization: PVEAPIToken=root@pam!ci=secret' https://127.0.0.1:8006/api2/json/version && exit 0
-            sleep 0.5
-          done
-          exit 1
+      - name: Proxmox mock self-test
+        run: python amaterasu-proxmox/mock/selftest.py
 
   docker:
     name: docker images

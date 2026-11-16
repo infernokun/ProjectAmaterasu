@@ -9,6 +9,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Data
 @Getter
@@ -55,6 +57,26 @@ public class ProxmoxVMConfig {
     @JsonIgnore
     public boolean isBastion() {
         return getTagList().stream().anyMatch(BASTION_TAG::equalsIgnoreCase);
+    }
+
+    private static final Pattern SSH_PORT_TAG = Pattern.compile("(?i)ssh-port-(\\d{1,5})");
+
+    /**
+     * The SSH port a bastion answers on, from an {@code ssh-port-N} tag; null for the default 22. For bastions
+     * behind a port forward, and the Proxmox mock, whose SSH server can't take port 22 without root.
+     */
+    @JsonIgnore
+    public Integer getSshPort() {
+        for (String tag : getTagList()) {
+            Matcher matcher = SSH_PORT_TAG.matcher(tag);
+            if (matcher.matches()) {
+                int port = Integer.parseInt(matcher.group(1));
+                if (port > 0 && port <= 65535) {
+                    return port == 22 ? null : port;
+                }
+            }
+        }
+        return null;
     }
 
     /** The NIC keeps its template bridge instead of moving to the lab bridge. */

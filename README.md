@@ -127,7 +127,7 @@ The root `package.json` wraps the common commands:
 Python requirements are managed with [uv](https://docs.astral.sh/uv/). Each `requirements.in` lists the direct dependencies, and `requirements.txt` is the hash-locked file compiled from it. Edit the `.in` file, then run `npm run deps:lock` from the repo root and commit both. `npm run deps:upgrade` moves everything to the latest versions the `.in` pins allow. CI fails if a `requirements.txt` is out of date with its `.in`.
 
 ```bash
-uv venv && uv pip install --require-hashes -r requirements-dev.txt -r amaterasu-proxmox/requirements.txt
+uv venv && uv pip install --require-hashes -r requirements-dev.txt -r amaterasu-proxmox/requirements.txt -r amaterasu-proxmox/mock/requirements.txt
 ```
 
 ## Configuration

@@ -54,6 +54,24 @@ describe('LabAccessComponent', () => {
     expect(el().textContent).toContain('ssh -L 8080:<lab-host>:80 player@10.0.0.42');
   });
 
+  it('puts a bastion SSH port other than 22 in the command and the tips', () => {
+    render(tracker('192.168.1.20', [
+      { vmid: 105, name: 'red-fox-pivot-tpl-bastion', status: 'running', role: 'bastion', ciuser: 'player',
+        accessAddress: '192.168.1.20', accessPort: 2022, labSubnet: '172.16.0.0/24' },
+    ]));
+    expect(el().textContent).toContain('ssh -p 2022 player@192.168.1.20');
+    expect(el().textContent).toContain('ssh -J player@192.168.1.20:2022 user@<lab-host>');
+    expect(el().textContent).toContain('ssh -p 2022 -L 8080:<lab-host>:80 player@192.168.1.20');
+  });
+
+  it('leaves port 22 out of the command', () => {
+    render(tracker('10.0.0.42', [
+      { vmid: 105, name: 'b', status: 'running', role: 'bastion', ciuser: 'player', accessAddress: '10.0.0.42', accessPort: 22 },
+    ]));
+    expect(el().textContent).toContain('ssh player@10.0.0.42');
+    expect(el().textContent).not.toContain('-p 22');
+  });
+
   it('waits for the bastion address', () => {
     render(tracker(null));
     expect(el().textContent).toContain("Waiting for the bastion's address");

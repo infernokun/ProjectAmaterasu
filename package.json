@@ -14,8 +14,8 @@
     "test:rest": "cd amaterasu-rest && ./gradlew test",
     "lint:python": "uvx ruff check .",
 
-    "deps:lock": "for r in amaterasu-proxmox/requirements amaterasu-populate/requirements requirements-dev; do uv pip compile --quiet --universal --generate-hashes --python-version 3.14 $r.in -o $r.txt; done",
-    "deps:upgrade": "for r in amaterasu-proxmox/requirements amaterasu-populate/requirements requirements-dev; do uv pip compile --quiet --universal --generate-hashes --upgrade --python-version 3.14 $r.in -o $r.txt; done",
+    "deps:lock": "for r in amaterasu-proxmox/requirements amaterasu-proxmox/mock/requirements amaterasu-populate/requirements requirements-dev; do uv pip compile --quiet --universal --generate-hashes --python-version 3.14 $r.in -o $r.txt; done",
+    "deps:upgrade": "for r in amaterasu-proxmox/requirements amaterasu-proxmox/mock/requirements amaterasu-populate/requirements requirements-dev; do uv pip compile --quiet --universal --generate-hashes --upgrade --python-version 3.14 $r.in -o $r.txt; done",
 
     "docker:build-web": "cd amaterasu-web && npm run docker:build",
     "docker:build-rest": "cd amaterasu-rest && npm run docker:build",

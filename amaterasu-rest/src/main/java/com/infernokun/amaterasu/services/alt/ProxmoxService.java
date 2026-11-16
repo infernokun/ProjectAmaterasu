@@ -948,6 +948,7 @@ public class ProxmoxService extends BaseService {
             copy.setRole(ProxmoxVM.BASTION);
             String uplink = source.getNetworks().get(ProxmoxVMConfig.UPLINK_NIC);
             copy.setUplinkBridge(uplink != null ? bridgeOf(uplink) : null);
+            copy.setAccessPort(source.getSshPort());
             copy.setLabSubnet(source.getIpconfigs().entrySet().stream()
                     .filter(entry -> !source.isUplink("net" + entry.getKey().substring("ipconfig".length())))
                     .sorted(Map.Entry.comparingByKey())

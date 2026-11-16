@@ -33,6 +33,15 @@ class ProxmoxVMTest {
     }
 
     @Test
+    void aBastionKeepsItsSshPortAcrossStatusReads() {
+        ProxmoxVM tracked = tracked(ProxmoxVM.BASTION);
+        tracked.setAccessPort(2022);
+
+        assertThat(current("running").keepLabDetails(tracked).getAccessPort()).isEqualTo(2022);
+        assertThat(current("stopped").keepLabDetails(tracked).getAccessPort()).isEqualTo(2022);
+    }
+
+    @Test
     void anotherRoleKeepsWhatItHadWhileStopped() {
         ProxmoxVM vm = current("stopped").keepLabDetails(tracked(null));
 
