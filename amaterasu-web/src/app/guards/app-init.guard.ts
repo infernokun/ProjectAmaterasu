@@ -19,12 +19,9 @@ export class AppInitGuard implements CanActivate {
         return this.appInitService.isInitialized().pipe(
           take(1),
           switchMap((initialized: boolean) => {
-            console.warn('AppInitGuard: Checking initialization status:', initialized);
             if (initialized) {
-              console.warn('AppInitGuard: App is initialized, access granted.');
               return of(true);
             } else {
-              console.warn('AppInitGuard: App is not initialized, redirecting to /init');
               this.router.navigate(['/init']);
               return of(false);
             }

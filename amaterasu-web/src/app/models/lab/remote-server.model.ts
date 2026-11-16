@@ -89,7 +89,6 @@ export class RemoteServerFormData extends SimpleFormData {
         action: (func: () => void) => {
           if (!func) return;
           func();
-          console.log('func called')
         }
       }),
     );

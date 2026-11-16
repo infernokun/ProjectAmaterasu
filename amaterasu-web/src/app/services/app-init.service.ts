@@ -43,14 +43,12 @@ export class AppInitService extends BaseService {
     }
 
     const url = environmentService.settings?.restUrl + '/application-info';
-    console.log('Loading application info from: ', url);
 
     this.hasLoadedInfo = true; // Mark as loaded before the request to prevent race conditions
 
     this.get<ApiResponse<ApplicationInfo>>(url)
       .pipe(
-        catchError((err: any) => {
-          console.warn('Error reading configuration file: ', err.message);
+        catchError(() => {
           this.initializedSubject$.next(false);
           this.initializationCompleteSubject.next(true);
           this.initializationCompleteSubject.complete();
@@ -59,15 +57,12 @@ export class AppInitService extends BaseService {
       )
       .subscribe({
         next: (response: ApiResponse<ApplicationInfo>) => {
-          console.log('Received Application Info: ', response);
           if (response && response.data) {
             this.applicationInfo$.next(new ApplicationInfo(response.data));
             this.initializedSubject$.next(true);
           } else {
-            console.warn('No application info found');
             this.initializedSubject$.next(false);
           }
-          console.log('Initialization status: ', this.initializedSubject$.getValue());
 
           // Signal that initialization process is complete
           this.initializationCompleteSubject.next(true);

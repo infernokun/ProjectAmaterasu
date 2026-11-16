@@ -163,7 +163,7 @@ public class AmaterasuLogger implements Filter {
         } else {
             durationStr = String.format("%.1fm", duration / 60000.0);
         }
-        return SEPARATOR + String.format("⏱ %-8s", durationStr);
+        return SEPARATOR + String.format("%-8s", durationStr);
     }
 
     private String formatOptionalField(String label, String value) {
@@ -175,7 +175,7 @@ public class AmaterasuLogger implements Filter {
 
     private String formatError(String errorMessage) {
         if (errorMessage != null && !errorMessage.trim().isEmpty()) {
-            return SEPARATOR + "❌ " + errorMessage;
+            return SEPARATOR + "error: " + errorMessage;
         }
         return "";
     }
@@ -224,11 +224,11 @@ public class AmaterasuLogger implements Filter {
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
-        log.info("🚀 AmaterasuLogger initialized | Excluded URLs: {}", excludedUrls);
+        log.info("AmaterasuLogger initialized | Excluded URLs: {}", excludedUrls);
     }
 
     @Override
     public void destroy() {
-        log.info("🛑 AmaterasuLogger destroyed");
+        log.info("AmaterasuLogger destroyed");
     }
 }

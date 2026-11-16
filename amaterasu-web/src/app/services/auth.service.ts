@@ -68,8 +68,6 @@ export class AuthService implements OnDestroy {
   }
 
   private startSmartTokenRefresh(): void {
-    console.log('Starting smart token refresh system');
-
     this.refreshCheckInterval = setInterval(() => {
       this.checkTokenRefreshNeeded();
     }, this.REFRESH_CHECK_INTERVAL);
@@ -79,13 +77,11 @@ export class AuthService implements OnDestroy {
     // Only check if user has been active recently
     const timeSinceActivity = Date.now() - this.lastActivityTime;
     if (timeSinceActivity > this.ACTIVITY_TIMEOUT) {
-      console.log('User inactive for', Math.floor(timeSinceActivity / 1000 / 60), 'minutes, skipping token check');
       return;
     }
 
     // Only check if page is visible (not a background tab)
     if (document.hidden) {
-      console.log('Page is hidden, skipping token check');
       return;
     }
 
@@ -101,11 +97,8 @@ export class AuthService implements OnDestroy {
 
     // Only refresh if close to expiry AND user is active
     if (this.isTokenCloseToExpiry(decodedToken) && !this.isRefreshing) {
-      console.log('Proactive token refresh triggered (user active)');
-      this.performTokenRefresh().subscribe({
-        next: (success) => console.log('Proactive refresh result:', success),
-        error: (error) => console.error('Proactive refresh failed:', error)
-      });
+      // A failed refresh logs the user out; performTokenRefresh never errors
+      this.performTokenRefresh().subscribe();
     }
   }
 
@@ -142,13 +135,11 @@ export class AuthService implements OnDestroy {
 
     const decodedToken = this.decodeToken(accessToken);
     if (!decodedToken || !this.isTokenStructureValid(decodedToken)) {
-      console.log('Invalid access token structure');
       this.clearAuthState();
       return of(false);
     }
 
     if (this.isTokenExpired(decodedToken)) {
-      console.log('Access token expired, attempting refresh...');
       return this.performTokenRefresh();
     }
 
@@ -182,7 +173,6 @@ export class AuthService implements OnDestroy {
       const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
       return JSON.parse(atob(base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=')));
     } catch (error) {
-      console.warn('Failed to decode token:', error);
       return null;
     }
   }
@@ -203,22 +193,17 @@ export class AuthService implements OnDestroy {
     const expiryTime = decodedToken.exp * 1000;
     const timeUntilExpiry = expiryTime - currentTime;
 
-    console.log('Time until expiry (minutes):', timeUntilExpiry / (1000 * 60));
-
     return timeUntilExpiry <= this.TOKEN_REFRESH_BUFFER;
   }
 
   private setupAuthFromValidToken(accessToken: string, decodedToken: any): Observable<boolean> {
     // Always fetch full user object from server using ID in token
-    console.log('Fetching full user data from server for user ID:', decodedToken.sub);
     return this.userService.getUserById(decodedToken.sub).pipe(
       map((user: User | undefined) => {
         if (!user) {
-          console.log('User not found on server for ID:', decodedToken.sub);
           this.clearAuthState();
           return false;
         }
-        console.log('Full user data retrieved:', user);
         this.setPayload(user, accessToken);
         return true;
       }),
@@ -263,12 +248,10 @@ export class AuthService implements OnDestroy {
           throw new Error('User data missing from refresh response');
         }
 
-        console.log('Token refreshed, using user data from response:', user);
         this.setPayload(new User(user), newAccessToken);
         this.refreshTokenSubject.next(newAccessToken);
         this.isRefreshing = false;
 
-        console.log('Token refreshed successfully');
         return true;
       }),
       catchError((error) => {
@@ -287,7 +270,6 @@ export class AuthService implements OnDestroy {
       this.loginService.logout().pipe(
         timeout(5000),
         catchError((error) => {
-          console.warn('Server logout failed, proceeding with local logout:', error);
           return of(null);
         })
       ).subscribe(() => {
@@ -301,7 +283,6 @@ export class AuthService implements OnDestroy {
   private performLogout(): void {
     this.clearAuthState();
     this.router.navigate(['/welcome']);
-    console.log('Logout completed');
   }
 
   private clearAuthState(): void {
@@ -315,7 +296,6 @@ export class AuthService implements OnDestroy {
   }
 
   private handleAuthError(message: string, error?: any): Observable<boolean> {
-    console.error(`Auth error: ${message}`, error);
     this.clearAuthState();
     return of(false);
   }
