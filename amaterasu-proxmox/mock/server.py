@@ -14,7 +14,9 @@ import ssl
 import time
 from pathlib import Path
 
+import sshd
 from aiohttp import web
+from machines import TEMPLATE_IMAGES, World
 from vnc import console_handler, issue_ticket
 
 HERE = Path(__file__).parent
@@ -56,6 +58,10 @@ started_at: dict[int, int] = {}
 tasks: dict[str, dict] = {}
 networks: list[dict] = load("networkInterfaces.json")["data"]
 pending_networks: list[dict] | None = None
+# What runs inside the VMs: the cipassword as set (the API only shows it masked) and each disk's image
+secrets: dict[int, str] = {}
+images: dict[int, str] = {}
+world = World(vms, configs, started_at, secrets, images)
 # Insertion ordered: the nodes of the cluster, as GET /nodes lists them
 known_nodes = dict.fromkeys(n["node"] for n in NODES["data"])
 
@@ -124,6 +130,7 @@ for vm in load("vms.json")["data"]:
                        "ide2": "local-lvm:vm-9004-cloudinit,media=cdrom"})
         config["net0"] = f"virtio={random_mac()},bridge=vmbr1"
     configs[vmid] = config
+    images[vmid] = TEMPLATE_IMAGES.get(vmid, "server")
 
 # A bastion like tpl-bastion on proxmox2: net0 is the uplink, net1 joins the lab
 vms[9005] = {"vmid": 9005, "name": "tpl-bastion", "status": "stopped", "uptime": 0, "cpu": 0, "cpus": 1, "mem": 0,
@@ -132,6 +139,7 @@ configs[9005] = template_config(
     vms[9005], agent="1", tags="amaterasu;bastion", ciuser="player", ide2="local-lvm:vm-9005-cloudinit,media=cdrom",
     net0=f"virtio={random_mac()},bridge=vmbr0", net1=f"virtio={random_mac()},bridge=vmbr1",
     ipconfig0="ip=dhcp", ipconfig1="ip=172.16.0.1/24")
+images[9005] = TEMPLATE_IMAGES[9005]
 for vm in vms.values():
     known_nodes[vm["node"]] = None
 
@@ -361,7 +369,9 @@ async def apply_config(request) -> dict:
                 raise ApiError(400, f"bridge '{bridge[1]}' does not exist")
             config[key] = with_mac(value)
             continue
-        # PVE keeps only a hash and shows it masked
+        # PVE keeps only a hash and shows it masked; the machine itself takes the password
+        if key == "cipassword":
+            secrets[vm["vmid"]] = str(value)
         config[key] = "**********" if key == "cipassword" else js_string(value)
     if to_delete:
         for key in str(to_delete).split(","):
@@ -424,6 +434,10 @@ async def clone_vm(request):
             config[key] = config[key].replace(f"base-{source['vmid']}-", f"vm-{newid}-").replace(
                 f"vm-{source['vmid']}-", f"vm-{newid}-")
     configs[newid] = config
+    # The clone's disk is a copy of the template's, cloud-init settings included
+    images[newid] = images.get(source["vmid"], "server")
+    if source["vmid"] in secrets:
+        secrets[newid] = secrets[source["vmid"]]
 
     return ok(start_task(request, "qmclone", source["vmid"], lambda: clone.pop("lock", None)))
 
@@ -476,26 +490,15 @@ async def agent_interfaces(request):
     result = [{"hardware-address": "00:00:00:00:00:00", "name": "lo",
                "ip-addresses": [{"ip-address": "127.0.0.1", "ip-address-type": "ipv4", "prefix": 8},
                                 {"ip-address": "::1", "ip-address-type": "ipv6", "prefix": 128}]}]
-    for index, key in enumerate(sorted(k for k in config if NIC_KEY.match(k))):
-        n = key[3:]
-        mac = MAC_VALUE.search(config[key])
-        bridge = BRIDGE.search(config[key])
-        fixed = re.search(r"ip=([\d.]+)/(\d+)", config.get(f"ipconfig{n}") or "")
-        lan = not re.match(r"^abr\d+$", bridge[1] if bridge else "")
-        if fixed:
-            ip = fixed[1]
-        elif lan:
-            ip = f"10.0.0.{20 + vm['vmid'] % 200}"
-        else:
-            ip = f"172.16.0.{100 + vm['vmid'] % 100}"
-        mac_text = mac[1].lower() if mac else ""
-        addresses = [{"ip-address": ip, "ip-address-type": "ipv4", "prefix": int(fixed[2]) if fixed else 24}]
-        if mac:
+    machine = world.machine(vm["vmid"])
+    for iface in machine.interfaces if machine else []:
+        addresses = [{"ip-address": iface.ip, "ip-address-type": "ipv4", "prefix": iface.prefix}]
+        if iface.mac:
             # The link-local address PVE guests also report, from the MAC
-            octets = mac_text.split(":")
+            octets = iface.mac.split(":")
             eui = f"{int(octets[0], 16) ^ 2:02x}{octets[1]}:{octets[2]}ff:fe{octets[3]}:{octets[4]}{octets[5]}"
             addresses.append({"ip-address": f"fe80::{eui}", "ip-address-type": "ipv6", "prefix": 64})
-        result.append({"hardware-address": mac_text, "name": f"eth{index}", "ip-addresses": addresses})
+        result.append({"hardware-address": iface.mac, "name": iface.name, "ip-addresses": addresses})
     return ok({"result": result})
 
 
@@ -510,6 +513,8 @@ async def destroy_vm(request):
     def finish():
         vms.pop(vm["vmid"], None)
         configs.pop(vm["vmid"], None)
+        for state in (secrets, images, world.overlays):
+            state.pop(vm["vmid"], None)
 
     return ok(start_task(request, "qmdestroy", vm["vmid"], finish))
 
@@ -623,10 +628,20 @@ async def not_implemented(request):
 
 def make_app() -> web.Application:
     app = web.Application(middlewares=[pve])
-    app.router.add_get(API + "/nodes/{node}/qemu/{vmid}/vncwebsocket", console_handler(vms))
+    app.router.add_get(API + "/nodes/{node}/qemu/{vmid}/vncwebsocket", console_handler(world))
     app.add_routes(routes)
     app.router.add_route("*", "/{tail:.*}", not_implemented)
+    app.on_startup.append(start_ssh)
     return app
+
+
+async def start_ssh(app: web.Application):
+    print(await sshd.start(world))
+    if world.ssh_port and world.ssh_port != 22:
+        # The app shows `ssh -p PORT` for a bastion whose template carries this tag
+        for vmid, config in configs.items():
+            if vms[vmid].get("template") and "bastion" in str(config.get("tags", "")):
+                config["tags"] = f"{config['tags']};ssh-port-{world.ssh_port}"
 
 
 def main():

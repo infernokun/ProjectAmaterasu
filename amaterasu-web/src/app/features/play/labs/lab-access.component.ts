@@ -87,17 +87,24 @@ export class LabAccessComponent {
   protected readonly bastion = computed(() => bastionOf(this.tracker()));
   protected readonly user = computed(() => loginUser(this.tracker()));
   protected readonly labName = computed(() => this.tracker().labStarted?.name ?? 'this lab');
+  /** The bastion's SSH port, when it isn't the default 22. */
+  private readonly port = computed(() => {
+    const port = this.bastion()?.accessPort;
+    return port && port !== 22 ? port : null;
+  });
   protected readonly command = computed(() => {
     const address = this.bastion()?.accessAddress;
-    return address ? `ssh ${this.user() ?? 'user'}@${address}` : null;
+    const port = this.port();
+    return address ? `ssh ${port ? `-p ${port} ` : ''}${this.user() ?? 'user'}@${address}` : null;
   });
   protected readonly tips = computed(() => {
     const login = `${this.user() ?? 'user'}@${this.bastion()?.accessAddress ?? '<bastion>'}`;
+    const port = this.port();
     return [
       `# A lab host, jumping through the bastion`,
-      `ssh -J ${login} user@<lab-host>`,
+      `ssh -J ${login}${port ? `:${port}` : ''} user@<lab-host>`,
       `# A lab web server at http://localhost:8080`,
-      `ssh -L 8080:<lab-host>:80 ${login}`,
+      `ssh ${port ? `-p ${port} ` : ''}-L 8080:<lab-host>:80 ${login}`,
     ].join('\n');
   });
 

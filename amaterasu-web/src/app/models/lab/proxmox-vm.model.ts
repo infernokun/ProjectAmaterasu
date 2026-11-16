@@ -18,6 +18,8 @@ export class ProxmoxVM {
   ready?: boolean | null;
   /** A bastion's LAN address. */
   accessAddress?: string | null;
+  /** The bastion's SSH port when it isn't 22, from an `ssh-port-N` tag on its template. */
+  accessPort?: number | null;
   uplinkBridge?: string | null;
   /** The lab network behind a bastion, e.g. 172.16.0.0/24. */
   labSubnet?: string | null;
@@ -38,6 +40,7 @@ export class ProxmoxVM {
       this.guestAgent = serverResult.guestAgent;
       this.ready = serverResult.ready;
       this.accessAddress = serverResult.accessAddress;
+      this.accessPort = serverResult.accessPort;
       this.uplinkBridge = serverResult.uplinkBridge;
       this.labSubnet = serverResult.labSubnet;
     }

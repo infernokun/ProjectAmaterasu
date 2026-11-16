@@ -43,6 +43,8 @@ public class ProxmoxVM {
     private Boolean ready;
     /** A bastion's IPv4 on its uplink, from the guest agent. */
     private String accessAddress;
+    /** A bastion's SSH port when it isn't 22, from an {@code ssh-port-N} tag on its template; null means 22. */
+    private Integer accessPort;
     /** The bridge a bastion's uplink stays on, e.g. vmbr0. */
     private String uplinkBridge;
     /** The lab network behind a bastion, e.g. 172.16.0.0/24. */
@@ -75,6 +77,7 @@ public class ProxmoxVM {
             guestAgent = tracked.guestAgent;
             ready = tracked.ready;
             accessAddress = tracked.accessAddress;
+            accessPort = tracked.accessPort;
             uplinkBridge = tracked.uplinkBridge;
             labSubnet = tracked.labSubnet;
             macs = tracked.macs;

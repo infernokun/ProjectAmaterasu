@@ -11,6 +11,8 @@ import time
 from pathlib import Path
 
 from aiohttp import WSMsgType, web
+from machines import World
+from shell import CLEAR, ConsoleLogin
 
 FONT = json.loads((Path(__file__).parent / "data" / "font.json").read_text())
 FONT_W = FONT["width"]
@@ -53,7 +55,7 @@ def issue_ticket(node: str, vm: dict, user: str = "root@pam") -> dict:
     }
 
 
-def console_handler(vms: dict[int, dict]):
+def console_handler(world: World):
     """Serves /api2/json/nodes/{node}/qemu/{vmid}/vncwebsocket."""
 
     async def handle(request: web.Request) -> web.StreamResponse:
@@ -71,13 +73,13 @@ def console_handler(vms: dict[int, dict]):
                 or issued["port"] != request.query.get("port") or issued["expires"] < now_ms()):
             print(f"Rejected console for VM {vmid}: bad or expired ticket")
             return web.Response(status=401, reason="Permission check failed")
-        vm = vms.get(vmid)
-        if not vm or vm.get("status") != "running":
+        machine = world.machine(vmid)
+        if not machine or not machine.running:
             return web.Response(status=500, reason=f"VM {vmid} not running")
 
         await ws.prepare(request)
-        print(f"Console opened for VM {vmid} ({vm['name']})")
-        await Console(ws, vm).serve()
+        print(f"Console opened for VM {vmid} ({machine.hostname})")
+        await Console(ws, machine).serve()
         return ws
 
     return handle
@@ -88,13 +90,15 @@ class ProtocolError(Exception):
 
 
 class Console:
-    def __init__(self, ws: web.WebSocketResponse, vm: dict):
+    def __init__(self, ws: web.WebSocketResponse, machine):
         self.ws = ws
-        self.vm = vm
-        self.lines = [f"Debian GNU/Linux 12 {vm['name']} tty1", "", f"{vm['name']} login: "]
+        self.machine = machine
+        self.vm = machine.vm
+        self.session = ConsoleLogin(machine)
+        self.screen = ""  # what has been printed, the current prompt included
         self.input = ""
-        self.prompt_length = len(self.lines[2])
-        self.awaiting_password = False
+        self.ctrl = False
+        self.write(self.session.banner() + self.session.prompt)
         self.format = {"big_endian": False, "rshift": 16, "gshift": 8, "bshift": 0, "rmax": 255, "gmax": 255, "bmax": 255}
         self.stage = "version"
         self.pending = bytearray()
@@ -111,6 +115,10 @@ class Console:
                 self.pending += msg.data.encode()
             else:
                 break
+            if not self.machine.running:
+                print(f"Console for VM {self.vm['vmid']} closed: the VM stopped")
+                await self.ws.close(code=1000, message=b"VM stopped")
+                return
             try:
                 while self.step():
                     pass
@@ -201,8 +209,7 @@ class Console:
             msg = self.take(8)
             if not msg:
                 return False
-            if msg[1]:
-                self.key(struct.unpack_from(">I", msg, 4)[0])
+            self.key(struct.unpack_from(">I", msg, 4)[0], bool(msg[1]))
             return True
         if kind == 5:  # PointerEvent
             return self.take(6) is not None
@@ -213,33 +220,58 @@ class Console:
             return self.take(8 + length) is not None
         raise ProtocolError(f"unknown client message {kind}")
 
-    def key(self, keysym: int):
-        lines = self.lines
-        if 0x20 <= keysym <= 0x7E:
-            self.input += chr(keysym)
-            if not self.awaiting_password:
-                lines[-1] += chr(keysym)
-        elif keysym == 0xFF08 and self.input:
-            self.input = self.input[:-1]
-            if not self.awaiting_password and len(lines[-1]) > self.prompt_length:
-                lines[-1] = lines[-1][:-1]
-        elif keysym in (0xFF0D, 0xFF8D):
-            name = self.vm["name"]
-            if self.awaiting_password:
-                lines += ["", "Login incorrect", f"{name} login: "]
-                self.awaiting_password = False
-            elif self.input:
-                lines.append("Password: ")
-                self.awaiting_password = True
-            else:
-                lines.append(f"{name} login: ")
-            self.prompt_length = len(lines[-1])
+    def write(self, text: str):
+        if CLEAR in text:
+            self.screen = ""
+            text = text.rsplit(CLEAR, 1)[1]
+        # Keep a few screens of scrollback
+        self.screen = (self.screen + text)[-COLS * ROWS * 4:]
+
+    def key(self, keysym: int, down: bool = True):
+        if keysym in (0xFFE3, 0xFFE4):  # Control_L, Control_R
+            self.ctrl = down
+            return
+        if not down:
+            return
+        session = self.session
+        if self.ctrl and keysym in (ord("c"), ord("C")):
+            self.write((self.input if session.echo else "") + session.interrupt() + session.prompt)
             self.input = ""
-            del lines[:max(0, len(lines) - ROWS)]
+        elif self.ctrl and keysym in (ord("l"), ord("L")):
+            self.screen = ""
+            self.write(session.prompt)
+        elif self.ctrl and keysym in (ord("d"), ord("D")):
+            if self.input or session.shell is None:  # at the login prompt Ctrl-D does nothing
+                return
+            self.enter("exit")
+        elif 0x20 <= keysym <= 0x7E:
+            self.input += chr(keysym)
+        elif keysym == 0xFF08:
+            self.input = self.input[:-1]
+        elif keysym in (0xFF0D, 0xFF8D):
+            self.enter(self.input)
         else:
             return
         self.dirty = True
         self.flush()
+
+    def enter(self, line: str):
+        echoed = line if self.session.echo else ""
+        self.input = ""
+        self.write(echoed + "\n")
+        self.write(self.session.feed(line))
+        self.write(self.session.prompt)
+        self.dirty = True
+
+    def rows(self) -> list[str]:
+        """The screen's last ROWS rows, long lines wrapped, with the typed input after the prompt."""
+        text = self.screen + (self.input if self.session.echo else "")
+        rows = []
+        for line in text.split("\n"):
+            rows += [line[i:i + COLS] for i in range(0, len(line), COLS)] or [""]
+        if rows and len(rows[-1]) == COLS:
+            rows.append("")
+        return rows[-ROWS:]
 
     def flush(self):
         if not self.wants_frame or not self.dirty:
@@ -261,7 +293,8 @@ class Console:
         fg = self.pixel(FG)
         bg = self.pixel(BG)
         out = bytearray(bg * (WIDTH * HEIGHT))
-        cursor_row = len(self.lines) - 1
+        lines = self.rows()
+        cursor_row = len(lines) - 1
         cell_rows: dict[int, bytes] = {}  # glyph row bits -> the 9 pixels it draws
 
         def cell_row(bits: int) -> bytes:
@@ -269,7 +302,7 @@ class Console:
                 cell_rows[bits] = b"".join(fg if bits & (1 << (FONT_W - 1 - x)) else bg for x in range(FONT_W))
             return cell_rows[bits]
 
-        for row, line in enumerate(self.lines):
+        for row, line in enumerate(lines):
             text = line + CURSOR if row == cursor_row else line
             for col, char in enumerate(text[:COLS]):
                 glyph = CURSOR_ROWS if char == CURSOR else FONT["glyphs"].get(char)
