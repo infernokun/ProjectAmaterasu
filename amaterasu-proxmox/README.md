@@ -30,7 +30,7 @@ Dependencies are pinned in `requirements.in` and hash-locked in `requirements.tx
 
 ## API mock
 
-`mock/` is a stateful Express server that answers the parts of the Proxmox API the REST service uses:
+`mock/` is a stateful [aiohttp](https://docs.aiohttp.org/) server that answers the parts of the Proxmox API the REST service uses:
 
 - Clone, start, stop, shutdown and destroy return a task UPID that finishes after `MOCK_TASK_MS` (default 3000).
 - Clones stay locked until their task finishes, and running VMs cannot be destroyed.
@@ -44,8 +44,10 @@ Dependencies are pinned in `requirements.in` and hash-locked in `requirements.tx
 
 Templates `9000` to `9004` and bridges `vmbr0` and `vmbr1` are seeded from `mock/data`. `9004` has the guest agent, and `9005` is `tpl-bastion` as on the real node: tagged `bastion`, cloud-init user `player`, `net0` on `vmbr0` (the uplink) and `net1` on `vmbr1` (the lab side, `172.16.0.1/24`).
 
+With the same environment as the CLI:
+
 ```bash
-cd mock && pnpm install && pnpm start
+uv run --no-project python mock/server.py
 ```
 
 It listens on `https://127.0.0.1:8006` with a self-signed certificate. Add it in the web app as a Proxmox server with IP `127.0.0.1`, node `inferno` and any API token.
