@@ -1,8 +1,7 @@
 {
   "data": {
-    "version": "7.4-13",
-    "release": "7.4",
-    "repoid": "7b2cd5d5",
-    "apiVersion": "2.0"
+    "release": "9.2",
+    "repoid": "b9984c6d90a4bd80",
+    "version": "9.2.2"
   }
 }

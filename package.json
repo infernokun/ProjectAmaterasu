@@ -5,7 +5,7 @@
   "scripts": {
     "start:web": "cd amaterasu-web && pnpm start",
     "start:rest": "cd amaterasu-rest && ./gradlew bootRun",
-    "start:mock": "cd amaterasu-proxmox/mock && pnpm install && pnpm start",
+    "start:mock": "cd amaterasu-proxmox && uv run --no-project python mock/server.py",
 
     "build:web": "cd amaterasu-web && pnpm run build:prod",
     "build:rest": "cd amaterasu-rest && ./gradlew build --no-daemon -x test",
