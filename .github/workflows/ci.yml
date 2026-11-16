@@ -86,7 +86,10 @@ jobs:
       - name: Proxmox mock answers
         run: |
           python amaterasu-proxmox/mock/server.py &
-          for i in $(seq 1 20); do curl -skf https://127.0.0.1:8006/api2/json/version && exit 0; sleep 0.5; done
+          for i in $(seq 1 20); do
+            curl -skf -H 'Authorization: PVEAPIToken=root@pam!ci=secret' https://127.0.0.1:8006/api2/json/version && exit 0
+            sleep 0.5
+          done
           exit 1
 
   docker:

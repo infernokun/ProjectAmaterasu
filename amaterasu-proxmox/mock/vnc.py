@@ -37,8 +37,8 @@ def now_ms() -> int:
     return int(time.time() * 1000)
 
 
-def issue_ticket(node: str, vm: dict) -> dict:
-    """What POST .../vncproxy returns."""
+def issue_ticket(node: str, vm: dict, user: str = "root@pam") -> dict:
+    """What POST .../vncproxy returns, for the API token's user (USER@REALM!TOKENID)."""
     global _issued_count
     port = str(5900 + (_issued_count % 100))
     _issued_count += 1
@@ -48,8 +48,8 @@ def issue_ticket(node: str, vm: dict) -> dict:
         "cert": "-----BEGIN CERTIFICATE-----\nMOCK\n-----END CERTIFICATE-----\n",
         "port": port,
         "ticket": ticket,
-        "upid": f"UPID:{node}:{now_ms():x}:0:vncproxy:{vm['vmid']}:root@pam:",
-        "user": "root@pam",
+        "upid": f"UPID:{node}:{now_ms():08X}:00000000:{int(time.time()):08X}:vncproxy:{vm['vmid']}:{user}:",
+        "user": user,
     }
 
 
