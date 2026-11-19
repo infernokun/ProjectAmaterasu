@@ -78,9 +78,27 @@ services:
       retries: 10
       start_period: 60s
 
+  # Proxmox API mock (amaterasu-proxmox/mock). Opt-in: `docker compose --profile mock up -d`.
+  # Register it in Admin > Servers as Proxmox, address amaterasu-proxmox-mock, node inferno.
+  amaterasu-proxmox-mock:
+    image: ${REGISTRY:-docker.io}/${NAMESPACE:-infernokun}/amaterasu-proxmox-mock:${TAG:-latest}
+    profiles: ["mock"]
+    restart: always
+    environment:
+      # The address bastions report for `ssh -p`: this host's LAN address
+      MOCK_SSH_ADDRESS: "${MOCK_SSH_ADDRESS:-}"
+      MOCK_SSH_PORT: "${MOCK_SSH_PORT:-2022}"
+    ports:
+      - "${MOCK_API_PORT:-8006}:8006"
+      # Same port inside and out: bastions advertise MOCK_SSH_PORT
+      - "${MOCK_SSH_PORT:-2022}:${MOCK_SSH_PORT:-2022}"
+    volumes:
+      - amaterasu-proxmox-mock:/data
+
 volumes:
   amaterasu-db:
     driver: local
   amaterasu-web:
   amaterasu-redis:
   amaterasu-rest:
+  amaterasu-proxmox-mock:

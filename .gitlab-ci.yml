@@ -1,61 +1,268 @@
+spec:
+  inputs:
+    force_run:
+      type: boolean
+      default: false
+      description: "Force all stages to run regardless of file changes"
+---
+# GitHub main is mirrored here, so every merge runs this and deploys what it rebuilt to the LAN
+# server. Tests and builds are interruptible; deploy is not, so a newer push never kills it midway.
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+
 stages:
+  - test
   - build
   - deploy
 
 variables:
   DOCKER_HOST: "unix:///var/run/docker.sock"
+  GIT_STRATEGY: fetch
+  FORCE_RUN: "$[[ inputs.force_run ]]"
+  REGISTRY: registry.local.infernokun.com
+  # GitLab's registry: the path must be this project's
+  NAMESPACE: infernokun/project-amaterasu
 
-build-rest:
-  stage: build
-  image: docker:24.0.7
-  before_script:
-    - echo $DOCKER_HUB_ACCESS_TOKEN | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin
-    - apk add --no-cache nodejs npm bash jq
+# A scheduled pipeline counts every `changes:` as matched and would deploy everything
+.no-schedule:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+
+test-rest:
+  stage: test
+  image: gradle:8.14.3-jdk21
+  allow_failure: true
+  interruptible: true
   script:
     - cd amaterasu-rest
-    - npm run docker:build
+    - ./gradlew build --no-daemon
+  artifacts:
+    when: always
+    reports:
+      junit: amaterasu-rest/build/test-results/test/TEST-*.xml
+    paths:
+      - amaterasu-rest/build/reports/tests/
+    expire_in: 30 days
   tags:
     - docker
+  rules:
+    - !reference [.no-schedule, rules]
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $FORCE_RUN == "true"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - amaterasu-rest/**/*
+        - .gitlab-ci.yml
 
-build-web:
-  stage: build
-  image: docker:24.0.7
-  services:
-    - name: docker:dind
-      command: ["--host=tcp://0.0.0.0:2375", "--mtu=1500"]
+test-web:
+  stage: test
+  image: node:24-slim
+  allow_failure: true
+  interruptible: true
+  variables:
+    PUPPETEER_CACHE_DIR: "$CI_PROJECT_DIR/.chrome-cache"
+  cache:
+    - key: chrome-for-testing-131
+      paths:
+        - .chrome-cache/
+    - key:
+        prefix: pnpm
+        files:
+          - amaterasu-web/pnpm-lock.yaml
+      paths:
+        - .pnpm-store/
   before_script:
-    - echo $DOCKER_HUB_ACCESS_TOKEN  | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin
-    - apk add --no-cache nodejs npm bash jq
+    # apt Chromium only for its shared libraries; the browser is a pinned Chrome for Testing
+    - apt-get update -q && apt-get install -y -q chromium unzip
+    - npm install -g pnpm@10 -q
+    - export CHROME_BIN=$(npx --yes @puppeteer/browsers install chrome@131 --path "$PUPPETEER_CACHE_DIR" | tail -1 | awk '{print $NF}')
+    - $CHROME_BIN --version
   script:
     - cd amaterasu-web
-    - npm run docker:build
+    - pnpm install --frozen-lockfile -q --store-dir "$CI_PROJECT_DIR/.pnpm-store"
+    - pnpm exec ng test --watch=false --browsers=ChromeHeadlessCI
+  tags:
+    - docker
+  rules:
+    - !reference [.no-schedule, rules]
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $FORCE_RUN == "true"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - amaterasu-web/**/*
+        - .gitlab-ci.yml
+
+# Lockfiles, ruff over the repo, the CLI smoke test and the mock's end-to-end selftest
+test-python:
+  stage: test
+  image: python:3.14-slim
+  allow_failure: true
+  interruptible: true
+  script:
+    - pip install -q uv==0.13.7
+    - |
+      set -eu
+      for r in amaterasu-proxmox/requirements amaterasu-proxmox/mock/requirements amaterasu-populate/requirements requirements-dev; do
+        cp $r.txt /tmp/committed.txt
+        uv pip compile --quiet --universal --generate-hashes --python-version 3.14 $r.in -o $r.txt
+        cmp -s /tmp/committed.txt $r.txt || { echo "$r.txt does not match $r.in; run npm run deps:lock"; exit 1; }
+      done
+    - uv venv -q /tmp/venv
+    - VIRTUAL_ENV=/tmp/venv uv pip install -q --require-hashes -r requirements-dev.txt -r amaterasu-proxmox/requirements.txt -r amaterasu-proxmox/mock/requirements.txt -r amaterasu-populate/requirements.txt
+    - export PATH="/tmp/venv/bin:$PATH"
+    - ruff check .
+    - python amaterasu-proxmox/main.py
+    - python amaterasu-proxmox/mock/selftest.py
+  tags:
+    - docker
+  rules:
+    - !reference [.no-schedule, rules]
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $FORCE_RUN == "true"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - amaterasu-proxmox/**/*
+        - amaterasu-populate/**/*
+        - requirements-dev.*
+        - ruff.toml
+        - .gitlab-ci.yml
+
+# Builds tag images with the 7-character commit SHA, as the hand deploy did, push them and
+# tell deploy which services to roll through a dotenv
+.build:
+  stage: build
+  image: docker:26.1.4
+  retry: 2
+  interruptible: true
+  before_script:
+    - echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY" -u "$REGISTRY_USERNAME" --password-stdin
+    - echo "$DOCKER_HUB_ACCESS_TOKEN" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+    - export TAG=$(echo "$CI_COMMIT_SHA" | cut -c1-7)
+    - export IMAGE="$REGISTRY/$NAMESPACE/$SERVICE:$TAG"
+  artifacts:
+    reports:
+      dotenv: build.env
   tags:
     - docker
 
+build-rest:
+  extends: .build
+  needs:
+    - job: test-rest
+      optional: true
+  variables:
+    SERVICE: amaterasu-rest
+    SERVICE_KEY: REST
+  script:
+    - cd amaterasu-rest
+    - docker buildx build --pull --load --target runtime-stage --build-arg PROJECT=$SERVICE --build-arg GIT_SHA=$TAG -t "$IMAGE" .
+    - docker push "$IMAGE"
+    - echo "BUILT_${SERVICE_KEY}=$SERVICE" >> "$CI_PROJECT_DIR/build.env"
+  rules:
+    - !reference [.no-schedule, rules]
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $FORCE_RUN == "true"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - amaterasu-rest/**/*
+        - docker-compose.yml
+        - .gitlab-ci.yml
+
+build-web:
+  extends: .build
+  needs:
+    - job: test-web
+      optional: true
+  variables:
+    SERVICE: amaterasu-web
+    SERVICE_KEY: WEB
+  script:
+    - cd amaterasu-web
+    - docker buildx build --pull --load --target runtime-stage --build-arg GIT_SHA=$TAG -t "$IMAGE" .
+    - docker push "$IMAGE"
+    - echo "BUILT_${SERVICE_KEY}=$SERVICE" >> "$CI_PROJECT_DIR/build.env"
+  rules:
+    - !reference [.no-schedule, rules]
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $FORCE_RUN == "true"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - amaterasu-web/**/*
+        - docker-compose.yml
+        - .gitlab-ci.yml
+
+build-mock:
+  extends: .build
+  needs:
+    - job: test-python
+      optional: true
+  variables:
+    SERVICE: amaterasu-proxmox-mock
+    SERVICE_KEY: MOCK
+  script:
+    - cd amaterasu-proxmox/mock
+    - docker buildx build --pull --load --build-arg GIT_SHA=$TAG -t "$IMAGE" .
+    # The selftest again, inside the image it ships in
+    - docker run --rm "$IMAGE" python selftest.py
+    - docker push "$IMAGE"
+    - echo "BUILT_${SERVICE_KEY}=$SERVICE" >> "$CI_PROJECT_DIR/build.env"
+  rules:
+    - !reference [.no-schedule, rules]
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $FORCE_RUN == "true"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - amaterasu-proxmox/mock/**/*
+        - docker-compose.yml
+        - .gitlab-ci.yml
+
+# Rolls only what was rebuilt, through ci/deploy.sh on the server: waits out a starting lab,
+# dumps the DB (no dump, no deploy), sets TAG in .env, `compose up -d --no-deps`, logs.
+# Run a pipeline with SKIP_LAB_CHECK=true to skip the wait.
 deploy:
   stage: deploy
-  image: ubuntu:20.04
+  image: ubuntu:22.04
+  resource_group: amaterasu-lan
+  needs:
+    - job: build-rest
+      optional: true
+    - job: build-web
+      optional: true
+    - job: build-mock
+      optional: true
+  variables:
+    DB_CONTAINER: postgres
+    DB_USER: infernokun
+    DB_NAME: amaterasu
+    LAB_WAIT_SECONDS: "900"
   before_script:
     - apt-get -yq update
-    - apt-get -yqq install openssh-client iproute2 || { echo "SSH client installation failed"; exit 1; }
+    - apt-get -yqq install openssh-client || { echo "SSH client installation failed"; exit 1; }
     - mkdir -p ~/.ssh
     - install -m 600 -D /dev/null ~/.ssh/id_rsa
     - echo "$STAGE_SERVER_PRIVATE_KEY" | base64 --decode > ~/.ssh/id_rsa
-    - chmod 600 ~/.ssh/id_rsa
     - ssh-keyscan -H "$STAGE_SERVER_HOST" >> ~/.ssh/known_hosts
-    - export DEPLOY_PATH="/home/$STAGE_SERVER_USER/amaterasu"
+    - export TARGET="$STAGE_SERVER_USER@$STAGE_SERVER_HOST" DEPLOY_DIR="/home/$STAGE_SERVER_USER/amaterasu"
   script:
-    - echo "Testing SSH connectivity..."
-    - ssh -i ~/.ssh/id_rsa "$STAGE_SERVER_USER@$STAGE_SERVER_HOST" "echo Connected"
-    - ssh -i ~/.ssh/id_rsa "$STAGE_SERVER_USER@$STAGE_SERVER_HOST" "mkdir -p $DEPLOY_PATH"
-    - if [ ! -f docker-compose.yml ]; then echo "docker-compose.yml not found"; exit 1; fi
-    - scp -i ~/.ssh/id_rsa -r docker-compose.yml "$STAGE_SERVER_USER@$STAGE_SERVER_HOST:$DEPLOY_PATH/."
-    - ssh -i ~/.ssh/id_rsa "$STAGE_SERVER_USER@$STAGE_SERVER_HOST" "cd \"$DEPLOY_PATH\" && docker compose down --remove-orphans && (docker compose pull || echo 'Skipping pull (already up-to-date)') && docker compose up -d"
+    - |
+      set -euo pipefail
+      SERVICES="${BUILT_REST:-} ${BUILT_WEB:-} ${BUILT_MOCK:-}"
+      if [ -z "${SERVICES// /}" ]; then echo "No services were rebuilt"; exit 0; fi
+      TAG=$(echo "$CI_COMMIT_SHA" | cut -c1-7)
+      # Password over stdin, never on a command line
+      echo "$REGISTRY_PASSWORD" | ssh -i ~/.ssh/id_rsa "$TARGET" "docker login $REGISTRY -u $REGISTRY_USERNAME --password-stdin" >/dev/null
+      ssh -i ~/.ssh/id_rsa "$TARGET" \
+        "DEPLOY_DIR=$DEPLOY_DIR DB_CONTAINER=$DB_CONTAINER DB_USER=$DB_USER DB_NAME=$DB_NAME \
+         LAB_WAIT_SECONDS=$LAB_WAIT_SECONDS SKIP_LAB_CHECK=${SKIP_LAB_CHECK:-false} CI_PIPELINE_ID=$CI_PIPELINE_ID \
+         bash -s -- $TAG $REGISTRY/$NAMESPACE $SERVICES" < ci/deploy.sh
   after_script:
     - rm -rf ~/.ssh
   tags:
     - docker
-  dependencies:
-    - build-rest
-    - build-web
-#  when: manual
+  rules:
+    - !reference [.no-schedule, rules]
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $FORCE_RUN == "true"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - amaterasu-rest/**/*
+        - amaterasu-web/**/*
+        - amaterasu-proxmox/mock/**/*
+        - ci/**/*
+        - docker-compose.yml
+        - .gitlab-ci.yml

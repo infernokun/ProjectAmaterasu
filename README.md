@@ -156,6 +156,12 @@ Every compose setting has a default; see [`.env.example`](.env.example) for the 
 - `python`: lockfile check, Ruff, and a smoke run of the Proxmox helper
 - Docker builds of the rest, web and proxmox images, labelled with the commit
 
+`.gitlab-ci.yml` runs on the self-hosted GitLab, which mirrors `main`, so every merge deploys to the LAN server. Each job runs only when its module, `docker-compose.yml` or the CI file changed (or with the `force_run` input):
+
+- test: `test-rest`, `test-web`, `test-python` (lockfiles, Ruff, the mock's selftest)
+- build: `build-rest`, `build-web`, `build-mock`, each after its own test job, push `<registry>/<namespace>/<image>:<7-char sha>`
+- deploy: `ci/deploy.sh` on the server rolls only the rebuilt services. It waits while a lab is starting (an open lab action or a VM whose guest agent hasn't answered), dumps the database to `backups/amaterasu-before-<sha>.dump` and stops if that fails, sets `TAG` in `.env`, runs `docker compose up -d --no-deps` and appends to `deploys.log`.
+
 ## Troubleshooting
 
 ```bash
