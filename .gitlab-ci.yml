@@ -63,7 +63,7 @@ test-web:
   variables:
     PUPPETEER_CACHE_DIR: "$CI_PROJECT_DIR/.chrome-cache"
   cache:
-    - key: chrome-for-testing-131
+    - key: chrome-for-testing-157.0.8103.78
       paths:
         - .chrome-cache/
     - key:
@@ -73,10 +73,11 @@ test-web:
       paths:
         - .pnpm-store/
   before_script:
-    # apt Chromium only for its shared libraries; the browser is a pinned Chrome for Testing
+    # apt Chromium only for its shared libraries; the browser is a pinned Chrome for Testing.
+    # Not 131 as in Nihongo: the search store specs' debounce timing fails 7 specs there.
     - apt-get update -q && apt-get install -y -q chromium unzip
     - npm install -g pnpm@10 -q
-    - export CHROME_BIN=$(npx --yes @puppeteer/browsers install chrome@131 --path "$PUPPETEER_CACHE_DIR" | tail -1 | awk '{print $NF}')
+    - export CHROME_BIN=$(npx --yes @puppeteer/browsers install chrome@157.0.8103.78 --path "$PUPPETEER_CACHE_DIR" | tail -1 | awk '{print $NF}')
     - $CHROME_BIN --version
   script:
     - cd amaterasu-web
