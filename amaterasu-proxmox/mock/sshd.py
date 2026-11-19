@@ -14,7 +14,7 @@ from machines import Machine, World
 from shell import CLEAR, open_shell, welcome
 
 HERE = Path(__file__).parent
-KEY_FILE = HERE / "ssl" / "ssh_host_ed25519_key"
+KEY_FILE = Path(os.getenv("MOCK_SSH_HOST_KEY") or HERE / "ssl" / "ssh_host_ed25519_key")
 
 
 def host_key() -> asyncssh.SSHKey:

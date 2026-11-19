@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+ssl/ssh_host_ed25519_key
+requirements.in
+Dockerfile

@@ -91,7 +91,12 @@ A VM that stops drops its sessions. The bastion template carries an `ssh-port-20
 | `MOCK_SSH_ADDRESS` | this machine's LAN address | The address bastions report and the server listens on |
 | `MOCK_SSH_BIND` | `MOCK_SSH_ADDRESS` | Where the server listens, if that differs (e.g. `0.0.0.0` in a container) |
 | `MOCK_SSH_PORT` | `2022` | The SSH port |
+| `MOCK_SSH_HOST_KEY` | `mock/ssl/ssh_host_ed25519_key` | Where the host key is kept |
 
 The server's host key is generated into `mock/ssl/ssh_host_ed25519_key` on first start and kept (it is not committed), so `known_hosts` stays valid between runs.
+
+### In Docker
+
+`mock/Dockerfile` builds the mock as an image, and the root `docker-compose.yml` runs it as `amaterasu-proxmox-mock` under the `mock` profile, publishing the API on `MOCK_API_PORT` (8006) and SSH on `MOCK_SSH_PORT` (2022). Set `MOCK_SSH_ADDRESS` to the host's LAN address so bastions report one users can reach. The host key lives in the container's `/data` volume. REST reaches the mock over the compose network, so register it with address `amaterasu-proxmox-mock`.
 
 `mock/selftest.py` deploys a bastion lab through the API the way the REST service does and checks SSH logins, a hop, a forward and a console login; CI runs it.
