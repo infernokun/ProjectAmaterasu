@@ -93,7 +93,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [amaterasu-rest, amaterasu-web, amaterasu-proxmox]
+        image: [amaterasu-rest, amaterasu-web, amaterasu-proxmox, amaterasu-proxmox/mock]
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
